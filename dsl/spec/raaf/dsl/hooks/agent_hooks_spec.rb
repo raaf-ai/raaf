@@ -4,7 +4,7 @@ require_relative "../../../spec_helper"
 
 RSpec.describe RAAF::DSL::Hooks::AgentHooks do
   let(:agent_class) do
-    Class.new(RAAF::DSL::Agents::Base) do
+    Class.new(RAAF::DSL::Agent) do
       include RAAF::DSL::Hooks::AgentHooks
 
       def agent_name
@@ -186,7 +186,7 @@ RSpec.describe RAAF::DSL::Hooks::AgentHooks do
 
   describe "inheritance" do
     let(:parent_class) do
-      Class.new(RAAF::DSL::Agents::Base) do
+      Class.new(RAAF::DSL::Agent) do
         include RAAF::DSL::Hooks::AgentHooks
 
         def agent_name

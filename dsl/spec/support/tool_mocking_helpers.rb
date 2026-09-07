@@ -37,36 +37,54 @@ module ToolMockingHelpers
   #     with_suggestions: ["Did you mean: :web_search?"])
   #
   def mock_tool_resolution(tool_name, tool_class, options = {})
-    if tool_class
-      # Mock successful resolution
-      allow(RAAF::ToolRegistry).to receive(:resolve)
-        .with(tool_name)
-        .and_return(tool_class)
+    mocked_tool_resolutions[tool_name] = { tool_class: tool_class, options: options }
+    install_tool_registry_stub!
+  end
 
-      allow(RAAF::ToolRegistry).to receive(:resolve_with_details)
-        .with(tool_name)
-        .and_return({
-                      success: true,
-                      tool_class: tool_class,
-                      identifier: tool_name,
-                      searched_namespaces: options[:searched_namespaces] || [],
-                      suggestions: []
-                    })
-    else
-      # Mock failed resolution
-      allow(RAAF::ToolRegistry).to receive(:resolve)
-        .with(tool_name)
-        .and_return(nil)
+  # Registry of stubbed identifiers for the current example
+  def mocked_tool_resolutions
+    @mocked_tool_resolutions ||= {}
+  end
 
-      allow(RAAF::ToolRegistry).to receive(:resolve_with_details)
-        .with(tool_name)
-        .and_return({
-                      success: false,
-                      tool_class: nil,
-                      identifier: tool_name,
-                      searched_namespaces: options[:searched_namespaces] || ["Ai::Tools", "RAAF::Tools"],
-                      suggestions: options[:with_suggestions] || []
-                    })
+  # One stub for the whole registry, so mocking a second tool does not discard
+  # the first, and unmocked identifiers still resolve normally.
+  def install_tool_registry_stub!
+    return if @tool_registry_stub_installed
+
+    @tool_registry_stub_installed = true
+    resolutions = mocked_tool_resolutions
+
+    allow(RAAF::ToolRegistry).to receive(:safe_lookup).and_wrap_original do |original, identifier|
+      entry = resolutions[identifier]
+      entry ? entry[:tool_class] : original.call(identifier)
+    end
+
+    allow(RAAF::ToolRegistry).to receive(:resolve).and_wrap_original do |original, identifier|
+      entry = resolutions[identifier]
+      entry ? entry[:tool_class] : original.call(identifier)
+    end
+
+    allow(RAAF::ToolRegistry).to receive(:resolve_with_details).and_wrap_original do |original, identifier|
+      entry = resolutions[identifier]
+      next original.call(identifier) unless entry
+
+      if entry[:tool_class]
+        {
+          success: true,
+          tool_class: entry[:tool_class],
+          identifier: identifier,
+          searched_namespaces: entry[:options][:searched_namespaces] || [],
+          suggestions: []
+        }
+      else
+        {
+          success: false,
+          tool_class: nil,
+          identifier: identifier,
+          searched_namespaces: entry[:options][:searched_namespaces] || ["Ai::Tools", "RAAF::Tools"],
+          suggestions: entry[:options][:with_suggestions] || []
+        }
+      end
     end
   end
 
@@ -154,8 +172,9 @@ module ToolMockingHelpers
         define_method(:call) do |**_args|
           response
         end
-      elsif block_given?
-        class_eval(&block)
+      elsif block
+        # A block given here is the tool's call implementation.
+        define_method(:call, &block)
       else
         define_method(:call) do |**args|
           { mock_response: true, args: args }

@@ -3,380 +3,360 @@
 require "spec_helper"
 
 RSpec.describe RAAF::DSL::Agents::ContextValidation do
-  let(:test_class) do
+  # Minimal stand-in for an agent base class: ContextValidation prepends its
+  # InstanceMethods and calls +super+, so the including class needs an
+  # initializer that accepts a +context:+ keyword.
+  let(:base_class) do
     Class.new do
-      include RAAF::DSL::Agents::ContextValidation
-
-      # Mock required context config methods
-      def self._required_context_keys
-        @_required_context_keys ||= []
-      end
-
-      def self._context_validations
-        @_context_validations ||= {}
-      end
-
-      def self.requires(*keys)
-        _required_context_keys.concat(keys)
-      end
-
-      def self.validates(key, **options)
-        _context_validations[key] = options
-      end
-
       attr_reader :context
 
-      def initialize(context = {})
+      def initialize(context: nil, **_options)
         @context = context
-        validate_context!
       end
     end
+  end
+
+  let(:test_class) do
+    Class.new(base_class) do
+      include RAAF::DSL::Agents::ContextValidation
+    end
+  end
+
+  def context_for(**values)
+    RAAF::DSL::ContextVariables.new(values)
   end
 
   describe "class methods" do
-    describe ".requires" do
-      it "adds required context keys" do
-        test_class.requires :user_id, :api_key
-        expect(test_class._required_context_keys).to include(:user_id, :api_key)
+    describe ".validates_context" do
+      it "stores the type rule for a key" do
+        test_class.validates_context :count, type: Integer
+
+        expect(test_class.context_validations[:count]).to eq(type: Integer)
       end
 
-      it "accumulates multiple calls" do
-        test_class.requires :user_id
-        test_class.requires :api_key, :session_id
-        expect(test_class._required_context_keys).to include(:user_id, :api_key, :session_id)
+      it "symbolizes string keys" do
+        test_class.validates_context "count", type: Integer
+
+        expect(test_class.context_validations).to have_key(:count)
+      end
+
+      it "stores custom validation procs and messages" do
+        checker = ->(value) { value.positive? }
+        test_class.validates_context :score, type: Integer, validate: checker, message: "must be positive"
+
+        expect(test_class.context_validations[:score]).to eq(
+          type: Integer,
+          validate: checker,
+          message: "must be positive"
+        )
+      end
+
+      it "omits options that were not provided" do
+        test_class.validates_context :name, type: String
+
+        expect(test_class.context_validations[:name].keys).to contain_exactly(:type)
+      end
+
+      it "accumulates rules across multiple calls" do
+        test_class.validates_context :count, type: Integer
+        test_class.validates_context :name, type: String
+
+        expect(test_class.context_validations.keys).to contain_exactly(:count, :name)
+      end
+
+      it "replaces an earlier rule for the same key" do
+        test_class.validates_context :count, type: Integer
+        test_class.validates_context :count, type: String
+
+        expect(test_class.context_validations[:count]).to eq(type: String)
       end
     end
 
-    describe ".validates" do
-      it "stores validation rules for context keys" do
-        test_class.validates :email, type: String, format: /@/
-        validations = test_class._context_validations
-        expect(validations[:email]).to eq(type: String, format: /@/)
+    describe ".context_validations" do
+      it "is empty for a class without validations" do
+        expect(test_class.context_validations).to eq({})
+      end
+    end
+
+    describe ".validates_context?" do
+      it "is false without validations" do
+        expect(test_class.validates_context?).to be false
       end
 
-      it "supports presence validation" do
-        test_class.validates :name, presence: true
-        expect(test_class._context_validations[:name]).to include(presence: true)
-      end
+      it "is true once a validation is declared" do
+        test_class.validates_context :count, type: Integer
 
-      it "supports type validation" do
-        test_class.validates :count, type: Integer
-        expect(test_class._context_validations[:count]).to include(type: Integer)
-      end
-
-      it "supports range validation" do
-        test_class.validates :age, range: 18..100
-        expect(test_class._context_validations[:age]).to include(range: 18..100)
+        expect(test_class.validates_context?).to be true
       end
     end
   end
 
-  describe "instance methods" do
-    describe "#validate_context!" do
-      context "with required keys" do
-        before do
-          test_class.requires :user_id, :api_key
-        end
-
-        it "passes when all required keys are present" do
-          expect do
-            test_class.new(user_id: 123, api_key: "secret")
-          end.not_to raise_error
-        end
-
-        it "raises error when required keys are missing" do
-          expect do
-            test_class.new(user_id: 123)
-          end.to raise_error(ArgumentError, /Required context keys missing: api_key/)
-        end
-
-        it "raises error with multiple missing keys" do
-          expect do
-            test_class.new({})
-          end.to raise_error(ArgumentError, /Required context keys missing: user_id, api_key/)
-        end
-
-        it "handles symbol and string keys equivalently" do
-          expect do
-            test_class.new("user_id" => 123, "api_key" => "secret")
-          end.not_to raise_error
-        end
-      end
-
-      context "with type validations" do
-        before do
-          test_class.validates :count, type: Integer
-          test_class.validates :name, type: String
-          test_class.validates :active, type: [TrueClass, FalseClass]
-        end
-
-        it "passes when types match" do
-          expect do
-            test_class.new(count: 42, name: "John", active: true)
-          end.not_to raise_error
-        end
-
-        it "raises error for incorrect type" do
-          expect do
-            test_class.new(count: "not a number")
-          end.to raise_error(ArgumentError, /Context key 'count' must be Integer/)
-        end
-
-        it "accepts any of multiple allowed types" do
-          expect do
-            test_class.new(active: false)
-          end.not_to raise_error
-
-          expect do
-            test_class.new(active: true)
-          end.not_to raise_error
-        end
-
-        it "raises error when none of multiple types match" do
-          expect do
-            test_class.new(active: "yes")
-          end.to raise_error(ArgumentError, /Context key 'active' must be TrueClass or FalseClass/)
-        end
-      end
-
-      context "with presence validations" do
-        before do
-          test_class.validates :description, presence: true
-          test_class.validates :optional_field, presence: false
-        end
-
-        it "passes when required field has value" do
-          expect do
-            test_class.new(description: "A description")
-          end.not_to raise_error
-        end
-
-        it "raises error when required field is nil" do
-          expect do
-            test_class.new(description: nil)
-          end.to raise_error(ArgumentError, /Context key 'description' cannot be nil or empty/)
-        end
-
-        it "raises error when required field is empty string" do
-          expect do
-            test_class.new(description: "")
-          end.to raise_error(ArgumentError, /Context key 'description' cannot be nil or empty/)
-        end
-
-        it "raises error when required field is empty array" do
-          expect do
-            test_class.new(description: [])
-          end.to raise_error(ArgumentError, /Context key 'description' cannot be nil or empty/)
-        end
-
-        it "allows nil values when presence is false" do
-          expect do
-            test_class.new(optional_field: nil)
-          end.not_to raise_error
-        end
-      end
-
-      context "with format validations" do
-        before do
-          test_class.validates :email, format: /@/
-          test_class.validates :phone, format: /^\d{10}$/
-        end
-
-        it "passes when format matches" do
-          expect do
-            test_class.new(email: "user@example.com", phone: "1234567890")
-          end.not_to raise_error
-        end
-
-        it "raises error when format doesn't match" do
-          expect do
-            test_class.new(email: "invalid-email")
-          end.to raise_error(ArgumentError, /Context key 'email' format is invalid/)
-        end
-
-        it "skips format validation for nil values" do
-          expect do
-            test_class.new(email: nil)
-          end.not_to raise_error
-        end
-      end
-
-      context "with range validations" do
-        before do
-          test_class.validates :age, range: 18..100
-          test_class.validates :score, range: 0...1
-        end
-
-        it "passes when value is in range" do
-          expect do
-            test_class.new(age: 25, score: 0.85)
-          end.not_to raise_error
-        end
-
-        it "raises error when value is below range" do
-          expect do
-            test_class.new(age: 17)
-          end.to raise_error(ArgumentError, /Context key 'age' must be in range 18\.\.100/)
-        end
-
-        it "raises error when value is above range" do
-          expect do
-            test_class.new(age: 101)
-          end.to raise_error(ArgumentError, /Context key 'age' must be in range 18\.\.100/)
-        end
-
-        it "handles exclusive ranges" do
-          expect do
-            test_class.new(score: 1.0)
-          end.to raise_error(ArgumentError, /Context key 'score' must be in range 0\.\.\.1/)
-        end
-
-        it "skips range validation for nil values" do
-          expect do
-            test_class.new(age: nil)
-          end.not_to raise_error
-        end
-      end
-
-      context "with multiple validations" do
-        before do
-          test_class.requires :user_id
-          test_class.validates :user_id, type: Integer, range: 1..Float::INFINITY
-          test_class.validates :email, type: String, presence: true, format: /@/
-        end
-
-        it "applies all validations" do
-          expect do
-            test_class.new(user_id: 123, email: "user@example.com")
-          end.not_to raise_error
-        end
-
-        it "fails if any validation fails" do
-          expect do
-            test_class.new(user_id: 0, email: "user@example.com")
-          end.to raise_error(ArgumentError, /Context key 'user_id' must be in range/)
-        end
-      end
-
-      context "with custom validation methods" do
-        before do
-          test_class.class_eval do
-            def self.validates_custom(key, **options)
-              validates(key, **options, custom: true)
-            end
-
-            def validate_context_value(key, value, options)
-              raise ArgumentError, "Custom validation failed for #{key}" if options[:custom] && value == "forbidden"
-
-              super if defined?(super)
-            end
-          end
-
-          test_class.validates_custom :status, custom: true
-        end
-
-        it "allows custom validation logic" do
-          expect do
-            test_class.new(status: "allowed")
-          end.not_to raise_error
-        end
-
-        it "raises error for custom validation failure" do
-          expect do
-            test_class.new(status: "forbidden")
-          end.to raise_error(ArgumentError, /Custom validation failed for status/)
-        end
+  describe ".validate_context!" do
+    context "without validations" do
+      it "accepts any context" do
+        expect { test_class.validate_context!(context_for(anything: Object.new)) }.not_to raise_error
       end
     end
 
-    describe "#context_valid?" do
+    context "with type validations" do
       before do
-        test_class.requires :user_id
-        test_class.validates :email, format: /@/
+        test_class.validates_context :count, type: Integer
+        test_class.validates_context :active, type: [TrueClass, FalseClass]
       end
 
-      it "returns true for valid context" do
-        instance = test_class.new(user_id: 123, email: "user@example.com")
-        expect(instance.context_valid?).to eq(true)
+      it "passes when the types match" do
+        expect { test_class.validate_context!(context_for(count: 42, active: true)) }.not_to raise_error
       end
 
-      it "returns false for invalid context (this would be called before validation)" do
-        # NOTE: This test assumes context_valid? can be called independently
-        # In practice, initialize would fail first with invalid context
-        test_instance = test_class.allocate # Create without calling initialize
-        test_instance.instance_variable_set(:@context, {})
-        expect(test_instance.context_valid?).to eq(false)
+      it "accepts any of several allowed types" do
+        expect { test_class.validate_context!(context_for(active: false)) }.not_to raise_error
+      end
+
+      it "reports the expected and actual type" do
+        expect { test_class.validate_context!(context_for(count: "42")) }.to raise_error(
+          described_class::ContextValidationError,
+          /Context key 'count' must be Integer but was String/
+        )
+      end
+
+      it "lists every allowed type when none match" do
+        expect { test_class.validate_context!(context_for(active: "yes")) }.to raise_error(
+          described_class::ContextValidationError,
+          /Context key 'active' must be TrueClass or FalseClass but was String/
+        )
+      end
+
+      it "skips nil values so Ruby fails naturally instead" do
+        expect { test_class.validate_context!(context_for(count: nil)) }.not_to raise_error
+      end
+
+      it "skips keys that are absent from the context" do
+        expect { test_class.validate_context!(context_for(other: 1)) }.not_to raise_error
+      end
+    end
+
+    context "with custom validation" do
+      it "passes when the proc returns truthy" do
+        test_class.validates_context :score, validate: ->(value) { value.between?(0, 100) }
+
+        expect { test_class.validate_context!(context_for(score: 50)) }.not_to raise_error
+      end
+
+      it "uses a default message when the proc returns falsey" do
+        test_class.validates_context :score, validate: ->(value) { value.between?(0, 100) }
+
+        expect { test_class.validate_context!(context_for(score: 150)) }.to raise_error(
+          described_class::ContextValidationError,
+          /Context key 'score' failed custom validation/
+        )
+      end
+
+      it "uses the configured message when provided" do
+        test_class.validates_context :email,
+                                     validate: ->(value) { value.include?("@") },
+                                     message: "must be a valid email address"
+
+        expect { test_class.validate_context!(context_for(email: "nope")) }.to raise_error(
+          described_class::ContextValidationError,
+          /Context key 'email' must be a valid email address/
+        )
+      end
+
+      it "turns an exception raised inside the proc into a validation error" do
+        test_class.validates_context :score, validate: ->(_value) { raise "boom" }
+
+        expect { test_class.validate_context!(context_for(score: 1)) }.to raise_error(
+          described_class::ContextValidationError,
+          /Context key 'score' validation error: boom/
+        )
+      end
+
+      it "runs the type check before the custom validation" do
+        test_class.validates_context :score, type: Integer, validate: ->(value) { value.positive? }
+
+        expect { test_class.validate_context!(context_for(score: "5")) }.to raise_error(
+          described_class::ContextValidationError,
+          /must be Integer but was String/
+        )
+      end
+    end
+
+    context "with several failing keys" do
+      before do
+        test_class.validates_context :count, type: Integer
+        test_class.validates_context :name, type: String
+      end
+
+      it "collects every error into one exception" do
+        expect { test_class.validate_context!(context_for(count: "x", name: 1)) }.to raise_error(
+          described_class::ContextValidationError
+        ) do |error|
+          expect(error.errors.size).to eq(2)
+        end
       end
     end
   end
 
-  describe "inheritance behavior" do
-    let(:parent_class) do
-      Class.new do
-        include RAAF::DSL::Agents::ContextValidation
+  describe described_class::ContextValidationError do
+    let(:context) { RAAF::DSL::ContextVariables.new(count: "x") }
+    let(:error) { described_class.new(["Context key 'count' must be Integer but was String"], context) }
 
-        def self._required_context_keys
-          @_required_context_keys ||= []
-        end
+    it "exposes the collected errors" do
+      expect(error.errors).to eq(["Context key 'count' must be Integer but was String"])
+    end
 
-        def self._context_validations
-          @_context_validations ||= {}
-        end
+    it "exposes the context that failed" do
+      expect(error.context).to eq(context)
+    end
 
-        def self.requires(*keys)
-          _required_context_keys.concat(keys)
-        end
+    it "summarizes the error count in the message" do
+      expect(error.message).to include("Context validation failed with 1 error(s)")
+    end
 
-        def self.validates(key, **options)
-          _context_validations[key] = options
-        end
+    it "lists the context keys that were present" do
+      expect(error.message).to include("Context keys present:")
+      expect(error.message).to include("count")
+    end
+  end
 
-        requires :base_id
-        validates :base_field, type: String
+  describe "validation on instantiation" do
+    before do
+      test_class.validates_context :count, type: Integer
+      allow(RAAF.logger).to receive(:error)
+      allow(RAAF.logger).to receive(:debug)
+    end
 
-        attr_reader :context
+    it "builds the instance when the context is valid" do
+      instance = test_class.new(context: context_for(count: 1))
 
-        def initialize(context = {})
-          @context = context
-          validate_context!
-        end
+      expect(instance.context.get(:count)).to eq(1)
+    end
+
+    it "raises when the context is invalid" do
+      expect { test_class.new(context: context_for(count: "1")) }.to raise_error(
+        described_class::ContextValidationError
+      )
+    end
+
+    it "logs the failure before re-raising" do
+      expect(RAAF.logger).to receive(:error).with(/Context validation failed/)
+
+      expect { test_class.new(context: context_for(count: "1")) }.to raise_error(
+        described_class::ContextValidationError
+      )
+    end
+
+    it "skips validation entirely when no rules are declared" do
+      plain_class = Class.new(base_class) { include RAAF::DSL::Agents::ContextValidation }
+
+      expect { plain_class.new(context: nil) }.not_to raise_error
+    end
+  end
+
+  describe RAAF::DSL::Agents::ContextValidators do
+    describe "NOT_BLANK" do
+      it "accepts a string with content" do
+        expect(described_class::NOT_BLANK.call("hello")).to be true
+      end
+
+      it "rejects whitespace-only strings" do
+        expect(described_class::NOT_BLANK.call("   ")).to be false
+      end
+
+      it "rejects non-strings" do
+        expect(described_class::NOT_BLANK.call(1)).to be false
       end
     end
 
-    let(:child_class) do
-      Class.new(parent_class) do
-        requires :child_id
-        validates :child_field, type: Integer
+    describe "POSITIVE" do
+      it "accepts positive numbers" do
+        expect(described_class::POSITIVE.call(1)).to be true
+      end
+
+      it "rejects zero" do
+        expect(described_class::POSITIVE.call(0)).to be false
       end
     end
 
-    it "inherits parent validation rules" do
-      # Child class should require both base_id and child_id
-      expect do
-        child_class.new(child_id: 456, child_field: 789)
-      end.to raise_error(ArgumentError, /Required context keys missing: base_id/)
+    describe "NON_NEGATIVE" do
+      it "accepts zero" do
+        expect(described_class::NON_NEGATIVE.call(0)).to be true
+      end
+
+      it "rejects negative numbers" do
+        expect(described_class::NON_NEGATIVE.call(-1)).to be false
+      end
     end
 
-    it "combines parent and child validation rules" do
-      expect do
-        child_class.new(
-          base_id: 123,
-          child_id: 456,
-          base_field: "string",
-          child_field: 789
-        )
-      end.not_to raise_error
+    describe "PERCENTAGE" do
+      it "accepts the range boundaries" do
+        expect(described_class::PERCENTAGE.call(0)).to be true
+        expect(described_class::PERCENTAGE.call(100)).to be true
+      end
+
+      it "rejects values above 100" do
+        expect(described_class::PERCENTAGE.call(101)).to be false
+      end
     end
 
-    it "validates both parent and child field types" do
-      expect do
-        child_class.new(
-          base_id: 123,
-          child_id: 456,
-          base_field: 123, # Should be string
-          child_field: 789
-        )
-      end.to raise_error(ArgumentError, /Context key 'base_field' must be String/)
+    describe "EMAIL" do
+      it "accepts a well-formed address" do
+        expect(described_class::EMAIL.call("user@example.com")).to be_truthy
+      end
+
+      it "rejects a malformed address" do
+        expect(described_class::EMAIL.call("user-at-example")).to be_falsey
+      end
+    end
+
+    describe "URL" do
+      it "accepts an http URL" do
+        expect(described_class::URL.call("https://example.com")).to be_truthy
+      end
+
+      it "rejects a non-URL" do
+        expect(described_class::URL.call("not a url")).to be_falsey
+      end
+    end
+
+    describe ".included_in" do
+      it "accepts a member of the list" do
+        expect(described_class.included_in(%w[a b]).call("a")).to be true
+      end
+
+      it "rejects a value outside the list" do
+        expect(described_class.included_in(%w[a b]).call("c")).to be false
+      end
+    end
+
+    describe ".length_between" do
+      it "accepts a string inside the bounds" do
+        expect(described_class.length_between(2, 4).call("abc")).to be true
+      end
+
+      it "rejects a string outside the bounds" do
+        expect(described_class.length_between(2, 4).call("abcde")).to be false
+      end
+    end
+
+    describe ".array_size_between" do
+      it "accepts an array inside the bounds" do
+        expect(described_class.array_size_between(1, 3).call([1, 2])).to be true
+      end
+
+      it "rejects an array outside the bounds" do
+        expect(described_class.array_size_between(1, 3).call([])).to be false
+      end
+    end
+
+    describe ".between" do
+      it "accepts a number inside the bounds" do
+        expect(described_class.between(1, 10).call(5)).to be true
+      end
+
+      it "rejects a number outside the bounds" do
+        expect(described_class.between(1, 10).call(11)).to be false
+      end
     end
   end
 end

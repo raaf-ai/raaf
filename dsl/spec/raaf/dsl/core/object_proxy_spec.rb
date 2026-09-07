@@ -45,7 +45,7 @@ RSpec.describe RAAF::DSL::ObjectProxy do
   end
 
   # Test struct for proxy
-  ProxyProxyTestStruct = Struct.new(:name, :value)
+  ProxyTestStruct = Struct.new(:name, :value)
 
   describe "#initialize" do
     it "creates a proxy for any object" do

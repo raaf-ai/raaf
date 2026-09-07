@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "benchmark"
 require "spec_helper"
 require_relative "../../support/tool_mocking_helpers"
 
@@ -19,29 +20,27 @@ RSpec.describe "Backward Compatibility" do
   end
 
   describe "deprecated method usage" do
-    context "when using uses_tool (now aliased to tool)" do
-      it "continues to work with the alias" do
+    context "when using tool (the replacement for uses_tool)" do
+      it "registers the tool" do
         agent_class = Class.new(RAAF::DSL::Agent) do
           agent_name "BackwardCompatAgent"
           model "gpt-4o"
-          uses_tool :web_search
+          tool :web_search
         end
 
         expect { agent_class.new }.not_to raise_error
-        agent = agent_class.new
-        expect(agent.class._tools_config.first[:name]).to eq(:web_search)
+        expect(agent_class._tools_config.first[:tool_class]).to be_a(Class)
       end
 
       it "works with options hash" do
         agent_class = Class.new(RAAF::DSL::Agent) do
           agent_name "BackwardCompatAgent"
           model "gpt-4o"
-          uses_tool :calculator, max_retries: 3
+          tool :calculator, max_retries: 3
         end
 
-        agent = agent_class.new
-        config = agent.class._tools_config.first
-        expect(config[:name]).to eq(:calculator)
+        config = agent_class._tools_config.first
+        expect(config[:tool_class]).to be_a(Class)
         expect(config[:options][:max_retries]).to eq(3)
       end
     end
@@ -79,36 +78,33 @@ RSpec.describe "Backward Compatibility" do
     end
 
     context "when using multiple tool registration patterns" do
-      it "supports uses_tools for backward compatibility" do
+      it "registers several tools with tools" do
         agent_class = Class.new(RAAF::DSL::Agent) do
           agent_name "MultiToolAgent"
           model "gpt-4o"
-          uses_tools :web_search, :calculator
+          tools :web_search, :calculator
         end
 
-        agent = agent_class.new
-        expect(agent.class._tools_config.length).to eq(2)
-        expect(agent.class._tools_config.map { |c| c[:name] }).to contain_exactly(:web_search, :calculator)
+        expect(agent_class._tools_config.length).to eq(2)
+        expect(agent_class._tools_config.map { |c| c[:tool_class] }).to all(be_a(Class))
       end
 
-      it "supports configure_tools for backward compatibility" do
+      it "carries per-tool options through separate tool calls" do
         agent_class = Class.new(RAAF::DSL::Agent) do
           agent_name "ConfiguredAgent"
           model "gpt-4o"
-          configure_tools(
-            web_search: { max_results: 10 },
-            calculator: { precision: 2 }
-          )
+          tool :web_search, max_results: 10
+          tool :calculator, precision: 2
         end
 
-        agent = agent_class.new
-        configs = agent.class._tools_config
+        options = agent_class._tools_config.map { |c| c[:options] }
 
-        web_search_config = configs.find { |c| c[:name] == :web_search }
-        calc_config = configs.find { |c| c[:name] == :calculator }
+        expect(options).to contain_exactly({ max_results: 10 }, { precision: 2 })
+      end
 
-        expect(web_search_config[:options][:max_results]).to eq(10)
-        expect(calc_config[:options][:precision]).to eq(2)
+      it "no longer answers to the removed uses_tools and configure_tools" do
+        expect(RAAF::DSL::Agent).not_to respond_to(:uses_tools)
+        expect(RAAF::DSL::Agent).not_to respond_to(:configure_tools)
       end
     end
   end
@@ -123,16 +119,17 @@ RSpec.describe "Backward Compatibility" do
 
       agent = agent_class.new
 
-      # These methods should not exist
+      # The uses_* family was removed in 2.0.0 (see MIGRATION_GUIDE.md)
+      expect(agent.class).not_to respond_to(:uses_tool)
+      expect(agent.class).not_to respond_to(:uses_tools)
       expect(agent.class).not_to respond_to(:uses_tool_if)
       expect(agent.class).not_to respond_to(:uses_external_tool)
       expect(agent.class).not_to respond_to(:uses_native_tool)
+      expect(agent.class).not_to respond_to(:configure_tools)
 
-      # But these should work (backward compatible)
-      expect(agent.class).to respond_to(:uses_tool)
-      expect(agent.class).to respond_to(:uses_tools)
-      expect(agent.class).to respond_to(:configure_tools)
+      # Its replacements
       expect(agent.class).to respond_to(:tool)
+      expect(agent.class).to respond_to(:tools)
     end
 
     it "documents required code changes through error messages" do
@@ -158,14 +155,15 @@ RSpec.describe "Backward Compatibility" do
 
   describe "tool resolution compatibility" do
     it "maintains compatibility with direct class references" do
+      weather_tool = create_fixture_tool(:weather)
+
       agent_class = Class.new(RAAF::DSL::Agent) do
         agent_name "DirectRefAgent"
         model "gpt-4o"
-        tool create_fixture_tool(:weather)
+        tool weather_tool
       end
 
-      agent = agent_class.new
-      expect(agent.class._tools_config.first[:tool_class]).to be_a(Class)
+      expect(agent_class._tools_config.first[:tool_class]).to eq(weather_tool)
     end
 
     it "maintains compatibility with symbol references" do
@@ -175,12 +173,12 @@ RSpec.describe "Backward Compatibility" do
         tool :web_search
       end
 
-      agent = agent_class.new
-      expect(agent.class._tools_config.first[:name]).to eq(:web_search)
+      expect(agent_class._tools_config.first[:tool_class]).to be_a(Class)
     end
 
     it "maintains compatibility with string references" do
-      mock_tool_resolution("string_tool", create_fixture_tool(:search))
+      string_tool = create_fixture_tool(:search)
+      mock_tool_resolution("string_tool", string_tool)
 
       agent_class = Class.new(RAAF::DSL::Agent) do
         agent_name "StringRefAgent"
@@ -188,8 +186,7 @@ RSpec.describe "Backward Compatibility" do
         tool "string_tool"
       end
 
-      agent = agent_class.new
-      expect(agent.class._tools_config.first[:name]).to eq("string_tool")
+      expect(agent_class._tools_config.first[:tool_class]).to eq(string_tool)
     end
   end
 
@@ -198,14 +195,14 @@ RSpec.describe "Backward Compatibility" do
       # Don't mock this tool so it fails to resolve
       clear_tool_mocks!
 
-      agent_class = Class.new(RAAF::DSL::Agent) do
-        agent_name "ErrorAgent"
-        model "gpt-4o"
-        tool :nonexistent_tool
-      end
-
-      expect { agent_class.new }.to raise_error(RAAF::DSL::ToolResolutionError) do |error|
-        expect(error.message).to include("Could not find tool")
+      expect do
+        Class.new(RAAF::DSL::Agent) do
+          agent_name "ErrorAgent"
+          model "gpt-4o"
+          tool "nonexistent_tool"
+        end
+      end.to raise_error(RAAF::DSL::ToolResolutionError) do |error|
+        expect(error.message).to include("Tool not found")
         expect(error.message).to include("nonexistent_tool")
         expect(error.suggestions).not_to be_empty
       end
@@ -214,13 +211,13 @@ RSpec.describe "Backward Compatibility" do
     it "shows searched namespaces in error messages" do
       clear_tool_mocks!
 
-      agent_class = Class.new(RAAF::DSL::Agent) do
-        agent_name "NamespaceErrorAgent"
-        model "gpt-4o"
-        tool :missing_tool
-      end
-
-      expect { agent_class.new }.to raise_error(RAAF::DSL::ToolResolutionError) do |error|
+      expect do
+        Class.new(RAAF::DSL::Agent) do
+          agent_name "NamespaceErrorAgent"
+          model "gpt-4o"
+          tool "missing_tool"
+        end
+      end.to raise_error(RAAF::DSL::ToolResolutionError) do |error|
         expect(error.searched_namespaces).to include("Ai::Tools")
         expect(error.searched_namespaces).to include("RAAF::Tools")
       end
@@ -233,14 +230,13 @@ RSpec.describe "Backward Compatibility" do
         agent_name "BlockConfigAgent"
         model "gpt-4o"
 
-        tool :web_search do |config|
-          config[:max_results] = 20
-          config[:timeout] = 30
+        tool :web_search do
+          max_results 20
+          timeout 30
         end
       end
 
-      agent = agent_class.new
-      config = agent.class._tools_config.first
+      config = agent_class._tools_config.first
       expect(config[:options]).to include(max_results: 20, timeout: 30)
     end
 
@@ -325,33 +321,21 @@ RSpec.describe "Backward Compatibility" do
   end
 
   describe "performance impact verification" do
-    it "maintains performance with backward compatible patterns" do
-      # Measure performance of old pattern (uses_tool)
-      start_time = Time.now
+    it "registers tools without measurable per-call overhead" do
+      # Tool registration is lazy: declaring a tool must not pay for resolving
+      # or instantiating it.
+      expect(RAAF::ToolRegistry).to receive(:safe_lookup).twice.and_call_original
 
-      Class.new(RAAF::DSL::Agent) do
-        agent_name "OldPatternPerfAgent"
-        model "gpt-4o"
-        uses_tool :web_search
-        uses_tool :calculator
+      elapsed = Benchmark.realtime do
+        Class.new(RAAF::DSL::Agent) do
+          agent_name "PerfAgent"
+          model "gpt-4o"
+          tool :web_search
+          tool :calculator
+        end
       end
 
-      old_pattern_time = (Time.now - start_time) * 1000
-
-      # Measure performance of new pattern (tool)
-      start_time = Time.now
-
-      Class.new(RAAF::DSL::Agent) do
-        agent_name "NewPatternPerfAgent"
-        model "gpt-4o"
-        tool :web_search
-        tool :calculator
-      end
-
-      new_pattern_time = (Time.now - start_time) * 1000
-
-      # Performance should be similar (within 20%)
-      expect(old_pattern_time).to be_within(new_pattern_time * 0.2).of(new_pattern_time)
+      expect(elapsed).to be < 0.1
     end
   end
 
@@ -362,28 +346,20 @@ RSpec.describe "Backward Compatibility" do
         agent_name "LegacyComplexAgent"
         model "gpt-4o"
 
-        # Mix of patterns that should work
-        uses_tool :web_search, max_results: 10
-        uses_tools :calculator
-
-        configure_tools(
-          web_search: { api_key: "test" }
-        )
+        # The 2.0 equivalents of the uses_* family
+        tool :web_search, max_results: 10
+        tools :calculator
+        tool :web_search, api_key: "test"
       end
 
-      agent = legacy_agent.new
-      configs = agent.class._tools_config
+      configs = legacy_agent._tools_config
 
-      # Should have both tools configured
-      expect(configs.length).to eq(2)
-
-      # Web search should have merged options
-      web_search_configs = configs.select { |c| c[:name] == :web_search }
-      expect(web_search_configs.length).to eq(2) # Registered twice
-
-      # Calculator should be registered once
-      calc_configs = configs.select { |c| c[:name] == :calculator }
-      expect(calc_configs.length).to eq(1)
+      expect(configs.length).to eq(3)
+      expect(configs.map { |c| c[:options] }).to contain_exactly(
+        { max_results: 10 },
+        {},
+        { api_key: "test" }
+      )
     end
 
     it "provides migration path for conditional tool loading" do
@@ -401,31 +377,20 @@ RSpec.describe "Backward Compatibility" do
         tool :calculator unless condition
       end
 
-      agent = agent_class.new
-      configs = agent.class._tools_config
+      configs = agent_class._tools_config
 
       # Only web_search should be added
       expect(configs.length).to eq(1)
-      expect(configs.first[:name]).to eq(:web_search)
+      expect(configs.first[:tool_class]).to eq(@mock_search_tool)
     end
 
-    it "handles tool type detection for migration" do
-      # Create different tool types
-      if defined?(RAAF::DSL::Tools::Base)
-        dsl_tool = Class.new(RAAF::DSL::Tools::Base) do
-          def call
-            { type: "dsl" }
-          end
-        end
-      end
-
+    it "records the resolved class for a plain callable tool" do
       function_tool = Class.new do
         def call
           { type: "function" }
         end
       end
 
-      mock_tool_resolution(:dsl_tool, dsl_tool) if dsl_tool
       mock_tool_resolution(:function_tool, function_tool)
 
       agent_class = Class.new(RAAF::DSL::Agent) do
@@ -434,11 +399,7 @@ RSpec.describe "Backward Compatibility" do
         tool :function_tool
       end
 
-      agent = agent_class.new
-      config = agent.class._tools_config.first
-
-      # Tool type should be detected
-      expect(config[:tool_type]).to be_in(%i[native external])
+      expect(agent_class._tools_config.first[:tool_class]).to eq(function_tool)
     end
   end
 end

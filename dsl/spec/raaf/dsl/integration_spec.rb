@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-require_relative "../support/tool_mocking_helpers"
+require_relative "../../support/tool_mocking_helpers"
 
 RSpec.describe "Complete Integration Tests" do
   include ToolMockingHelpers

@@ -47,7 +47,7 @@ RSpec.describe RAAF::DSL::ObjectSerializer do
   end
 
   # Test struct for serializer
-  SerializerSerializerTestStruct = Struct.new(:name, :value, :nested) do
+  SerializerTestStruct = Struct.new(:name, :value, :nested) do
     def custom_method
       "#{name}: #{value}"
     end
