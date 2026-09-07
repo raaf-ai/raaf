@@ -85,28 +85,18 @@ RSpec.describe RAAF::RateLimiter do
       it "raises error on timeout when capacity exhausted" do
         limiter = described_class.new(provider: "test", requests_per_minute: 1)
 
+        # Move away from the minute boundary BEFORE filling the window. The
+        # window resets at :00, so a reset between filling it and testing it
+        # would hand out a fresh token and the acquire would succeed.
+        current_sec = Time.now.sec
+        sleep((70 - current_sec) % 60) if current_sec > 50 || current_sec < 10
+
         # Fill up the minute window completely
         limiter.acquire { "first" }
 
-        # Wait to be safely into the minute (not near boundary)
-        current_sec = Time.now.sec
-        if current_sec < 10
-          sleep(10 - current_sec)  # Move to :10 seconds
-        elsif current_sec > 50
-          sleep(70 - current_sec)  # Move to :10 seconds of next minute
-        end
-
-        # Now attempt with very short timeout - should fail unless we get very unlucky with timing
-        # This test may occasionally pass if run exactly at minute boundary
-        begin
-          expect do
-            limiter.acquire(max_wait_seconds: 0.5) { "should timeout" }
-          end.to raise_error(RuntimeError, /Rate limit acquisition timeout/)
-        rescue RSpec::Expectations::ExpectationNotMetError
-          # If we got unlucky with timing and window reset occurred, skip this assertion
-          # The important thing is that the rate limiter itself is working
-          pending "Test coincided with minute boundary - rate limiter working correctly"
-        end
+        expect do
+          limiter.acquire(max_wait_seconds: 0.5) { "should timeout" }
+        end.to raise_error(RuntimeError, /Rate limit acquisition timeout/)
       end
 
       it "includes provider name in timeout error" do

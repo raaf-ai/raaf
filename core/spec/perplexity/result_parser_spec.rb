@@ -18,7 +18,7 @@ RSpec.describe RAAF::Perplexity::ResultParser do
         "https://ruby-lang.org/news/2024/ruby-3-4-released",
         "https://github.com/ruby/ruby"
       ],
-      "web_results" => [
+      "search_results" => [
         {
           "title" => "Ruby 3.4 Released",
           "url" => "https://ruby-lang.org/news/2024/ruby-3-4-released",
@@ -95,40 +95,40 @@ RSpec.describe RAAF::Perplexity::ResultParser do
     end
   end
 
-  describe ".extract_web_results" do
-    it "extracts web_results array from response" do
-      web_results = described_class.extract_web_results(sample_result)
+  describe ".extract_search_results" do
+    it "extracts search_results array from response" do
+      search_results = described_class.extract_search_results(sample_result)
 
-      expect(web_results).to be_an(Array)
-      expect(web_results.length).to eq(2)
-      expect(web_results.first["title"]).to eq("Ruby 3.4 Released")
-      expect(web_results.first["url"]).to eq("https://ruby-lang.org/news/2024/ruby-3-4-released")
+      expect(search_results).to be_an(Array)
+      expect(search_results.length).to eq(2)
+      expect(search_results.first["title"]).to eq("Ruby 3.4 Released")
+      expect(search_results.first["url"]).to eq("https://ruby-lang.org/news/2024/ruby-3-4-released")
     end
 
-    it "returns empty array when web_results missing" do
+    it "returns empty array when search_results missing" do
       result = { "choices" => [] }
-      web_results = described_class.extract_web_results(result)
+      search_results = described_class.extract_search_results(result)
 
-      expect(web_results).to eq([])
+      expect(search_results).to eq([])
     end
 
-    it "returns empty array when web_results is nil" do
-      result = { "web_results" => nil }
-      web_results = described_class.extract_web_results(result)
+    it "returns empty array when search_results is nil" do
+      result = { "search_results" => nil }
+      search_results = described_class.extract_search_results(result)
 
-      expect(web_results).to eq([])
+      expect(search_results).to eq([])
     end
 
     it "handles single web result" do
       result = {
-        "web_results" => [
+        "search_results" => [
           { "title" => "Test", "url" => "https://test.com" }
         ]
       }
-      web_results = described_class.extract_web_results(result)
+      search_results = described_class.extract_search_results(result)
 
-      expect(web_results.length).to eq(1)
-      expect(web_results.first["title"]).to eq("Test")
+      expect(search_results.length).to eq(1)
+      expect(search_results.first["title"]).to eq("Test")
     end
   end
 
@@ -143,7 +143,7 @@ RSpec.describe RAAF::Perplexity::ResultParser do
                                             "https://ruby-lang.org/news/2024/ruby-3-4-released",
                                             "https://github.com/ruby/ruby"
                                           ])
-      expect(formatted[:web_results].length).to eq(2)
+      expect(formatted[:search_results].length).to eq(2)
       expect(formatted[:model]).to eq("sonar-pro")
     end
 
@@ -158,14 +158,14 @@ RSpec.describe RAAF::Perplexity::ResultParser do
       expect(formatted[:content]).to be_a(String)
     end
 
-    it "formats result with missing web_results" do
+    it "formats result with missing search_results" do
       result = sample_result.dup
-      result.delete("web_results")
+      result.delete("search_results")
 
       formatted = described_class.format_search_result(result)
 
       expect(formatted[:success]).to be true
-      expect(formatted[:web_results]).to eq([])
+      expect(formatted[:search_results]).to eq([])
       expect(formatted[:content]).to be_a(String)
     end
 
@@ -173,7 +173,7 @@ RSpec.describe RAAF::Perplexity::ResultParser do
       result = {
         "choices" => [{ "message" => {} }],
         "citations" => [],
-        "web_results" => [],
+        "search_results" => [],
         "model" => "sonar"
       }
 
@@ -182,7 +182,7 @@ RSpec.describe RAAF::Perplexity::ResultParser do
       expect(formatted[:success]).to be true
       expect(formatted[:content]).to be_nil
       expect(formatted[:citations]).to eq([])
-      expect(formatted[:web_results]).to eq([])
+      expect(formatted[:search_results]).to eq([])
     end
 
     it "includes model information" do
@@ -192,7 +192,7 @@ RSpec.describe RAAF::Perplexity::ResultParser do
     end
 
     it "always marks result as success" do
-      result = { "citations" => [], "web_results" => [] }
+      result = { "citations" => [], "search_results" => [] }
       formatted = described_class.format_search_result(result)
 
       expect(formatted[:success]).to be true

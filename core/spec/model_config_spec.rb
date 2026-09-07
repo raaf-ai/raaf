@@ -359,8 +359,7 @@ RSpec.describe RAAF::Config::ModelConfig do
       expect(merged.user).to eq("new_user")
       expect(merged.stream).to be true
       expect(merged.previous_response_id).to eq("new-response-123")
-      # parallel_tool_calls is not handled by merge method
-      expect(merged.parallel_tool_calls).to be_nil
+      expect(merged.parallel_tool_calls).to be true
       expect(merged.model_kwargs).to include(
         custom_param: "base_value",
         extra_param: "extra_value"
@@ -397,7 +396,9 @@ RSpec.describe RAAF::Config::ModelConfig do
         user: "user123",
         stream: true,
         model_kwargs: { custom_param: "value" },
-        previous_response_id: "resp-456"
+        previous_response_id: "resp-456",
+        parallel_tool_calls: nil,
+        response_format: nil
       )
     end
 
@@ -417,16 +418,18 @@ RSpec.describe RAAF::Config::ModelConfig do
         user: nil,
         stream: false,
         model_kwargs: {},
-        previous_response_id: nil
+        previous_response_id: nil,
+        parallel_tool_calls: nil,
+        response_format: nil
       )
     end
 
-    it "does not include parallel_tool_calls in to_h output" do
+    it "includes parallel_tool_calls in to_h output" do
       config = described_class.new(parallel_tool_calls: true)
 
       hash = config.to_h
 
-      expect(hash).not_to include(:parallel_tool_calls)
+      expect(hash[:parallel_tool_calls]).to be true
     end
   end
 

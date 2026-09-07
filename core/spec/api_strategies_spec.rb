@@ -185,10 +185,12 @@ RSpec.describe "RAAF API Strategies" do
                usage: { total_tokens: 25 },
                last_agent: agent,
                turns: 1,
-               tool_results: [])
+               tool_results: [],
+               metadata: { responses: [] })
       end
 
       before do
+        allow(runner).to receive(:tracing_enabled?).and_return(false)
         allow(runner).to receive(:send).with(:execute_responses_api_core, messages, config, with_tracing: false)
                                        .and_return(mock_result)
       end
@@ -210,7 +212,8 @@ RSpec.describe "RAAF API Strategies" do
                                final_result: true,
                                last_agent: agent,
                                turns: 1,
-                               tool_results: []
+                               tool_results: [],
+                               provider_metadata: { responses: [] }
                              })
       end
 
