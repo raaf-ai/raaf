@@ -27,18 +27,17 @@ module RAAF
 
         let(:mock_span) do
           double("Span",
-            span_id: "span_123",
-            trace_id: "trace_456",
-            parent_id: "parent_789",
-            name: "Test Span",
-            kind: "tool",
-            status: "success",
-            start_time: Time.parse("2025-09-25 10:00:00 UTC"),
-            end_time: Time.parse("2025-09-25 10:00:00.150 UTC"),
-            duration_ms: 150,
-            span_attributes: base_span_attributes,
-            depth: 1
-          )
+                 span_id: "span_123",
+                 trace_id: "trace_456",
+                 parent_id: "parent_789",
+                 name: "Test Span",
+                 kind: "tool",
+                 status: "success",
+                 start_time: Time.parse("2025-09-25 10:00:00 UTC"),
+                 end_time: Time.parse("2025-09-25 10:00:00.150 UTC"),
+                 duration_ms: 150,
+                 span_attributes: base_span_attributes,
+                 depth: 1)
         end
 
         # Create a concrete test class since SpanDetailBase is abstract
@@ -224,7 +223,7 @@ module RAAF
           end
 
           it "formats array as pretty JSON" do
-            data = ["item1", "item2"]
+            data = %w[item1 item2]
             result = component_instance.send(:format_json_display, data)
             expect(result).to include('"item1"')
             expect(result).to include('"item2"')
@@ -234,7 +233,7 @@ module RAAF
             json_string = '{"parsed": true}'
             result = component_instance.send(:format_json_display, json_string)
             expect(result).to include('"parsed"')
-            expect(result).to include('true')
+            expect(result).to include("true")
           end
 
           it "returns original string for invalid JSON" do
@@ -367,7 +366,7 @@ module RAAF
 
         # Task 5.4 - Performance optimization tests
         describe "large data handling" do
-          let(:large_data) { { "key" => "x" * 15000 } } # Large data over threshold
+          let(:large_data) { { "key" => "x" * 15_000 } } # Large data over threshold
           let(:small_data) { { "key" => "small value" } }
 
           describe "#calculate_data_size" do
@@ -380,7 +379,7 @@ module RAAF
 
             it "calculates size for large data correctly" do
               result = component_instance.send(:calculate_data_size, large_data)
-              expect(result).to be > 10000
+              expect(result).to be > 10_000
             end
 
             it "calculates size for string data" do

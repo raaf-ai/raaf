@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require 'raaf/perplexity/http_client'
-require 'raaf/errors'
-require 'raaf/utils'
+require "raaf/perplexity/http_client"
+require "raaf/errors"
+require "raaf/utils"
 
 RSpec.describe RAAF::Perplexity::HttpClient do
   let(:api_key) { "test_api_key" }
@@ -32,9 +32,9 @@ RSpec.describe RAAF::Perplexity::HttpClient do
     end
 
     it "raises error without api_key" do
-      expect {
+      expect do
         described_class.new(api_key: nil)
-      }.to raise_error(ArgumentError, /API key is required/)
+      end.to raise_error(ArgumentError, /API key is required/)
     end
   end
 
@@ -102,9 +102,9 @@ RSpec.describe RAAF::Perplexity::HttpClient do
       end
 
       it "raises AuthenticationError" do
-        expect {
+        expect do
           http_client.make_api_call(request_body)
-        }.to raise_error(RAAF::AuthenticationError, /Invalid.*API key/)
+        end.to raise_error(RAAF::AuthenticationError, /Invalid.*API key/)
       end
     end
 
@@ -119,9 +119,9 @@ RSpec.describe RAAF::Perplexity::HttpClient do
       end
 
       it "raises RateLimitError with reset time" do
-        expect {
+        expect do
           http_client.make_api_call(request_body)
-        }.to raise_error(RAAF::RateLimitError, /rate limit/i)
+        end.to raise_error(RAAF::RateLimitError, /rate limit/i)
       end
     end
 
@@ -135,9 +135,9 @@ RSpec.describe RAAF::Perplexity::HttpClient do
       end
 
       it "raises APIError with error message" do
-        expect {
+        expect do
           http_client.make_api_call(request_body)
-        }.to raise_error(RAAF::APIError, /Invalid model/)
+        end.to raise_error(RAAF::APIError, /Invalid model/)
       end
     end
 
@@ -148,9 +148,9 @@ RSpec.describe RAAF::Perplexity::HttpClient do
       end
 
       it "raises ServiceUnavailableError" do
-        expect {
+        expect do
           http_client.make_api_call(request_body)
-        }.to raise_error(RAAF::ServiceUnavailableError, /temporarily unavailable/)
+        end.to raise_error(RAAF::ServiceUnavailableError, /temporarily unavailable/)
       end
     end
 
@@ -161,9 +161,9 @@ RSpec.describe RAAF::Perplexity::HttpClient do
       end
 
       it "raises APIError for generic server error" do
-        expect {
+        expect do
           http_client.make_api_call(request_body)
-        }.to raise_error(RAAF::APIError)
+        end.to raise_error(RAAF::APIError)
       end
     end
 
@@ -174,9 +174,9 @@ RSpec.describe RAAF::Perplexity::HttpClient do
       end
 
       it "raises appropriate error for timeout" do
-        expect {
+        expect do
           http_client.make_api_call(request_body)
-        }.to raise_error(Net::OpenTimeout)
+        end.to raise_error(Net::OpenTimeout)
       end
     end
   end
@@ -187,9 +187,9 @@ RSpec.describe RAAF::Perplexity::HttpClient do
       stub_request(:post, "https://api.perplexity.ai/chat/completions")
         .to_return(status: 200, body: { choices: [] }.to_json)
 
-      expect {
+      expect do
         http_client.make_api_call({ model: "sonar", messages: [] })
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "applies read timeout" do
@@ -197,9 +197,9 @@ RSpec.describe RAAF::Perplexity::HttpClient do
       stub_request(:post, "https://api.perplexity.ai/chat/completions")
         .to_timeout
 
-      expect {
+      expect do
         client.make_api_call({ model: "sonar", messages: [] })
-      }.to raise_error(Net::OpenTimeout)
+      end.to raise_error(Net::OpenTimeout)
     end
 
     it "applies open timeout" do
@@ -207,17 +207,17 @@ RSpec.describe RAAF::Perplexity::HttpClient do
       stub_request(:post, "https://api.perplexity.ai/chat/completions")
         .to_timeout
 
-      expect {
+      expect do
         client.make_api_call({ model: "sonar", messages: [] })
-      }.to raise_error(Net::OpenTimeout)
+      end.to raise_error(Net::OpenTimeout)
     end
   end
 
   describe "request headers" do
     it "includes authorization header" do
       stub = stub_request(:post, "https://api.perplexity.ai/chat/completions")
-        .with(headers: { "Authorization" => "Bearer #{api_key}" })
-        .to_return(status: 200, body: { choices: [] }.to_json)
+             .with(headers: { "Authorization" => "Bearer #{api_key}" })
+             .to_return(status: 200, body: { choices: [] }.to_json)
 
       http_client.make_api_call({ model: "sonar", messages: [] })
       expect(stub).to have_been_requested
@@ -225,8 +225,8 @@ RSpec.describe RAAF::Perplexity::HttpClient do
 
     it "includes content-type header" do
       stub = stub_request(:post, "https://api.perplexity.ai/chat/completions")
-        .with(headers: { "Content-Type" => "application/json" })
-        .to_return(status: 200, body: { choices: [] }.to_json)
+             .with(headers: { "Content-Type" => "application/json" })
+             .to_return(status: 200, body: { choices: [] }.to_json)
 
       http_client.make_api_call({ model: "sonar", messages: [] })
       expect(stub).to have_been_requested
@@ -235,8 +235,8 @@ RSpec.describe RAAF::Perplexity::HttpClient do
     it "sends request body as JSON" do
       body = { model: "sonar-pro", messages: [{ role: "user", content: "test" }] }
       stub = stub_request(:post, "https://api.perplexity.ai/chat/completions")
-        .with(body: body.to_json)
-        .to_return(status: 200, body: { choices: [] }.to_json)
+             .with(body: body.to_json)
+             .to_return(status: 200, body: { choices: [] }.to_json)
 
       http_client.make_api_call(body)
       expect(stub).to have_been_requested

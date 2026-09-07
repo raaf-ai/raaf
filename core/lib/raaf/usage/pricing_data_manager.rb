@@ -5,7 +5,9 @@ require "json"
 require "singleton"
 
 module RAAF
+
   module Usage
+
     # Manages dynamic LLM pricing data from Helicone API
     #
     # Provides automatic downloading, caching, and domain extraction from Helicone's
@@ -25,6 +27,7 @@ module RAAF
     #   manager = PricingDataManager.instance
     #   manager.refresh! # Fetches fresh data from Helicone
     class PricingDataManager
+
       include Singleton
 
       DEFAULT_URL = "https://www.helicone.ai/api/llm-costs"
@@ -159,12 +162,8 @@ module RAAF
           }
 
           # Optional: Include cache costs if available
-          if item["prompt_cache_read_per_1m"]
-            result[model][:prompt_cache_read] = item["prompt_cache_read_per_1m"].to_f
-          end
-          if item["prompt_cache_write_per_1m"]
-            result[model][:prompt_cache_write] = item["prompt_cache_write_per_1m"].to_f
-          end
+          result[model][:prompt_cache_read] = item["prompt_cache_read_per_1m"].to_f if item["prompt_cache_read_per_1m"]
+          result[model][:prompt_cache_write] = item["prompt_cache_write_per_1m"].to_f if item["prompt_cache_write_per_1m"]
         end
       end
 
@@ -206,6 +205,9 @@ module RAAF
       def ttl
         @config.get("usage.pricing_data.ttl", DEFAULT_TTL)
       end
+
     end
+
   end
+
 end

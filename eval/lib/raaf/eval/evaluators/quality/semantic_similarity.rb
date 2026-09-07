@@ -35,7 +35,8 @@ module RAAF
                 text_length: text.length,
                 baseline_length: baseline.length,
                 similarity_method: "cosine",
-                label_rationale: "Score #{(score * 100).round(1)}% is #{label_description(label, score, good_threshold, average_threshold)}"
+                label_rationale: "Score #{(score * 100).round(1)}% is #{label_description(label, score, good_threshold,
+                                                                                          average_threshold)}"
               },
               message: "[#{label.upcase}] Semantic similarity: #{(score * 100).round(1)}%"
             }

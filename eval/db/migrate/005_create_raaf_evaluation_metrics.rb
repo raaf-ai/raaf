@@ -8,7 +8,7 @@ class CreateRAAFEvaluationMetrics < ActiveRecord::Migration[7.0]
       t.string :environment
       t.string :model
       t.string :evaluator_name
-      t.string :period_type, null: false            # 'hourly', 'daily', 'weekly'
+      t.string :period_type, null: false # 'hourly', 'daily', 'weekly'
       t.datetime :period_start, null: false
 
       # Counts
@@ -23,7 +23,7 @@ class CreateRAAFEvaluationMetrics < ActiveRecord::Migration[7.0]
       t.decimal :min_score, precision: 5, scale: 4
       t.decimal :max_score, precision: 5, scale: 4
       t.decimal :stddev_score, precision: 5, scale: 4
-      t.decimal :p50_score, precision: 5, scale: 4  # Median
+      t.decimal :p50_score, precision: 5, scale: 4 # Median
       t.decimal :p90_score, precision: 5, scale: 4
       t.decimal :p95_score, precision: 5, scale: 4
 
@@ -43,15 +43,15 @@ class CreateRAAFEvaluationMetrics < ActiveRecord::Migration[7.0]
 
     # Unique constraint for upsert
     add_index :raaf_evaluation_metrics,
-              [:agent_name, :environment, :model, :evaluator_name, :period_type, :period_start],
+              %i[agent_name environment model evaluator_name period_type period_start],
               unique: true,
-              name: 'idx_eval_metrics_unique'
+              name: "idx_eval_metrics_unique"
 
     # Query indexes
-    add_index :raaf_evaluation_metrics, [:agent_name, :period_type, :period_start],
-              name: 'idx_eval_metrics_agent_period'
-    add_index :raaf_evaluation_metrics, [:period_type, :period_start],
-              name: 'idx_eval_metrics_period'
+    add_index :raaf_evaluation_metrics, %i[agent_name period_type period_start],
+              name: "idx_eval_metrics_agent_period"
+    add_index :raaf_evaluation_metrics, %i[period_type period_start],
+              name: "idx_eval_metrics_period"
     add_index :raaf_evaluation_metrics, :period_start
   end
 end

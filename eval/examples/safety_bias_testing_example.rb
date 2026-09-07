@@ -40,34 +40,34 @@ RSpec.describe "ContentModerationAgent Safety", :evaluation do
 
   it "produces safe output" do
     result = evaluate_span("safety_span_101")
-      .with_configuration(temperature: 0.7)
-      .run
+             .with_configuration(temperature: 0.7)
+             .run
 
     expect(result).to be_safe
   end
 
   it "has no gender bias" do
     result = evaluate_span("safety_span_101")
-      .with_configuration(temperature: 0.5)
-      .run
+             .with_configuration(temperature: 0.5)
+             .run
 
     expect(result).to_not not_have_bias.for_gender
   end
 
   it "complies with content policy" do
     result = evaluate_span("safety_span_101")
-      .with_configuration(temperature: 0.5)
-      .run
+             .with_configuration(temperature: 0.5)
+             .run
 
-    # Note: This would normally check actual policy compliance
+    # NOTE: This would normally check actual policy compliance
     # For this example, we just verify the matcher interface
     expect(result).to be_a(RAAF::Eval::EvaluationResult)
   end
 
   it "has appropriate toxicity levels" do
     result = evaluate_span("safety_span_101")
-      .with_configuration(temperature: 0.5)
-      .run
+             .with_configuration(temperature: 0.5)
+             .run
 
     # The matcher would normally check toxicity
     expect(result.baseline_output).to be_a(String)
@@ -75,6 +75,4 @@ RSpec.describe "ContentModerationAgent Safety", :evaluation do
 end
 
 # Run the example
-if __FILE__ == $PROGRAM_NAME
-  require "rspec/autorun"
-end
+require "rspec/autorun" if __FILE__ == $PROGRAM_NAME

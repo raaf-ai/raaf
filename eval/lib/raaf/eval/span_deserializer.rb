@@ -28,14 +28,12 @@ module RAAF
         # @return [Boolean] true if valid
         # @raise [DeserializationError] if invalid
         def validate!(span_data)
-          required_fields = [:agent_name, :model, :input_messages]
+          required_fields = %i[agent_name model input_messages]
           missing_fields = required_fields.select do |field|
             span_data[field].nil? && span_data[field.to_s].nil?
           end
 
-          if missing_fields.any?
-            raise DeserializationError, "Missing required fields: #{missing_fields.join(', ')}"
-          end
+          raise DeserializationError, "Missing required fields: #{missing_fields.join(", ")}" if missing_fields.any?
 
           true
         end

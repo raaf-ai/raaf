@@ -1,6 +1,6 @@
 # RuboCop configuration for RAAF Eval UI
 
-require:
+plugins:
   - rubocop-rails
   - rubocop-rspec
 

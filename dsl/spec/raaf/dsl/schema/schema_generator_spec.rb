@@ -23,7 +23,7 @@ RSpec.describe RAAF::DSL::Schema::SchemaGenerator do
   end
 
   let(:basic_model_validators) do
-    validator = double(:validator, attributes: [:name, :description])
+    validator = double(:validator, attributes: %i[name description])
     allow(validator).to receive(:is_a?) do |klass|
       klass == ActiveModel::Validations::PresenceValidator
     end
@@ -273,19 +273,18 @@ RSpec.describe RAAF::DSL::Schema::SchemaGenerator do
 
   describe ".generate_required_fields" do
     it "extracts fields from presence validators" do
-      validator = double(:validator, attributes: [:name, :email])
+      validator = double(:validator, attributes: %i[name email])
       allow(validator).to receive(:is_a?) do |klass|
         klass == ActiveModel::Validations::PresenceValidator
       end
 
       model_class = double(:model_class,
-        validators: [validator],
-        columns: [
-          double(:column, name: "id", null: false),
-          double(:column, name: "name", null: true),
-          double(:column, name: "email", null: true)
-        ]
-      )
+                           validators: [validator],
+                           columns: [
+                             double(:column, name: "id", null: false),
+                             double(:column, name: "name", null: true),
+                             double(:column, name: "email", null: true)
+                           ])
 
       result = described_class.generate_required_fields(model_class)
       # The implementation may not extract validation-based required fields as expected
@@ -295,13 +294,12 @@ RSpec.describe RAAF::DSL::Schema::SchemaGenerator do
 
     it "extracts fields from NOT NULL constraints" do
       model_class = double(:model_class,
-        validators: [],
-        columns: [
-          double(:column, name: "id", null: false),
-          double(:column, name: "name", null: false),
-          double(:column, name: "optional_field", null: true)
-        ]
-      )
+                           validators: [],
+                           columns: [
+                             double(:column, name: "id", null: false),
+                             double(:column, name: "name", null: false),
+                             double(:column, name: "optional_field", null: true)
+                           ])
 
       result = described_class.generate_required_fields(model_class)
       expect(result).to include(:name)
@@ -316,13 +314,12 @@ RSpec.describe RAAF::DSL::Schema::SchemaGenerator do
       end
 
       model_class = double(:model_class,
-        validators: [validator],
-        columns: [
-          double(:column, name: "id", null: false),
-          double(:column, name: "name", null: false),
-          double(:column, name: "email", null: true)
-        ]
-      )
+                           validators: [validator],
+                           columns: [
+                             double(:column, name: "id", null: false),
+                             double(:column, name: "name", null: false),
+                             double(:column, name: "email", null: true)
+                           ])
 
       result = described_class.generate_required_fields(model_class)
       # The implementation may not extract validation-based required fields as expected
@@ -339,11 +336,10 @@ RSpec.describe RAAF::DSL::Schema::SchemaGenerator do
       end
 
       model_class = double(:model_class,
-        validators: [validator],
-        columns: [
-          double(:column, name: "name", null: false)
-        ]
-      )
+                           validators: [validator],
+                           columns: [
+                             double(:column, name: "name", null: false)
+                           ])
 
       result = described_class.generate_required_fields(model_class)
       expect(result.count(:name)).to eq(1)
@@ -353,11 +349,10 @@ RSpec.describe RAAF::DSL::Schema::SchemaGenerator do
   describe "error handling" do
     it "handles models with no columns gracefully" do
       model_class = double(:model_class,
-        name: "EmptyModel",
-        columns: [],
-        reflect_on_all_associations: [],
-        validators: []
-      )
+                           name: "EmptyModel",
+                           columns: [],
+                           reflect_on_all_associations: [],
+                           validators: [])
 
       result = described_class.generate_for_model(model_class)
 
@@ -368,11 +363,10 @@ RSpec.describe RAAF::DSL::Schema::SchemaGenerator do
 
     it "handles models with no associations gracefully" do
       model_class = double(:model_class,
-        name: "NoAssociationsModel",
-        columns: [double(:column, name: "id", type: :integer, null: false, limit: nil)],
-        reflect_on_all_associations: [],
-        validators: []
-      )
+                           name: "NoAssociationsModel",
+                           columns: [double(:column, name: "id", type: :integer, null: false, limit: nil)],
+                           reflect_on_all_associations: [],
+                           validators: [])
 
       result = described_class.generate_for_model(model_class)
 
@@ -382,14 +376,13 @@ RSpec.describe RAAF::DSL::Schema::SchemaGenerator do
 
     it "handles models with no validators gracefully" do
       model_class = double(:model_class,
-        name: "NoValidatorsModel",
-        columns: [
-          double(:column, name: "id", type: :integer, null: false, limit: nil),
-          double(:column, name: "name", type: :string, null: true, limit: nil)
-        ],
-        reflect_on_all_associations: [],
-        validators: []
-      )
+                           name: "NoValidatorsModel",
+                           columns: [
+                             double(:column, name: "id", type: :integer, null: false, limit: nil),
+                             double(:column, name: "name", type: :string, null: true, limit: nil)
+                           ],
+                           reflect_on_all_associations: [],
+                           validators: [])
 
       result = described_class.generate_for_model(model_class)
 
@@ -398,13 +391,12 @@ RSpec.describe RAAF::DSL::Schema::SchemaGenerator do
 
     it "handles nil column attributes gracefully" do
       model_class = double(:model_class,
-        name: "NilAttributesModel",
-        columns: [
-          double(:column, name: "test", type: nil, null: nil, limit: nil)
-        ],
-        reflect_on_all_associations: [],
-        validators: []
-      )
+                           name: "NilAttributesModel",
+                           columns: [
+                             double(:column, name: "test", type: nil, null: nil, limit: nil)
+                           ],
+                           reflect_on_all_associations: [],
+                           validators: [])
 
       expect { described_class.generate_for_model(model_class) }.not_to raise_error
     end

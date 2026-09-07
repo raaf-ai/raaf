@@ -98,9 +98,9 @@ module RAAF
 
           # Calculate processing rate (completed in last 5 minutes)
           completed_recent = RAAF::Eval::Models::EvaluationQueueItem
-            .completed
-            .where("completed_at > ?", 5.minutes.ago)
-            .count
+                             .completed
+                             .where("completed_at > ?", 5.minutes.ago)
+                             .count
           processing_rate = completed_recent / 5.0 # per minute
 
           # Store as EvaluationMetric if available

@@ -239,9 +239,7 @@ module RAAF
     # @example
     #   context.empty?  # => false
     #
-    def empty?
-      keys.empty?
-    end
+    delegate :empty?, to: :keys
 
     ##
     # Get number of items in context
@@ -251,19 +249,17 @@ module RAAF
     # @example
     #   context.size  # => 2
     #
-    def size
-      keys.size
-    end
+    delegate :size, to: :keys
 
     ##
     # Alias for has?
     #
-    alias_method :key?, :has?
+    alias key? has?
 
     ##
     # Alias for has?
     #
-    alias_method :include?, :has?
+    alias include? has?
 
   end
 

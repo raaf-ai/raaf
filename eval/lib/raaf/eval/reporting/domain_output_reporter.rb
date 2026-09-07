@@ -46,12 +46,12 @@ module RAAF
             end
 
             # Format criterion name (capitalize and replace underscores)
-            criterion_display = criterion.to_s.split('_').map(&:capitalize).join(' ')
+            criterion_display = criterion.to_s.split("_").map(&:capitalize).join(" ")
 
             puts "#{status_emoji} #{criterion_display}: #{status_label}"
             puts "   #{field_label} Range: #{stat[:min]}-#{stat[:max]} (std dev: #{stat[:std_dev]})"
             puts "   Average: #{stat[:mean]}"
-            puts "   Values: #{stat[:values].join(', ')}"
+            puts "   Values: #{stat[:values].join(", ")}"
             puts ""
           end
 

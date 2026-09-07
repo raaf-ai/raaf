@@ -126,7 +126,7 @@ RSpec.describe RAAF::Throttler do
       # Verify statistics structure
       stats = instance.throttle_stats
       expect(stats).to be_a(Hash)
-      expect(stats.keys).to match_array([:requests_throttled, :total_wait_time, :timeout_failures])
+      expect(stats.keys).to match_array(%i[requests_throttled total_wait_time timeout_failures])
     end
 
     it "configures throttle with timeout" do

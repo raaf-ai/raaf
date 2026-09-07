@@ -1,13 +1,17 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module MCP
+
     # MCP Protocol constants and helpers
     module Protocol
+
       PROTOCOL_VERSION = "0.1.0"
 
       # JSON-RPC 2.0 error codes
       module ErrorCodes
+
         PARSE_ERROR = -32_700
         INVALID_REQUEST = -32_600
         METHOD_NOT_FOUND = -32_601
@@ -20,10 +24,12 @@ module RAAF
         PROMPT_NOT_FOUND = -32_003
         UNAUTHORIZED = -32_004
         RATE_LIMITED = -32_005
+
       end
 
       # Standard MCP methods
       module Methods
+
         # Lifecycle
         INITIALIZE = "initialize"
         INITIALIZED = "initialized"
@@ -51,10 +57,12 @@ module RAAF
         TOOLS_LIST_CHANGED = "notifications/tools/list-changed"
         PROMPTS_LIST_CHANGED = "notifications/prompts/list-changed"
         RESOURCE_UPDATED = "notifications/resources/updated"
+
       end
 
       # MIME types commonly used in MCP
       module MimeTypes
+
         TEXT_PLAIN = "text/plain"
         TEXT_MARKDOWN = "text/markdown"
         TEXT_HTML = "text/html"
@@ -63,6 +71,7 @@ module RAAF
         IMAGE_PNG = "image/png"
         IMAGE_JPEG = "image/jpeg"
         IMAGE_SVG = "image/svg+xml"
+
       end
 
       # Helper method to validate protocol version
@@ -106,6 +115,9 @@ module RAAF
         notification[:params] = params if params
         notification
       end
+
     end
+
   end
+
 end

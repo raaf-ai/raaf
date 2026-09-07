@@ -81,8 +81,8 @@ puts "-" * 50
 # Create a runner with explicit ResponsesProvider configuration
 # This demonstrates manual provider configuration for custom settings
 explicit_provider = RAAF::Models::ResponsesProvider.new(
-  api_key: ENV['OPENAI_API_KEY'],
-  api_base: ENV['OPENAI_API_BASE'] || "https://api.openai.com/v1"
+  api_key: ENV.fetch("OPENAI_API_KEY", nil),
+  api_base: ENV["OPENAI_API_BASE"] || "https://api.openai.com/v1"
 )
 
 # Configure custom retry behavior for this provider

@@ -81,7 +81,7 @@ RSpec.describe "RAAF::Continuation Integration Tests" do
     it "successfully continues and merges large markdown report with tables" do
       # Build large markdown report with multiple tables and sections
       chunk1 = {
-        content: %Q(# Market Analysis Report
+        content: %(# Market Analysis Report
 
 ## Executive Summary
 This report analyzes Q4 2024 market conditions.
@@ -108,7 +108,7 @@ This report analyzes Q4 2024 market conditions.
       }
 
       chunk2 = {
-        content: %Q(
+        content: %(
 ### Competitive Landscape
 - New entrants: 15
 - Market consolidation: 3 major deals
@@ -146,13 +146,13 @@ Data collected from Q1-Q4 2024 surveys.
       expect(result[:content]).to include("Recommendations")
 
       # Verify no duplicate headers
-      header_count = result[:content].scan(/# Market Analysis Report/).count
+      header_count = result[:content].scan("# Market Analysis Report").count
       expect(header_count).to eq(1)
     end
 
     it "handles mixed content with code blocks and tables" do
       chunk1 = {
-        content: %Q(# Documentation
+        content: %(# Documentation
 
 ## Code Examples
 
@@ -173,7 +173,7 @@ end
       }
 
       chunk2 = {
-        content: %Q(| Memory | 256MB | 180MB | 30% less |
+        content: %(| Memory | 256MB | 180MB | 30% less |
 
 ## Conclusion
 
@@ -195,7 +195,7 @@ The refactoring improved performance significantly.
     it "preserves complex table formatting across continuations" do
       # Multi-column table with special formatting
       chunk1 = {
-        content: %Q(# Performance Report
+        content: %(# Performance Report
 
 | Component | CPU | Memory | Disk | Network | Status |
 |-----------|-----|--------|------|---------|--------|
@@ -208,7 +208,7 @@ The refactoring improved performance significantly.
       }
 
       chunk2 = {
-        content: %Q(| Service D | 42% | 2GB | 8GB | 300Mbps | Warning |
+        content: %(| Service D | 42% | 2GB | 8GB | 300Mbps | Warning |
 | Service E | 8% | 128MB | 500MB | 20Mbps | Healthy |
 
 All systems operational.
@@ -228,7 +228,7 @@ All systems operational.
       expect(result[:content]).to include("Service E")
 
       # Verify table header appears once
-      header_count = result[:content].scan(/\| Component \| CPU \|/).count
+      header_count = result[:content].scan("| Component | CPU |").count
       expect(header_count).to eq(1)
     end
   end
@@ -277,7 +277,7 @@ All systems operational.
     it "handles deeply nested JSON objects across chunks" do
       # Complex nested structure
       chunk1 = {
-        content: %Q({
+        content: %({
   "company": {
     "name": "Tech Corp",
     "departments": {
@@ -295,7 +295,7 @@ All systems operational.
       }
 
       chunk2 = {
-        content: %Q(          ]
+        content: %(          ]
         }
       }
     }
@@ -321,7 +321,7 @@ All systems operational.
 
     it "handles mixed JSON with metadata and arrays" do
       chunk1 = {
-        content: %Q({
+        content: %({
   "metadata": {
     "version": "2.0",
     "created_at": "2024-10-29T12:00:00Z",
@@ -336,7 +336,7 @@ All systems operational.
       }
 
       chunk2 = {
-        content: %Q(    {"id": 3, "value": "third"},
+        content: %(    {"id": 3, "value": "third"},
     {"id": 4, "value": "fourth"},
     {"id": 5, "value": "fifth"}
   ],
@@ -396,8 +396,6 @@ All systems operational.
     end
 
     it "handles explicit format specification" do
-      chunk = { content: '{"id": 1}', truncated: false, finish_reason: "stop" }
-
       factory = RAAF::Continuation::MergerFactory.new(output_format: :json)
       merger = factory.get_merger
 
@@ -413,12 +411,6 @@ All systems operational.
       config_max_attempts = RAAF::Continuation::Config.new(max_attempts: 3)
 
       # Simulate multiple continuation attempts
-      chunks = [
-        { content: "chunk1", truncated: true, finish_reason: "length" },
-        { content: "chunk2", truncated: true, finish_reason: "length" },
-        { content: "chunk3", truncated: true, finish_reason: "length" },
-        { content: "chunk4", truncated: false, finish_reason: "stop" }
-      ]
 
       expect(config_max_attempts.max_attempts).to eq(3)
     end
@@ -431,7 +423,7 @@ All systems operational.
     it "handles actual company discovery CSV format" do
       # Simulate real OpenKVK CSV response
       chunk1 = {
-        content: %Q(kvk_number,business_name,legal_form,street,city,postal_code,country,employees,founding_date
+        content: %(kvk_number,business_name,legal_form,street,city,postal_code,country,employees,founding_date
 34012345,Tech StartUp B.V.,Private Limited Company,Streetname 123,Amsterdam,1012AB,Netherlands,25,2020-01-15
 34012346,Innovation Labs B.V.,Private Limited Company,Avenue 456,Rotterdam,3011TZ,Netherlands,50,2018-06-20
 34012347,Digital Solutions,Sole Proprietorship,Boulevard 789,Utrecht,3511AA,Netherlands,10,2021-03-10
@@ -441,7 +433,7 @@ All systems operational.
       }
 
       chunk2 = {
-        content: %Q(34012348,Cloud Services B.V.,Private Limited Company,Parkway 321,The Hague,2595AA,Netherlands,75,2017-11-05
+        content: %(34012348,Cloud Services B.V.,Private Limited Company,Parkway 321,The Hague,2595AA,Netherlands,75,2017-11-05
 34012349,Data Analytics Inc,Private Limited Company,Riverfront 654,Amsterdam,1018XM,Netherlands,35,2019-07-22
 ),
         truncated: false,
@@ -461,7 +453,7 @@ All systems operational.
     it "handles market analysis report markdown format" do
       # Simulate real market analysis report
       chunk1 = {
-        content: %Q(# Market Analysis Report - Q4 2024
+        content: %(# Market Analysis Report - Q4 2024
 
 ## Executive Summary
 Market conditions remain favorable with continued growth in cloud services.
@@ -478,7 +470,7 @@ Market conditions remain favorable with continued growth in cloud services.
       }
 
       chunk2 = {
-        content: %Q(| SMB | $600,000 | $680,000 | 13.3% |
+        content: %(| SMB | $600,000 | $680,000 | 13.3% |
 
 ## Market Trends
 - Cloud adoption: 87% of enterprises
@@ -501,7 +493,7 @@ Market conditions remain favorable with continued growth in cloud services.
     it "handles prospect data extraction JSON format" do
       # Simulate real prospect extraction response
       chunk1 = {
-        content: %Q({
+        content: %({
   "prospects": [
     {
       "company": "TechCorp B.V.",
@@ -521,7 +513,7 @@ Market conditions remain favorable with continued growth in cloud services.
       }
 
       chunk2 = {
-        content: %Q(    {
+        content: %(    {
       "company": "InnovateLabs",
       "industry": "AI/ML",
       "employees": 120,

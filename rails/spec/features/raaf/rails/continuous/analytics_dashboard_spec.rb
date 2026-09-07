@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Analytics Dashboard", type: :feature, js: true do
+RSpec.describe "Analytics Dashboard", :js, type: :feature do
   # These tests verify the analytics dashboard functionality for continuous
   # evaluation data visualization through the RAAF Rails dashboard UI.
 
@@ -98,8 +98,8 @@ RSpec.describe "Analytics Dashboard", type: :feature, js: true do
           period_start: date.beginning_of_day,
           period_end: date.end_of_day,
           total_evaluations: 100,
-          passed_count: 80 + rand(10),
-          failed_count: 10 - rand(5),
+          passed_count: rand(80..89),
+          failed_count: rand(6..10),
           warning_count: 5,
           avg_score: 0.85
         )
@@ -235,7 +235,11 @@ RSpec.describe "Analytics Dashboard", type: :feature, js: true do
             evaluator_name: "quality_check",
             evaluator_type: "llm_judge",
             status: i < 4 ? "passed" : "failed",
-            score: model == "gpt-4o" ? 0.9 : (model == "claude-3-sonnet" ? 0.85 : 0.8),
+            score: if model == "gpt-4o"
+                     0.9
+                   else
+                     (model == "claude-3-sonnet" ? 0.85 : 0.8)
+                   end,
             metrics: { "latency_ms" => model == "gpt-4o" ? 1200 : 1500, "cost" => 0.02 }
           )
         end
@@ -344,8 +348,8 @@ RSpec.describe "Analytics Dashboard", type: :feature, js: true do
       visit raaf_rails_continuous_analytics_path(agent: "TestAgent")
 
       within "#failure-analysis-chart" do
-        expect(page).to have_content("15")  # token_limit count
-        expect(page).to have_content(/\d+%/)  # percentage
+        expect(page).to have_content("15") # token_limit count
+        expect(page).to have_content(/\d+%/) # percentage
       end
     end
 

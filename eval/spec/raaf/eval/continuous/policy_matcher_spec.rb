@@ -139,7 +139,7 @@ RSpec.describe RAAF::Eval::Continuous::PolicyMatcher do
       end
 
       it "does not match when model does not fit pattern" do
-        different_span = double("SpanRecord", **span_data.merge(model: "claude-3"))
+        different_span = double("SpanRecord", **span_data, model: "claude-3")
         matcher = described_class.new(different_span)
         policies = matcher.matching_policies
         expect(policies).not_to include(policy)
@@ -267,7 +267,7 @@ RSpec.describe RAAF::Eval::Continuous::PolicyMatcher do
 
       it "does not count eval spans toward policy sample rate" do
         # Production span should match
-        prod_span = double("SpanRecord", **span_data.merge(source: "production_trace"))
+        prod_span = double("SpanRecord", **span_data, source: "production_trace")
         prod_matcher = described_class.new(prod_span)
         expect(prod_matcher.policies_to_evaluate).not_to be_empty
 

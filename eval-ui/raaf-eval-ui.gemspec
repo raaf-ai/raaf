@@ -34,18 +34,17 @@ Gem::Specification.new do |spec|
   spec.add_dependency "rails", ">= 7.0"
 
   # UI framework dependencies
+  spec.add_dependency "importmap-rails", "~> 1.2"
   spec.add_dependency "phlex", "~> 2.0"
   spec.add_dependency "phlex-rails", "~> 2.0"
   spec.add_dependency "stimulus-rails", "~> 1.2"
   spec.add_dependency "turbo-rails", "~> 1.4"
-  spec.add_dependency "importmap-rails", "~> 1.2"
 
   # Diff generation
   spec.add_dependency "diff-lcs", "~> 1.5"
   spec.add_dependency "diffy", "~> 3.4"
 
   # Development dependencies
-  spec.add_development_dependency "bundler", "~> 2.0"
   spec.add_development_dependency "capybara", "~> 3.0"
   spec.add_development_dependency "factory_bot_rails", "~> 6.2"
   spec.add_development_dependency "rake", "~> 13.0"
@@ -53,7 +52,7 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rspec-rails", "~> 6.0"
   spec.add_development_dependency "rubocop", "~> 1.21"
   spec.add_development_dependency "rubocop-rails", "~> 2.0"
-  spec.add_development_dependency "rubocop-rspec", "~> 2.0"
+  spec.add_development_dependency "rubocop-rspec", "~> 3.0"
   spec.add_development_dependency "selenium-webdriver", "~> 4.0"
   spec.add_development_dependency "simplecov", "~> 0.21"
 end

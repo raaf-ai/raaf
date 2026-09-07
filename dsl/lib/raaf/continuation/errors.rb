@@ -44,19 +44,19 @@ module RAAF
         super(message)
 
         @merge_error_metadata = if error_details
-          error_details.dup
-        elsif original_error
-          {
-            error_class: original_error.class.name,
-            error_message: original_error.message,
-            backtrace: original_error.backtrace&.first(5)
-          }
-        else
-          {
-            error_class: self.class.name,
-            error_message: message
-          }
-        end
+                                  error_details.dup
+                                elsif original_error
+                                  {
+                                    error_class: original_error.class.name,
+                                    error_message: original_error.message,
+                                    backtrace: original_error.backtrace&.first(5)
+                                  }
+                                else
+                                  {
+                                    error_class: self.class.name,
+                                    error_message: message
+                                  }
+                                end
       end
     end
 
@@ -94,18 +94,18 @@ module RAAF
         super(message)
 
         @truncation_error_metadata = if context
-          context.dup
-        elsif original_error
-          {
-            error_class: original_error.class.name,
-            error_message: original_error.message
-          }
-        else
-          {
-            error_class: self.class.name,
-            error_message: message
-          }
-        end
+                                       context.dup
+                                     elsif original_error
+                                       {
+                                         error_class: original_error.class.name,
+                                         error_message: original_error.message
+                                       }
+                                     else
+                                       {
+                                         error_class: self.class.name,
+                                         error_message: message
+                                       }
+                                     end
       end
     end
   end

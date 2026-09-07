@@ -275,8 +275,8 @@ RSpec.describe "RAAF::Continuation::Mergers::CSVMerger" do
 
       lines = result[:content].lines.map(&:strip)
       header_indices = lines.each_with_index
-                           .select { |line, _| line == "product,price,stock" }
-                           .map(&:last)
+                            .select { |line, _| line == "product,price,stock" }
+                            .map(&:last)
 
       expect(header_indices.length).to eq(1)
     end

@@ -152,7 +152,7 @@ module RAAF
         }
 
         # Add tools if provided
-        if tools && !tools.empty?
+        if tools.present?
           body[:tools] = prepare_tools(tools)
           body[:tool_choice] = kwargs[:tool_choice] if kwargs[:tool_choice]
         end

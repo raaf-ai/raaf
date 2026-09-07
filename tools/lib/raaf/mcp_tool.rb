@@ -3,7 +3,9 @@ require "raaf/client"
 require "raaf/logging"
 
 module RAAF
+
   module Tools
+
     ##
     # MCPTool - Model Context Protocol tool integration
     #
@@ -20,7 +22,7 @@ module RAAF
     #     server_name: "my_server",
     #     server_config: { type: "stdio", command: "my-mcp-server" }
     #   )
-    #   
+    #
     #   # Add to agent
     #   agent.add_tool(tool)
     #
@@ -30,13 +32,14 @@ module RAAF
     #     server_config: { type: "websocket", url: "ws://localhost:8080" },
     #     auto_connect: false
     #   )
-    #   
+    #
     #   tool.connect!
     #   tool.refresh_tools!
     #
     class MCPTool < FunctionTool
+
       include Logger
-      
+
       # @!attribute [r] server_name
       #   @return [String] Name of the MCP server
       # @!attribute [r] server_config
@@ -312,6 +315,7 @@ module RAAF
         # Update the parameters to include current tool names
         @parameters[:properties][:tool_name][:enum] = available_tool_names
       end
+
     end
 
     ##
@@ -326,10 +330,11 @@ module RAAF
     #     server_name: "brave_search",
     #     api_key: ENV["BRAVE_API_KEY"]
     #   )
-    #   
+    #
     #   agent.add_tool(tool)
     #
     class HostedMCPTool
+
       # @!attribute [r] server_name
       #   @return [String] Name of the hosted MCP server
       # @!attribute [r] server_config
@@ -379,6 +384,7 @@ module RAAF
           }
         }
       end
+
     end
 
     ##
@@ -399,6 +405,7 @@ module RAAF
     #   tool = MCPToolFactory.create_from_env
     #
     class MCPToolFactory
+
       ##
       # Create MCP tool from configuration
       #
@@ -486,6 +493,9 @@ module RAAF
           server_config: config
         )
       end
+
     end
+
   end
+
 end

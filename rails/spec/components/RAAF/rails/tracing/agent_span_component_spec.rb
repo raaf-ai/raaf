@@ -34,18 +34,17 @@ module RAAF
 
         let(:mock_span) do
           double("Span",
-            span_id: "agent_span_123",
-            trace_id: "trace_456", 
-            parent_id: "parent_789",
-            name: "Agent.run",
-            kind: "agent",
-            status: "success",
-            start_time: Time.parse("2025-09-25 10:00:00 UTC"),
-            end_time: Time.parse("2025-09-25 10:00:05.500 UTC"),
-            duration_ms: 5500,
-            span_attributes: base_span_attributes,
-            depth: 1
-          )
+                 span_id: "agent_span_123",
+                 trace_id: "trace_456",
+                 parent_id: "parent_789",
+                 name: "Agent.run",
+                 kind: "agent",
+                 status: "success",
+                 start_time: Time.parse("2025-09-25 10:00:00 UTC"),
+                 end_time: Time.parse("2025-09-25 10:00:05.500 UTC"),
+                 duration_ms: 5500,
+                 span_attributes: base_span_attributes,
+                 depth: 1)
         end
 
         let(:component) { described_class.new(span: mock_span) }
@@ -278,9 +277,9 @@ module RAAF
             before do
               allow(mock_span).to receive(:status).and_return("error")
               allow(mock_span).to receive(:span_attributes).and_return({
-                "agent.name" => "FailingAgent",
-                "error" => "Agent execution failed due to invalid configuration"
-              })
+                                                                         "agent.name" => "FailingAgent",
+                                                                         "error" => "Agent execution failed due to invalid configuration"
+                                                                       })
             end
 
             it "renders error details section" do

@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
-require 'concurrent'
+require "concurrent"
 
 module RAAF
+
   module Guardrails
+
     # Executes multiple guardrails in parallel for improved performance
     class ParallelGuardrails
+
       attr_reader :guardrails, :max_parallel, :timeout
 
       def initialize(guardrails, max_parallel: nil, timeout: 5)
@@ -43,14 +46,14 @@ module RAAF
           performance_threshold: 100,
           alert_on_slow_guardrails: false
         }
-        
+
         yield @monitoring_config if block_given?
       end
 
       # Get metrics for all guardrails
       def metrics
         @guardrails.each_with_object({}) do |guardrail, metrics|
-          guardrail_name = guardrail.class.name.split('::').last
+          guardrail_name = guardrail.class.name.split("::").last
           metrics[guardrail_name] = guardrail.metrics if guardrail.respond_to?(:metrics)
         end
       end
@@ -74,20 +77,20 @@ module RAAF
 
       def execute_parallel_checks(method, content, context)
         start_time = Time.now if monitoring_enabled?
-        
+
         # Create futures for all guardrail checks
         futures = @guardrails.map do |guardrail|
           Concurrent::Future.execute(executor: @executor) do
             guardrail_start = Time.now if monitoring_enabled?
-            
+
             begin
               result = guardrail.public_send(method, content, context)
-              
+
               if monitoring_enabled?
                 elapsed = Time.now - guardrail_start
                 check_performance(guardrail, elapsed)
               end
-              
+
               result
             rescue StandardError => e
               # Return error result instead of raising
@@ -95,18 +98,18 @@ module RAAF
             end
           end
         end
-        
+
         # Wait for all futures to complete
         results = futures.map { |future| future.value(@timeout) }
-        
+
         # Combine results
         combined_result = combine_results(results)
-        
+
         if monitoring_enabled?
           total_elapsed = Time.now - start_time
           log_performance_metrics(total_elapsed, results)
         end
-        
+
         combined_result
       end
 
@@ -115,36 +118,32 @@ module RAAF
         blocked = false
         should_redact = false
         modified_content = nil
-        
+
         results.each do |result|
           next unless result
-          
+
           # Aggregate violations
-          if result.violated?
-            all_violations.concat(result.violations)
-          end
-          
+          all_violations.concat(result.violations) if result.violated?
+
           # Check if any guardrail wants to block
           blocked = true if result.should_block?
-          
+
           # Check if any guardrail wants to redact
           if result.should_redact? && result.content
             should_redact = true
             modified_content = result.content
           end
         end
-        
+
         # Determine final action
         final_action = if blocked
-                        :block
-                      elsif should_redact
-                        :redact
-                      elsif all_violations.any?
-                        :flag
-                      else
-                        nil
-                      end
-        
+                         :block
+                       elsif should_redact
+                         :redact
+                       elsif all_violations.any?
+                         :flag
+                       end
+
         GuardrailResult.new(
           safe: all_violations.empty?,
           action: final_action,
@@ -183,27 +182,30 @@ module RAAF
 
       def check_performance(guardrail, elapsed_ms)
         elapsed = elapsed_ms * 1000 # Convert to milliseconds
-        
-        if @monitoring_config[:alert_on_slow_guardrails] && 
+
+        if @monitoring_config[:alert_on_slow_guardrails] &&
            elapsed > @monitoring_config[:performance_threshold]
           log_slow_guardrail(guardrail, elapsed)
         end
       end
 
       def log_slow_guardrail(guardrail, elapsed_ms)
-        guardrail_name = guardrail.class.name.split('::').last
+        guardrail_name = guardrail.class.name.split("::").last
         puts "[PERF WARNING] Slow guardrail: #{guardrail_name} took #{elapsed_ms.round(2)}ms"
       end
 
       def log_performance_metrics(total_elapsed, results)
         return unless @monitoring_config[:enable_profiling]
-        
+
         puts "[PERF] Parallel guardrails execution:"
         puts "  Total time: #{(total_elapsed * 1000).round(2)}ms"
         puts "  Guardrails executed: #{@guardrails.size}"
         puts "  Results collected: #{results.size}"
         puts "  Violations found: #{results.sum { |r| r&.violations&.size || 0 }}"
       end
+
     end
+
   end
+
 end

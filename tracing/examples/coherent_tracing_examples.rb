@@ -10,6 +10,7 @@ require "bundler/setup"
 
 # Simple processor for examples that doesn't require complex logger setup
 class ExampleConsoleProcessor
+
   def on_span_start(span)
     puts "🟢 #{span.name} started (#{span.span_id[0..8]})"
   end
@@ -28,6 +29,7 @@ class ExampleConsoleProcessor
   def shutdown
     # No-op for examples
   end
+
 end
 
 # Load tracing after setting up simple processor
@@ -43,7 +45,9 @@ puts "=" * 50
 puts "\n📝 Example 1: Basic Three-Level Hierarchy"
 
 class DataPipeline
+
   include RAAF::Tracing::Traceable
+
   trace_as :pipeline
 
   attr_reader :name, :agents
@@ -63,15 +67,18 @@ class DataPipeline
 
   def collect_span_attributes
     super.merge({
-      "pipeline.name" => name,
-      "pipeline.agents_count" => agents.size,
-      "pipeline.type" => "data_processing"
-    })
+                  "pipeline.name" => name,
+                  "pipeline.agents_count" => agents.size,
+                  "pipeline.type" => "data_processing"
+                })
   end
+
 end
 
 class DataAgent
+
   include RAAF::Tracing::Traceable
+
   trace_as :agent
 
   attr_reader :name, :tools, :parent_component
@@ -85,23 +92,26 @@ class DataAgent
   def run
     with_tracing(:run) do
       puts "     🤖 Agent #{name} running with #{tools.size} tools"
-      tools.each { |tool| tool.execute({data: "sample_data"}) }
+      tools.each { |tool| tool.execute({ data: "sample_data" }) }
       "Agent processing completed"
     end
   end
 
   def collect_span_attributes
     super.merge({
-      "agent.name" => name,
-      "agent.model" => "gpt-4",
-      "agent.tools_count" => tools.size,
-      "agent.temperature" => 0.7
-    })
+                  "agent.name" => name,
+                  "agent.model" => "gpt-4",
+                  "agent.tools_count" => tools.size,
+                  "agent.temperature" => 0.7
+                })
   end
+
 end
 
 class CalculatorTool
+
   include RAAF::Tracing::Traceable
+
   trace_as :tool
 
   attr_reader :name, :parent_component
@@ -122,11 +132,11 @@ class CalculatorTool
 
   def collect_span_attributes
     super.merge({
-      "tool.name" => name,
-      "tool.type" => "calculator",
-      "tool.version" => "1.0",
-      "tool.capabilities" => ["add", "multiply", "analyze"]
-    })
+                  "tool.name" => name,
+                  "tool.type" => "calculator",
+                  "tool.version" => "1.0",
+                  "tool.capabilities" => %w[add multiply analyze]
+                })
   end
 
   private
@@ -134,6 +144,7 @@ class CalculatorTool
   def perform_calculation(data)
     "Calculated result for #{data}"
   end
+
 end
 
 # Set up the hierarchy
@@ -141,7 +152,7 @@ calculator = CalculatorTool.new(name: "Scientific Calculator")
 agent = DataAgent.new(
   name: "Data Analyzer",
   tools: [calculator],
-  parent_component: nil  # Will be set by pipeline
+  parent_component: nil # Will be set by pipeline
 )
 calculator.instance_variable_set(:@parent_component, agent)
 
@@ -161,7 +172,9 @@ end
 puts "\n📝 Example 2: Multi-Agent Parallel Execution"
 
 class ParallelPipeline
+
   include RAAF::Tracing::Traceable
+
   trace_as :pipeline
 
   attr_reader :agents
@@ -180,21 +193,24 @@ class ParallelPipeline
         agent.run
       end
 
-      "All #{agents.size} agents completed: #{results.join(', ')}"
+      "All #{agents.size} agents completed: #{results.join(", ")}"
     end
   end
 
   def collect_span_attributes
     super.merge({
-      "pipeline.type" => "parallel",
-      "pipeline.agents_count" => agents.size,
-      "pipeline.execution_mode" => "parallel"
-    })
+                  "pipeline.type" => "parallel",
+                  "pipeline.agents_count" => agents.size,
+                  "pipeline.execution_mode" => "parallel"
+                })
   end
+
 end
 
 class SpecializedAgent
+
   include RAAF::Tracing::Traceable
+
   trace_as :agent
 
   attr_reader :name, :specialty, :parent_component
@@ -215,12 +231,13 @@ class SpecializedAgent
 
   def collect_span_attributes
     super.merge({
-      "agent.name" => name,
-      "agent.specialty" => specialty,
-      "agent.model" => "gpt-4",
-      "agent.specialized" => true
-    })
+                  "agent.name" => name,
+                  "agent.specialty" => specialty,
+                  "agent.model" => "gpt-4",
+                  "agent.specialized" => true
+                })
   end
+
 end
 
 # Create specialized agents
@@ -251,7 +268,9 @@ end
 puts "\n📝 Example 3: Nested Pipeline Architecture"
 
 class MasterPipeline
+
   include RAAF::Tracing::Traceable
+
   trace_as :pipeline
 
   attr_reader :sub_pipelines
@@ -276,15 +295,18 @@ class MasterPipeline
 
   def collect_span_attributes
     super.merge({
-      "pipeline.type" => "master",
-      "pipeline.sub_pipelines_count" => sub_pipelines.size,
-      "pipeline.orchestration" => true
-    })
+                  "pipeline.type" => "master",
+                  "pipeline.sub_pipelines_count" => sub_pipelines.size,
+                  "pipeline.orchestration" => true
+                })
   end
+
 end
 
 class SubPipeline
+
   include RAAF::Tracing::Traceable
+
   trace_as :pipeline
 
   attr_reader :name, :agents, :parent_component
@@ -306,16 +328,19 @@ class SubPipeline
 
   def collect_span_attributes
     super.merge({
-      "pipeline.name" => name,
-      "pipeline.type" => "sub_pipeline",
-      "pipeline.agents_count" => agents.size,
-      "pipeline.parent_type" => "master_pipeline"
-    })
+                  "pipeline.name" => name,
+                  "pipeline.type" => "sub_pipeline",
+                  "pipeline.agents_count" => agents.size,
+                  "pipeline.parent_type" => "master_pipeline"
+                })
   end
+
 end
 
 class ProcessingAgent
+
   include RAAF::Tracing::Traceable
+
   trace_as :agent
 
   attr_reader :name, :process_type, :parent_component
@@ -336,12 +361,13 @@ class ProcessingAgent
 
   def collect_span_attributes
     super.merge({
-      "agent.name" => name,
-      "agent.process_type" => process_type,
-      "agent.model" => "gpt-4",
-      "agent.nested_level" => 2
-    })
+                  "agent.name" => name,
+                  "agent.process_type" => process_type,
+                  "agent.model" => "gpt-4",
+                  "agent.nested_level" => 2
+                })
   end
+
 end
 
 # Create nested pipeline structure
@@ -388,7 +414,9 @@ end
 puts "\n📝 Example 4: Complex Multi-Tool Agent"
 
 class ComplexAgent
+
   include RAAF::Tracing::Traceable
+
   trace_as :agent
 
   attr_reader :name, :tools, :parent_component
@@ -405,9 +433,9 @@ class ComplexAgent
       puts "     🧠 Complex agent #{name} analyzing data"
 
       # Use multiple tools in sequence
-      validation_result = @tools[0].execute({data: data, operation: "validate"})
-      processing_result = @tools[1].execute({data: validation_result, operation: "process"})
-      analysis_result = @tools[2].execute({data: processing_result, operation: "analyze"})
+      validation_result = @tools[0].execute({ data: data, operation: "validate" })
+      processing_result = @tools[1].execute({ data: validation_result, operation: "process" })
+      analysis_result = @tools[2].execute({ data: processing_result, operation: "analyze" })
 
       "Data analysis completed: #{analysis_result}"
     end
@@ -415,17 +443,20 @@ class ComplexAgent
 
   def collect_span_attributes
     super.merge({
-      "agent.name" => name,
-      "agent.type" => "complex_analyzer",
-      "agent.tools_count" => tools.size,
-      "agent.model" => "gpt-4",
-      "agent.capabilities" => ["validation", "processing", "analysis"]
-    })
+                  "agent.name" => name,
+                  "agent.type" => "complex_analyzer",
+                  "agent.tools_count" => tools.size,
+                  "agent.model" => "gpt-4",
+                  "agent.capabilities" => %w[validation processing analysis]
+                })
   end
+
 end
 
 class AdvancedTool
+
   include RAAF::Tracing::Traceable
+
   trace_as :tool
 
   attr_reader :name, :tool_type, :parent_component
@@ -456,12 +487,13 @@ class AdvancedTool
 
   def collect_span_attributes
     super.merge({
-      "tool.name" => name,
-      "tool.type" => tool_type,
-      "tool.version" => "2.0",
-      "tool.advanced" => true
-    })
+                  "tool.name" => name,
+                  "tool.type" => tool_type,
+                  "tool.version" => "2.0",
+                  "tool.advanced" => true
+                })
   end
+
 end
 
 # Create complex agent with multiple tools
@@ -495,7 +527,9 @@ end
 puts "\n📝 Example 5: Error Handling and Recovery"
 
 class ResilientPipeline
+
   include RAAF::Tracing::Traceable
+
   trace_as :pipeline
 
   attr_reader :agents
@@ -513,15 +547,13 @@ class ResilientPipeline
       failed_agents = []
 
       agents.each do |agent|
-        begin
-          result = agent.run
-          successful_agents << {agent: agent.name, result: result}
-          puts "     ✅ Agent #{agent.name} succeeded"
-        rescue => e
-          failed_agents << {agent: agent.name, error: e.message}
-          puts "     ❌ Agent #{agent.name} failed: #{e.message}"
-          # Continue processing other agents
-        end
+        result = agent.run
+        successful_agents << { agent: agent.name, result: result }
+        puts "     ✅ Agent #{agent.name} succeeded"
+      rescue StandardError => e
+        failed_agents << { agent: agent.name, error: e.message }
+        puts "     ❌ Agent #{agent.name} failed: #{e.message}"
+        # Continue processing other agents
       end
 
       {
@@ -535,15 +567,18 @@ class ResilientPipeline
 
   def collect_span_attributes
     super.merge({
-      "pipeline.type" => "resilient",
-      "pipeline.agents_count" => agents.size,
-      "pipeline.recovery_enabled" => true
-    })
+                  "pipeline.type" => "resilient",
+                  "pipeline.agents_count" => agents.size,
+                  "pipeline.recovery_enabled" => true
+                })
   end
+
 end
 
 class UnreliableAgent
+
   include RAAF::Tracing::Traceable
+
   trace_as :agent
 
   attr_reader :name, :failure_rate, :parent_component
@@ -558,9 +593,7 @@ class UnreliableAgent
     with_tracing(:run) do
       puts "     🎲 Unreliable agent #{name} (failure rate: #{(failure_rate * 100).to_i}%)"
 
-      if rand < failure_rate
-        raise StandardError, "Simulated failure in agent #{name}"
-      end
+      raise StandardError, "Simulated failure in agent #{name}" if rand < failure_rate
 
       sleep(0.005) # Simulate processing
       "Agent #{name} completed successfully"
@@ -569,12 +602,13 @@ class UnreliableAgent
 
   def collect_span_attributes
     super.merge({
-      "agent.name" => name,
-      "agent.failure_rate" => failure_rate,
-      "agent.type" => "unreliable",
-      "agent.model" => "gpt-3.5"
-    })
+                  "agent.name" => name,
+                  "agent.failure_rate" => failure_rate,
+                  "agent.type" => "unreliable",
+                  "agent.model" => "gpt-3.5"
+                })
   end
+
 end
 
 # Create agents with different failure rates

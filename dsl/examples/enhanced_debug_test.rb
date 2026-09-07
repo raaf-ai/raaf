@@ -56,7 +56,6 @@ end
 
 # Test agent that includes the enhanced debugging capabilities
 class TestAgent < RAAF::DSL::Agent
-
   agent_name "TestAgent"
   model "gpt-4o"
   max_turns 2

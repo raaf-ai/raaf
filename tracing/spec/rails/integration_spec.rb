@@ -7,7 +7,7 @@ begin
   require "rails"
   require "active_record"
   require_relative "../../../../lib/raaf/tracing/active_record_processor"
-  
+
   # Check if database connection is available
   ActiveRecord::Base.connection.migration_context.current_version
 rescue LoadError, ActiveRecord::ConnectionNotDefined, ActiveRecord::NoDatabaseError => e
@@ -34,8 +34,8 @@ RSpec.describe "Rails Tracing Integration" do
 
     before do
       # Set up tracing with ActiveRecord processor
-      RAAF::tracer.add_processor(processor)
-      
+      RAAF.tracer.add_processor(processor)
+
       # Mock OpenAI API response
       allow_any_instance_of(RAAF::Models::ResponsesProvider).to receive(:run).and_return(
         RAAF::Result.new(
@@ -47,27 +47,27 @@ RSpec.describe "Rails Tracing Integration" do
 
     after do
       # Clean up
-      RAAF::tracer.instance_variable_set(:@processors, [])
+      RAAF.tracer.instance_variable_set(:@processors, [])
     end
 
     it "traces agent execution and stores in database" do
       # Execute agent within a trace
       trace_result = nil
-      RAAF::trace("Integration Test") do
+      RAAF.trace("Integration Test") do
         runner = RAAF::Runner.new(agent: agent)
         trace_result = runner.run("Hello, test agent!")
       end
 
       # Verify trace was created in database
       expect(RAAF::Tracing::Trace.count).to eq(1)
-      
+
       trace = RAAF::Tracing::Trace.first
       expect(trace.workflow_name).to eq("Integration Test")
       expect(trace.status).to be_in(%w[completed running])
 
       # Verify spans were created
       expect(RAAF::Tracing::Span.count).to be >= 1
-      
+
       agent_span = RAAF::Tracing::Span.find_by(kind: "agent")
       expect(agent_span).to be_present
       expect(agent_span.name).to include("TestAgent")
@@ -82,14 +82,14 @@ RSpec.describe "Rails Tracing Integration" do
       # Create a test job class
       job_class = Class.new(ActiveJob::Base) do
         include RAAF::Tracing::RailsIntegrations::JobTracing
-        
+
         def perform(message)
           @test_agent = RAAF::Agent.new(
             name: "JobAgent",
             instructions: "Test job agent",
             model: "gpt-4o"
           )
-          
+
           runner = RAAF::Runner.new(agent: @test_agent)
           runner.run(message)
         end
@@ -207,7 +207,7 @@ RSpec.describe "Rails Tracing Integration" do
       )
 
       RAAF::Tracing::Span.create!(
-        span_id: "slow_span123", 
+        span_id: "slow_span123",
         trace_id: trace.trace_id,
         name: "slow_operation",
         kind: "llm",

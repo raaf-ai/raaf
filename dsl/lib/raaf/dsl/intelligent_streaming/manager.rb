@@ -60,9 +60,7 @@ module RAAF
           end
 
           # Close any remaining scope
-          if current_scope
-            scopes << build_scope(current_scope)
-          end
+          scopes << build_scope(current_scope) if current_scope
 
           validate_scopes!(scopes)
           scopes
@@ -74,9 +72,7 @@ module RAAF
         # @raise [ConfigurationError] if scopes are invalid
         def validate_scopes!(scopes)
           scopes.each do |scope|
-            unless scope.valid?
-              raise ConfigurationError, "Invalid streaming scope: #{scope.to_h}"
-            end
+            raise ConfigurationError, "Invalid streaming scope: #{scope.to_h}" unless scope.valid?
           end
         end
 

@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Queue Monitoring", type: :feature, js: true do
+RSpec.describe "Queue Monitoring", :js, type: :feature do
   # These tests verify the user workflow for monitoring and managing the
   # continuous evaluation queue through the RAAF Rails dashboard UI.
 

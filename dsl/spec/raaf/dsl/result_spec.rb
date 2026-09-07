@@ -376,11 +376,11 @@ RSpec.describe RAAF::DSL::Result do
 
     context "edge cases" do
       it "handles JSON-like but invalid format" do
-        invalid_json = "{name: 'John'}"  # Single quotes, not valid JSON
+        invalid_json = "{name: 'John'}" # Single quotes, not valid JSON
         result = described_class.new({ messages: [{ role: "assistant", content: invalid_json }] })
 
         parsed = result.send(:parsed_data)
-        expect(parsed).to eq(invalid_json)  # Returns raw text
+        expect(parsed).to eq(invalid_json) # Returns raw text
       end
 
       it "handles partial JSON fragments" do
@@ -388,7 +388,7 @@ RSpec.describe RAAF::DSL::Result do
         result = described_class.new({ messages: [{ role: "assistant", content: fragment }] })
 
         parsed = result.send(:parsed_data)
-        expect(parsed).to eq(fragment)  # Returns raw text
+        expect(parsed).to eq(fragment) # Returns raw text
       end
     end
   end

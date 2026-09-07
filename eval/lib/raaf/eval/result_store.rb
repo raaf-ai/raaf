@@ -22,9 +22,7 @@ module RAAF
         updates[:baseline_comparison] = metrics[:baseline_comparison] if metrics[:baseline_comparison]
 
         # Update AI comparison status if present
-        if metrics[:ai_comparison]
-          updates[:ai_comparison_status] = metrics[:ai_comparison][:status] || "completed"
-        end
+        updates[:ai_comparison_status] = metrics[:ai_comparison][:status] || "completed" if metrics[:ai_comparison]
 
         evaluation_result.update!(updates)
       rescue StandardError => e

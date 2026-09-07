@@ -281,7 +281,10 @@ module RAAF
         # @raise [JudgeNotCalibratedError] If judge is not calibrated
         #
         def bias_corrected_accuracy(raw_proportion)
-          raise JudgeNotCalibratedError, "Judge must be calibrated before computing bias-corrected accuracy" unless calibrated?
+          unless calibrated?
+            raise JudgeNotCalibratedError,
+                  "Judge must be calibrated before computing bias-corrected accuracy"
+          end
 
           numerator = raw_proportion + @specificity - 1
           denominator = @specificity + @sensitivity - 1
@@ -315,11 +318,11 @@ module RAAF
           std_error = Math.sqrt(variance)
 
           # Z-score for confidence level
-          z = Distribution::Normal.inv_cdf(1 - alpha / 2)
+          z = Distribution::Normal.inv_cdf(1 - (alpha / 2))
 
           # Confidence bounds (clamped to valid probability range)
-          lower = (point_estimate - z * std_error).clamp(0.0, 1.0)
-          upper = (point_estimate + z * std_error).clamp(0.0, 1.0)
+          lower = (point_estimate - (z * std_error)).clamp(0.0, 1.0)
+          upper = (point_estimate + (z * std_error)).clamp(0.0, 1.0)
 
           {
             point_estimate: point_estimate,
@@ -367,13 +370,12 @@ module RAAF
           q1_pilot = pilot_calibration[:sensitivity]
 
           p = expected_positive_rate
-          denominator = q0_pilot + q1_pilot - 1
 
           # Optimal allocation minimizes variance
           # Ratio is based on derivative of variance with respect to allocation
           # Using simplified formula from the paper
-          term_0 = q0_pilot * (1 - q0_pilot) * ((1 - p) ** 2)
-          term_1 = q1_pilot * (1 - q1_pilot) * (p ** 2)
+          term_0 = q0_pilot * (1 - q0_pilot) * ((1 - p)**2)
+          term_1 = q1_pilot * (1 - q1_pilot) * (p**2)
 
           # Optimal ratio m1/m0
           ratio = Math.sqrt(term_1 / term_0) if term_0.positive?
@@ -436,9 +438,7 @@ module RAAF
         def judge_output(input, output, criteria)
           cache_key = Digest::SHA256.hexdigest("#{input}|#{output}|#{criteria}")
 
-          if @cache_enabled && @cache.key?(cache_key)
-            return @cache[cache_key]
-          end
+          return @cache[cache_key] if @cache_enabled && @cache.key?(cache_key)
 
           result = execute_judgment(input, output, criteria)
 
@@ -529,7 +529,7 @@ module RAAF
         def variance_from_test(p, n)
           # Variance contribution from test set uncertainty
           denominator = @specificity + @sensitivity - 1
-          (p * (1 - p)) / (n * (denominator ** 2))
+          (p * (1 - p)) / (n * (denominator**2))
         end
 
         def variance_from_calibration(p)
@@ -550,7 +550,7 @@ module RAAF
           partial_q0 = (1 - theta) / denominator
           partial_q1 = theta / denominator
 
-          (partial_q0 ** 2) * var_q0 + (partial_q1 ** 2) * var_q1
+          ((partial_q0**2) * var_q0) + ((partial_q1**2) * var_q1)
         end
 
         def estimate_variance_reduction(m0, m1, q0, q1, p)
@@ -574,7 +574,7 @@ module RAAF
           partial_q0 = (1 - theta) / denominator
           partial_q1 = theta / denominator
 
-          (partial_q0 ** 2) * var_q0 + (partial_q1 ** 2) * var_q1
+          ((partial_q0**2) * var_q0) + ((partial_q1**2) * var_q1)
         end
       end
 

@@ -7,9 +7,12 @@ require "base64"
 require_relative "../../core/lib/raaf/utils"
 
 module RAAF
+
   module Tools
+
     # Confluence integration tool for managing pages, spaces, and content
     class ConfluenceTool
+
       attr_reader :name, :description
 
       def initialize(url:, username:, api_token:, name: "confluence", description: nil, **config)
@@ -119,7 +122,7 @@ module RAAF
 
         # Convert to indifferent access for consistent key handling
         args = RAAF::Utils.indifferent_access(arguments)
-        
+
         action = args[:action]
 
         case action
@@ -666,6 +669,9 @@ module RAAF
           { success: true, message: "Demo mode: #{action} completed" }
         end
       end
+
     end
+
   end
+
 end

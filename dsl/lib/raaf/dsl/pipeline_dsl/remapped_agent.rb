@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require 'timeout'
-require 'active_support/core_ext/hash/keys'
-require 'active_support/hash_with_indifferent_access'
-require_relative 'wrapper_dsl'
+require "timeout"
+require "active_support/core_ext/hash/keys"
+require "active_support/hash_with_indifferent_access"
+require_relative "wrapper_dsl"
 
 module RAAF
   module DSL
@@ -38,10 +38,9 @@ module RAAF
         # Create a new wrapper with merged options (required by WrapperDSL)
         def create_wrapper(**new_options)
           RemappedAgent.new(@agent_class,
-            input_mapping: @input_mapping,
-            output_mapping: @output_mapping,
-            **@options.merge(new_options)
-          )
+                            input_mapping: @input_mapping,
+                            output_mapping: @output_mapping,
+                            **@options.merge(new_options))
         end
 
         # Delegate metadata methods to the wrapped agent
@@ -71,8 +70,11 @@ module RAAF
         def requirements_met?(context)
           # Check if requirements are met after input mapping is applied
           remapped_context = apply_input_mapping_to_context(context)
-          @agent_class.respond_to?(:requirements_met?) ?
-            @agent_class.requirements_met?(remapped_context) : true
+          if @agent_class.respond_to?(:requirements_met?)
+            @agent_class.requirements_met?(remapped_context)
+          else
+            true
+          end
         end
 
         # Execute with input/output remapping
@@ -89,16 +91,17 @@ module RAAF
 
           execute_with_hooks(context, :remapped, agent_name: agent_name, input_mapping: @input_mapping, output_mapping: @output_mapping) do
             # Ensure context is ContextVariables if it's a plain Hash
-            unless context.respond_to?(:set)
-              context = RAAF::DSL::ContextVariables.new(context)
-            end
+            context = RAAF::DSL::ContextVariables.new(context) unless context.respond_to?(:set)
 
             # Apply input mapping to context
             remapped_context = apply_input_mapping_to_context(context)
 
             # Convert context for agent initialization
-            context_hash = remapped_context.is_a?(RAAF::DSL::ContextVariables) ?
-              remapped_context.to_h : remapped_context
+            context_hash = if remapped_context.is_a?(RAAF::DSL::ContextVariables)
+                             remapped_context.to_h
+                           else
+                             remapped_context
+                           end
 
             # Create agent with remapped context
             agent = @agent_class.new(**context_hash)
@@ -161,13 +164,13 @@ module RAAF
 
           # Start with the original context
           remapped = case context
-                    when RAAF::DSL::ContextVariables
-                      context.dup
-                    when Hash
-                      ActiveSupport::HashWithIndifferentAccess.new(context.dup)
-                    else
-                      ActiveSupport::HashWithIndifferentAccess.new
-                    end
+                     when RAAF::DSL::ContextVariables
+                       context.dup
+                     when Hash
+                       ActiveSupport::HashWithIndifferentAccess.new(context.dup)
+                     else
+                       ActiveSupport::HashWithIndifferentAccess.new
+                     end
 
           # Apply input mappings: target_field: source_field
           @input_mapping.each do |target_field, source_field|
@@ -215,16 +218,12 @@ module RAAF
           when RAAF::DSL::ContextVariables
             result.each do |key, value|
               # Skip internal control fields
-              unless key.to_s.match?(/^(success|error|errors|status|metadata)$/i)
-                context = context.set(key, value)
-              end
+              context = context.set(key, value) unless key.to_s.match?(/^(success|error|errors|status|metadata)$/i)
             end
             context
           when Hash
             result.each do |key, value|
-              unless key.to_s.match?(/^(success|error|errors|status|metadata)$/i)
-                context[key] = value
-              end
+              context[key] = value unless key.to_s.match?(/^(success|error|errors|status|metadata)$/i)
             end
             context
           else

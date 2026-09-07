@@ -3,7 +3,9 @@
 require_relative "base"
 
 module RAAF
+
   module Guardrails
+
     ##
     # Output guardrails validate agent responses before returning to users
     #
@@ -36,6 +38,7 @@ module RAAF
     #   agent.add_output_guardrail(guardrail)
     #
     class OutputGuardrail
+
       # @!attribute [r] guardrail_function
       #   @return [Proc, Method] The validation function
       # @!attribute [r] name
@@ -168,6 +171,7 @@ module RAAF
           run(context, agent, agent_output)
         end
       end
+
     end
 
     ##
@@ -178,6 +182,7 @@ module RAAF
     # Guardrails module to provide module-level builder methods.
     #
     module OutputGuardrailBuilder
+
       ##
       # Create an output guardrail from a block
       #
@@ -202,9 +207,9 @@ module RAAF
       #   guardrail = output_guardrail do |context, agent, output|
       #     if output.match?(/\b(?:api[_-]?key|password|secret)\b/i)
       #       GuardrailFunctionOutput.new(
-      #         output_info: { 
+      #         output_info: {
       #           reason: "Detected sensitive information",
-      #           pattern_matched: true 
+      #           pattern_matched: true
       #         },
       #         tripwire_triggered: true
       #       )
@@ -232,10 +237,10 @@ module RAAF
       #   class QualityChecker
       #     def check_response_quality(context, agent, output)
       #       score = calculate_quality_score(output)
-      #       
+      #
       #       if score < 0.7
       #         GuardrailFunctionOutput.new(
-      #           output_info: { 
+      #           output_info: {
       #             quality_score: score,
       #             threshold: 0.7,
       #             issues: ["low coherence", "off-topic"]
@@ -249,9 +254,9 @@ module RAAF
       #         )
       #       end
       #     end
-      #     
+      #
       #     private
-      #     
+      #
       #     def calculate_quality_score(output)
       #       # Quality scoring logic
       #       0.85
@@ -267,9 +272,12 @@ module RAAF
       def output_guardrail_from_method(method, name: nil)
         OutputGuardrail.new(method, name: name)
       end
+
     end
 
     # Include builder methods
     extend OutputGuardrailBuilder
+
   end
+
 end

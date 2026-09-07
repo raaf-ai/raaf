@@ -75,10 +75,10 @@ module RAAF
               # Legacy score-based approach (requires max_increase_pct)
               max_increase_pct = options[:max_increase_pct] || 10
               percentage_change = if baseline_cost > 0
-                ((current_cost - baseline_cost).to_f / baseline_cost * 100).round(2)
-              else
-                current_cost > 0 ? 100.0 : 0.0
-              end
+                                    ((current_cost - baseline_cost).to_f / baseline_cost * 100).round(2)
+                                  else
+                                    current_cost > 0 ? 100.0 : 0.0
+                                  end
               score = calculate_score(percentage_change, max_increase_pct)
               threshold_good = options[:threshold_good] || options[:good_threshold] || 0.85
               threshold_average = options[:threshold_average] || options[:average_threshold] || 0.7

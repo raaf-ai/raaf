@@ -73,15 +73,15 @@ module RAAF
         # Chain this batched agent with the next component
         # @param next_agent [Class, Agent, Service] Next component in chain
         # @return [ChainedAgent]
-        def >>(next_agent)
-          ChainedAgent.new(self, next_agent)
+        def >>(other)
+          ChainedAgent.new(self, other)
         end
 
         # Run this batched agent in parallel with another
         # @param parallel_agent [Class, Agent, Service] Component to run in parallel
         # @return [ParallelAgents]
-        def |(parallel_agent)
-          ParallelAgents.new([self, parallel_agent])
+        def |(other)
+          ParallelAgents.new([self, other])
         end
 
         # Execute the wrapped component in chunks
@@ -93,9 +93,7 @@ module RAAF
           # Wrap execution with before_execute/after_execute hooks
           execute_with_hooks(context, :batched, chunk_size: @chunk_size, input_field: @input_field, output_field: @output_field) do
             # Ensure context is ContextVariables
-            unless context.respond_to?(:set)
-              context = RAAF::DSL::ContextVariables.new(context)
-            end
+            context = RAAF::DSL::ContextVariables.new(context) unless context.respond_to?(:set)
 
             # Detect which array field to batch over
             field_to_batch = detect_array_field(context)
@@ -181,9 +179,9 @@ module RAAF
         private
 
         def validate_chunk_size!
-          unless chunk_size.is_a?(Integer) && chunk_size > 0
-            raise ArgumentError, "chunk_size must be a positive integer, got #{chunk_size.inspect}"
-          end
+          return if chunk_size.is_a?(Integer) && chunk_size > 0
+
+          raise ArgumentError, "chunk_size must be a positive integer, got #{chunk_size.inspect}"
         end
 
         # Extract the actual agent name from the wrapped component
@@ -192,9 +190,7 @@ module RAAF
           component = @wrapped_component
 
           # Keep unwrapping until we find the real agent class
-          while component.respond_to?(:agent_class)
-            component = component.agent_class
-          end
+          component = component.agent_class while component.respond_to?(:agent_class)
 
           case component
           when Class
@@ -251,14 +247,14 @@ module RAAF
           # Error: Ambiguous or no array fields
           if array_fields.empty?
             raise ArgumentError, "No array fields found in context. Available fields: #{context.to_h.keys.join(', ')}"
-          else
-            raise ArgumentError, "Multiple array fields found: #{array_fields.join(', ')}. Please specify array_field parameter."
           end
+
+          raise ArgumentError, "Multiple array fields found: #{array_fields.join(', ')}. Please specify array_field parameter."
         end
 
         # Execute the wrapped component based on its type
         def execute_wrapped_component(chunk_context, agent_results)
-          component_name = @wrapped_component.respond_to?(:name) ? @wrapped_component.name : @wrapped_component.class.name
+          @wrapped_component.respond_to?(:name) ? @wrapped_component.name : @wrapped_component.class.name
 
           case @wrapped_component
           when Class
@@ -287,7 +283,7 @@ module RAAF
           # Instantiate and execute
           component_instance = @wrapped_component.new(**symbolized_params)
 
-          if component_instance.respond_to?(:call) && component_instance.class.superclass.name == 'RAAF::DSL::Service'
+          if component_instance.respond_to?(:call) && component_instance.class.superclass.name == "RAAF::DSL::Service"
             component_instance.call
           else
             component_instance.run
@@ -312,9 +308,7 @@ module RAAF
           end
 
           # Object-based result (OpenStruct, etc.)
-          if result.respond_to?(field_name)
-            return result.send(field_name)
-          end
+          return result.send(field_name) if result.respond_to?(field_name)
 
           log_warn "⚠️ [#{wrapped_agent_name}] Could not extract #{field_name} from result of type #{result.class}"
           nil

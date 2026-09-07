@@ -52,21 +52,21 @@ RSpec.describe "RAAF::Continuation::FormatDetector" do
 
     it "rejects content with pipes as CSV (markdown indicator)" do
       content = "id | name | email\n1 | Alice | alice@example.com"
-      format, confidence = detector.detect(content)
+      format, = detector.detect(content)
 
       expect(format).not_to eq(:csv)
     end
 
     it "rejects JSON-like content as CSV" do
       content = '{"data": [{"id": 1, "name": "Alice"}]}'
-      format, confidence = detector.detect(content)
+      format, = detector.detect(content)
 
       expect(format).not_to eq(:csv)
     end
 
     it "handles CSV with inconsistent columns" do
       content = "id,name,email\n1,Alice\n2,Bob,bob@example.com,extra"
-      format, confidence = detector.detect(content)
+      format, = detector.detect(content)
 
       # Should still detect as CSV but with lower confidence
       expect(format).to eq(:csv)
@@ -74,7 +74,7 @@ RSpec.describe "RAAF::Continuation::FormatDetector" do
 
     it "detects single-line CSV" do
       content = "Alice,alice@example.com,123-456-7890"
-      format, confidence = detector.detect(content)
+      format, = detector.detect(content)
 
       expect(format).to eq(:csv)
     end
@@ -88,7 +88,7 @@ RSpec.describe "RAAF::Continuation::FormatDetector" do
       content = "# My Report\n\n## Section 1\n\nSome content here"
       format, confidence = detector.detect(content)
 
-      expect([:markdown, :unknown]).to include(format)
+      expect(%i[markdown unknown]).to include(format)
       expect(confidence).to be > 0.3
     end
 
@@ -96,7 +96,7 @@ RSpec.describe "RAAF::Continuation::FormatDetector" do
       content = "Here is some code:\n\n```ruby\ndef hello\n  puts 'world'\nend\n```"
       format, confidence = detector.detect(content)
 
-      expect([:markdown, :unknown]).to include(format)
+      expect(%i[markdown unknown]).to include(format)
       expect(confidence).to be > 0.3
     end
 
@@ -104,7 +104,7 @@ RSpec.describe "RAAF::Continuation::FormatDetector" do
       content = "| ID | Name | Email |\n|---|---|---|\n| 1 | Alice | alice@example.com |\n| 2 | Bob | bob@example.com |"
       format, confidence = detector.detect(content)
 
-      expect([:markdown, :unknown]).to include(format)
+      expect(%i[markdown unknown]).to include(format)
       expect(confidence).to be > 0.3
     end
 
@@ -112,7 +112,7 @@ RSpec.describe "RAAF::Continuation::FormatDetector" do
       content = "This is **bold** and this is *italic* text."
       format, confidence = detector.detect(content)
 
-      expect([:markdown, :unknown]).to include(format)
+      expect(%i[markdown unknown]).to include(format)
       expect(confidence).to be > 0.3
     end
 
@@ -120,7 +120,7 @@ RSpec.describe "RAAF::Continuation::FormatDetector" do
       content = "- Item 1\n- Item 2\n  - Nested item\n- Item 3"
       format, confidence = detector.detect(content)
 
-      expect([:markdown, :unknown]).to include(format)
+      expect(%i[markdown unknown]).to include(format)
       expect(confidence).to be > 0.3
     end
 
@@ -149,20 +149,20 @@ RSpec.describe "RAAF::Continuation::FormatDetector" do
 
       format, confidence = detector.detect(content)
 
-      expect([:markdown, :unknown]).to include(format)
+      expect(%i[markdown unknown]).to include(format)
       expect(confidence).to be > 0.6
     end
 
     it "rejects JSON as markdown" do
       content = '{"items": [{"id": 1, "name": "Alice"}]}'
-      format, confidence = detector.detect(content)
+      format, = detector.detect(content)
 
       expect(format).not_to eq(:markdown)
     end
 
     it "rejects plain CSV as markdown" do
       content = "id,name,email\n1,Alice,alice@example.com"
-      format, confidence = detector.detect(content)
+      format, = detector.detect(content)
 
       expect(format).not_to eq(:markdown)
     end
@@ -189,8 +189,8 @@ RSpec.describe "RAAF::Continuation::FormatDetector" do
     end
 
     it "detects large JSON array" do
-      items = (1..50).map { |i| %Q({"id": #{i}, "name": "Item#{i}", "value": #{i * 10}}) }
-      content = "[#{items.join(", ")}]"
+      items = (1..50).map { |i| %({"id": #{i}, "name": "Item#{i}", "value": #{i * 10}}) }
+      content = "[#{items.join(', ')}]"
       format, confidence = detector.detect(content)
 
       expect(format).to eq(:json)
@@ -223,14 +223,14 @@ RSpec.describe "RAAF::Continuation::FormatDetector" do
 
     it "rejects markdown as JSON" do
       content = "# Report\n\n| ID | Name |\n|---|---|\n| 1 | Alice |"
-      format, confidence = detector.detect(content)
+      format, = detector.detect(content)
 
       expect(format).not_to eq(:json)
     end
 
     it "rejects CSV as JSON" do
       content = "id,name,email\n1,Alice,alice@example.com"
-      format, confidence = detector.detect(content)
+      format, = detector.detect(content)
 
       expect(format).not_to eq(:json)
     end
@@ -263,7 +263,7 @@ RSpec.describe "RAAF::Continuation::FormatDetector" do
 
     it "handles ambiguous content with low confidence" do
       content = "some random text with no clear format indicators"
-      format, confidence = detector.detect(content)
+      _, confidence = detector.detect(content)
 
       # Should return unknown or a format but with low confidence
       expect(confidence).to be <= 0.3
@@ -271,14 +271,14 @@ RSpec.describe "RAAF::Continuation::FormatDetector" do
 
     it "handles content with special characters" do
       content = '{"data": "Special chars: !@#$%^&*()_+-=[]{}|;:,.<>?"}'
-      format, confidence = detector.detect(content)
+      format, = detector.detect(content)
 
       expect(format).to eq(:json)
     end
 
     it "handles mixed case headers" do
       content = "ID,Name,Email\n1,Alice,alice@example.com"
-      format, confidence = detector.detect(content)
+      format, = detector.detect(content)
 
       expect(format).to eq(:csv)
     end
@@ -290,7 +290,7 @@ RSpec.describe "RAAF::Continuation::FormatDetector" do
   describe "confidence scoring" do
     it "returns confidence between 0.0 and 1.0" do
       ["id,name", '{"id": 1}', "# Header"].each do |content|
-        format, confidence = detector.detect(content)
+        _, confidence = detector.detect(content)
 
         expect(confidence).to be >= 0.0
         expect(confidence).to be <= 1.0
@@ -317,14 +317,14 @@ RSpec.describe "RAAF::Continuation::FormatDetector" do
       content = "# Report\n\n## Section\n\n```ruby\ncode\n```\n\n| A | B |\n|---|---|\n| 1 | 2 |"
       format, confidence = detector.detect(content)
 
-      expect([:markdown, :unknown]).to include(format)
+      expect(%i[markdown unknown]).to include(format)
       expect(confidence).to be > 0.5
     end
 
     it "gives lower confidence for ambiguous content" do
       # Content that could be multiple formats
       content = "name,age\nAlice,30"
-      format, confidence = detector.detect(content)
+      _, confidence = detector.detect(content)
 
       # Should detect as something but maybe lower confidence
       expect(confidence).to be >= 0.3
@@ -373,7 +373,7 @@ RSpec.describe "RAAF::Continuation::FormatDetector" do
 
       format, confidence = detector.detect(content)
 
-      expect([:markdown, :unknown]).to include(format)
+      expect(%i[markdown unknown]).to include(format)
       expect(confidence).to be > 0.6
     end
 
@@ -410,7 +410,7 @@ RSpec.describe "RAAF::Continuation::FormatDetector" do
         4,Diana Prince,diana@example.com,Delta Co
       CSV
 
-      format, confidence = detector.detect(content)
+      format, = detector.detect(content)
 
       expect(format).to eq(:csv)
     end
@@ -422,23 +422,23 @@ RSpec.describe "RAAF::Continuation::FormatDetector" do
   describe "integration with format variations" do
     it "detects CSV even with different line endings" do
       content = "id,name,email\r\n1,Alice,alice@example.com\r\n2,Bob,bob@example.com"
-      format, confidence = detector.detect(content)
+      format, = detector.detect(content)
 
       expect(format).to eq(:csv)
     end
 
     it "detects JSON with extra whitespace" do
       content = "  {  \n  \"id\" : 1 , \n  \"name\" : \"Alice\" \n  }  "
-      format, confidence = detector.detect(content)
+      format, = detector.detect(content)
 
       expect(format).to eq(:json)
     end
 
     it "detects markdown with mixed line endings" do
       content = "# Header\r\n\nSome text\n\n```ruby\ncode\n```"
-      format, confidence = detector.detect(content)
+      format, = detector.detect(content)
 
-      expect([:markdown, :unknown]).to include(format)
+      expect(%i[markdown unknown]).to include(format)
     end
   end
 end

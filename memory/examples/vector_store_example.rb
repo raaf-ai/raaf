@@ -45,12 +45,13 @@ puts
 # In production, this might be backed by Pinecone, Weaviate, or Chroma
 if defined?(RAAF::VectorStore)
   knowledge_store = RAAF::VectorStore.new(
-    name: "company_knowledge",       # Unique identifier for the store
-    dimensions: 1536                # Must match embedding model dimensions
+    name: "company_knowledge", # Unique identifier for the store
+    dimensions: 1536 # Must match embedding model dimensions
   )
 else
   # Mock implementation for demonstration
   class VectorStore
+
     def initialize(name:, dimensions:)
       @name = name
       @dimensions = dimensions
@@ -58,7 +59,7 @@ else
       @embeddings = {}
       @namespaces = { "default" => {} }
     end
-    
+
     def add_documents(documents, namespace: "default")
       @namespaces[namespace] ||= {}
       documents.map.with_index do |doc, i|
@@ -68,37 +69,38 @@ else
         id
       end
     end
-    
-    def search(query, k: 5, filter: nil, namespace: "default")
+
+    def search(_query, k: 5, filter: nil, namespace: "default")
       # Mock search implementation
       docs = @namespaces[namespace] || {}
       results = docs.values
-      
+
       # Apply filter if provided
       if filter
         results = results.select do |doc|
           filter.all? { |key, value| doc[:metadata][key] == value }
         end
       end
-      
+
       # Return top k results (mock relevance)
       results.first(k)
     end
-    
+
     def stats
       @namespaces.transform_values(&:size)
     end
-    
+
     def export(path)
-      require 'json'
+      require "json"
       File.write(path, JSON.pretty_generate({
-        name: @name,
-        dimensions: @dimensions,
-        records: @namespaces
-      }))
+                                              name: @name,
+                                              dimensions: @dimensions,
+                                              records: @namespaces
+                                            }))
     end
+
   end
-  
+
   knowledge_store = VectorStore.new(
     name: "company_knowledge",
     dimensions: 1536
@@ -164,7 +166,7 @@ if defined?(RAAF::Tools::VectorSearchTool)
     name: "search_knowledge",
     description: "Search the company knowledge base"
   )
-  
+
   # Indexing tool for adding new knowledge
   # Allows the agent to expand the knowledge base dynamically
   index_tool = RAAF::Tools::VectorIndexTool.new(
@@ -172,7 +174,7 @@ if defined?(RAAF::Tools::VectorSearchTool)
     name: "add_knowledge",
     description: "Add new information to the knowledge base"
   )
-  
+
   # Management tool for document operations
   # Update, delete, or reorganize documents
   manage_tool = RAAF::Tools::VectorManagementTool.new(
@@ -183,43 +185,47 @@ if defined?(RAAF::Tools::VectorSearchTool)
 else
   # Mock tools for demonstration
   class VectorSearchTool
+
     def initialize(vector_store:, name:, description:)
       @vector_store = vector_store
       @name = name
       @description = description
     end
-    
+
     attr_reader :name, :description
-    
+
     def search(query:, k: 5, filter: nil)
       @vector_store.search(query, k: k, filter: filter)
     end
+
   end
-  
+
   class VectorIndexTool < VectorSearchTool
+
     def add(content:, metadata: {})
       @vector_store.add_documents([{ content: content, metadata: metadata }])
     end
+
   end
-  
+
   class VectorManagementTool < VectorSearchTool
-    def stats
-      @vector_store.stats
-    end
+
+    delegate :stats, to: :@vector_store
+
   end
-  
+
   search_tool = VectorSearchTool.new(
     vector_store: knowledge_store,
     name: "search_knowledge",
     description: "Search the company knowledge base"
   )
-  
+
   index_tool = VectorIndexTool.new(
     vector_store: knowledge_store,
     name: "add_knowledge",
     description: "Add new information to the knowledge base"
   )
-  
+
   manage_tool = VectorManagementTool.new(
     vector_store: knowledge_store,
     name: "manage_knowledge",
@@ -239,18 +245,18 @@ end
 agent = RAAF::Agent.new(
   name: "KnowledgeAssistant",
   model: "gpt-4o",
-  
+
   # Instructions emphasize retrieval-first approach
   # The agent should always search before answering
   instructions: <<~INSTRUCTIONS
     You are a helpful assistant with access to the company knowledge base.
-    
+
     When users ask questions:
     1. Search the knowledge base for relevant information
     2. Provide accurate answers based on the search results
     3. If information is not found, say so clearly
     4. You can also add new information to the knowledge base when provided
-    
+
     Always cite which documents you're basing your answer on.
   INSTRUCTIONS
 )
@@ -285,20 +291,20 @@ else
   search_function = lambda do |query:, k: 5, filter: nil|
     results = knowledge_store.search(query, k: k, filter: filter)
     "Found #{results.length} relevant documents:\n" +
-    results.map { |r| "- #{r[:content][0..100]}..." }.join("\n")
+      results.map { |r| "- #{r[:content][0..100]}..." }.join("\n")
   end
-  
+
   add_function = lambda do |content:, metadata: {}|
     ids = knowledge_store.add_documents([{ content: content, metadata: metadata }])
     "Added document with ID: #{ids.first}"
   end
-  
+
   stats_function = lambda do
     stats = knowledge_store.stats
     "Knowledge base statistics:\n" +
-    stats.map { |ns, count| "- #{ns}: #{count} documents" }.join("\n")
+      stats.map { |ns, count| "- #{ns}: #{count} documents" }.join("\n")
   end
-  
+
   agent.add_tool(
     RAAF::FunctionTool.new(
       search_function,
@@ -306,7 +312,7 @@ else
       description: "Search the company knowledge base"
     )
   )
-  
+
   agent.add_tool(
     RAAF::FunctionTool.new(
       add_function,
@@ -314,7 +320,7 @@ else
       description: "Add new information to the knowledge base"
     )
   )
-  
+
   agent.add_tool(
     RAAF::FunctionTool.new(
       stats_function,
@@ -387,7 +393,7 @@ result = runner.run(<<~PROMPT)
   1. Where are your offices located?
   2. What support options are available?
   3. Do you have enterprise pricing?
-  
+
   Please provide comprehensive information.
 PROMPT
 puts result.messages.last[:content]
@@ -450,7 +456,7 @@ puts "-" * 50
 filtered_results = knowledge_store.search(
   "company information",
   k: 5,
-  filter: { category: "company" }  # Structured filter on metadata
+  filter: { category: "company" } # Structured filter on metadata
 )
 
 puts "Documents in 'company' category:"
@@ -481,14 +487,16 @@ if defined?(RAAF::Tools::VectorRAGTool)
 else
   # Mock RAG tool
   class VectorRAGTool < VectorSearchTool
+
     def rag_search(query:, k: 10)
       # RAG typically retrieves more documents for context
       results = @vector_store.search(query, k: k)
       # Format results for LLM context
       results.map { |r| r[:content] }.join("\n\n")
     end
+
   end
-  
+
   rag_tool = VectorRAGTool.new(
     vector_store: knowledge_store,
     name: "knowledge_rag",
@@ -502,7 +510,7 @@ rag_agent = RAAF::Agent.new(
   model: "gpt-4o",
   instructions: <<~INSTRUCTIONS
     You are an expert at providing comprehensive answers using retrieval-augmented generation.
-    
+
     When answering questions:
     1. First search for ALL relevant information
     2. Synthesize information from multiple sources
@@ -527,7 +535,7 @@ else
     context = results.map { |r| r[:content] }.join("\n\n---\n\n")
     "Retrieved #{results.length} relevant documents for context. Based on the knowledge base:\n\n#{context}"
   end
-  
+
   rag_agent.add_tool(
     RAAF::FunctionTool.new(
       rag_function,
@@ -553,7 +561,7 @@ puts result.messages.last[:content]
 puts "\n10. Exporting knowledge base..."
 
 # Create export directory
-require 'fileutils'
+require "fileutils"
 export_path = "tmp/knowledge_base_export.json"
 FileUtils.mkdir_p("tmp")
 
@@ -564,10 +572,10 @@ puts "Knowledge base exported to: #{export_path}"
 
 # Analyze export contents
 # Useful for debugging and understanding store structure
-require 'json'
+require "json"
 export_data = JSON.parse(File.read(export_path))
-total_docs = export_data['records'].values.map(&:size).sum
-namespace_count = export_data['records'].size
+total_docs = export_data["records"].values.map(&:size).sum
+namespace_count = export_data["records"].size
 puts "Export contains #{total_docs} total documents across #{namespace_count} namespaces"
 
 # Clean up temporary files

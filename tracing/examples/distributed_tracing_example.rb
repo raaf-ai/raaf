@@ -8,7 +8,7 @@
 #
 # - Cross-service trace correlation with trace IDs
 # - Baggage propagation for contextual data
-# - HTTP middleware integration for automatic tracing  
+# - HTTP middleware integration for automatic tracing
 # - Background job integration for async operations
 # - Performance profiling and bottleneck identification
 # - Service topology mapping and dependency analysis
@@ -28,15 +28,15 @@ distributed_tracer = RAAF::Tracing::DistributedTracer.new(
   service_name: "ai-agents-main",
   service_version: "1.0.0",
   environment: "production",
-  correlation_headers: ["x-trace-id", "x-span-id"],
-  baggage_headers: ["x-user-id", "x-tenant-id"],
+  correlation_headers: %w[x-trace-id x-span-id],
+  baggage_headers: %w[x-user-id x-tenant-id],
   propagation_format: :w3c_trace_context
 )
 
 puts "✅ Distributed tracer configured:"
 puts "  - Service: #{distributed_tracer.service_name}"
 puts "  - Propagation: #{distributed_tracer.propagation_format}"
-puts "  - Headers: #{distributed_tracer.correlation_headers.join(', ')}"
+puts "  - Headers: #{distributed_tracer.correlation_headers.join(", ")}"
 
 # Example 2: Cross-Service Trace Propagation
 puts "\n=== Example 2: Cross-Service Trace Propagation ==="
@@ -50,23 +50,21 @@ services = [
 ]
 
 root_span = distributed_tracer.start_span("user_request",
-  service: "api-gateway",
-  operation: "POST /api/v1/process",
-  user_id: "user_123",
-  tenant_id: "tenant_456"
-)
+                                          service: "api-gateway",
+                                          operation: "POST /api/v1/process",
+                                          user_id: "user_123",
+                                          tenant_id: "tenant_456")
 
 puts "🌐 Simulating distributed trace across #{services.length} services:"
 services.each_with_index do |service, i|
   child_span = distributed_tracer.start_span("#{service[:role]}_operation",
-    parent: root_span,
-    service: service[:name],
-    operation: service[:role],
-    port: service[:port]
-  )
-  
-  puts "  #{i+1}. #{service[:name]} (#{service[:role]}) - Span: #{child_span.span_id}"
-  
+                                             parent: root_span,
+                                             service: service[:name],
+                                             operation: service[:role],
+                                             port: service[:port])
+
+  puts "  #{i + 1}. #{service[:name]} (#{service[:role]}) - Span: #{child_span.span_id}"
+
   distributed_tracer.finish_span(child_span)
 end
 
@@ -101,9 +99,7 @@ puts "\n📡 Tracing HTTP requests:"
 http_requests.each do |req|
   span = http_middleware.trace_request(req[:method], req[:path], req[:service])
   puts "  #{req[:method]} #{req[:path]} → #{span.span_id}"
-  if req[:body_size]
-    span.set_attribute("http.request.body.size", req[:body_size])
-  end
+  span.set_attribute("http.request.body.size", req[:body_size]) if req[:body_size]
   http_middleware.finish_request(span, status: 200, response_size: 256)
 end
 

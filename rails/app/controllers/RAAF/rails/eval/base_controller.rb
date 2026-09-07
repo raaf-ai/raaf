@@ -19,8 +19,10 @@ module RAAF
 
         def unprocessable_entity(exception)
           respond_to do |format|
-            format.html { redirect_back(fallback_location: root_path, alert: exception.record.errors.full_messages.join(", ")) }
-            format.json { render json: { errors: exception.record.errors }, status: :unprocessable_entity }
+            format.html do
+              redirect_back_or_to(root_path, alert: exception.record.errors.full_messages.join(", "))
+            end
+            format.json { render json: { errors: exception.record.errors }, status: :unprocessable_content }
           end
         end
       end

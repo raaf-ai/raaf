@@ -8,7 +8,6 @@ require "raaf-dsl"
 
 # Agent with explicit prompt class
 class ExplicitPromptAgent < RAAF::DSL::Agent
-
   agent_name "explicit_prompt_agent"
 
   # This would reference an actual prompt class
@@ -21,7 +20,6 @@ end
 
 # Agent that uses inference (expects RAAF::DSL::Prompts::InferredPromptAgent)
 class InferredPromptAgent < RAAF::DSL::Agent
-
   agent_name "inferred_prompt_agent"
 
   def agent_name
@@ -31,7 +29,6 @@ end
 
 # Agent using legacy template system
 class LegacyTemplateAgent < RAAF::DSL::Agent
-
   agent_name "legacy_template_agent"
 
   instruction_template "You are {agent_name} specialized in {domain}. Your task is to {task}."
@@ -48,7 +45,6 @@ end
 
 # Agent using static instructions
 class StaticInstructionAgent < RAAF::DSL::Agent
-
   agent_name "static_instruction_agent"
 
   def agent_name
@@ -62,7 +58,6 @@ end
 
 # Agent with no configuration (uses defaults)
 class DefaultAgent < RAAF::DSL::Agent
-
   agent_name "default_agent"
 
   def agent_name

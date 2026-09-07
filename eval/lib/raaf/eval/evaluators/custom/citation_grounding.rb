@@ -17,7 +17,7 @@ module RAAF
         #
         # @example Register and use
         #   RAAF::Eval.register_evaluator(:citation_grounding, CitationGroundingEvaluator)
-        #   
+        #
         #   evaluator = RAAF::Eval.define do
         #     evaluate_field :output do
         #       evaluate_with :citation_grounding, knowledge_base: ["1", "2", "3"]
@@ -45,8 +45,16 @@ module RAAF
             grounded = verify_citations(citations, knowledge_base)
 
             # Access other fields for context (optional)
-            model = field_context[:configuration][:model] rescue "unknown"
-            tokens = field_context[:usage][:total_tokens] rescue 0
+            model = begin
+              field_context[:configuration][:model]
+            rescue StandardError
+              "unknown"
+            end
+            tokens = begin
+              field_context[:usage][:total_tokens]
+            rescue StandardError
+              0
+            end
 
             score = grounded[:verified_ratio]
             label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
@@ -79,6 +87,7 @@ module RAAF
           # @return [Array<Integer>] Array of citation numbers
           def extract_citations(text)
             return [] unless text.is_a?(String)
+
             text.scan(/\[(\d+)\]/).flatten.map(&:to_i)
           end
 

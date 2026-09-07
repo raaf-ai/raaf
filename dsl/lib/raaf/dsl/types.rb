@@ -19,7 +19,7 @@ module RAAF
         email: {
           type: :string,
           format: :email,
-          pattern: /\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i
+          pattern: /\A[\w+\-.]+@[a-z\d-]+(\.[a-z\d-]+)*\.[a-z]+\z/i
         },
         url: {
           type: :string,
@@ -145,56 +145,42 @@ module RAAF
               if type_definition[:pattern]
                 return false unless value.match?(type_definition[:pattern])
               else
-                return false unless value.include?('@') && value.include?('.')
+                return false unless value.include?("@") && value.include?(".")
               end
             when :uri, :url
               # Basic URL validation - must start with http/https/ftp
-              return false unless value.match?(/\A(https?|ftp):\/\/\S+\z/)
+              return false unless value.match?(%r{\A(https?|ftp)://\S+\z})
             end
           end
 
           # Check pattern if present (and not already checked by format)
-          if type_definition[:pattern] && !type_definition[:format]
-            return false unless value.match?(type_definition[:pattern])
+          if type_definition[:pattern] && !type_definition[:format] && !value.match?(type_definition[:pattern])
+            return false
           end
 
           # Check length constraints
-          if type_definition[:maxLength]
-            return false if value.length > type_definition[:maxLength]
-          end
+          return false if type_definition[:maxLength] && (value.length > type_definition[:maxLength])
 
-          if type_definition[:minLength]
-            return false if value.length < type_definition[:minLength]
-          end
+          return false if type_definition[:minLength] && (value.length < type_definition[:minLength])
 
         when :integer
           return false unless value.is_a?(Integer)
 
           # Check numeric constraints
-          if type_definition[:minimum]
-            return false if value < type_definition[:minimum]
-          end
+          return false if type_definition[:minimum] && (value < type_definition[:minimum])
 
-          if type_definition[:maximum]
-            return false if value > type_definition[:maximum]
-          end
+          return false if type_definition[:maximum] && (value > type_definition[:maximum])
 
         when :number
           return false unless value.is_a?(Numeric)
 
           # Check numeric constraints
-          if type_definition[:minimum]
-            return false if value < type_definition[:minimum]
-          end
+          return false if type_definition[:minimum] && (value < type_definition[:minimum])
 
-          if type_definition[:maximum]
-            return false if value > type_definition[:maximum]
-          end
+          return false if type_definition[:maximum] && (value > type_definition[:maximum])
 
           # Check multipleOf constraint
-          if type_definition[:multipleOf]
-            return false unless (value % type_definition[:multipleOf]).zero?
-          end
+          return false if type_definition[:multipleOf] && !(value % type_definition[:multipleOf]).zero?
 
         when :boolean
           return false unless [true, false].include?(value)

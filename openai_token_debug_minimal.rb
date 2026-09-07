@@ -15,15 +15,13 @@ puts
 
 # Read API key from .env file
 env_file = "/Users/hajee/Enterprise Modules Dropbox/Bert Hajee/enterprisemodules/work/prospects_radar/.env"
-api_key = ENV["OPENAI_API_KEY"]
+api_key = ENV.fetch("OPENAI_API_KEY", nil)
 
-if api_key.nil? || api_key.empty?
-  if File.exist?(env_file)
-    env_content = File.read(env_file)
-    if env_content =~ /OPENAI_API_KEY=(.+)/
-      api_key = $1.strip.split(/\s+#/).first.strip
-      puts "📝 Using OPENAI_API_KEY from .env file"
-    end
+if (api_key.nil? || api_key.empty?) && File.exist?(env_file)
+  env_content = File.read(env_file)
+  if env_content =~ /OPENAI_API_KEY=(.+)/
+    api_key = Regexp.last_match(1).strip.split(/\s+#/).first.strip
+    puts "📝 Using OPENAI_API_KEY from .env file"
   end
 end
 
@@ -143,14 +141,14 @@ puts "5. Patching OpenAIProvider to trace token usage..."
 module RAAF
   module Models
     class OpenAIProvider
-      alias_method :original_chat_completion, :chat_completion
+      alias original_chat_completion chat_completion
 
-      def chat_completion(messages:, model:, **kwargs)
+      def chat_completion(messages:, model:, **)
         puts "\n6. OpenAIProvider.chat_completion called"
         puts "   Model: #{model}"
         puts "   Messages count: #{messages.count}"
 
-        result = original_chat_completion(messages: messages, model: model, **kwargs)
+        result = original_chat_completion(messages: messages, model: model, **)
 
         puts "\n7. OpenAIProvider response:"
         puts "   Response class: #{result.class}"
@@ -177,11 +175,11 @@ puts "   Patching Runner to trace token flow..."
 
 module RAAF
   class Runner
-    alias_method :original_run, :run
+    alias original_run run
 
-    def run(message = nil, **kwargs)
+    def run(message = nil, **)
       puts "\n9. Runner.run called"
-      result = original_run(message, **kwargs)
+      result = original_run(message, **)
 
       puts "\n10. Runner result:"
       puts "   Result class: #{result.class}"
@@ -216,9 +214,7 @@ module RAAF
         end
 
         # Try get method
-        if result.respond_to?(:get)
-          puts "   result.get(:usage): #{result.get(:usage).inspect}"
-        end
+        puts "   result.get(:usage): #{result.get(:usage).inspect}" if result.respond_to?(:get)
       end
 
       result
@@ -245,9 +241,9 @@ puts "14. Agent created with model: #{agent.model}"
 
 provider = RAAF::Models::OpenAIProvider.new
 runner = RAAF::Runner.new(agent: agent, provider: provider)
-result = runner.run("Say hello and tell me your model name.")
+runner.run("Say hello and tell me your model name.")
 
-puts "\n" + "=" * 80
+puts "\n" + ("=" * 80)
 puts "DEBUG COMPLETE"
 puts "=" * 80
 puts

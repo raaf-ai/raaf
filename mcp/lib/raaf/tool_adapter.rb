@@ -4,7 +4,9 @@ require_relative "../function_tool"
 require_relative "client"
 
 module RAAF
+
   module MCP
+
     # Adapter to use MCP tools as OpenAI Agent tools
     #
     # This adapter wraps MCP tools to make them compatible with
@@ -25,6 +27,7 @@ module RAAF
     #   tool = adapter.get_tool("search_web")
     #   agent.add_tool(tool)
     class MCPToolAdapter
+
       attr_reader :client
 
       def initialize(client)
@@ -79,10 +82,12 @@ module RAAF
           parameters: mcp_tool.input_schema
         )
       end
+
     end
 
     # Resource adapter for using MCP resources in agents
     class MCPResourceAdapter
+
       attr_reader :client
 
       def initialize(client)
@@ -90,9 +95,7 @@ module RAAF
       end
 
       # List all available resources
-      def list_resources
-        @client.list_resources
-      end
+      delegate :list_resources, to: :@client
 
       # Read a resource and return its content
       def read_resource(uri)
@@ -128,10 +131,12 @@ module RAAF
           }
         )
       end
+
     end
 
     # Prompt adapter for using MCP prompts
     class MCPPromptAdapter
+
       attr_reader :client
 
       def initialize(client)
@@ -139,9 +144,7 @@ module RAAF
       end
 
       # List all available prompts
-      def list_prompts
-        @client.list_prompts
-      end
+      delegate :list_prompts, to: :@client
 
       # Get a prompt and format it for use
       def get_prompt(name, **arguments)
@@ -168,10 +171,12 @@ module RAAF
           instructions: instructions || prompt[:description]
         )
       end
+
     end
 
     # Main MCP integration class
     class MCPIntegration
+
       attr_reader :client, :tool_adapter, :resource_adapter, :prompt_adapter
 
       def initialize(server_uri, transport: :stdio)
@@ -202,12 +207,13 @@ module RAAF
       end
 
       # Disconnect from MCP server
-      def disconnect
-        @client.disconnect
-      end
+      delegate :disconnect, to: :@client
+
     end
 
     # Custom error for tool execution failures
     class ToolExecutionError < StandardError; end
+
   end
+
 end

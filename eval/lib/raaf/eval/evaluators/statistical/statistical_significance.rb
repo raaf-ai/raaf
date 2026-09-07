@@ -63,42 +63,43 @@ module RAAF
           def calculate_p_value(test_data)
             # Simplified p-value calculation
             # In production, would use proper statistical libraries
-            
+
             return nil unless test_data[:control] && test_data[:treatment]
-            
+
             control = test_data[:control]
             treatment = test_data[:treatment]
-            
+
             # Simple approximation using z-test
             control_mean = calculate_mean(control)
             treatment_mean = calculate_mean(treatment)
             pooled_std = calculate_pooled_std(control, treatment)
-            
+
             return nil if pooled_std == 0
-            
+
             z_score = (treatment_mean - control_mean) / (pooled_std * Math.sqrt(2.0 / control.size))
-            
+
             # Approximate p-value from z-score (two-tailed)
             2 * (1 - normal_cdf(z_score.abs))
           end
 
           def calculate_mean(values)
             return 0 if values.empty?
+
             values.sum.to_f / values.size
           end
 
           def calculate_pooled_std(group1, group2)
             return 0 if group1.empty? || group2.empty?
-            
+
             mean1 = calculate_mean(group1)
             mean2 = calculate_mean(group2)
-            
+
             var1 = group1.sum { |v| (v - mean1)**2 } / (group1.size - 1)
             var2 = group2.sum { |v| (v - mean2)**2 } / (group2.size - 1)
-            
-            pooled_var = ((group1.size - 1) * var1 + (group2.size - 1) * var2) / 
-                        (group1.size + group2.size - 2)
-            
+
+            pooled_var = (((group1.size - 1) * var1) + ((group2.size - 1) * var2)) /
+                         (group1.size + group2.size - 2)
+
             Math.sqrt(pooled_var)
           end
 

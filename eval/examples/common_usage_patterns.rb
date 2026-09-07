@@ -243,16 +243,16 @@ configs.each_with_index do |config, idx|
   result = engine.execute
 
   # Simple scoring: prefer shorter outputs with fewer tokens
-  if result[:success]
-    score = 1000.0 / (result[:usage][:total_tokens] || 100)
-    puts "  Score: #{score.round(2)}"
+  next unless result[:success]
 
-    if score > best_score
-      best_score = score
-      best_result = result
-      puts "  ✓ New best configuration!"
-    end
-  end
+  score = 1000.0 / (result[:usage][:total_tokens] || 100)
+  puts "  Score: #{score.round(2)}"
+
+  next unless score > best_score
+
+  best_score = score
+  best_result = result
+  puts "  ✓ New best configuration!"
 end
 
 puts "\nBest Configuration:"

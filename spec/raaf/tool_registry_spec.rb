@@ -4,11 +4,11 @@ require "spec_helper"
 require "raaf/tool_registry"
 
 RSpec.describe RAAF::ToolRegistry do
-  before(:each) do
+  before do
     described_class.clear!
   end
 
-  after(:each) do
+  after do
     described_class.clear!
   end
 

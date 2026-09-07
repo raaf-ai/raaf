@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
-require_relative '../rails/spec/minimal_spec_helper'
+require_relative "../rails/spec/minimal_spec_helper"
 
-RSpec.describe 'SkippedBadgeTooltip Component' do
-  describe 'tooltip rendering' do
-    it 'renders tooltip structure correctly' do
+RSpec.describe "SkippedBadgeTooltip Component" do
+  describe "tooltip rendering" do
+    it "renders tooltip structure correctly" do
       skip_reason = "Agent requirements not met"
       status = "skipped"
 
@@ -16,7 +16,7 @@ RSpec.describe 'SkippedBadgeTooltip Component' do
       )
 
       # Simulate rendering to check HTML structure
-      html = component.view_template
+      component.view_template
 
       # Verify the component was created with correct parameters
       expect(component.instance_variable_get(:@status)).to eq(status)
@@ -24,7 +24,7 @@ RSpec.describe 'SkippedBadgeTooltip Component' do
       expect(component.instance_variable_get(:@style)).to eq(:modern)
     end
 
-    it 'handles different badge styles correctly' do
+    it "handles different badge styles correctly" do
       skip_reason = "Test reason"
 
       # Test modern style
@@ -53,8 +53,8 @@ RSpec.describe 'SkippedBadgeTooltip Component' do
       expect(default_component.instance_variable_get(:@style)).to eq(:default)
     end
 
-    it 'truncates long skip reasons correctly' do
-      long_reason = 'A' * 150  # Longer than 100 character limit
+    it "truncates long skip reasons correctly" do
+      long_reason = "A" * 150 # Longer than 100 character limit
 
       component = RAAF::Rails::Tracing::SkippedBadgeTooltip.new(
         status: "skipped",
@@ -65,11 +65,11 @@ RSpec.describe 'SkippedBadgeTooltip Component' do
       # Test the private method through send
       truncated = component.send(:format_skip_reason, long_reason)
 
-      expect(truncated).to end_with('...')
-      expect(truncated.length).to eq(100)  # 97 chars + "..."
+      expect(truncated).to end_with("...")
+      expect(truncated.length).to eq(100) # 97 chars + "..."
     end
 
-    it 'does not truncate short skip reasons' do
+    it "does not truncate short skip reasons" do
       short_reason = "Short reason"
 
       component = RAAF::Rails::Tracing::SkippedBadgeTooltip.new(
@@ -82,12 +82,12 @@ RSpec.describe 'SkippedBadgeTooltip Component' do
       result = component.send(:format_skip_reason, short_reason)
 
       expect(result).to eq(short_reason)
-      expect(result).not_to include('...')
+      expect(result).not_to include("...")
     end
   end
 
-  describe 'CSS class generation' do
-    it 'generates correct CSS classes for modern style' do
+  describe "CSS class generation" do
+    it "generates correct CSS classes for modern style" do
       component = RAAF::Rails::Tracing::SkippedBadgeTooltip.new(
         status: "skipped",
         skip_reason: "test",
@@ -96,13 +96,13 @@ RSpec.describe 'SkippedBadgeTooltip Component' do
 
       classes = component.send(:badge_classes)
 
-      expect(classes).to include('bg-orange-100')
-      expect(classes).to include('text-orange-800')
-      expect(classes).to include('inline-flex')
-      expect(classes).to include('rounded-full')
+      expect(classes).to include("bg-orange-100")
+      expect(classes).to include("text-orange-800")
+      expect(classes).to include("inline-flex")
+      expect(classes).to include("rounded-full")
     end
 
-    it 'generates correct CSS classes for detailed style' do
+    it "generates correct CSS classes for detailed style" do
       component = RAAF::Rails::Tracing::SkippedBadgeTooltip.new(
         status: "skipped",
         skip_reason: "test",
@@ -111,13 +111,13 @@ RSpec.describe 'SkippedBadgeTooltip Component' do
 
       classes = component.send(:badge_classes)
 
-      expect(classes).to include('bg-orange-100')
-      expect(classes).to include('text-orange-800')
-      expect(classes).to include('border-orange-200')
-      expect(classes).to include('flex items-center')
+      expect(classes).to include("bg-orange-100")
+      expect(classes).to include("text-orange-800")
+      expect(classes).to include("border-orange-200")
+      expect(classes).to include("flex items-center")
     end
 
-    it 'generates correct CSS classes for default style' do
+    it "generates correct CSS classes for default style" do
       component = RAAF::Rails::Tracing::SkippedBadgeTooltip.new(
         status: "skipped",
         skip_reason: "test"
@@ -125,35 +125,35 @@ RSpec.describe 'SkippedBadgeTooltip Component' do
 
       classes = component.send(:badge_classes)
 
-      expect(classes).to include('badge')
-      expect(classes).to include('bg-warning')
+      expect(classes).to include("badge")
+      expect(classes).to include("bg-warning")
     end
   end
 
-  describe 'status handling' do
-    it 'handles all status types correctly' do
+  describe "status handling" do
+    it "handles all status types correctly" do
       statuses = %w[completed failed running pending skipped cancelled]
 
       statuses.each do |status|
         component = RAAF::Rails::Tracing::SkippedBadgeTooltip.new(
           status: status,
-          skip_reason: status.include?('skip') || status.include?('cancel') ? "Test reason" : nil,
+          skip_reason: status.include?("skip") || status.include?("cancel") ? "Test reason" : nil,
           style: :modern
         )
 
         classes = component.send(:badge_classes)
 
         case status
-        when 'completed'
-          expect(classes).to include('bg-green-100')
-        when 'failed'
-          expect(classes).to include('bg-red-100')
-        when 'running'
-          expect(classes).to include('bg-yellow-100')
-        when 'pending'
-          expect(classes).to include('bg-blue-100')
-        when 'skipped', 'cancelled'
-          expect(classes).to include('bg-orange-100')
+        when "completed"
+          expect(classes).to include("bg-green-100")
+        when "failed"
+          expect(classes).to include("bg-red-100")
+        when "running"
+          expect(classes).to include("bg-yellow-100")
+        when "pending"
+          expect(classes).to include("bg-blue-100")
+        when "skipped", "cancelled"
+          expect(classes).to include("bg-orange-100")
         end
       end
     end

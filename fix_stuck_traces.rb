@@ -12,11 +12,11 @@ if defined?(Rails)
   puts "✅ Rails environment detected"
 else
   puts "⚠️  Loading Rails environment..."
-  require_relative '../../config/environment'
+  require_relative "../../config/environment"
 end
 
 # Import TraceRecord
-require_relative 'rails/app/models/RAAF/rails/tracing/trace_record'
+require_relative "rails/app/models/RAAF/rails/tracing/trace_record"
 TraceRecord = RAAF::Rails::Tracing::TraceRecord
 
 puts "\n📊 Current trace status summary:"

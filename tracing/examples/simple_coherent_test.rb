@@ -7,13 +7,14 @@ puts "🚀 Simple RAAF Coherent Tracing Test"
 
 # Create a simple processor that just prints spans
 class SimpleTestProcessor
+
   def on_span_start(span)
     puts "🟢 Span started: #{span.name}"
   end
 
   def on_span_end(span)
     puts "🔴 Span ended: #{span.name} (#{span.duration}ms) - #{span.status}"
-    puts "   Parent: #{span.parent_id || 'ROOT'}"
+    puts "   Parent: #{span.parent_id || "ROOT"}"
     puts "   Attributes: #{span.attributes.size} items"
   end
 
@@ -24,6 +25,7 @@ class SimpleTestProcessor
   def shutdown
     # No-op
   end
+
 end
 
 # Load the tracing system
@@ -34,14 +36,16 @@ begin
   RAAF::Tracing.add_trace_processor(SimpleTestProcessor.new)
 
   puts "✅ Tracing system loaded successfully"
-rescue => e
+rescue StandardError => e
   puts "❌ Error loading tracing: #{e.message}"
   exit 1
 end
 
 # Define test components
 class TestPipeline
+
   include RAAF::Tracing::Traceable
+
   trace_as :pipeline
 
   attr_reader :name
@@ -59,14 +63,17 @@ class TestPipeline
 
   def collect_span_attributes
     super.merge({
-      "pipeline.name" => name,
-      "pipeline.type" => "test"
-    })
+                  "pipeline.name" => name,
+                  "pipeline.type" => "test"
+                })
   end
+
 end
 
 class TestAgent
+
   include RAAF::Tracing::Traceable
+
   trace_as :agent
 
   attr_reader :name, :parent_component
@@ -85,10 +92,11 @@ class TestAgent
 
   def collect_span_attributes
     super.merge({
-      "agent.name" => name,
-      "agent.model" => "test-model"
-    })
+                  "agent.name" => name,
+                  "agent.model" => "test-model"
+                })
   end
+
 end
 
 puts "\n📝 Testing Basic Hierarchy..."
@@ -116,8 +124,7 @@ begin
   end
 
   puts "\n✅ Nested execution test completed successfully!"
-
-rescue => e
+rescue StandardError => e
   puts "\n❌ Error during test: #{e.message}"
   puts e.backtrace.first(5).join("\n")
 end

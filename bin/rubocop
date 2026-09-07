@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Run RuboCop over this repo, from any directory inside it.
+#
+# RAAF is often checked out inside another Ruby project (prospects_radar vendors
+# it under vendor/local_gems/raaf). RuboCop treats the *outermost* Gemfile as the
+# project root, so a bare `rubocop` pulls in the host project's .rubocop.yml for
+# AllCops/Exclude inheritance and then dies requiring cops that only exist in the
+# host's bundle. --ignore-parent-exclusion keeps that search inside this repo,
+# and pinning BUNDLE_GEMFILE keeps us on this repo's gems.
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export BUNDLE_GEMFILE="$root/Gemfile"
+
+exec bundle exec rubocop --ignore-parent-exclusion "$@"

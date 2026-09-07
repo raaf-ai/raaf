@@ -172,9 +172,7 @@ module RAAF
     end
 
     # Delete a value from context
-    def delete(key)
-      @data.delete(key)
-    end
+    delegate :delete, to: :@data
 
     # Check if key exists
     def has?(key)
@@ -187,9 +185,7 @@ module RAAF
     end
 
     # Merge data into context
-    def merge!(data)
-      @data.merge!(data)
-    end
+    delegate :merge!, to: :@data
 
     ##
     # Unified interface methods for RAAF context harmonization
@@ -201,9 +197,7 @@ module RAAF
     # @param key [Symbol, String] The storage key
     # @return [Object, nil] The stored value or nil
     #
-    def [](key)
-      @data[key]
-    end
+    delegate :[], to: :@data
 
     ##
     # Array-style write access (unified interface)
@@ -212,27 +206,21 @@ module RAAF
     # @param value [Object] The value to store
     # @return [Object] The stored value
     #
-    def []=(key, value)
-      @data[key] = value
-    end
+    delegate :[]=, to: :@data
 
     ##
     # Get all storage keys (unified interface)
     #
     # @return [Array<Symbol, String>] All keys in storage
     #
-    def keys
-      @data.keys
-    end
+    delegate :keys, to: :@data
 
     ##
     # Get all storage values (unified interface)
     #
     # @return [Array<Object>] All values in storage
     #
-    def values
-      @data.values
-    end
+    delegate :values, to: :@data
 
     ##
     # Update storage with multiple values (unified interface)
@@ -242,7 +230,7 @@ module RAAF
     # @param hash [Hash] Hash of key-value pairs to merge
     # @return [Hash] The updated storage
     #
-    alias_method :update, :merge!
+    alias update merge!
 
     # Clear all context data
     def clear!

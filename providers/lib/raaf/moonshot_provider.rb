@@ -98,7 +98,7 @@ module RAAF
         }
 
         # Add tools if provided (Kimi K2 has strong tool-calling capabilities)
-        if tools && !tools.empty?
+        if tools.present?
           body[:tools] = prepare_tools(tools)
           body[:tool_choice] = kwargs[:tool_choice] if kwargs[:tool_choice]
         end
@@ -240,8 +240,8 @@ module RAAF
               rescue JSON::ParserError => e
                 # Log but continue - some chunks might be partial
                 log_debug("Failed to parse streaming chunk: #{e.message}",
-                         provider: "MoonshotProvider",
-                         error_class: e.class.name)
+                          provider: "MoonshotProvider",
+                          error_class: e.class.name)
               end
             end
           end

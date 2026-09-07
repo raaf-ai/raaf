@@ -7,7 +7,7 @@ begin
   require "rails"
   require "active_record"
   require_relative "../../../../lib/raaf/tracing/active_record_processor"
-  
+
   # Check if database connection is available
   ActiveRecord::Base.connection.migration_context.current_version
 rescue LoadError, ActiveRecord::ConnectionNotDefined, ActiveRecord::NoDatabaseError => e
@@ -19,7 +19,7 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor do
   let(:processor) { described_class.new(sampling_rate: 1.0, batch_size: 1) }
   let(:trace_id) { "trace_#{SecureRandom.alphanumeric(32)}" }
   let(:span_id) { "span_#{SecureRandom.hex(12)}" }
-  
+
   let(:test_span) do
     RAAF::Tracing::Span.new(
       name: "test_operation",
@@ -28,7 +28,7 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor do
     ).tap do |span|
       span.instance_variable_set(:@span_id, span_id)
       span.instance_variable_set(:@start_time, Time.current)
-      span.instance_variable_set(:@end_time, Time.current + 1.second)
+      span.instance_variable_set(:@end_time, 1.second.from_now)
       span.instance_variable_set(:@attributes, {
                                    "llm.request.model" => "gpt-4o",
                                    "llm.request.messages" => [{ role: "user", content: "Hello" }],
@@ -82,7 +82,7 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor do
       expect do
         processor.on_span_start(test_span)
       end.to change { RAAF::Tracing::Trace.count }.by(1)
-      
+
       trace = RAAF::Tracing::Trace.find_by(trace_id: trace_id)
       expect(trace).to be_present
       expect(trace.workflow_name).to eq("test_operation")
@@ -91,7 +91,7 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor do
 
     it "does not create duplicate trace records" do
       processor.on_span_start(test_span)
-      
+
       expect do
         processor.on_span_start(test_span)
       end.not_to(change { RAAF::Tracing::Trace.count })
@@ -117,7 +117,7 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor do
       expect do
         processor.on_span_end(test_span)
       end.to change { RAAF::Tracing::Span.count }.by(1)
-      
+
       span = RAAF::Tracing::Span.find_by(span_id: span_id)
       expect(span).to be_present
       expect(span.name).to eq("test_operation")
@@ -127,7 +127,7 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor do
 
     it "saves span attributes correctly" do
       processor.on_span_end(test_span)
-      
+
       span = RAAF::Tracing::Span.find_by(span_id: span_id)
       expect(span.attributes["llm.request.model"]).to eq("gpt-4o")
       expect(span.attributes["llm.usage.prompt_tokens"]).to eq(10)
@@ -136,7 +136,7 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor do
 
     it "calculates duration correctly" do
       processor.on_span_end(test_span)
-      
+
       span = RAAF::Tracing::Span.find_by(span_id: span_id)
       expect(span.duration_ms).to be_within(50).of(1000) # ~1 second
     end
@@ -146,14 +146,14 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor do
 
       it "buffers spans until batch size is reached" do
         processor.on_span_end(test_span)
-        
+
         expect(RAAF::Tracing::Span.count).to eq(0)
-        
+
         # Second span should trigger batch processing
         second_span = test_span.dup
         second_span.instance_variable_set(:@span_id, "span_#{SecureRandom.hex(12)}")
         processor.on_span_end(second_span)
-        
+
         expect(RAAF::Tracing::Span.count).to eq(2)
       end
     end
@@ -169,9 +169,9 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor do
 
     it "forces immediate processing of buffered spans" do
       expect(RAAF::Tracing::Span.count).to eq(0)
-      
+
       processor.flush
-      
+
       expect(RAAF::Tracing::Span.count).to eq(1)
     end
   end
@@ -191,12 +191,12 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor do
     it "produces roughly correct sampling rate" do
       sampled_count = 0
       total_count = 1000
-      
+
       total_count.times do |_i|
         test_trace_id = "trace_#{SecureRandom.alphanumeric(32)}"
         sampled_count += 1 if processor.send(:should_sample?, test_trace_id)
       end
-      
+
       sampling_rate = sampled_count.to_f / total_count
       expect(sampling_rate).to be_within(0.1).of(0.5)
     end
@@ -218,7 +218,7 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor do
 
     it "truncates very long strings" do
       processor.on_span_end(test_span)
-      
+
       span = RAAF::Tracing::Span.find_by(span_id: span_id)
       stored_value = span.attributes["large_string"]
       expect(stored_value.length).to be <= 10_000
@@ -227,7 +227,7 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor do
 
     it "limits array sizes" do
       processor.on_span_end(test_span)
-      
+
       span = RAAF::Tracing::Span.find_by(span_id: span_id)
       stored_array = span.attributes["large_array"]
       expect(stored_array.length).to be <= 100
@@ -235,7 +235,7 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor do
 
     it "flattens nested hashes" do
       processor.on_span_end(test_span)
-      
+
       span = RAAF::Tracing::Span.find_by(span_id: span_id)
       nested_data = span.attributes["nested_data"]
       expect(nested_data).to have_key("user.email")
@@ -247,7 +247,7 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor do
     it "handles database errors gracefully" do
       allow(RAAF::Tracing::Span).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new)
       allow(Rails.logger).to receive(:warn)
-      
+
       expect { processor.on_span_end(test_span) }.not_to raise_error
       expect(Rails.logger).to have_received(:warn).with(/Failed to save span/)
     end
@@ -255,7 +255,7 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor do
     it "handles trace creation errors gracefully" do
       allow(RAAF::Tracing::Trace).to receive(:create!).and_raise(ActiveRecord::RecordInvalid.new)
       allow(Rails.logger).to receive(:warn)
-      
+
       expect { processor.on_span_start(test_span) }.not_to raise_error
       expect(Rails.logger).to have_received(:warn).with(/Failed to create trace/)
     end
@@ -271,9 +271,9 @@ RSpec.describe RAAF::Tracing::ActiveRecordProcessor do
 
     it "flushes remaining spans on shutdown" do
       expect(RAAF::Tracing::Span.count).to eq(0)
-      
+
       processor.shutdown
-      
+
       expect(RAAF::Tracing::Span.count).to eq(1)
     end
   end

@@ -6,9 +6,8 @@
 # as each stream completes, enabling real-time progress updates and
 # early result processing.
 
-require 'raaf'
-require 'raaf-dsl'
-require 'thread'
+require "raaf"
+require "raaf-dsl"
 
 # Simulated services for the example
 class NotificationService
@@ -40,7 +39,7 @@ end
 class DownstreamProcessor
   def self.process_async(results)
     Thread.new do
-      sleep(0.1)  # Simulate async processing
+      sleep(0.1) # Simulate async processing
       puts "  ⚡ Downstream processor received #{results.count} items"
     end
   end
@@ -61,8 +60,8 @@ class LeadGenerator < RAAF::DSL::Agent
         company: "Company #{i}",
         contact: "Contact Person #{i}",
         email: "contact#{i}@company#{i}.com",
-        industry: ["Tech", "Finance", "Healthcare", "Retail", "Manufacturing"].sample,
-        size: ["Small", "Medium", "Large", "Enterprise"].sample,
+        industry: %w[Tech Finance Healthcare Retail Manufacturing].sample,
+        size: %w[Small Medium Large Enterprise].sample,
         priority: rand(1..10)
       }
     end
@@ -110,9 +109,7 @@ class LeadQualifier < RAAF::DSL::Agent
       )
 
       # 2. Start enrichment immediately (don't wait for all streams)
-      if high_value.any?
-        EnrichmentQueue.enqueue(high_value)
-      end
+      EnrichmentQueue.enqueue(high_value) if high_value.any?
 
       # 3. Trigger downstream processing in parallel
       DownstreamProcessor.process_async(qualified_leads)
@@ -124,7 +121,7 @@ class LeadQualifier < RAAF::DSL::Agent
       save_checkpoint(stream_num, qualified_leads)
     end
 
-    on_stream_error do |stream_num, total, stream_data, error|
+    on_stream_error do |stream_num, _total, _stream_data, error|
       puts "\n❌ Stream #{stream_num} failed: #{error.message}"
 
       # Even with errors, previous streams' results are available
@@ -210,7 +207,7 @@ if __FILE__ == $0
 
   # Track timing
   start_time = Time.now
-  puts "\n⏱️  Starting pipeline at #{start_time.strftime('%H:%M:%S')}"
+  puts "\n⏱️  Starting pipeline at #{start_time.strftime("%H:%M:%S")}"
 
   result = pipeline.run
 
@@ -221,7 +218,7 @@ if __FILE__ == $0
   if result[:scoring_report]
     report = result[:scoring_report]
 
-    puts "\n" + "=" * 50
+    puts "\n" + ("=" * 50)
     puts "📊 Final Scoring Report"
     puts "=" * 50
     puts "Total Qualified: #{report[:total_qualified]}"
@@ -239,7 +236,7 @@ if __FILE__ == $0
   end
 
   # Show incremental delivery benefits
-  puts "\n" + "=" * 50
+  puts "\n" + ("=" * 50)
   puts "💡 Incremental Delivery Benefits Demonstrated:"
   puts "=" * 50
   puts "✅ Progress notifications sent: 10 updates"

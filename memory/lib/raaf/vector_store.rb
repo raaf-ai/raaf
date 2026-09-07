@@ -15,6 +15,7 @@ rescue LoadError
 end
 
 module RAAF
+
   ##
   # Vector store for semantic search and retrieval
   #
@@ -28,40 +29,40 @@ module RAAF
   #     name: "knowledge_base",
   #     dimensions: 1536  # OpenAI ada-002 dimensions
   #   )
-  #   
+  #
   #   # Add documents
   #   documents = [
   #     "Ruby is a dynamic programming language",
   #     "Python is great for data science",
   #     "JavaScript runs in web browsers"
   #   ]
-  #   
+  #
   #   store.add_documents(documents)
-  #   
+  #
   #   # Search for similar content
   #   results = store.search("web development languages", k: 2)
   #   results.each { |result| puts result[:content] }
   #
   # @example With custom embeddings and metadata
   #   store = VectorStore.new(name: "products")
-  #   
+  #
   #   products = [
-  #     { 
+  #     {
   #       content: "MacBook Pro 16-inch laptop",
   #       category: "electronics",
   #       price: 2499.00
   #     },
   #     {
   #       content: "Ergonomic office chair",
-  #       category: "furniture", 
+  #       category: "furniture",
   #       price: 299.99
   #     }
   #   ]
-  #   
+  #
   #   # Custom embeddings (if you have them)
   #   embeddings = generate_custom_embeddings(products)
   #   store.add_documents(products, embeddings: embeddings)
-  #   
+  #
   #   # Search with filters
   #   laptops = store.search(
   #     "portable computer",
@@ -71,11 +72,11 @@ module RAAF
   #
   # @example Using PostgreSQL adapter
   #   require 'pg'
-  #   
+  #
   #   pg_adapter = VectorStore::Adapters::PgVectorAdapter.new(
   #     connection_string: "postgres://user:pass@localhost/db"
   #   )
-  #   
+  #
   #   store = VectorStore.new(
   #     name: "enterprise_docs",
   #     adapter: pg_adapter,
@@ -87,12 +88,13 @@ module RAAF
   # @since 1.0.0
   #
   class VectorStore
+
     # @return [String] Name of the vector store
     attr_reader :name
-    
+
     # @return [Integer] Dimensionality of the vectors (e.g., 1536 for OpenAI ada-002)
     attr_reader :dimensions
-    
+
     # @return [Hash] Store-level metadata
     attr_reader :metadata
 
@@ -296,11 +298,14 @@ module RAAF
       text_hash = Digest::SHA256.hexdigest(text.to_s).to_i(16)
       Array.new(@dimensions) { |i| Math.sin(text_hash * (i + 1)) * 0.1 }
     end
+
   end
 
   module Adapters
+
     # In-memory vector store adapter
     class InMemoryAdapter
+
       def initialize
         @store = {}
         @namespaces = {}
@@ -440,10 +445,12 @@ module RAAF
           end
         end
       end
+
     end
 
     # PostgreSQL + pgvector adapter
     class PgVectorAdapter
+
       def initialize(connection_string: nil, pool_size: 5)
         @connection_string = connection_string || ENV.fetch("DATABASE_URL", nil)
         @pool_size = pool_size
@@ -458,7 +465,7 @@ module RAAF
         setup_connection_pool
       end
 
-      def initialize_store(name, dimensions, **options)
+      def initialize_store(name, dimensions, **_options)
         @table_name = "vector_store_#{name}".downcase.gsub(/[^a-z0-9_]/, "_")
         @dimensions = dimensions
 
@@ -769,6 +776,7 @@ module RAAF
 
         dot_product / (norm1 * norm2)
       end
+
     end
 
     # Additional adapters can be added here:
@@ -776,5 +784,7 @@ module RAAF
     # - WeaviateAdapter
     # - ChromaAdapter
     # - QdrantAdapter
+
   end
+
 end

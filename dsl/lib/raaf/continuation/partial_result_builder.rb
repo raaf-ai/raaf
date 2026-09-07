@@ -24,8 +24,7 @@ module RAAF
     #   # }
     class PartialResultBuilder
       # Initialize a new PartialResultBuilder
-      def initialize
-      end
+      def initialize; end
 
       # Combine chunks into a single string, preserving all content
       #
@@ -170,7 +169,6 @@ module RAAF
       #
       # @param chunk [Object] The chunk to extract content from
       # @return [String, nil] The extracted content or nil
-      private
 
       def extract_content(chunk)
         return nil unless chunk

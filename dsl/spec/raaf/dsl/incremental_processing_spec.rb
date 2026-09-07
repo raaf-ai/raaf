@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
+require "spec_helper"
 
 RSpec.describe RAAF::DSL::IncrementalProcessing do
   # Mock agent class that includes IncrementalProcessing
@@ -22,27 +22,27 @@ RSpec.describe RAAF::DSL::IncrementalProcessing do
 
   let(:agent) { agent_class.new }
 
-  describe 'module inclusion' do
-    it 'includes the module successfully' do
+  describe "module inclusion" do
+    it "includes the module successfully" do
       expect(agent_class.ancestors).to include(RAAF::DSL::IncrementalProcessing)
     end
 
-    it 'makes incremental_processing DSL method available' do
+    it "makes incremental_processing DSL method available" do
       expect(agent_class).to respond_to(:incremental_processing)
     end
 
-    it 'makes incremental_config reader available' do
+    it "makes incremental_config reader available" do
       expect(agent).to respond_to(:incremental_config)
     end
 
-    it 'makes incremental_processing? helper available' do
+    it "makes incremental_processing? helper available" do
       expect(agent).to respond_to(:incremental_processing?)
     end
   end
 
-  describe '.incremental_processing DSL method' do
-    context 'when called with a block' do
-      it 'creates an IncrementalConfig instance' do
+  describe ".incremental_processing DSL method" do
+    context "when called with a block" do
+      it "creates an IncrementalConfig instance" do
         agent_class.incremental_processing do
           chunk_size 20
         end
@@ -50,7 +50,7 @@ RSpec.describe RAAF::DSL::IncrementalProcessing do
         expect(agent_class._incremental_config).to be_a(RAAF::DSL::IncrementalConfig)
       end
 
-      it 'evaluates the block in the context of IncrementalConfig' do
+      it "evaluates the block in the context of IncrementalConfig" do
         agent_class.incremental_processing do
           chunk_size 15
         end
@@ -59,8 +59,8 @@ RSpec.describe RAAF::DSL::IncrementalProcessing do
         expect(config.chunk_size).to eq(15)
       end
 
-      it 'stores skip_if closure' do
-        skip_block = proc { |record, context| record[:id] > 100 }
+      it "stores skip_if closure" do
+        skip_block = proc { |record, _context| record[:id] > 100 }
 
         agent_class.incremental_processing do
           skip_if(&skip_block)
@@ -70,8 +70,8 @@ RSpec.describe RAAF::DSL::IncrementalProcessing do
         expect(config.skip_if_block).to be_a(Proc)
       end
 
-      it 'stores load_existing closure' do
-        load_block = proc { |record, context| { id: record[:id] } }
+      it "stores load_existing closure" do
+        load_block = proc { |record, _context| { id: record[:id] } }
 
         agent_class.incremental_processing do
           load_existing(&load_block)
@@ -81,8 +81,8 @@ RSpec.describe RAAF::DSL::IncrementalProcessing do
         expect(config.load_existing_block).to be_a(Proc)
       end
 
-      it 'stores persistence_handler closure' do
-        persist_block = proc { |batch, context| batch.each { |r| puts r } }
+      it "stores persistence_handler closure" do
+        persist_block = proc { |batch, _context| batch.each { |r| puts r } }
 
         agent_class.incremental_processing do
           persistence_handler(&persist_block)
@@ -93,40 +93,40 @@ RSpec.describe RAAF::DSL::IncrementalProcessing do
       end
     end
 
-    context 'when called without a block' do
-      it 'raises an ArgumentError' do
-        expect {
+    context "when called without a block" do
+      it "raises an ArgumentError" do
+        expect do
           agent_class.incremental_processing
-        }.to raise_error(ArgumentError, /block required/)
+        end.to raise_error(ArgumentError, /block required/)
       end
     end
   end
 
-  describe '#incremental_processing?' do
-    context 'when incremental processing is configured' do
+  describe "#incremental_processing?" do
+    context "when incremental processing is configured" do
       before do
         agent_class.incremental_processing do
           chunk_size 10
-          skip_if { |record, context| false }
-          load_existing { |record, context| record }
-          persistence_handler { |batch, context| nil }
+          skip_if { |_record, _context| false }
+          load_existing { |record, _context| record }
+          persistence_handler { |_batch, _context| nil }
         end
       end
 
-      it 'returns true' do
+      it "returns true" do
         expect(agent.incremental_processing?).to be true
       end
     end
 
-    context 'when incremental processing is not configured' do
-      it 'returns false' do
+    context "when incremental processing is not configured" do
+      it "returns false" do
         expect(agent.incremental_processing?).to be false
       end
     end
   end
 
-  describe 'configuration inheritance' do
-    it 'makes config available to instances' do
+  describe "configuration inheritance" do
+    it "makes config available to instances" do
       agent_class.incremental_processing do
         chunk_size 25
       end
@@ -136,19 +136,19 @@ RSpec.describe RAAF::DSL::IncrementalProcessing do
     end
   end
 
-  describe 'complete configuration example' do
-    it 'supports all configuration options' do
+  describe "complete configuration example" do
+    it "supports all configuration options" do
       agent_class.incremental_processing do
         # Optional batching
         chunk_size 50
 
         # Required: Check if already processed
-        skip_if do |record, context|
+        skip_if do |record, _context|
           record[:already_processed] == true
         end
 
         # Required: Load existing data
-        load_existing do |record, context|
+        load_existing do |record, _context|
           {
             id: record[:id],
             name: record[:name],
@@ -157,7 +157,7 @@ RSpec.describe RAAF::DSL::IncrementalProcessing do
         end
 
         # Required: Persist batch
-        persistence_handler do |batch_results, context|
+        persistence_handler do |batch_results, _context|
           batch_results.each do |result|
             # Persist to database
             result[:persisted] = true
@@ -185,54 +185,54 @@ RSpec.describe RAAF::DSL::IncrementalProcessing do
     end
   end
 
-  describe 'error handling' do
-    context 'when skip_if is missing' do
-      it 'allows configuration without skip_if (validation happens later)' do
-        expect {
+  describe "error handling" do
+    context "when skip_if is missing" do
+      it "allows configuration without skip_if (validation happens later)" do
+        expect do
           agent_class.incremental_processing do
             chunk_size 10
-            load_existing { |r, c| r }
-            persistence_handler { |b, c| nil }
+            load_existing { |r, _c| r }
+            persistence_handler { |_b, _c| nil }
           end
-        }.not_to raise_error
+        end.not_to raise_error
       end
     end
 
-    context 'when load_existing is missing' do
-      it 'allows configuration without load_existing (validation happens later)' do
-        expect {
+    context "when load_existing is missing" do
+      it "allows configuration without load_existing (validation happens later)" do
+        expect do
           agent_class.incremental_processing do
             chunk_size 10
-            skip_if { |r, c| false }
-            persistence_handler { |b, c| nil }
+            skip_if { |_r, _c| false }
+            persistence_handler { |_b, _c| nil }
           end
-        }.not_to raise_error
+        end.not_to raise_error
       end
     end
 
-    context 'when persistence_handler is missing' do
-      it 'allows configuration without persistence_handler (validation happens later)' do
-        expect {
+    context "when persistence_handler is missing" do
+      it "allows configuration without persistence_handler (validation happens later)" do
+        expect do
           agent_class.incremental_processing do
             chunk_size 10
-            skip_if { |r, c| false }
-            load_existing { |r, c| r }
+            skip_if { |_r, _c| false }
+            load_existing { |r, _c| r }
           end
-        }.not_to raise_error
+        end.not_to raise_error
       end
     end
   end
 
-  describe 'force_reprocess support' do
-    it 'can access force_reprocess from context' do
+  describe "force_reprocess support" do
+    it "can access force_reprocess from context" do
       agent_class.incremental_processing do
         skip_if do |record, context|
           # Skip unless force_reprocess is true
           !context[:force_reprocess] && record[:processed]
         end
 
-        load_existing { |record, context| record }
-        persistence_handler { |batch, context| nil }
+        load_existing { |record, _context| record }
+        persistence_handler { |_batch, _context| nil }
       end
 
       config = agent.incremental_config
@@ -245,7 +245,7 @@ RSpec.describe RAAF::DSL::IncrementalProcessing do
     end
   end
 
-  describe 'multiple agents with different configurations' do
+  describe "multiple agents with different configurations" do
     let(:agent_class_1) do
       Class.new do
         include RAAF::DSL::IncrementalProcessing
@@ -258,19 +258,19 @@ RSpec.describe RAAF::DSL::IncrementalProcessing do
       end
     end
 
-    it 'maintains separate configurations for each agent class' do
+    it "maintains separate configurations for each agent class" do
       agent_class_1.incremental_processing do
         chunk_size 10
-        skip_if { |r, c| false }
-        load_existing { |r, c| r }
-        persistence_handler { |b, c| nil }
+        skip_if { |_r, _c| false }
+        load_existing { |r, _c| r }
+        persistence_handler { |_b, _c| nil }
       end
 
       agent_class_2.incremental_processing do
         chunk_size 20
-        skip_if { |r, c| true }
-        load_existing { |r, c| r }
-        persistence_handler { |b, c| nil }
+        skip_if { |_r, _c| true }
+        load_existing { |r, _c| r }
+        persistence_handler { |_b, _c| nil }
       end
 
       expect(agent_class_1._incremental_config.chunk_size).to eq(10)

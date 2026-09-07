@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 module RAAF
+
   ##
   # ThrottleConfig provides centralized default RPM limits for all providers
   #
@@ -22,6 +23,7 @@ module RAAF
   #   # => 10
   #
   module ThrottleConfig
+
     ##
     # Default RPM limits for all providers
     #
@@ -78,8 +80,8 @@ module RAAF
 
       # Check environment variable first
       env_key = "RAAF_THROTTLE_#{provider_key.to_s.upcase}_RPM"
-      env_value = ENV[env_key]
-      return env_value.to_i if env_value && !env_value.empty?
+      env_value = ENV.fetch(env_key, nil)
+      return env_value.to_i if env_value.present?
 
       # Fall back to default
       DEFAULT_RPM_LIMITS[provider_key]
@@ -153,5 +155,7 @@ module RAAF
     def self.configured?(provider_key)
       !default_rpm_for(provider_key).nil?
     end
+
   end
+
 end

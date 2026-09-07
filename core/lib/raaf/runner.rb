@@ -113,9 +113,7 @@ module RAAF
                   create_default_provider(http_timeout: timeout)
       # If we received http_timeout and provider supports it, update the provider's timeout
       # This ensures the timeout is applied even if provider was extracted from agent
-      if timeout && @provider.respond_to?(:http_timeout=)
-        @provider.http_timeout = timeout
-      end
+      @provider.http_timeout = timeout if timeout && @provider.respond_to?(:http_timeout=)
       @disabled_tracing = disabled_tracing || ENV["RAAF_DISABLE_TRACING"] == "true"
       @tracer = tracer || (@disabled_tracing ? nil : get_default_tracer)
       @parent_span = parent_span
@@ -1468,8 +1466,8 @@ module RAAF
                     has_method: @provider.respond_to?(:responses_completion))
 
           response = state[:current_agent].with_tracing(:llm_call,
-                                                       parent_component: state[:current_agent],
-                                                       **metadata) do
+                                                        parent_component: state[:current_agent],
+                                                        **metadata) do
             @provider.responses_completion(**api_params)
           end
         else
@@ -1482,13 +1480,12 @@ module RAAF
           response = @provider.responses_completion(**api_params)
         end
 
-
         # Validate response structure for Responses API
         raise StandardError, "Invalid response structure: missing 'output' field" unless response.is_a?(Hash) && (response.key?(:output) || response.key?("output"))
 
         # DEBUG: Log what keys are actually in the response
         puts "🔍 [RUNNER DEBUG] Response keys: #{response.keys.inspect}"
-        puts "🔍 [RUNNER DEBUG] response['usage']: #{response['usage'].inspect}"
+        puts "🔍 [RUNNER DEBUG] response['usage']: #{response["usage"].inspect}"
         puts "🔍 [RUNNER DEBUG] response[:usage]: #{response[:usage].inspect}"
         puts "🔍 [RUNNER DEBUG] Response class: #{response.class.name}"
 
@@ -1530,9 +1527,9 @@ module RAAF
         # DEBUG: Log response before accumulation
         puts "🔍 [RESPONSE DEBUG] response.class: #{response.class.name}"
         puts "🔍 [RESPONSE DEBUG] response.keys: #{response.keys.inspect}"
-        puts "🔍 [RESPONSE DEBUG] response['usage'] exists?: #{!response['usage'].nil?}"
+        puts "🔍 [RESPONSE DEBUG] response['usage'] exists?: #{!response["usage"].nil?}"
         puts "🔍 [RESPONSE DEBUG] response[:usage] exists?: #{!response[:usage].nil?}"
-        puts "🔍 [RESPONSE DEBUG] response['usage']: #{response['usage'].inspect}"
+        puts "🔍 [RESPONSE DEBUG] response['usage']: #{response["usage"].inspect}"
         puts "🔍 [RESPONSE DEBUG] response[:usage]: #{response[:usage].inspect}"
 
         # Accumulate usage (support both RAAF and OpenAI key formats)
@@ -1591,7 +1588,7 @@ module RAAF
         response_content = extract_assistant_content_from_response(response, state[:current_agent])
 
         # Run output guardrails on the response content
-        if response_content && !response_content.empty?
+        if response_content.present?
           filtered_content = run_output_guardrails(context_wrapper, state[:current_agent], response_content)
           if filtered_content != response_content
             log_debug("Output guardrail applied",
@@ -1735,7 +1732,7 @@ module RAAF
           if state[:turns] >= state[:max_turns]
             log_warn("⚠️ Maximum turns (#{state[:max_turns]}) reached - returning partial results")
             state[:max_turns_reached] = true
-            break  # Exit the loop but continue processing to return partial results
+            break # Exit the loop but continue processing to return partial results
           end
 
           next
@@ -1821,9 +1818,7 @@ module RAAF
         last_response = model_responses.last
         if last_response.is_a?(Hash)
           provider_metadata = last_response[:metadata] || last_response["metadata"]
-          if provider_metadata.is_a?(Hash) && provider_metadata.any?
-            base_metadata[:provider_metadata] = provider_metadata
-          end
+          base_metadata[:provider_metadata] = provider_metadata if provider_metadata.is_a?(Hash) && provider_metadata.any?
         end
       end
 
@@ -1917,7 +1912,7 @@ module RAAF
 
             # Configure retry settings from environment variables if provider supports it
             if provider.respond_to?(:configure_retry) &&
-               (ENV["RAAF_PROVIDER_RETRY_ATTEMPTS"] || ENV["RAAF_PROVIDER_RETRY_BASE_DELAY"])
+               (ENV["RAAF_PROVIDER_RETRY_ATTEMPTS"] || ENV.fetch("RAAF_PROVIDER_RETRY_BASE_DELAY", nil))
               provider.configure_retry(
                 max_attempts: (ENV["RAAF_PROVIDER_RETRY_ATTEMPTS"] || 3).to_i,
                 base_delay: (ENV["RAAF_PROVIDER_RETRY_BASE_DELAY"] || 1.0).to_f,
@@ -1988,6 +1983,7 @@ module RAAF
 
       agent_identifier.to_s
     end
+
     public
 
     # Extract assistant content from OpenAI Responses API format
@@ -2985,12 +2981,11 @@ module RAAF
         registry_tracer = RAAF::Tracing::TracingRegistry.current_tracer
         if registry_tracer
           # Only return if it's not a NoOpTracer (if NoOpTracer is defined)
-          if defined?(RAAF::Tracing::NoOpTracer)
-            return registry_tracer unless registry_tracer.is_a?(RAAF::Tracing::NoOpTracer)
-          else
-            # If NoOpTracer is not defined, return any non-nil registry tracer
-            return registry_tracer
-          end
+          return registry_tracer unless defined?(RAAF::Tracing::NoOpTracer)
+          return registry_tracer unless registry_tracer.is_a?(RAAF::Tracing::NoOpTracer)
+
+          # If NoOpTracer is not defined, return any non-nil registry tracer
+
         end
       end
 
@@ -3147,8 +3142,9 @@ module RAAF
     #
     def expects_json_content?(content)
       return false unless content.is_a?(String)
-      content.strip.match?(/^```(?:json)?\s*\n?\{/) || 
-      content.strip.match?(/^\{.*\}$/m)
+
+      content.strip.match?(/^```(?:json)?\s*\n?\{/) ||
+        content.strip.match?(/^\{.*\}$/m)
     end
 
     ##
@@ -3162,23 +3158,23 @@ module RAAF
     #
     def extract_and_parse_json(content)
       return content unless content.is_a?(String)
-      
+
       # Try to extract JSON from markdown blocks first
       json_match = content.match(/```(?:json)?\s*\n?(.*?)\n?```/m)
       json_str = json_match ? json_match[1] : content.strip
-      
+
       begin
         parsed = Utils.parse_json(json_str)
-        
+
         # Always normalize keys with spaces to snake_case for all agents
         normalized = normalize_json_keys(parsed)
-        
-        log_debug("✅ Successfully parsed and normalized JSON from AI response", 
+
+        log_debug("✅ Successfully parsed and normalized JSON from AI response",
                   content_type: normalized.class.name,
                   content_size: json_str.length)
         normalized
       rescue JSON::ParserError => e
-        log_debug("⚠️ Failed to parse JSON from AI response", 
+        log_debug("⚠️ Failed to parse JSON from AI response",
                   error: e.message,
                   content_preview: json_str[0..200])
         nil
@@ -3200,7 +3196,7 @@ module RAAF
         data.transform_keys do |key|
           key_str = key.to_s
           # Convert keys with spaces to snake_case
-          if key_str.include?(' ')
+          if key_str.include?(" ")
             # Use the existing Utils.snake_case method for consistency
             Utils.snake_case(key_str).to_sym
           else

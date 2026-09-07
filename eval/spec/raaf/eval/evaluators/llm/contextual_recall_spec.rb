@@ -18,7 +18,7 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::ContextualRecall do
         "Machine learning is a subset of AI that enables computers to learn from data.",
         "Machine learning algorithms improve automatically through experience and data.",
         "Machine learning is used in many applications like recommendation systems.",
-        "Classical music has evolved over centuries."  # Irrelevant, not retrieved
+        "Classical music has evolved over centuries." # Irrelevant, not retrieved
       ]
     }
   end
@@ -30,15 +30,15 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::ContextualRecall do
       retrieved_context: [
         "Machine learning is a subset of AI that enables computers to learn from data.",
         "Machine learning algorithms improve automatically through experience.",
-        "The weather today is sunny and warm."  # Irrelevant but retrieved
+        "The weather today is sunny and warm." # Irrelevant but retrieved
       ],
       available_context: [
         "Machine learning is a subset of AI that enables computers to learn from data.",
         "Machine learning algorithms improve automatically through experience.",
-        "Machine learning is used in recommendation systems.",  # Relevant but missed
-        "Machine learning applications include pattern recognition.",  # Relevant but missed
-        "The weather today is sunny and warm.",  # Irrelevant but retrieved
-        "Classical music has evolved over centuries."  # Irrelevant, not retrieved
+        "Machine learning is used in recommendation systems.", # Relevant but missed
+        "Machine learning applications include pattern recognition.", # Relevant but missed
+        "The weather today is sunny and warm.", # Irrelevant but retrieved
+        "Classical music has evolved over centuries." # Irrelevant, not retrieved
       ]
     }
   end
@@ -52,11 +52,11 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::ContextualRecall do
         "The Renaissance period saw great artistic achievements."
       ],
       available_context: [
-        "Machine learning is a subset of artificial intelligence.",  # Relevant but missed
-        "Machine learning algorithms can learn patterns from data.",  # Relevant but missed
-        "Machine learning is used in many applications.",  # Relevant but missed
-        "Classical music has evolved over centuries.",  # Irrelevant but retrieved
-        "The Renaissance period saw great artistic achievements."  # Irrelevant but retrieved
+        "Machine learning is a subset of artificial intelligence.", # Relevant but missed
+        "Machine learning algorithms can learn patterns from data.", # Relevant but missed
+        "Machine learning is used in many applications.", # Relevant but missed
+        "Classical music has evolved over centuries.", # Irrelevant but retrieved
+        "The Renaissance period saw great artistic achievements." # Irrelevant but retrieved
       ]
     }
   end
@@ -74,8 +74,8 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::ContextualRecall do
         "Ruby is a dynamic, object-oriented programming language.",
         "Ruby was created by Yukihiro Matsumoto in the 1990s.",
         "Ruby emphasizes simplicity and productivity.",
-        "The weather is sunny today.",  # Irrelevant, correctly not retrieved
-        "Classical music is beautiful."  # Irrelevant, correctly not retrieved
+        "The weather is sunny today.", # Irrelevant, correctly not retrieved
+        "Classical music is beautiful." # Irrelevant, correctly not retrieved
       ]
     }
   end
@@ -106,7 +106,7 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::ContextualRecall do
 
       expect(result).to include(:label, :score, :message, :details)
       expect(result[:score]).to be_a(Float)
-      expect(result[:score]).to be >= 0.75  # High recall threshold
+      expect(result[:score]).to be >= 0.75 # High recall threshold
     end
 
     it "includes recall details" do
@@ -148,7 +148,8 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::ContextualRecall do
         expect(doc[:relevance_score]).to be_between(0, 1)
         expect([true, false]).to include(doc[:relevant])
         expect([true, false]).to include(doc[:retrieved])
-        expect(%w[retrieved_relevant missed_relevant retrieved_irrelevant not_retrieved_irrelevant]).to include(doc[:status])
+        expect(%w[retrieved_relevant missed_relevant retrieved_irrelevant
+                  not_retrieved_irrelevant]).to include(doc[:status])
       end
     end
 
@@ -288,7 +289,7 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::ContextualRecall do
       result = evaluator.evaluate(field_context)
 
       # With stricter thresholds, might not be labeled 'good'
-      expect([:good, :average]).to include(result[:label].to_sym)
+      expect(%i[good average]).to include(result[:label].to_sym)
     end
 
     it "includes threshold metadata" do
@@ -328,83 +329,83 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::ContextualRecall do
 
     it "raises error when query is empty" do
       field_context = RAAF::Eval::DSL::FieldContext.new(:rag_data, {
-        rag_data: {
-          query: "",
-          retrieved_context: ["Some doc"],
-          available_context: ["Some doc", "Another doc"]
-        }
-      })
+                                                          rag_data: {
+                                                            query: "",
+                                                            retrieved_context: ["Some doc"],
+                                                            available_context: ["Some doc", "Another doc"]
+                                                          }
+                                                        })
 
-      expect {
+      expect do
         evaluator.evaluate(field_context)
-      }.to raise_error(ArgumentError, /Query cannot be empty/)
+      end.to raise_error(ArgumentError, /Query cannot be empty/)
     end
 
     it "raises error when retrieved context is empty" do
       field_context = RAAF::Eval::DSL::FieldContext.new(:rag_data, {
-        rag_data: {
-          query: "What is AI?",
-          retrieved_context: [],
-          available_context: ["Some doc"]
-        }
-      })
+                                                          rag_data: {
+                                                            query: "What is AI?",
+                                                            retrieved_context: [],
+                                                            available_context: ["Some doc"]
+                                                          }
+                                                        })
 
-      expect {
+      expect do
         evaluator.evaluate(field_context)
-      }.to raise_error(ArgumentError, /Retrieved context cannot be empty/)
+      end.to raise_error(ArgumentError, /Retrieved context cannot be empty/)
     end
 
     it "raises error when available context is empty" do
       field_context = RAAF::Eval::DSL::FieldContext.new(:rag_data, {
-        rag_data: {
-          query: "What is AI?",
-          retrieved_context: ["Some doc"],
-          available_context: []
-        }
-      })
+                                                          rag_data: {
+                                                            query: "What is AI?",
+                                                            retrieved_context: ["Some doc"],
+                                                            available_context: []
+                                                          }
+                                                        })
 
-      expect {
+      expect do
         evaluator.evaluate(field_context)
-      }.to raise_error(ArgumentError, /Available\/ground truth context cannot be empty/)
+      end.to raise_error(ArgumentError, %r{Available/ground truth context cannot be empty})
     end
 
     it "raises error when query is missing" do
       field_context = RAAF::Eval::DSL::FieldContext.new(:rag_data, {
-        rag_data: {
-          retrieved_context: ["Some doc"],
-          available_context: ["Some doc"]
-        }
-      })
+                                                          rag_data: {
+                                                            retrieved_context: ["Some doc"],
+                                                            available_context: ["Some doc"]
+                                                          }
+                                                        })
 
-      expect {
+      expect do
         evaluator.evaluate(field_context)
-      }.to raise_error(ArgumentError, /Query cannot be empty/)
+      end.to raise_error(ArgumentError, /Query cannot be empty/)
     end
 
     it "raises error when retrieved context is missing" do
       field_context = RAAF::Eval::DSL::FieldContext.new(:rag_data, {
-        rag_data: {
-          query: "What is AI?",
-          available_context: ["Some doc"]
-        }
-      })
+                                                          rag_data: {
+                                                            query: "What is AI?",
+                                                            available_context: ["Some doc"]
+                                                          }
+                                                        })
 
-      expect {
+      expect do
         evaluator.evaluate(field_context)
-      }.to raise_error(ArgumentError, /Retrieved context cannot be empty/)
+      end.to raise_error(ArgumentError, /Retrieved context cannot be empty/)
     end
 
     it "raises error when available context is missing" do
       field_context = RAAF::Eval::DSL::FieldContext.new(:rag_data, {
-        rag_data: {
-          query: "What is AI?",
-          retrieved_context: ["Some doc"]
-        }
-      })
+                                                          rag_data: {
+                                                            query: "What is AI?",
+                                                            retrieved_context: ["Some doc"]
+                                                          }
+                                                        })
 
-      expect {
+      expect do
         evaluator.evaluate(field_context)
-      }.to raise_error(ArgumentError, /Available\/ground truth context cannot be empty/)
+      end.to raise_error(ArgumentError, %r{Available/ground truth context cannot be empty})
     end
   end
 
@@ -498,7 +499,7 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::ContextualRecall do
           "Ruby is a dynamic programming language.",
           "The weather is sunny."
         ],
-        ground_truth: [  # Using ground_truth instead of available_context
+        ground_truth: [ # Using ground_truth instead of available_context
           "Ruby is a dynamic programming language.",
           "Ruby was created by Yukihiro Matsumoto.",
           "The weather is sunny."

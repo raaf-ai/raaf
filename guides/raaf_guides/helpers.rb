@@ -4,7 +4,7 @@ require "yaml"
 
 module RailsGuides
   module Helpers
-    def guide(name, url, options = {}, &block)
+    def guide(name, url, options = {}, &)
       link = content_tag(:a, href: url) { name }
       result = content_tag(:dt, link)
 
@@ -12,12 +12,14 @@ module RailsGuides
         result << content_tag(:dd, "Work in progress", class: "interstitial work-in-progress")
       end
 
-      result << content_tag(:dd, capture(&block))
+      result << content_tag(:dd, capture(&))
       result
     end
 
     def documents_by_section
-      @documents_by_section ||= YAML.load_file(File.expand_path("../source/#{@language ? @language + '/' : ''}documents.yaml", __dir__))
+      @documents_by_section ||= YAML.load_file(File.expand_path(
+                                                 "../source/#{@language + "/" if @language}documents.yaml", __dir__
+                                               ))
     end
 
     def documents_flat
@@ -31,9 +33,9 @@ module RailsGuides
     def all_images
       base_path = File.expand_path("../assets", __dir__)
       images_path = File.join(base_path, "images/**/*")
-      @all_images = Dir.glob(images_path).reject { |f| File.directory?(f) }.map { |item|
+      @all_images = Dir.glob(images_path).reject { |f| File.directory?(f) }.map do |item|
         item.delete_prefix "#{base_path}/"
-      }
+      end
       @all_images
     end
 
@@ -56,18 +58,18 @@ module RailsGuides
     def github_edit_url(path)
       # Convert HTML path to source markdown path
       source_file = if path == "index.html"
-        "index.html.erb"
-      elsif path.end_with?(".html")
-        path.gsub(/\.html$/, ".md")
-      else
-        path
-      end
-      
+                      "index.html.erb"
+                    elsif path.end_with?(".html")
+                      path.gsub(/\.html$/, ".md")
+                    else
+                      path
+                    end
+
       "https://github.com/raaf-ai/raaf/edit/main/guides/source/#{source_file}"
     end
 
-    def code(&block)
-      c = capture(&block)
+    def code(&)
+      c = capture(&)
       content_tag(:code, c)
     end
 

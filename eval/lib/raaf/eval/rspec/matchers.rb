@@ -28,6 +28,7 @@ module RAAF
 
         ::RSpec::Matchers.define :have_similar_output_to do |target|
           include QualityMatchers::HaveSimilarOutputTo
+
           @target = target
         end
 
@@ -46,11 +47,13 @@ module RAAF
 
         ::RSpec::Matchers.define :complete_within do |time_value|
           include PerformanceMatchers::CompleteWithin
+
           @time_value = time_value
         end
 
         ::RSpec::Matchers.define :cost_less_than do |amount|
           include PerformanceMatchers::CostLessThan
+
           @max_cost = amount
         end
 
@@ -61,6 +64,7 @@ module RAAF
 
         ::RSpec::Matchers.define :perform_better_than do |target|
           include RegressionMatchers::PerformBetterThan
+
           @target = target
         end
 
@@ -101,6 +105,7 @@ module RAAF
 
         ::RSpec::Matchers.define :match_schema do |schema|
           include StructuralMatchers::MatchSchema
+
           @schema = schema
         end
 
@@ -111,16 +116,19 @@ module RAAF
         # LLM-powered matchers
         ::RSpec::Matchers.define :satisfy_llm_check do |prompt|
           include LLMMatchers::SatisfyLLMCheck
+
           @check_prompt = prompt
         end
 
         ::RSpec::Matchers.define :satisfy_llm_criteria do |criteria|
           include LLMMatchers::SatisfyLLMCriteria
+
           @criteria = criteria
         end
 
         ::RSpec::Matchers.define :be_judged_as do |description|
           include LLMMatchers::BeJudgedAs
+
           @judgment_description = description
         end
       end
@@ -129,6 +137,6 @@ module RAAF
 end
 
 # Auto-include matchers in RSpec
-::RSpec.configure do |config|
+RSpec.configure do |config|
   config.include RAAF::Eval::RSpec::Matchers
 end

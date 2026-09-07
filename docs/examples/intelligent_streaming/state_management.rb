@@ -7,14 +7,14 @@
 # - Load cached results
 # - Persist progress after each stream
 
-require 'raaf'
-require 'raaf-dsl'
-require 'json'
-require 'fileutils'
+require "raaf"
+require "raaf-dsl"
+require "json"
+require "fileutils"
 
 # Simulate a simple cache and database
 class SimpleCache
-  CACHE_DIR = '/tmp/raaf_streaming_cache'
+  CACHE_DIR = "/tmp/raaf_streaming_cache"
 
   def self.setup
     FileUtils.mkdir_p(CACHE_DIR)
@@ -76,7 +76,7 @@ class DataLoader < RAAF::DSL::Agent
       {
         id: i,
         content: "Data item #{i}",
-        priority: ["high", "medium", "low"].sample,
+        priority: %w[high medium low].sample,
         created_at: Time.now - (i * 3600)
       }
     end
@@ -87,11 +87,11 @@ class DataLoader < RAAF::DSL::Agent
     # Simulate that items 51-100 have cached results
     (51..100).each do |id|
       SimpleCache.set("item_#{id}", {
-        id: id,
-        processed_content: "Cached result for item #{id}",
-        score: rand(60..100),
-        cached: true
-      })
+                        id: id,
+                        processed_content: "Cached result for item #{id}",
+                        score: rand(60..100),
+                        cached: true
+                      })
     end
 
     puts "📁 Loaded #{items.count} items"
@@ -126,8 +126,6 @@ class StateAwareProcessor < RAAF::DSL::Agent
       if cached
         puts "  📦 Loaded cached result for item #{record[:id]}"
         cached
-      else
-        nil
       end
     end
 
@@ -148,7 +146,7 @@ class StateAwareProcessor < RAAF::DSL::Agent
       puts "  Processing #{stream_data.count} items..."
     end
 
-    on_stream_complete do |stream_num, total, stream_data, stream_results|
+    on_stream_complete do |stream_num, total, _stream_data, stream_results|
       processed = stream_results[:processed_items] || []
       new_items = processed.reject { |i| i[:cached] }
 
@@ -161,16 +159,16 @@ class StateAwareProcessor < RAAF::DSL::Agent
       puts "  - Average score: #{avg_score.round(2)}"
     end
 
-    on_stream_error do |stream_num, total, stream_data, error|
+    on_stream_error do |stream_num, _total, stream_data, error|
       puts "❌ Stream #{stream_num} failed: #{error.message}"
 
       # Save failed items for retry
       SimpleCache.set("failed_stream_#{stream_num}", {
-        stream_number: stream_num,
-        item_ids: stream_data.map { |i| i[:id] },
-        error: error.message,
-        timestamp: Time.now
-      })
+                        stream_number: stream_num,
+                        item_ids: stream_data.map { |i| i[:id] },
+                        error: error.message,
+                        timestamp: Time.now
+                      })
     end
   end
 
@@ -225,7 +223,7 @@ if __FILE__ == $0
   puts "=" * 50
 
   # Option to clear previous state
-  if ARGV.include?('--clear')
+  if ARGV.include?("--clear")
     puts "🗑️  Clearing previous state..."
     SimpleCache.clear
     ProcessedRecords.clear
@@ -243,7 +241,7 @@ if __FILE__ == $0
   if result[:report]
     report = result[:report]
 
-    puts "\n" + "=" * 50
+    puts "\n" + ("=" * 50)
     puts "📈 Final Report"
     puts "=" * 50
     puts "Total Processed: #{report[:total_processed]}"

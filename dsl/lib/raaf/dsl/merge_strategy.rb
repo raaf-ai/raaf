@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'active_support/core_ext/hash/deep_merge'
-require_relative 'edge_cases'
+require "active_support/core_ext/hash/deep_merge"
+require_relative "edge_cases"
 
 module RAAF
   module DSL
@@ -27,7 +27,7 @@ module RAAF
         by_id: ->(existing, new_data) { merge_by_id(existing, new_data) },
         append: ->(existing, new_data) { merge_by_append(existing, new_data) },
         deep_merge: ->(existing, new_data) { existing.deep_merge(new_data) },
-        replace: ->(existing, new_data) { new_data }
+        replace: ->(_existing, new_data) { new_data }
       }.freeze
 
       # Detects the appropriate merge strategy based on data patterns
@@ -90,8 +90,6 @@ module RAAF
         apply_strategy(strategy, existing_data, new_data)
       end
 
-      private
-
       # Checks if both data sets are arrays with consistent ID fields
       def self.array_with_ids?(existing, new_data)
         both_arrays?(existing, new_data) &&
@@ -114,7 +112,7 @@ module RAAF
         return false if array.empty?
         return false unless array.all? { |item| item.is_a?(Hash) }
 
-        id_presence = array.map { |item| item.key?(:id) || item.key?('id') }
+        id_presence = array.map { |item| item.key?(:id) || item.key?("id") }
         id_presence.all? || id_presence.none?
       end
 
@@ -137,13 +135,13 @@ module RAAF
         new_array.each do |new_item|
           id = extract_id(new_item)
 
-          if existing_by_id.key?(id)
-            # Merge with existing record
-            result_by_id[id] = existing_by_id[id].merge(new_item)
-          else
-            # Add new record
-            result_by_id[id] = new_item
-          end
+          result_by_id[id] = if existing_by_id.key?(id)
+                               # Merge with existing record
+                               existing_by_id[id].merge(new_item)
+                             else
+                               # Add new record
+                               new_item
+                             end
         end
 
         # Return as array, preserving original order where possible
@@ -169,7 +167,7 @@ module RAAF
       def self.extract_id(item)
         return nil unless item.is_a?(Hash)
 
-        item[:id] || item['id']
+        item[:id] || item["id"]
       end
     end
   end

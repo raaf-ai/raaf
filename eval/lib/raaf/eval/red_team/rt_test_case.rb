@@ -64,13 +64,9 @@ module RAAF
         def initialize(
           vulnerability:,
           attack:,
-          input: nil,
+          score:, reasoning:, status:, vulnerable:, input: nil,
           output: nil,
           turns: nil,
-          score:,
-          reasoning:,
-          status:,
-          vulnerable:,
           context: {}
         )
           @vulnerability = vulnerability
@@ -126,6 +122,7 @@ module RAAF
         # @return [String, nil] Last turn's output, or nil if single-turn
         def final_output
           return output if single_turn?
+
           turns.last[:output] if turns && !turns.empty?
         end
 
@@ -134,6 +131,7 @@ module RAAF
         # @return [String, nil] First turn's input, or nil if single-turn
         def initial_input
           return input if single_turn?
+
           turns.first[:input] if turns && !turns.empty?
         end
 

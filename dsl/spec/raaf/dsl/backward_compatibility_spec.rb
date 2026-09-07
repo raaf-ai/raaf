@@ -329,7 +329,7 @@ RSpec.describe "Backward Compatibility" do
       # Measure performance of old pattern (uses_tool)
       start_time = Time.now
 
-      agent_class_old = Class.new(RAAF::DSL::Agent) do
+      Class.new(RAAF::DSL::Agent) do
         agent_name "OldPatternPerfAgent"
         model "gpt-4o"
         uses_tool :web_search
@@ -341,7 +341,7 @@ RSpec.describe "Backward Compatibility" do
       # Measure performance of new pattern (tool)
       start_time = Time.now
 
-      agent_class_new = Class.new(RAAF::DSL::Agent) do
+      Class.new(RAAF::DSL::Agent) do
         agent_name "NewPatternPerfAgent"
         model "gpt-4o"
         tool :web_search
@@ -411,11 +411,13 @@ RSpec.describe "Backward Compatibility" do
 
     it "handles tool type detection for migration" do
       # Create different tool types
-      dsl_tool = Class.new(RAAF::DSL::Tools::Base) do
-        def call
-          { type: "dsl" }
+      if defined?(RAAF::DSL::Tools::Base)
+        dsl_tool = Class.new(RAAF::DSL::Tools::Base) do
+          def call
+            { type: "dsl" }
+          end
         end
-      end if defined?(RAAF::DSL::Tools::Base)
+      end
 
       function_tool = Class.new do
         def call
@@ -436,7 +438,7 @@ RSpec.describe "Backward Compatibility" do
       config = agent.class._tools_config.first
 
       # Tool type should be detected
-      expect(config[:tool_type]).to be_in([:native, :external])
+      expect(config[:tool_type]).to be_in(%i[native external])
     end
   end
 end

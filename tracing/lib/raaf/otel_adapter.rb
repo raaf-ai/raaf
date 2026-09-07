@@ -1,10 +1,13 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Tracing
+
     # OpenTelemetry adapter for RAAF tracing
     # This provides compatibility with OpenTelemetry exporters and conventions
     class OTelAdapter
+
       # Maps RAAF span kinds to OpenTelemetry span kinds
       SPAN_KIND_MAP = {
         agent: :internal,
@@ -162,10 +165,12 @@ module RAAF
           0 # SPAN_KIND_UNSPECIFIED
         end
       end
+
     end
 
     # OpenTelemetry-compatible span processor
     class OTelProcessor
+
       def initialize(exporter)
         @exporter = exporter
       end
@@ -188,10 +193,12 @@ module RAAF
       def shutdown
         @exporter.shutdown if @exporter.respond_to?(:shutdown)
       end
+
     end
 
     # Bridge to use OpenTelemetry gem exporters with RAAF tracing
     class OTelBridge
+
       def self.use_otel_exporter(exporter)
         processor = OTelProcessor.new(exporter)
         TraceProvider.instance.add_processor(processor)
@@ -224,6 +231,9 @@ module RAAF
       rescue LoadError
         warn "OpenTelemetry Jaeger exporter not available. Install 'opentelemetry-exporter-jaeger' gem."
       end
+
     end
+
   end
+
 end

@@ -1,17 +1,20 @@
 # frozen_string_literal: true
 
-require_relative 'base'
-require_relative 'pii_detector'
+require_relative "base"
+require_relative "pii_detector"
 
 module RAAF
+
   module Guardrails
+
     # Ensures GDPR (General Data Protection Regulation) compliance
     class GDPRCompliance < Base
+
       # GDPR-specific PII types
-      GDPR_PII_TYPES = [
-        :email, :phone, :name, :address, :date_of_birth,
-        :national_id, :passport, :iban, :vat_number,
-        :ip_address, :cookie_id, :device_id
+      GDPR_PII_TYPES = %i[
+        email phone name address date_of_birth
+        national_id passport iban vat_number
+        ip_address cookie_id device_id
       ].freeze
 
       # GDPR principles patterns
@@ -22,7 +25,7 @@ module RAAF
             /store.*(?:everything|all\s+data)/i,
             /save.*(?:complete|full).*(?:profile|history)/i
           ],
-          description: 'Potential violation of data minimization principle'
+          description: "Potential violation of data minimization principle"
         },
         purpose_limitation: {
           patterns: [
@@ -30,7 +33,7 @@ module RAAF
             /repurpose.*(?:personal|user).*(?:data|information)/i,
             /share.*with.*third.*party/i
           ],
-          description: 'Potential violation of purpose limitation principle'
+          description: "Potential violation of purpose limitation principle"
         },
         consent_required: {
           patterns: [
@@ -38,7 +41,7 @@ module RAAF
             /automatically.*collect/i,
             /track.*without.*(?:asking|permission|consent)/i
           ],
-          description: 'Processing personal data without explicit consent'
+          description: "Processing personal data without explicit consent"
         },
         right_to_erasure: {
           patterns: [
@@ -46,7 +49,7 @@ module RAAF
             /permanent.*storage/i,
             /never.*remove.*(?:data|information)/i
           ],
-          description: 'Potential violation of right to erasure'
+          description: "Potential violation of right to erasure"
         },
         data_portability: {
           patterns: [
@@ -54,7 +57,7 @@ module RAAF
             /no.*download.*option/i,
             /proprietary.*format.*only/i
           ],
-          description: 'Potential violation of data portability rights'
+          description: "Potential violation of data portability rights"
         }
       }.freeze
 
@@ -62,7 +65,7 @@ module RAAF
                   :pii_detector, :audit_trail, :data_retention_period
 
       def initialize(action: :flag, data_processing_purposes: [], legal_basis: nil,
-                     data_retention_period: nil, data_subject_rights: nil, 
+                     data_retention_period: nil, data_subject_rights: nil,
                      audit_trail: true, **options)
         super(action: action, **options)
         @data_processing_purposes = data_processing_purposes
@@ -70,7 +73,7 @@ module RAAF
         @data_retention_period = data_retention_period
         @data_subject_rights = configure_data_rights(data_subject_rights)
         @audit_trail = audit_trail
-        
+
         # Create internal PII detector with GDPR-specific configuration
         @pii_detector = PIIDetector.new(
           action: :redact,
@@ -83,16 +86,14 @@ module RAAF
 
       def perform_check(content, context)
         violations = []
-        
+
         # Check for PII exposure
         pii_result = @pii_detector.check_input(content, context)
-        if pii_result.violated?
-          violations.concat(convert_pii_violations(pii_result.violations))
-        end
-        
+        violations.concat(convert_pii_violations(pii_result.violations)) if pii_result.violated?
+
         # Check GDPR principles
         violations.concat(check_gdpr_principles(content, context))
-        
+
         # Check data processing legitimacy
         if context[:processing_type] && !legitimate_processing?(context)
           violations << {
@@ -101,7 +102,7 @@ module RAAF
             description: "Data processing lacks legal basis under GDPR Article 6"
           }
         end
-        
+
         # Check data retention
         if context[:retention_period] && exceeds_retention_limit?(context[:retention_period])
           violations << {
@@ -110,12 +111,12 @@ module RAAF
             description: "Data retention period exceeds GDPR requirements"
           }
         end
-        
+
         # Audit if enabled
         audit_check(content, context, violations) if @audit_trail
-        
+
         return safe_result if violations.empty?
-        
+
         # For GDPR, we often need to provide detailed information
         result = violation_result(violations)
         result.metadata[:gdpr_articles] = relevant_articles(violations)
@@ -135,7 +136,7 @@ module RAAF
           right_to_restrict_processing: true,
           automated_decision_making: false
         }
-        
+
         rights ? default_rights.merge(rights) : default_rights
       end
 
@@ -143,46 +144,46 @@ module RAAF
         {
           eu_national_id: {
             pattern: /[A-Z]{2}\d{6,12}/,
-            description: 'EU National ID Number'
+            description: "EU National ID Number"
           },
           iban: {
             pattern: /[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}([A-Z0-9]?){0,16}/,
-            description: 'International Bank Account Number'
+            description: "International Bank Account Number"
           },
           vat_number: {
             pattern: /[A-Z]{2}\d{8,12}/,
-            description: 'VAT Registration Number'
+            description: "VAT Registration Number"
           },
           nhs_number: {
             pattern: /\d{3}[-\s]?\d{3}[-\s]?\d{4}/,
-            description: 'NHS Number (UK)'
+            description: "NHS Number (UK)"
           }
         }
       end
 
-      def check_gdpr_principles(content, context)
+      def check_gdpr_principles(content, _context)
         violations = []
-        
+
         GDPR_PRINCIPLES.each do |principle, config|
           config[:patterns].each do |pattern|
-            if content.match?(pattern)
-              violations << {
-                type: "gdpr_#{principle}".to_sym,
-                principle: principle,
-                severity: :high,
-                description: config[:description],
-                pattern: pattern.source
-              }
-            end
+            next unless content.match?(pattern)
+
+            violations << {
+              type: :"gdpr_#{principle}",
+              principle: principle,
+              severity: :high,
+              description: config[:description],
+              pattern: pattern.source
+            }
           end
         end
-        
+
         violations
       end
 
       def legitimate_processing?(context)
         return false unless @legal_basis
-        
+
         case @legal_basis
         when :consent
           context[:user_consent] == true
@@ -206,13 +207,13 @@ module RAAF
         return false unless context[:legitimate_interest_purpose]
         return false if context[:high_privacy_impact]
         return false if context[:vulnerable_data_subjects]
-        
+
         true
       end
 
       def exceeds_retention_limit?(proposed_period)
         return false unless @data_retention_period
-        
+
         proposed_period > @data_retention_period
       end
 
@@ -243,7 +244,7 @@ module RAAF
 
       def relevant_articles(violations)
         articles = []
-        
+
         violations.each do |violation|
           case violation[:type]
           when :gdpr_pii_exposure
@@ -266,13 +267,13 @@ module RAAF
             articles << "Article 5(1)(e) (Storage Limitation)"
           end
         end
-        
+
         articles.uniq
       end
 
       def required_actions(violations)
         actions = []
-        
+
         violations.each do |violation|
           case violation[:type]
           when :gdpr_pii_exposure
@@ -289,16 +290,16 @@ module RAAF
             actions << "Document legitimate interests assessment if applicable"
           end
         end
-        
+
         actions.uniq
       end
 
       def audit_check(content, context, violations)
         return unless @logger
-        
+
         audit_entry = {
           timestamp: Time.now.iso8601,
-          check_type: 'GDPR Compliance',
+          check_type: "GDPR Compliance",
           content_hash: Digest::SHA256.hexdigest(content),
           violations_found: violations.size,
           violation_types: violations.map { |v| v[:type] }.uniq,
@@ -306,14 +307,17 @@ module RAAF
           legal_basis: @legal_basis,
           data_categories: violations.map { |v| v[:gdpr_category] }.compact.uniq
         }
-        
+
         @logger.info "GDPR Compliance Check: #{audit_entry.to_json}"
       end
 
       def sanitize_context_for_audit(context)
         # Remove sensitive data from context before logging
-        context.reject { |k, _| [:user_data, :content, :pii].include?(k) }
+        context.reject { |k, _| %i[user_data content pii].include?(k) }
       end
+
     end
+
   end
+
 end

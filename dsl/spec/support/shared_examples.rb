@@ -92,7 +92,6 @@ RSpec.shared_examples "a prompt class" do
   it "can be initialized with keyword arguments" do
     expect { described_class.new(test_param: "value") }.not_to raise_error
   end
-
 end
 
 # Shared examples for tool classes

@@ -55,27 +55,27 @@ RSpec.describe RAAF::Eval::DslEngine::ProgressEvent do
     end
 
     it "raises error for invalid event type" do
-      expect {
+      expect do
         described_class.new(type: :invalid, progress: 0.0, status: :running)
-      }.to raise_error(RAAF::Eval::DslEngine::InvalidEventTypeError)
+      end.to raise_error(RAAF::Eval::DslEngine::InvalidEventTypeError)
     end
 
     it "raises error for invalid status" do
-      expect {
+      expect do
         described_class.new(type: :start, progress: 0.0, status: :invalid)
-      }.to raise_error(RAAF::Eval::DslEngine::InvalidEventStatusError)
+      end.to raise_error(RAAF::Eval::DslEngine::InvalidEventStatusError)
     end
 
     it "raises error for progress < 0.0" do
-      expect {
+      expect do
         described_class.new(type: :start, progress: -1.0, status: :running)
-      }.to raise_error(RAAF::Eval::DslEngine::InvalidProgressError)
+      end.to raise_error(RAAF::Eval::DslEngine::InvalidProgressError)
     end
 
     it "raises error for progress > 100.0" do
-      expect {
+      expect do
         described_class.new(type: :start, progress: 101.0, status: :running)
-      }.to raise_error(RAAF::Eval::DslEngine::InvalidProgressError)
+      end.to raise_error(RAAF::Eval::DslEngine::InvalidProgressError)
     end
   end
 

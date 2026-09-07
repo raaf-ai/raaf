@@ -149,15 +149,15 @@ RSpec.describe RAAF::Models::ResponsesProvider, "#unsupported_parameters" do
       )
 
       # Check the request body sent to the API
-      expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
-        .with { |req|
+      expect(WebMock).to(have_requested(:post, "https://api.openai.com/v1/responses")
+        .with do |req|
           body = JSON.parse(req.body)
           # Verify unsupported params are NOT present
           !body.key?("frequency_penalty") &&
             !body.key?("presence_penalty") &&
             !body.key?("best_of") &&
             !body.key?("logit_bias")
-        }
+        end)
     end
 
     it "includes supported parameters in the API request body" do
@@ -167,12 +167,12 @@ RSpec.describe RAAF::Models::ResponsesProvider, "#unsupported_parameters" do
         temperature: 0.7,
         top_p: 0.9,
         max_tokens: 100,
-        frequency_penalty: 0.5  # This should be filtered out
+        frequency_penalty: 0.5 # This should be filtered out
       )
 
       # Check the request body sent to the API
-      expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
-        .with { |req|
+      expect(WebMock).to(have_requested(:post, "https://api.openai.com/v1/responses")
+        .with do |req|
           body = JSON.parse(req.body)
           # Verify supported params ARE present
           body["temperature"] == 0.7 &&
@@ -180,7 +180,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "#unsupported_parameters" do
             body["max_output_tokens"] == 100 &&
             # Verify unsupported param is NOT present
             !body.key?("frequency_penalty")
-        }
+        end)
     end
   end
 
@@ -188,25 +188,25 @@ RSpec.describe RAAF::Models::ResponsesProvider, "#unsupported_parameters" do
     it "ignores continuation_marker parameter (passed to **kwargs but not used)" do
       # Parameter is accepted by **kwargs but has no effect
       # The key verification is that the implementation doesn't use it
-      expect {
+      expect do
         provider.responses_completion(
           messages: [{ role: "user", content: "Test" }],
           model: "gpt-4o",
           continuation_marker: "<<<CUSTOM>>>"
         )
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "ignores detect_natural_markers parameter (passed to **kwargs but not used)" do
       # Parameter is accepted by **kwargs but has no effect
       # The key verification is that the implementation doesn't use it
-      expect {
+      expect do
         provider.responses_completion(
           messages: [{ role: "user", content: "Test" }],
           model: "gpt-4o",
           detect_natural_markers: false
         )
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "does not have detect_continuation_marker private method" do
@@ -264,12 +264,12 @@ RSpec.describe RAAF::Models::ResponsesProvider, "#unsupported_parameters" do
       )
 
       # Check the request body sent to the API
-      expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
-        .with { |req|
+      expect(WebMock).to(have_requested(:post, "https://api.openai.com/v1/responses")
+        .with do |req|
           body = JSON.parse(req.body)
           # Verify temperature and top_p are NOT present for reasoning models
           !body.key?("temperature") && !body.key?("top_p")
-        }
+        end)
     end
 
     it "includes temperature and top_p for non-reasoning models" do
@@ -281,12 +281,12 @@ RSpec.describe RAAF::Models::ResponsesProvider, "#unsupported_parameters" do
       )
 
       # Check the request body sent to the API
-      expect(WebMock).to have_requested(:post, "https://api.openai.com/v1/responses")
-        .with { |req|
+      expect(WebMock).to(have_requested(:post, "https://api.openai.com/v1/responses")
+        .with do |req|
           body = JSON.parse(req.body)
           # Verify temperature and top_p ARE present for non-reasoning models
           body["temperature"] == 0.7 && body["top_p"] == 0.9
-        }
+        end)
     end
 
     it "warns about all unsupported parameters for o1-preview model" do

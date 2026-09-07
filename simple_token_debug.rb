@@ -21,13 +21,13 @@ puts
 
 # Create minimal test without loading full RAAF
 # Try to read from ProspectsRadar .env file if ENV not set
-api_key = ENV["GOOGLE_API_KEY"]
+api_key = ENV.fetch("GOOGLE_API_KEY", nil)
 if api_key.nil? || api_key.empty?
   env_file = "/Users/hajee/Enterprise Modules Dropbox/Bert Hajee/enterprisemodules/work/prospects_radar/.env"
   if File.exist?(env_file)
     env_content = File.read(env_file)
     if env_content =~ /GOOGLE_API_KEY=(.+)/
-      api_key = $1.strip.split(/\s+#/).first.strip  # Remove comments
+      api_key = Regexp.last_match(1).strip.split(/\s+#/).first.strip # Remove comments
       puts "📝 Using GOOGLE_API_KEY from .env file"
     end
   end

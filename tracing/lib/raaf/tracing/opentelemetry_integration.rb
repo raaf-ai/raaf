@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Tracing
+
     ##
     # OpenTelemetry integration for Ruby AI Agents Factory
     #
@@ -12,7 +14,7 @@ module RAAF
     # @example Basic OpenTelemetry setup
     #   otel = OpenTelemetryIntegration.new
     #   otel.setup_instrumentation
-    #   
+    #
     #   agent = Agent.new(name: "Assistant")
     #   runner = Runner.new(agent: agent, tracer: otel)
     #
@@ -27,6 +29,7 @@ module RAAF
     #   )
     #
     class OpenTelemetryIntegration
+
       # @return [String] Service name for OpenTelemetry
       attr_reader :service_name
 
@@ -65,12 +68,12 @@ module RAAF
         require_otel_dependencies
         configure_otel_sdk
         setup_instrumentation_libraries
-        
+
         @tracer = OpenTelemetry.tracer_provider.tracer(
           @service_name,
           version: @service_version
         )
-        
+
         @setup_complete = true
       end
 
@@ -86,7 +89,7 @@ module RAAF
         setup_instrumentation unless @setup_complete
 
         span_kind = map_span_kind(kind)
-        
+
         @tracer.in_span(name, attributes: attributes, kind: span_kind) do |span|
           if block_given?
             begin
@@ -110,7 +113,7 @@ module RAAF
 
         # Convert to OpenTelemetry span
         create_otel_span(span)
-        
+
         # The span is automatically sent to configured exporters
         # when it's finished within the OpenTelemetry context
       end
@@ -120,7 +123,7 @@ module RAAF
       #
       # @param processor [Object] Processor to add
       #
-      def add_processor(processor)
+      def add_processor(_processor)
         # OpenTelemetry uses exporters instead of processors
         # This method maintains compatibility with SpanTracer interface
         warn "OpenTelemetry integration uses exporters, not processors. Configure exporters in setup_instrumentation."
@@ -138,10 +141,10 @@ module RAAF
       private
 
       def require_otel_dependencies
-        require 'opentelemetry/api'
-        require 'opentelemetry/sdk'
-        require 'opentelemetry/exporter/otlp'
-        require 'opentelemetry/instrumentation/net_http'
+        require "opentelemetry/api"
+        require "opentelemetry/sdk"
+        require "opentelemetry/exporter/otlp"
+        require "opentelemetry/instrumentation/net_http"
       rescue LoadError => e
         raise "OpenTelemetry gems are required. Add the following to your Gemfile:\n" \
               "gem 'opentelemetry-api'\n" \
@@ -168,7 +171,7 @@ module RAAF
           c.resource = resource
           c.service_name = @service_name
           c.service_version = @service_version
-          
+
           # Add OTLP exporter (can be configured via environment variables)
           c.add_span_processor(
             OpenTelemetry::SDK::Trace::Export::BatchSpanProcessor.new(
@@ -181,7 +184,7 @@ module RAAF
       def setup_instrumentation_libraries
         # Setup automatic instrumentation
         OpenTelemetry::Instrumentation::Net::HTTP.install
-        
+
         # Additional instrumentations can be added here
         # OpenTelemetry::Instrumentation::Faraday.install
         # OpenTelemetry::Instrumentation::Redis.install
@@ -206,7 +209,7 @@ module RAAF
 
       def create_otel_span(span)
         attributes = build_otel_attributes(span)
-        
+
         @tracer.in_span(
           span.name,
           attributes: attributes,
@@ -250,9 +253,7 @@ module RAAF
         end
 
         # Add tool information
-        if span.metadata["tool_name"]
-          attributes["tool.name"] = span.metadata["tool_name"]
-        end
+        attributes["tool.name"] = span.metadata["tool_name"] if span.metadata["tool_name"]
 
         attributes
       end
@@ -271,6 +272,9 @@ module RAAF
           OpenTelemetry::Trace::SpanKind::INTERNAL
         end
       end
+
     end
+
   end
+
 end

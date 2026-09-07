@@ -31,21 +31,21 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Config do
 
     context "with invalid parameters" do
       it "raises ArgumentError for non-integer stream_size" do
-        expect {
+        expect do
           described_class.new(stream_size: "100")
-        }.to raise_error(ArgumentError, /stream_size must be a positive integer/)
+        end.to raise_error(ArgumentError, /stream_size must be a positive integer/)
       end
 
       it "raises ArgumentError for zero stream_size" do
-        expect {
+        expect do
           described_class.new(stream_size: 0)
-        }.to raise_error(ArgumentError, /stream_size must be a positive integer/)
+        end.to raise_error(ArgumentError, /stream_size must be a positive integer/)
       end
 
       it "raises ArgumentError for negative stream_size" do
-        expect {
+        expect do
           described_class.new(stream_size: -10)
-        }.to raise_error(ArgumentError, /stream_size must be a positive integer/)
+        end.to raise_error(ArgumentError, /stream_size must be a positive integer/)
       end
     end
   end
@@ -70,7 +70,7 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Config do
 
     describe "#load_existing" do
       it "stores the load_existing block" do
-        load_block = proc { |record| { cached: true } }
+        load_block = proc { |_record| { cached: true } }
         config.load_existing(&load_block)
 
         expect(config.blocks[:load_existing]).to eq(load_block)
@@ -88,7 +88,7 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Config do
 
     describe "#on_stream_start" do
       it "stores the on_stream_start hook" do
-        start_hook = proc { |num, total, data| puts "Starting #{num}/#{total}" }
+        start_hook = proc { |num, total, _data| puts "Starting #{num}/#{total}" }
         config.on_stream_start(&start_hook)
 
         expect(config.blocks[:on_stream_start]).to eq(start_hook)
@@ -104,15 +104,15 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Config do
         end
 
         it "accepts a block with variable parameters (-1 arity)" do
-          complete_hook = proc { |*args| puts "Done" }
+          complete_hook = proc { |*_args| puts "Done" }
           expect { config.on_stream_complete(&complete_hook) }.not_to raise_error
         end
 
         it "raises error for block with wrong arity" do
-          complete_hook = proc { |a, b, c| puts "Wrong" }
-          expect {
+          complete_hook = proc { |_a, _b, _c| puts "Wrong" }
+          expect do
             config.on_stream_complete(&complete_hook)
-          }.to raise_error(ArgumentError, /expects 1 parameter/)
+          end.to raise_error(ArgumentError, /expects 1 parameter/)
         end
       end
 
@@ -120,28 +120,28 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Config do
         let(:config) { described_class.new(stream_size: 100, incremental: true) }
 
         it "accepts a block with 4 parameters" do
-          complete_hook = proc { |num, total, data, results| puts "Stream #{num}/#{total}" }
+          complete_hook = proc { |num, total, _data, _results| puts "Stream #{num}/#{total}" }
           expect { config.on_stream_complete(&complete_hook) }.not_to raise_error
           expect(config.blocks[:on_stream_complete]).to eq(complete_hook)
         end
 
         it "accepts a block with variable parameters (-1 arity)" do
-          complete_hook = proc { |*args| puts "Done" }
+          complete_hook = proc { |*_args| puts "Done" }
           expect { config.on_stream_complete(&complete_hook) }.not_to raise_error
         end
 
         it "raises error for block with wrong arity" do
-          complete_hook = proc { |a| puts "Wrong" }
-          expect {
+          complete_hook = proc { |_a| puts "Wrong" }
+          expect do
             config.on_stream_complete(&complete_hook)
-          }.to raise_error(ArgumentError, /expects 4 parameters/)
+          end.to raise_error(ArgumentError, /expects 4 parameters/)
         end
       end
     end
 
     describe "#on_stream_error" do
       it "stores the on_stream_error hook" do
-        error_hook = proc { |num, total, error, context| log_error(error) }
+        error_hook = proc { |_num, _total, error, _context| log_error(error) }
         config.on_stream_error(&error_hook)
 
         expect(config.blocks[:on_stream_error]).to eq(error_hook)
@@ -171,13 +171,13 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Config do
       hash = config.to_h
 
       expect(hash).to eq({
-        stream_size: 100,
-        array_field: :companies,
-        incremental: true,
-        has_skip_if: true,
-        has_load_existing: true,
-        has_persist: true
-      })
+                           stream_size: 100,
+                           array_field: :companies,
+                           incremental: true,
+                           has_skip_if: true,
+                           has_load_existing: true,
+                           has_persist: true
+                         })
     end
 
     it "shows false for unset blocks" do
@@ -186,13 +186,13 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Config do
       hash = config.to_h
 
       expect(hash).to eq({
-        stream_size: 50,
-        array_field: nil,
-        incremental: false,
-        has_skip_if: false,
-        has_load_existing: false,
-        has_persist: false
-      })
+                           stream_size: 50,
+                           array_field: nil,
+                           incremental: false,
+                           has_skip_if: false,
+                           has_load_existing: false,
+                           has_persist: false
+                         })
     end
   end
 end

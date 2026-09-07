@@ -44,7 +44,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency "yaml", "~> 0.2"
 
   # Development dependencies
-  spec.add_development_dependency "bundler"
   spec.add_development_dependency "parser"
   # NOTE: raaf-testing is included via Gemfile path reference
   # spec.add_development_dependency "raaf-testing", "~> 0.1"

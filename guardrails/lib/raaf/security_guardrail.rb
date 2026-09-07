@@ -4,9 +4,12 @@ require_relative "../security"
 require_relative "base"
 
 module RAAF
+
   module Guardrails
+
     # Security guardrail to protect against various threats
     class SecurityGuardrail < Base
+
       attr_reader :scanner, :policies
 
       def initialize(policies: nil, **options)
@@ -228,7 +231,7 @@ module RAAF
         violations
       end
 
-      def check_policies(content, context)
+      def check_policies(_content, context)
         violations = []
 
         # Check command execution
@@ -421,6 +424,9 @@ module RAAF
       end
 
       class SecurityViolationError < StandardError; end
+
     end
+
   end
+
 end

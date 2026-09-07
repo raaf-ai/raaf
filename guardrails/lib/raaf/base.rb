@@ -3,7 +3,9 @@
 require_relative "../errors"
 
 module RAAF
+
   module Guardrails
+
     ##
     # Base class for all guardrail implementations
     #
@@ -14,6 +16,7 @@ module RAAF
     # @abstract Subclass and implement validation methods
     #
     class Base
+
       ##
       # Initialize a new guardrail
       #
@@ -22,6 +25,7 @@ module RAAF
       def initialize(**options)
         @options = options
       end
+
     end
 
     ##
@@ -45,6 +49,7 @@ module RAAF
     #   end
     #
     class TripwireException < GuardrailError
+
       # @!attribute [r] triggered_by
       #   @return [String] Name of the guardrail that triggered
       # @!attribute [r] content
@@ -67,6 +72,7 @@ module RAAF
         @content = content
         @metadata = metadata
       end
+
     end
 
     ##
@@ -76,7 +82,7 @@ module RAAF
     # validation failures for more targeted error handling.
     #
     class InputGuardrailTripwireTriggered < TripwireException; end
-    
+
     ##
     # Exception raised when an output guardrail tripwire is triggered
     #
@@ -99,6 +105,7 @@ module RAAF
     #   )
     #
     class GuardrailFunctionOutput
+
       # @!attribute [r] output_info
       #   @return [Object] Additional information about the validation result
       # @!attribute [r] tripwire_triggered
@@ -127,6 +134,7 @@ module RAAF
           tripwire_triggered: @tripwire_triggered
         }
       end
+
     end
 
     ##
@@ -136,6 +144,7 @@ module RAAF
     # providing a complete picture of the validation that occurred.
     #
     class InputGuardrailResult
+
       # @!attribute [r] guardrail
       #   @return [InputGuardrail] The guardrail that was run
       # @!attribute [r] output
@@ -161,6 +170,7 @@ module RAAF
       def tripwire_triggered?
         @output.tripwire_triggered
       end
+
     end
 
     ##
@@ -170,6 +180,7 @@ module RAAF
     # the agent and its output that was validated.
     #
     class OutputGuardrailResult
+
       # @!attribute [r] guardrail
       #   @return [OutputGuardrail] The guardrail that was run
       # @!attribute [r] agent
@@ -203,6 +214,9 @@ module RAAF
       def tripwire_triggered?
         @output.tripwire_triggered
       end
+
     end
+
   end
+
 end

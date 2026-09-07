@@ -8,6 +8,7 @@ require_relative "tracing/spans"
 require_relative "logging"
 
 module RAAF
+
   ##
   # Interactive Read-Eval-Print Loop for RAAF
   #
@@ -51,7 +52,7 @@ module RAAF
   #   # User starts REPL
   #   repl = RAAF::REPL.new
   #   repl.start
-  #   
+  #
   #   # In REPL:
   #   # > /new MyAgent
   #   # > Hello, can you help me?
@@ -65,7 +66,9 @@ module RAAF
   # @see RAAF::Agent For agent creation and configuration
   # @see RAAF::Tracing::SpanTracer For tracing capabilities
   class REPL
+
     include Logger
+
     COMMANDS = {
       "/help" => "Show this help message",
       "/agents" => "List all available agents",
@@ -539,5 +542,7 @@ module RAAF
       agent.handoffs.clear
       puts "Agent '#{agent.name}' has been reset."
     end
+
   end
+
 end

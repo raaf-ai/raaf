@@ -36,10 +36,10 @@ module RAAF
 
             # Calculate percentage increase
             increase_pct = if baseline_tokens > 0
-              [((current_tokens - baseline_tokens).to_f / baseline_tokens * 100), 0].max
-            else
-              current_tokens > 0 ? 100.0 : 0.0
-            end
+                             [((current_tokens - baseline_tokens).to_f / baseline_tokens * 100), 0].max
+                           else
+                             current_tokens > 0 ? 100.0 : 0.0
+                           end
 
             score = calculate_score(increase_pct, max_pct)
             label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)

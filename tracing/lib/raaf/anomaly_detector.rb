@@ -1,9 +1,12 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Tracing
+
     # rubocop:disable Metrics/ClassLength
     class AnomalyDetector
+
       # Statistical anomaly detection using various algorithms
 
       def initialize(config = {})
@@ -486,7 +489,7 @@ module RAAF
         trends
       end
 
-      def detect_seasonal_anomalies(data_points, baseline_data)
+      def detect_seasonal_anomalies(_data_points, _baseline_data)
         # Simplified seasonal detection - would need more sophisticated implementation
         # for production use with proper time series decomposition
         []
@@ -629,66 +632,69 @@ module RAAF
       end
 
       # Placeholder methods for additional functionality
-      def get_hourly_throughput(start_time, end_time)
+      def get_hourly_throughput(_start_time, _end_time)
         {}
       end
 
-      def get_baseline_throughput(current_start)
+      def get_baseline_throughput(_current_start)
         {}
       end
 
-      def get_hourly_token_usage(start_time, end_time)
+      def get_hourly_token_usage(_start_time, _end_time)
         {}
       end
 
-      def get_baseline_token_usage(current_start)
+      def get_baseline_token_usage(_current_start)
         {}
       end
 
-      def get_hourly_costs_per_request(start_time, end_time)
+      def get_hourly_costs_per_request(_start_time, _end_time)
         {}
       end
 
-      def get_baseline_costs_per_request(current_start)
+      def get_baseline_costs_per_request(_current_start)
         {}
       end
 
-      def get_model_usage_distribution(start_time, end_time)
+      def get_model_usage_distribution(_start_time, _end_time)
         {}
       end
 
-      def get_baseline_model_usage(current_start)
+      def get_baseline_model_usage(_current_start)
         {}
       end
 
-      def get_workflow_baseline_durations(workflow_name, current_start)
+      def get_workflow_baseline_durations(_workflow_name, _current_start)
         []
       end
 
-      def get_workflow_baseline_error_rate(workflow_name, current_start)
+      def get_workflow_baseline_error_rate(_workflow_name, _current_start)
         0
       end
 
-      def generate_recommendations(anomalies)
+      def generate_recommendations(_anomalies)
         []
       end
 
-      def identify_potential_causes(anomalies)
+      def identify_potential_causes(_anomalies)
         []
       end
 
-      def analyze_anomaly_trends(anomalies)
+      def analyze_anomaly_trends(_anomalies)
         {}
       end
 
-      def find_correlated_anomalies(anomalies)
+      def find_correlated_anomalies(_anomalies)
         {}
       end
 
-      def group_anomalies_by_time(anomalies)
+      def group_anomalies_by_time(_anomalies)
         {}
       end
+
     end
     # rubocop:enable Metrics/ClassLength
+
   end
+
 end

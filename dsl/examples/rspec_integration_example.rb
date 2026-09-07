@@ -13,8 +13,6 @@ require "raaf/dsl/rspec"
 
 # Example prompt class for a document processing application
 class ReportAnalysisPrompt < RAAF::DSL::Prompts::Base
-
-
   def system
     <<~SYSTEM
       You are a professional business analyst specializing in #{analysis_type} analysis.

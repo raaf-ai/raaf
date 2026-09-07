@@ -3,7 +3,9 @@
 require_relative "../tool"
 
 module RAAF
+
   class Tool
+
     # Base class for OpenAI native tools
     #
     # Native tools are executed by OpenAI's infrastructure rather than
@@ -12,32 +14,35 @@ module RAAF
     #
     # @example Native web search tool
     #   class WebSearchTool < RAAF::Tool::Native
-    #     configure name: "web_search", 
+    #     configure name: "web_search",
     #               description: "Search the web for information"
-    #     
+    #
     #     native_config do
     #       web_search true
     #     end
     #   end
     #
     class Native < Tool
+
       class << self
+
         attr_accessor :native_configuration
 
-        def native_config(&block)
-          @native_configuration = NativeConfigBuilder.new(&block).build
+        def native_config(&)
+          @native_configuration = NativeConfigBuilder.new(&).build
         end
 
         def native?
           true
         end
+
       end
 
       # Native tools don't have a local call implementation
       def call(**params)
-        raise NotImplementedError, 
-          "Native tools are executed by OpenAI infrastructure. " \
-          "They cannot be called directly."
+        raise NotImplementedError,
+              "Native tools are executed by OpenAI infrastructure. " \
+              "They cannot be called directly."
       end
 
       # Check if this is a native tool
@@ -48,7 +53,7 @@ module RAAF
       # Generate tool definition for OpenAI API
       def to_tool_definition
         config = self.class.native_configuration || {}
-        
+
         # Different format for native tools
         case name
         when "web_search"
@@ -66,17 +71,16 @@ module RAAF
       # Native tools don't convert to FunctionTool
       def to_function_tool
         raise NotImplementedError,
-          "Native tools cannot be converted to FunctionTool. " \
-          "They are executed by OpenAI infrastructure."
+              "Native tools cannot be converted to FunctionTool. " \
+              "They are executed by OpenAI infrastructure."
       end
-
-      private
 
       # Builder for native tool configuration
       class NativeConfigBuilder
-        def initialize(&block)
+
+        def initialize(&)
           @config = {}
-          instance_eval(&block) if block_given?
+          instance_eval(&) if block_given?
         end
 
         def web_search(enabled = true)
@@ -98,7 +102,11 @@ module RAAF
         def build
           @config
         end
+
       end
+
     end
+
   end
+
 end

@@ -6,7 +6,9 @@ require "shellwords"
 require "raaf/function_tool"
 
 module RAAF
+
   module Tools
+
     ##
     # Local Shell Tool - Safe command execution
     #
@@ -25,7 +27,7 @@ module RAAF
     # @example Basic usage
     #   shell = LocalShellTool.new
     #   agent.add_tool(shell)
-    #   
+    #
     #   # Agent can now execute: ls, cat, grep, etc.
     #
     # @example With custom whitelist
@@ -43,9 +45,10 @@ module RAAF
     #   )
     #
     class LocalShellTool < FunctionTool
+
       # Default timeout for command execution in seconds
       DEFAULT_TIMEOUT = 30
-      
+
       # Default maximum output size in characters
       DEFAULT_MAX_OUTPUT = 10_000
 
@@ -278,6 +281,7 @@ module RAAF
           required: ["command"]
         }
       end
+
     end
 
     ##
@@ -305,6 +309,7 @@ module RAAF
     #   )
     #
     class AdvancedShellTool < LocalShellTool
+
       ##
       # Initialize an advanced shell tool with extended command set
       #
@@ -372,6 +377,9 @@ module RAAF
           validate_command!(cmd_parts.first)
         end
       end
+
     end
+
   end
+
 end

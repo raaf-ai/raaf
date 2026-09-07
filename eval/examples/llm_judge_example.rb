@@ -39,13 +39,13 @@ RSpec.describe "WritingAgent Quality with LLM Judge", :evaluation do
     RAAF::Eval::SpanRepository.clear!
   end
 
-  # Note: LLM judge matchers would normally call an AI model
+  # NOTE: LLM judge matchers would normally call an AI model
   # These examples show the interface but won't make actual calls in tests
 
   it "produces descriptive writing" do
     result = evaluate_span("writing_span_202")
-      .with_configuration(temperature: 0.7)
-      .run
+             .with_configuration(temperature: 0.7)
+             .run
 
     # This would normally use LLM judge to evaluate
     # For testing, we just verify the interface exists
@@ -54,8 +54,8 @@ RSpec.describe "WritingAgent Quality with LLM Judge", :evaluation do
 
   it "maintains appropriate tone" do
     result = evaluate_span("writing_span_202")
-      .with_configuration(temperature: 0.7)
-      .run
+             .with_configuration(temperature: 0.7)
+             .run
 
     # In real usage:
     # expect(result).to satisfy_llm_check("The writing is descriptive and engaging")
@@ -65,8 +65,8 @@ RSpec.describe "WritingAgent Quality with LLM Judge", :evaluation do
 
   it "meets multiple quality criteria" do
     result = evaluate_span("writing_span_202")
-      .with_configuration(temperature: 0.7)
-      .run
+             .with_configuration(temperature: 0.7)
+             .run
 
     # In real usage:
     # expect(result).to satisfy_llm_criteria([
@@ -80,8 +80,8 @@ RSpec.describe "WritingAgent Quality with LLM Judge", :evaluation do
 
   it "is judged as creative" do
     result = evaluate_span("writing_span_202")
-      .with_configuration(temperature: 0.9)
-      .run
+             .with_configuration(temperature: 0.9)
+             .run
 
     # In real usage:
     # expect(result).to be_judged_as("more creative").than(:baseline)
@@ -91,6 +91,4 @@ RSpec.describe "WritingAgent Quality with LLM Judge", :evaluation do
 end
 
 # Run the example
-if __FILE__ == $PROGRAM_NAME
-  require "rspec/autorun"
-end
+require "rspec/autorun" if __FILE__ == $PROGRAM_NAME

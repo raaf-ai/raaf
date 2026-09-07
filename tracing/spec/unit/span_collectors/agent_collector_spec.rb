@@ -5,13 +5,12 @@ require "spec_helper"
 RSpec.describe RAAF::Tracing::SpanCollectors::AgentCollector do
   let(:agent) do
     double("Agent",
-      class: double("AgentClass", name: "RAAF::Agent"),
-      name: "TestAgent",
-      model: "gpt-4o",
-      max_turns: 5,
-      tools: ["tool1", "tool2"],
-      handoffs: ["agent1", "agent2"]
-    ).tap do |agent|
+           class: double("AgentClass", name: "RAAF::Agent"),
+           name: "TestAgent",
+           model: "gpt-4o",
+           max_turns: 5,
+           tools: %w[tool1 tool2],
+           handoffs: %w[agent1 agent2]).tap do |agent|
       # Set default respond_to? behavior for common methods
       allow(agent).to receive(:respond_to?).and_return(false)
       allow(agent).to receive(:respond_to?).with(:name).and_return(true)

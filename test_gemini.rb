@@ -31,11 +31,11 @@ end
 # Test 2: Provider Creation
 puts "\n📋 Test 2: Provider Creation"
 begin
-  provider = RAAF::ProviderRegistry.create(:gemini, api_key: ENV["GEMINI_API_KEY"])
+  provider = RAAF::ProviderRegistry.create(:gemini, api_key: ENV.fetch("GEMINI_API_KEY", nil))
   puts "✅ Provider created successfully"
   puts "   Provider name: #{provider.provider_name}"
-  puts "   Supported models: #{provider.supported_models.join(', ')}"
-rescue => e
+  puts "   Supported models: #{provider.supported_models.join(", ")}"
+rescue StandardError => e
   puts "❌ Provider creation failed: #{e.message}"
   puts e.backtrace.first(5).join("\n")
   exit 1
@@ -50,7 +50,7 @@ begin
     model: "gemini-2.0-flash-exp"
   )
 
-  gemini_provider = RAAF::Models::GeminiProvider.new(api_key: ENV["GEMINI_API_KEY"])
+  gemini_provider = RAAF::Models::GeminiProvider.new(api_key: ENV.fetch("GEMINI_API_KEY", nil))
   runner = RAAF::Runner.new(agent: agent, provider: gemini_provider)
 
   puts "   Sending test message: 'Say OK'"
@@ -60,7 +60,7 @@ begin
   puts "✅ Chat completion successful"
   puts "   Response: #{response_content}"
   puts "   Usage: #{result.usage.inspect}"
-rescue => e
+rescue StandardError => e
   puts "❌ Chat completion failed: #{e.message}"
   puts "   Error class: #{e.class.name}"
   puts e.backtrace.first(10).join("\n")
@@ -82,13 +82,13 @@ begin
     puts "✅ Message format conversion works"
     puts "   System instruction: #{system_instruction}"
     puts "   Contents count: #{contents.length}"
-    puts "   User role preserved: #{contents[0][:role] == 'user'}"
-    puts "   Assistant → model: #{contents[1][:role] == 'model'}"
+    puts "   User role preserved: #{contents[0][:role] == "user"}"
+    puts "   Assistant → model: #{contents[1][:role] == "model"}"
   else
     puts "❌ Message format conversion failed"
     exit 1
   end
-rescue => e
+rescue StandardError => e
   puts "❌ Message format test failed: #{e.message}"
   exit 1
 end
@@ -121,11 +121,11 @@ begin
     puts "❌ Tool conversion failed - no functionDeclarations"
     exit 1
   end
-rescue => e
+rescue StandardError => e
   puts "❌ Tool conversion test failed: #{e.message}"
   exit 1
 end
 
-puts "\n" + "=" * 60
+puts "\n" + ("=" * 60)
 puts "🎉 All tests passed! Gemini provider is working correctly."
 puts "=" * 60

@@ -21,7 +21,7 @@ require_relative "raaf/misc/multimodal/multi_modal"
 # * **Voice Workflows** - Voice interaction and speech processing capabilities
 # * **Prompt Management** - Prompt utilities and management tools
 # * **Extensions** - Plugin architecture and extension points
-# * **Data Pipeline** - Data processing and transformation utilities  
+# * **Data Pipeline** - Data processing and transformation utilities
 # * **Multimodal** - Multi-modal content processing (text, images, audio)
 #
 # == Usage

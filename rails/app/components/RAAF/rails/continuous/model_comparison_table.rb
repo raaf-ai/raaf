@@ -6,7 +6,7 @@ module RAAF
       # Model Comparison Table Component
       # Displays performance comparison across different models
       class ModelComparisonTable < Phlex::HTML
-        def initialize(url:, agent: nil, refresh_interval: 30000)
+        def initialize(url:, agent: nil, refresh_interval: 30_000)
           @url = url
           @agent = agent
           @refresh_interval = refresh_interval

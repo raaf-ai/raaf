@@ -47,7 +47,8 @@ class BugTest < ActiveSupport::TestCase
   end
 
   private
-    def app
-      Rails.application
-    end
+
+  def app
+    Rails.application
+  end
 end

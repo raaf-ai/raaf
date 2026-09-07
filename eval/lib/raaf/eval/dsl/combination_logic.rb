@@ -16,12 +16,12 @@ module RAAF
         def self.combine_and(evaluator_results)
           passed = evaluator_results.all? { |r| r[:passed] }
           score = evaluator_results.map { |r| r[:score] }.min || 0.0
-          
+
           {
             passed: passed,
             score: score,
             details: merge_details(evaluator_results),
-            message: "AND: #{evaluator_results.map { |r| r[:message] }.join('; ')}"
+            message: "AND: #{evaluator_results.map { |r| r[:message] }.join("; ")}"
           }
         end
 
@@ -32,19 +32,19 @@ module RAAF
         def self.combine_or(evaluator_results)
           passed = evaluator_results.any? { |r| r[:passed] }
           score = evaluator_results.map { |r| r[:score] }.max || 0.0
-          
+
           # Use messages from passing evaluators if any, otherwise all messages
           messages = if passed
                        evaluator_results.select { |r| r[:passed] }
                      else
                        evaluator_results
                      end
-          
+
           {
             passed: passed,
             score: score,
             details: merge_details(evaluator_results),
-            message: "OR: #{messages.map { |r| r[:message] }.join('; ')}"
+            message: "OR: #{messages.map { |r| r[:message] }.join("; ")}"
           }
         end
 
@@ -55,10 +55,10 @@ module RAAF
         def self.combine_lambda(evaluator_results, lambda_proc)
           # Execute lambda with named results
           combined = lambda_proc.call(evaluator_results)
-          
+
           # Validate lambda result has required fields
           validate_lambda_result!(combined)
-          
+
           combined
         end
 
@@ -75,13 +75,13 @@ module RAAF
         # @param result [Hash] The lambda result to validate
         # @raise [InvalidLambdaResultError] If required fields are missing
         def self.validate_lambda_result!(result)
-          required_fields = [:passed, :score, :details, :message]
+          required_fields = %i[passed score details message]
           missing_fields = required_fields - result.keys
-          
+
           return if missing_fields.empty?
-          
+
           raise InvalidLambdaResultError,
-                "Lambda result missing required fields: #{missing_fields.join(', ')}"
+                "Lambda result missing required fields: #{missing_fields.join(", ")}"
         end
 
         private_class_method :merge_details, :validate_lambda_result!

@@ -208,11 +208,11 @@ module RAAF
         # Serializes the calibration set to JSON
         #
         # @return [String] JSON representation
-        def to_json(*args)
+        def to_json(*)
           {
             metadata: @metadata,
             samples: @samples
-          }.to_json(*args)
+          }.to_json(*)
         end
 
         ##

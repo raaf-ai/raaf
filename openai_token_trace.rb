@@ -19,16 +19,14 @@ puts
 
 # Read API key
 env_file = "/Users/hajee/Enterprise Modules Dropbox/Bert Hajee/enterprisemodules/work/prospects_radar/.env"
-api_key = ENV["OPENAI_API_KEY"]
+api_key = ENV.fetch("OPENAI_API_KEY", nil)
 
-if api_key.nil? || api_key.empty?
-  if File.exist?(env_file)
-    env_content = File.read(env_file)
-    if env_content =~ /OPENAI_API_KEY=(.+)/
-      api_key = $1.strip.split(/\s+#/).first.strip
-      puts "📝 Using OPENAI_API_KEY from .env file"
-      ENV["OPENAI_API_KEY"] = api_key
-    end
+if (api_key.nil? || api_key.empty?) && File.exist?(env_file)
+  env_content = File.read(env_file)
+  if env_content =~ /OPENAI_API_KEY=(.+)/
+    api_key = Regexp.last_match(1).strip.split(/\s+#/).first.strip
+    puts "📝 Using OPENAI_API_KEY from .env file"
+    ENV["OPENAI_API_KEY"] = api_key
   end
 end
 
@@ -41,14 +39,14 @@ end
 module RAAF
   module Models
     class ResponsesProvider
-      alias_method :original_responses_completion, :responses_completion
+      alias original_responses_completion responses_completion
 
-      def responses_completion(messages:, model:, **kwargs)
+      def responses_completion(messages:, model:, **)
         puts "\n1. 🤖 ResponsesProvider.responses_completion called"
         puts "   Model: #{model}"
         puts "   Messages: #{messages.count} messages"
 
-        result = original_responses_completion(messages: messages, model: model, **kwargs)
+        result = original_responses_completion(messages: messages, model: model, **)
 
         puts "\n2. 📥 ResponsesProvider response received"
         puts "   Response class: #{result.class.name}"
@@ -57,8 +55,8 @@ module RAAF
         if result[:usage]
           puts "\n3. ✅ PROVIDER LEVEL - Usage data found:"
           puts "   Usage keys: #{result[:usage].keys.inspect}"
-          puts "   input_tokens: #{result[:usage][:input_tokens]}"  # NEW canonical name
-          puts "   output_tokens: #{result[:usage][:output_tokens]}"  # NEW canonical name
+          puts "   input_tokens: #{result[:usage][:input_tokens]}" # NEW canonical name
+          puts "   output_tokens: #{result[:usage][:output_tokens]}" # NEW canonical name
           puts "   total_tokens: #{result[:usage][:total_tokens]}"
           puts "   Details: #{result[:usage].inspect}"
         else
@@ -75,13 +73,13 @@ end
 # Patch Runner to trace usage flow
 module RAAF
   class Runner
-    alias_method :original_run, :run
+    alias original_run run
 
-    def run(message = nil, **kwargs)
+    def run(message = nil, **)
       puts "\n4. 🏃 Runner.run called"
       puts "   Message: #{message}"
 
-      result = original_run(message, **kwargs)
+      result = original_run(message, **)
 
       puts "\n5. 📤 Runner result returned"
       puts "   Result class: #{result.class.name}"
@@ -119,9 +117,7 @@ module RAAF
           puts "   #{ivar}: #{value.class.name}"
           if value.respond_to?(:keys)
             puts "     Keys: #{value.keys.inspect}"
-            if value[:usage] || value["usage"]
-              puts "     ✅ FOUND USAGE: #{(value[:usage] || value["usage"]).inspect}"
-            end
+            puts "     ✅ FOUND USAGE: #{(value[:usage] || value["usage"]).inspect}" if value[:usage] || value["usage"]
           end
         end
       end
@@ -131,7 +127,7 @@ module RAAF
   end
 end
 
-puts "\n" + "=" * 80
+puts "\n" + ("=" * 80)
 puts "Creating Agent and Running Test"
 puts "=" * 80
 
@@ -148,14 +144,14 @@ puts "\n✅ Agent created: #{agent.name}"
 runner = RAAF::Runner.new(agent: agent)
 
 puts "✅ Runner created with ResponsesProvider (default)"
-puts "\n" + "=" * 80
+puts "\n" + ("=" * 80)
 puts "Running Agent"
 puts "=" * 80
 
 # Run agent
-result = runner.run("Say hello and tell me your model name.")
+runner.run("Say hello and tell me your model name.")
 
-puts "\n" + "=" * 80
+puts "\n" + ("=" * 80)
 puts "FINAL ANALYSIS"
 puts "=" * 80
 
@@ -165,4 +161,4 @@ puts "- Runner level: Check output above (steps 6-7)"
 puts "- RunContext internals: Check output above (step 8)"
 puts "\nLook for ✅ markers to see where usage data exists"
 puts "Look for ❌ markers to see where usage data is missing"
-puts "\n" + "=" * 80
+puts "\n" + ("=" * 80)

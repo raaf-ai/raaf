@@ -9,9 +9,17 @@ RSpec.describe "Agentic Matchers" do
   # Helper to create mock task completion evaluation results
   def mock_task_completion_result(score:, goal_achieved: true, task_description: "Complete the analysis")
     {
-      label: score >= 0.85 ? "good" : (score >= 0.65 ? "average" : "bad"),
+      label: if score >= 0.85
+               "good"
+             else
+               (score >= 0.65 ? "average" : "bad")
+             end,
       score: score,
-      message: "[#{score >= 0.85 ? 'GOOD' : (score >= 0.65 ? 'AVERAGE' : 'BAD')}] Task Completion: #{(score * 100).round}%",
+      message: "[#{if score >= 0.85
+                     "GOOD"
+                   else
+                     (score >= 0.65 ? "AVERAGE" : "BAD")
+                   end}] Task Completion: #{(score * 100).round}%",
       details: {
         evaluated_field: :output,
         method: "llm_judge",
@@ -23,7 +31,11 @@ RSpec.describe "Agentic Matchers" do
         execution_trace_provided: false,
         completion_analysis: {
           goal_achieved: goal_achieved,
-          output_quality: score >= 0.85 ? "high" : (score >= 0.65 ? "medium" : "low"),
+          output_quality: if score >= 0.85
+                            "high"
+                          else
+                            (score >= 0.65 ? "medium" : "low")
+                          end,
           completeness: "#{(score * 100).round}% of expected elements present",
           steps_completed: "4/4 steps addressed",
           issues_found: goal_achieved ? [] : ["some expected elements missing"],
@@ -38,9 +50,17 @@ RSpec.describe "Agentic Matchers" do
   # Helper to create mock tool correctness evaluation results
   def mock_tool_correctness_result(score:, appropriate_selection: true, task_context: "Search for information")
     {
-      label: score >= 0.85 ? "good" : (score >= 0.65 ? "average" : "bad"),
+      label: if score >= 0.85
+               "good"
+             else
+               (score >= 0.65 ? "average" : "bad")
+             end,
       score: score,
-      message: "[#{score >= 0.85 ? 'GOOD' : (score >= 0.65 ? 'AVERAGE' : 'BAD')}] Tool Correctness: #{(score * 100).round}%",
+      message: "[#{if score >= 0.85
+                     "GOOD"
+                   else
+                     (score >= 0.65 ? "AVERAGE" : "BAD")
+                   end}] Tool Correctness: #{(score * 100).round}%",
       details: {
         evaluated_field: :tools,
         method: "llm_judge",
@@ -92,9 +112,10 @@ RSpec.describe "Agentic Matchers" do
 
       it "provides helpful failure message" do
         result = mock_task_completion_result(score: 0.60)
-        expect {
+        expect do
           expect(result).to have_high_task_completion
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected task completion score to be at least 85%, but got 60%/)
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                           /Expected task completion score to be at least 85%, but got 60%/)
       end
     end
 
@@ -134,9 +155,10 @@ RSpec.describe "Agentic Matchers" do
 
       it "provides helpful failure message with issues" do
         result = mock_task_completion_result(score: 0.60, goal_achieved: false)
-        expect {
+        expect do
           expect(result).to complete_task_successfully
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected task to be completed successfully.*some expected elements missing/)
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                           /Expected task to be completed successfully.*some expected elements missing/)
       end
     end
 
@@ -174,9 +196,10 @@ RSpec.describe "Agentic Matchers" do
       it "provides helpful failure message" do
         result = mock_task_completion_result(score: 0.70)
         result[:details][:completion_analysis][:steps_completed] = "2/5 steps addressed"
-        expect {
+        expect do
           expect(result).to meet_task_requirements
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected all required steps to be completed, but got: 2\/5 steps addressed/)
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                           %r{Expected all required steps to be completed, but got: 2/5 steps addressed})
       end
     end
 
@@ -247,9 +270,10 @@ RSpec.describe "Agentic Matchers" do
 
       it "provides detailed failure message listing all issues" do
         result = { label: nil, score: nil }
-        expect {
+        expect do
           expect(result).to be_valid_task_completion_result
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Missing label.*Missing score.*Missing details/m)
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                           /Missing label.*Missing score.*Missing details/m)
       end
     end
   end
@@ -285,9 +309,10 @@ RSpec.describe "Agentic Matchers" do
 
       it "provides helpful failure message" do
         result = mock_tool_correctness_result(score: 0.60)
-        expect {
+        expect do
           expect(result).to have_correct_tool_usage
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected tool correctness score to be at least 85%, but got 60%/)
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                           /Expected tool correctness score to be at least 85%, but got 60%/)
       end
     end
 
@@ -327,9 +352,10 @@ RSpec.describe "Agentic Matchers" do
 
       it "provides helpful failure message with analysis" do
         result = mock_tool_correctness_result(score: 0.60, appropriate_selection: false)
-        expect {
+        expect do
           expect(result).to use_tools_correctly
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected tools to be used correctly.*some invalid tool selections/)
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                           /Expected tools to be used correctly.*some invalid tool selections/)
       end
     end
 
@@ -358,9 +384,10 @@ RSpec.describe "Agentic Matchers" do
 
       it "provides helpful failure message" do
         result = mock_tool_correctness_result(score: 0.60, appropriate_selection: false)
-        expect {
+        expect do
           expect(result).to select_appropriate_tools
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected appropriate tool selection, but got: some invalid tool selections/)
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                           /Expected appropriate tool selection, but got: some invalid tool selections/)
       end
     end
   end
@@ -383,9 +410,10 @@ RSpec.describe "Agentic Matchers" do
       it "provides helpful failure message" do
         result = mock_tool_correctness_result(score: 0.70)
         result[:details][:parameter_correctness_analysis] = "some tools missing parameters"
-        expect {
+        expect do
           expect(result).to have_valid_tool_parameters
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected valid tool parameters, but got: some tools missing parameters/)
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                           /Expected valid tool parameters, but got: some tools missing parameters/)
       end
     end
   end
@@ -406,7 +434,7 @@ RSpec.describe "Agentic Matchers" do
 
       it "passes with custom threshold" do
         result = mock_tool_correctness_result(score: 0.80)
-        result[:details][:issues_found] = ["issue1", "issue2", "issue3"]
+        result[:details][:issues_found] = %w[issue1 issue2 issue3]
         expect(result).to have_minimal_tool_issues(max_issues: 3)
       end
     end
@@ -414,16 +442,17 @@ RSpec.describe "Agentic Matchers" do
     context "when tool issues exceed threshold" do
       it "fails when too many issues" do
         result = mock_tool_correctness_result(score: 0.70)
-        result[:details][:issues_found] = ["issue1", "issue2"]
+        result[:details][:issues_found] = %w[issue1 issue2]
         expect(result).not_to have_minimal_tool_issues(max_issues: 1)
       end
 
       it "provides helpful failure message with issue count" do
         result = mock_tool_correctness_result(score: 0.70)
         result[:details][:issues_found] = ["invalid tool", "missing params"]
-        expect {
+        expect do
           expect(result).to have_minimal_tool_issues(max_issues: 1)
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected at most 1 tool usage issues, but found 2: invalid tool, missing params/)
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                           /Expected at most 1 tool usage issues, but found 2: invalid tool, missing params/)
       end
     end
   end
@@ -480,9 +509,10 @@ RSpec.describe "Agentic Matchers" do
 
       it "provides detailed failure message listing all issues" do
         result = { label: nil, score: nil }
-        expect {
+        expect do
           expect(result).to be_valid_tool_correctness_result
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Missing label.*Missing score.*Missing details/m)
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                           /Missing label.*Missing score.*Missing details/m)
       end
     end
   end
@@ -512,9 +542,10 @@ RSpec.describe "Agentic Matchers" do
       it "provides helpful failure message with scores" do
         baseline = mock_task_completion_result(score: 0.85)
         regressed = mock_task_completion_result(score: 0.70)
-        expect {
+        expect do
           expect(regressed).to have_better_task_completion_than(baseline)
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected task completion to be better than baseline, but got 70% vs 85% \(-15% change\)/)
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                           /Expected task completion to be better than baseline, but got 70% vs 85% \(-15% change\)/)
       end
     end
 
@@ -552,9 +583,10 @@ RSpec.describe "Agentic Matchers" do
       it "provides helpful failure message with scores" do
         baseline = mock_tool_correctness_result(score: 0.85)
         regressed = mock_tool_correctness_result(score: 0.70)
-        expect {
+        expect do
           expect(regressed).to have_better_tool_usage_than(baseline)
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected tool usage to be better than baseline, but got 70% vs 85% \(-15% change\)/)
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                           /Expected tool usage to be better than baseline, but got 70% vs 85% \(-15% change\)/)
       end
     end
 

@@ -7,11 +7,11 @@ module RAAF
       def index
         render RAAF::Rails::SimpleDashboard.new(title: "Conversations")
       end
-      
+
       def show
         render RAAF::Rails::SimpleDashboard.new(title: "Conversation Details")
       end
-      
+
       def create
         render json: { status: "ok", message: "Conversation created", id: SecureRandom.uuid }
       end

@@ -31,9 +31,9 @@ class FileSearchTool < RAAF::DSL::Tools::Tool::Native
   # Configure file search specific options
   def initialize(options = {})
     super(options.merge({
-      max_results: 20,
-      ranking_options: { score_threshold: 0.7 }
-    }))
+                          max_results: 20,
+                          ranking_options: { score_threshold: 0.7 }
+                        }))
   end
 end
 
@@ -48,26 +48,26 @@ class DataAnalysisTool < RAAF::DSL::Tools::Tool::Native
   
   # Define parameters for the function
   parameter :dataset_description, type: :string, required: true,
-            description: "Description of the dataset to analyze"
+                                  description: "Description of the dataset to analyze"
   
   parameter :analysis_types, type: :array, required: true,
-            items: { type: :string, enum: ["descriptive", "predictive", "exploratory", "diagnostic"] },
-            description: "Types of analysis to perform"
+                             items: { type: :string, enum: %w[descriptive predictive exploratory diagnostic] },
+                             description: "Types of analysis to perform"
   
   parameter :output_format, type: :string, default: "comprehensive",
-            enum: ["summary", "comprehensive", "technical"],
-            description: "Level of detail in the analysis output"
+                            enum: %w[summary comprehensive technical],
+                            description: "Level of detail in the analysis output"
   
   parameter :include_visualizations, type: :boolean, default: true,
-            description: "Whether to include charts and graphs in the analysis"
+                                     description: "Whether to include charts and graphs in the analysis"
   
   parameter :confidence_threshold, type: :number, default: 0.85,
-            minimum: 0.0, maximum: 1.0,
-            description: "Minimum confidence threshold for predictions and insights"
+                                   minimum: 0.0, maximum: 1.0,
+                                   description: "Minimum confidence threshold for predictions and insights"
   
   parameter :max_execution_time, type: :integer, default: 300,
-            minimum: 30, maximum: 3600,
-            description: "Maximum execution time in seconds"
+                                 minimum: 30, maximum: 3600,
+                                 description: "Maximum execution time in seconds"
 end
 
 # Mathematical Computation Tool
@@ -79,27 +79,27 @@ class MathComputationTool < RAAF::DSL::Tools::Tool::Native
   
   # Define a complex parameter schema
   parameter :operation_type, type: :string, required: true,
-            enum: ["calculus", "linear_algebra", "statistics", "optimization"],
-            description: "Category of mathematical operation"
+                             enum: %w[calculus linear_algebra statistics optimization],
+                             description: "Category of mathematical operation"
   
   parameter :problem_description, type: :string, required: true,
-            description: "Detailed description of the mathematical problem"
+                                  description: "Detailed description of the mathematical problem"
   
   parameter :input_data, type: :object, required: false,
-            description: "Input data for the computation",
-            properties: {
-              matrices: { type: :array, items: { type: :array } },
-              vectors: { type: :array, items: { type: :number } },
-              functions: { type: :array, items: { type: :string } },
-              constraints: { type: :array, items: { type: :string } }
-            }
+                         description: "Input data for the computation",
+                         properties: {
+                           matrices: { type: :array, items: { type: :array } },
+                           vectors: { type: :array, items: { type: :number } },
+                           functions: { type: :array, items: { type: :string } },
+                           constraints: { type: :array, items: { type: :string } }
+                         }
   
   parameter :precision, type: :integer, default: 10,
-            minimum: 1, maximum: 50,
-            description: "Number of decimal places for results"
+                        minimum: 1, maximum: 50,
+                        description: "Number of decimal places for results"
   
   parameter :step_by_step, type: :boolean, default: false,
-            description: "Whether to show detailed solution steps"
+                           description: "Whether to show detailed solution steps"
 end
 
 # Demonstration of native tools
@@ -135,11 +135,13 @@ if __FILE__ == $0
         puts "     Parameters:"
         func[:parameters][:properties].each do |param_name, param_def|
           required = func[:parameters][:required]&.include?(param_name.to_s)
-          puts "       #{param_name}: #{param_def[:type]}#{required ? ' (required)' : ''}"
+          puts "       #{param_name}: #{param_def[:type]}#{' (required)' if required}"
           puts "         Description: #{param_def[:description]}" if param_def[:description]
           puts "         Default: #{param_def[:default]}" if param_def.key?(:default)
           puts "         Enum: #{param_def[:enum]}" if param_def[:enum]
-          puts "         Range: #{param_def[:minimum]} - #{param_def[:maximum]}" if param_def[:minimum] || param_def[:maximum]
+          if param_def[:minimum] || param_def[:maximum]
+            puts "         Range: #{param_def[:minimum]} - #{param_def[:maximum]}"
+          end
         end
       end
     end
@@ -202,9 +204,7 @@ if __FILE__ == $0
     tools.each do |tool|
       tool_name = tool.name.to_sym
       found_tool = RAAF::DSL::Tools::ToolRegistry.get(tool_name, strict: false)
-      if found_tool
-        registry_tools << "#{tool_name} -> #{found_tool}"
-      end
+      registry_tools << "#{tool_name} -> #{found_tool}" if found_tool
     end
     
     if registry_tools.any?
@@ -213,7 +213,7 @@ if __FILE__ == $0
     else
       puts "No tools found in registry (may need manual registration)"
     end
-  rescue => e
+  rescue StandardError => e
     puts "Registry not available: #{e.message}"
   end
   

@@ -219,7 +219,7 @@ module RAAF
           # Use infer_finish_reason to properly detect truncation in Responses API
           # This method checks incomplete_details and truncation fields from OpenAI
           finish_reason = infer_finish_reason(response)
-          is_truncated = (finish_reason == "length" || finish_reason == "incomplete")
+          is_truncated = %w[length incomplete].include?(finish_reason)
 
           # Determine if response is complete
           response_complete = finish_reason == "stop" && !is_truncated
@@ -257,8 +257,7 @@ module RAAF
         end
 
         # Return the final response (or merged response if multiple chunks)
-        final_response = collected_chunks.last
-        final_response
+        collected_chunks.last
       end
 
       # Implement streaming completion to match ModelInterface
@@ -296,7 +295,7 @@ module RAAF
       def infer_finish_reason(response)
         # If finish_reason is already set, return it
         finish_reason = response["finish_reason"]
-        return finish_reason if finish_reason && !finish_reason.empty?
+        return finish_reason if finish_reason.present?
 
         # Extract Responses API fields
         truncation = response["truncation"]
@@ -304,18 +303,18 @@ module RAAF
         incomplete_details = response["incomplete_details"]
 
         # Determine finish_reason based on Responses API response structure
-        if truncation == true || truncation == "true"
+        if [true, "true"].include?(truncation)
           log_debug("📌 Detected truncation from 'truncation' field",
                     detected_reason: "length",
                     truncation: truncation,
                     incomplete_details: incomplete_details)
           "length"
-        elsif incomplete_details && !incomplete_details.empty?
+        elsif incomplete_details.present?
           log_debug("📌 Detected incomplete response from 'incomplete_details' field",
                     detected_reason: "incomplete",
                     incomplete_details: incomplete_details)
           "incomplete"
-        elsif status == "completed" || status == "completed_successfully"
+        elsif %w[completed completed_successfully].include?(status)
           log_debug("📌 Response completed normally",
                     detected_reason: "stop",
                     status: status)
@@ -346,28 +345,28 @@ module RAAF
       end
 
       # Unsupported parameters that belong to Chat Completions API
-      UNSUPPORTED_PARAMS = [
-        :frequency_penalty,
-        :presence_penalty,
-        :best_of,
-        :logit_bias
+      UNSUPPORTED_PARAMS = %i[
+        frequency_penalty
+        presence_penalty
+        best_of
+        logit_bias
       ].freeze
 
       # Parameters not supported by reasoning models (GPT-5, o1)
-      REASONING_UNSUPPORTED_PARAMS = [
-        :temperature,
-        :top_p,
-        :frequency_penalty,
-        :presence_penalty,
-        :logit_bias,
-        :best_of
+      REASONING_UNSUPPORTED_PARAMS = %i[
+        temperature
+        top_p
+        frequency_penalty
+        presence_penalty
+        logit_bias
+        best_of
       ].freeze
 
       # Matches Python's _fetch_response
       def fetch_response(system_instructions:, input:, model:, tools: nil, stream: false,
                          previous_response_id: nil, chunk_number: 1, tool_choice: nil, parallel_tool_calls: nil,
                          temperature: nil, top_p: nil, max_tokens: nil, response_format: nil,
-                         frequency_penalty: nil, presence_penalty: nil, best_of: nil, logit_bias: nil, **kwargs)
+                         frequency_penalty: nil, presence_penalty: nil, best_of: nil, logit_bias: nil, **)
         # Validate and warn about unsupported parameters
         validate_unsupported_parameters(
           model: model,
@@ -377,7 +376,7 @@ module RAAF
           presence_penalty: presence_penalty,
           best_of: best_of,
           logit_bias: logit_bias,
-          **kwargs
+          **
         )
 
         # Convert input to list format if it's a string
@@ -410,7 +409,7 @@ module RAAF
 
         body[:max_output_tokens] = max_tokens if max_tokens # OpenAI Responses API uses max_output_tokens
         body[:stream] = stream if stream
-        # Note: frequency_penalty, presence_penalty, best_of, logit_bias are NOT added
+        # NOTE: frequency_penalty, presence_penalty, best_of, logit_bias are NOT added
         # They are unsupported by Responses API and have been filtered out with warnings
         # For reasoning models, temperature and top_p are also filtered
 
@@ -503,7 +502,7 @@ module RAAF
           # Set configurable HTTP timeouts (default to 120 seconds)
           timeout_value = @http_timeout || 120
           http.read_timeout = timeout_value
-          http.open_timeout = [timeout_value / 4, 30].min  # 1/4 of read timeout, max 30s
+          http.open_timeout = [timeout_value / 4, 30].min # 1/4 of read timeout, max 30s
 
           request = Net::HTTP::Post.new(uri)
           request["Authorization"] = "Bearer #{@api_key}"
@@ -622,7 +621,7 @@ module RAAF
         # Set configurable HTTP timeouts (default to 120 seconds, streaming may need longer)
         timeout_value = @http_timeout || 120
         http.read_timeout = timeout_value
-        http.open_timeout = [timeout_value / 4, 30].min  # 1/4 of read timeout, max 30s
+        http.open_timeout = [timeout_value / 4, 30].min # 1/4 of read timeout, max 30s
 
         request = Net::HTTP::Post.new(uri)
         request["Authorization"] = "Bearer #{@api_key}"
@@ -740,7 +739,7 @@ module RAAF
             # Assistant messages become output items in the input
             if msg[:tool_calls]
               # Handle assistant message with both content and tool calls
-              input_items << { type: "message", text: content } if content && !content.empty?
+              input_items << { type: "message", text: content } if content.present?
               # Handle tool calls
               msg[:tool_calls].each do |tool_call|
                 input_items << convert_tool_call_to_input(tool_call)
@@ -790,7 +789,7 @@ module RAAF
 
       # Convert tools to Responses API format (matches Python's Converter.convert_tools)
       def convert_tools(tools)
-        return { tools: [], includes: [] } unless tools && !tools.empty?
+        return { tools: [], includes: [] } unless tools.present?
 
         converted_tools = []
         includes = []
@@ -940,9 +939,7 @@ module RAAF
         is_strict = response_format.dig(:json_schema, :strict)
 
         # Process schema through StrictSchema if strict mode is enabled
-        if is_strict && schema
-          schema = RAAF::StrictSchema.ensure_strict_json_schema(schema)
-        end
+        schema = RAAF::StrictSchema.ensure_strict_json_schema(schema) if is_strict && schema
 
         {
           format: {

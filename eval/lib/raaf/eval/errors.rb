@@ -37,11 +37,11 @@ module RAAF
                   "Evaluation configuration is now managed via database-backed policies. " \
                   "Use the RAAF dashboard UI or EvaluationPolicy model to configure evaluations."
 
-        if migration_guide_url
-          message += " See migration guide: #{migration_guide_url}"
-        else
-          message += " See docs/CONTINUOUS_EVAL_MIGRATION.md for migration instructions."
-        end
+        message += if migration_guide_url
+                     " See migration guide: #{migration_guide_url}"
+                   else
+                     " See docs/CONTINUOUS_EVAL_MIGRATION.md for migration instructions."
+                   end
 
         super(message)
       end

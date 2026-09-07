@@ -12,7 +12,7 @@ class CreateRAAFEvaluationResults < ActiveRecord::Migration[7.0]
       t.references :queue_item, foreign_key: { to_table: :raaf_evaluation_queue }
 
       # Provenance
-      t.string :evaluation_type, null: false, default: 'automated'  # 'automated' only for now
+      t.string :evaluation_type, null: false, default: "automated" # 'automated' only for now
       t.string :evaluator_name, null: false         # e.g., 'token_limit', 'quality_check'
       t.string :evaluator_type, null: false         # 'rule_based', 'statistical', 'llm_judge'
       t.string :evaluator_version                   # For tracking evaluator changes
@@ -25,8 +25,8 @@ class CreateRAAFEvaluationResults < ActiveRecord::Migration[7.0]
       t.string :environment
 
       # Results
-      t.string :status, null: false                 # 'passed', 'failed', 'warning', 'error'
-      t.decimal :score, precision: 5, scale: 4     # 0.0000 to 1.0000
+      t.string :status, null: false # 'passed', 'failed', 'warning', 'error'
+      t.decimal :score, precision: 5, scale: 4 # 0.0000 to 1.0000
       t.jsonb :scores, default: {}                  # Multiple scores: { "quality": 0.85, "safety": 0.95 }
       t.jsonb :metrics, default: {}                 # { "latency_ms": 1200, "tokens": 500, "cost": 0.003 }
       t.text :reasoning                             # LLM judge reasoning or rule explanation
@@ -50,18 +50,18 @@ class CreateRAAFEvaluationResults < ActiveRecord::Migration[7.0]
     add_index :raaf_evaluation_results, :created_at
 
     # Indexes for filtering
-    add_index :raaf_evaluation_results, [:agent_name, :created_at],
-              name: 'idx_eval_results_agent_time'
-    add_index :raaf_evaluation_results, [:agent_name, :environment, :created_at],
-              name: 'idx_eval_results_agent_env_time'
-    add_index :raaf_evaluation_results, [:agent_name, :status, :created_at],
-              name: 'idx_eval_results_agent_status_time'
-    add_index :raaf_evaluation_results, [:evaluator_name, :status, :created_at],
-              name: 'idx_eval_results_evaluator_status_time'
+    add_index :raaf_evaluation_results, %i[agent_name created_at],
+              name: "idx_eval_results_agent_time"
+    add_index :raaf_evaluation_results, %i[agent_name environment created_at],
+              name: "idx_eval_results_agent_env_time"
+    add_index :raaf_evaluation_results, %i[agent_name status created_at],
+              name: "idx_eval_results_agent_status_time"
+    add_index :raaf_evaluation_results, %i[evaluator_name status created_at],
+              name: "idx_eval_results_evaluator_status_time"
 
     # Indexes for aggregation
-    add_index :raaf_evaluation_results, [:agent_name, :model, :created_at],
-              name: 'idx_eval_results_agent_model_time'
+    add_index :raaf_evaluation_results, %i[agent_name model created_at],
+              name: "idx_eval_results_agent_model_time"
 
     # JSONB indexes
     add_index :raaf_evaluation_results, :scores, using: :gin

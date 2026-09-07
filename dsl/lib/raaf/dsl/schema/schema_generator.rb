@@ -65,9 +65,7 @@ module RAAF
             base_type = map_column_type(column.type)
 
             # Add length constraints for string types
-            if base_type[:type] == :string && column.limit
-              base_type[:maxLength] = column.limit
-            end
+            base_type[:maxLength] = column.limit if base_type[:type] == :string && column.limit
 
             base_type
           end
@@ -178,9 +176,7 @@ module RAAF
 
             model_class.validators.each do |validator|
               # Check if this is a presence validator
-              if presence_validator?(validator)
-                required.concat(validator.attributes)
-              end
+              required.concat(validator.attributes) if presence_validator?(validator)
             end
 
             required

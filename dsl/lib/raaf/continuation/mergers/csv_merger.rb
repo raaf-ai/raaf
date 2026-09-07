@@ -39,45 +39,43 @@ module RAAF
         #   result[:content]   # => Complete CSV string
         #   result[:metadata]  # => { merge_success: true, chunk_count: 2, ... }
         def merge(chunks)
-          begin
-            # Extract content from all chunks
-            contents = chunks.map { |chunk| extract_content(chunk) }.compact
+          # Extract content from all chunks
+          contents = chunks.map { |chunk| extract_content(chunk) }.compact
 
-            # Handle empty chunks
-            if contents.empty?
-              return {
-                content: "",
-                metadata: build_metadata(chunks, true)
-              }
-            end
-
-            # Remove empty strings and whitespace-only strings
-            contents = contents.reject { |c| c.to_s.strip.empty? }
-
-            if contents.empty?
-              return {
-                content: "",
-                metadata: build_metadata(chunks, true)
-              }
-            end
-
-            # Merge all content chunks
-            merged = simple_merge(contents)
-
-            {
-              content: merged,
+          # Handle empty chunks
+          if contents.empty?
+            return {
+              content: "",
               metadata: build_metadata(chunks, true)
             }
-          rescue StandardError => e
-            Rails.logger.error "❌ CSV Merger ERROR: #{e.message}"
-            Rails.logger.error "📋 Error class: #{e.class.name}"
-            Rails.logger.error "🔍 Stack trace:\n#{e.backtrace.join("\n")}"
+          end
 
-            {
-              content: nil,
-              metadata: build_metadata(chunks, false, e)
+          # Remove empty strings and whitespace-only strings
+          contents = contents.reject { |c| c.to_s.strip.empty? }
+
+          if contents.empty?
+            return {
+              content: "",
+              metadata: build_metadata(chunks, true)
             }
           end
+
+          # Merge all content chunks
+          merged = simple_merge(contents)
+
+          {
+            content: merged,
+            metadata: build_metadata(chunks, true)
+          }
+        rescue StandardError => e
+          Rails.logger.error "❌ CSV Merger ERROR: #{e.message}"
+          Rails.logger.error "📋 Error class: #{e.class.name}"
+          Rails.logger.error "🔍 Stack trace:\n#{e.backtrace.join("\n")}"
+
+          {
+            content: nil,
+            metadata: build_metadata(chunks, false, e)
+          }
         end
 
         protected
@@ -113,6 +111,7 @@ module RAAF
               # Last line is empty - check if there's an incomplete line before it
               # Check all lines except the last (which is empty) for incomplete indicators
               return true if lines.length > 1 && has_incomplete_line?(lines[0...-1])
+
               return false
             end
 
@@ -124,7 +123,7 @@ module RAAF
             return true if last_line.end_with?(",")
 
             # Otherwise it's incomplete (no newline at end and has content)
-            return true
+            true
           else
             # No actual newlines - content may have escaped \n (literal backslash-n)
             # or be entirely single-line content
@@ -140,6 +139,7 @@ module RAAF
                 # Check if any prior line is incomplete (e.g., trailing comma)
                 # Check all lines except the last (which is empty) for incomplete indicators
                 return true if lines.length > 1 && has_incomplete_line?(lines[0...-1])
+
                 return false
               end
 
@@ -151,7 +151,7 @@ module RAAF
               return true if last_line.end_with?(",")
 
               # Last line without newline = incomplete
-              return true
+              true
             else
               # No newlines at all (real or escaped) - single line or no delimiters
               # Count quotes - odd count means incomplete
@@ -162,7 +162,7 @@ module RAAF
               return true if content.end_with?(",")
 
               # Otherwise it's complete
-              return false
+              false
             end
           end
         end
@@ -218,7 +218,6 @@ module RAAF
         #
         # @param contents [Array<String>] Array of CSV content strings
         # @return [String] Merged CSV content
-        private
 
         def simple_merge(contents)
           return "" if contents.empty?
@@ -239,7 +238,6 @@ module RAAF
         # @param accumulated [String] Previously merged content
         # @param new_chunk [String] New chunk to add
         # @return [String] Merged content
-        private
 
         def merge_next_chunk(accumulated, new_chunk)
           return accumulated if new_chunk.nil? || new_chunk.empty?
@@ -270,7 +268,6 @@ module RAAF
         #
         # @param content [String] CSV content
         # @return [String, nil] First line without trailing newline, or nil if empty
-        private
 
         def extract_csv_header(content)
           return nil if content.nil? || content.empty?

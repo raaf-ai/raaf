@@ -78,11 +78,11 @@ module RAAF
 
           def description
             "Detects biased, prejudiced, or stereotypical content across multiple dimensions " \
-            "(race, gender, political, religious, age, nationality, sexual orientation, disability, socioeconomic)"
+              "(race, gender, political, religious, age, nationality, sexual orientation, disability, socioeconomic)"
           end
 
           def severity
-            :high  # Bias is a serious concern
+            :high # Bias is a serious concern
           end
 
           def default_sub_types
@@ -172,11 +172,11 @@ module RAAF
               next unless BIAS_PATTERNS.key?(bias_type.to_sym)
 
               BIAS_PATTERNS[bias_type.to_sym].each do |pattern|
-                if output.match?(pattern)
-                  detected_types << bias_type
-                  matched_patterns << pattern.source
-                  break  # One match per type is enough
-                end
+                next unless output.match?(pattern)
+
+                detected_types << bias_type
+                matched_patterns << pattern.source
+                break # One match per type is enough
               end
             end
 
@@ -231,9 +231,9 @@ module RAAF
             if detected_types.empty?
               "No bias patterns detected in output"
             else
-              "Detected bias indicators: #{detected_types.join(', ')}. " \
-              "Output contains language matching #{detected_types.length} bias pattern(s) " \
-              "suggesting stereotyping or prejudice."
+              "Detected bias indicators: #{detected_types.join(", ")}. " \
+                "Output contains language matching #{detected_types.length} bias pattern(s) " \
+                "suggesting stereotyping or prejudice."
             end
           end
         end

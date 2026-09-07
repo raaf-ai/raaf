@@ -18,8 +18,8 @@ module RAAF
           @tool_data ||= begin
             # Try both common patterns for tool data storage
             function_data = extract_span_attribute("function") ||
-                           extract_span_attribute("tool") ||
-                           extract_span_attribute("tool_call")
+                            extract_span_attribute("tool") ||
+                            extract_span_attribute("tool_call")
 
             # Handle different tool data formats
             case function_data
@@ -34,7 +34,7 @@ module RAAF
             else
               # Fallback: extract from span name and attributes
               {
-                "name" => @span.name&.gsub(/^(tool|function)[\.\:]\s*/, '') || "Unknown Tool",
+                "name" => @span.name&.gsub(/^(tool|function)[.:]\s*/, "") || "Unknown Tool",
                 "input" => extract_span_attribute("input") || extract_span_attribute("arguments") || extract_span_attribute("tool_arguments"),
                 "output" => extract_span_attribute("output") || extract_span_attribute("result") || extract_span_attribute("result.tool_result")
               }
@@ -44,10 +44,10 @@ module RAAF
 
         def render_tool_overview
           tool_name = tool_data.dig("name") || @span.name || "Unknown Tool"
-          
+
           render_span_overview_header(
-            "bi bi-tools", 
-            "Tool Execution", 
+            "bi bi-tools",
+            "Tool Execution",
             tool_name
           )
         end
@@ -72,17 +72,11 @@ module RAAF
                     end
 
                     # Phase 1: Retry information
-                    if retry_count.present?
-                      render_detail_item("Retry Count", retry_count.to_s)
-                    end
+                    render_detail_item("Retry Count", retry_count.to_s) if retry_count.present?
 
-                    if total_backoff_ms.present?
-                      render_detail_item("Total Backoff", "#{total_backoff_ms}ms")
-                    end
+                    render_detail_item("Total Backoff", "#{total_backoff_ms}ms") if total_backoff_ms.present?
 
-                    if tool_data.dig("description")
-                      render_detail_item("Description", tool_data["description"])
-                    end
+                    render_detail_item("Description", tool_data["description"]) if tool_data.dig("description")
                   end
                 end
               end
@@ -123,7 +117,7 @@ module RAAF
 
             # Output Results
             output_data = tool_data.dig("output") || tool_data.dig("result") || tool_data.dig("return_value") ||
-                         extract_span_attribute("result.tool_result")
+                          extract_span_attribute("result.tool_result")
             result_metadata = extract_result_metadata
 
             if output_data
@@ -155,7 +149,9 @@ module RAAF
                       end
                     end
                   end
-                  p(class: "text-xs text-yellow-700 mt-3") { "Tool output data was not captured, showing execution metadata instead." }
+                  p(class: "text-xs text-yellow-700 mt-3") do
+                    "Tool output data was not captured, showing execution metadata instead."
+                  end
                 end
               end
             else
@@ -244,17 +240,13 @@ module RAAF
             end
             div(class: "px-4 py-5 sm:p-6") do
               dl(class: "grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2") do
-                if error_metrics["status"]
-                  render_detail_item("Status", error_metrics["status"])
-                end
+                render_detail_item("Status", error_metrics["status"]) if error_metrics["status"]
 
                 if error_metrics["error_type"]
                   render_detail_item("Error Type", error_metrics["error_type"], monospace: true)
                 end
 
-                if error_metrics["error_message"]
-                  render_detail_item("Error Message", error_metrics["error_message"])
-                end
+                render_detail_item("Error Message", error_metrics["error_message"]) if error_metrics["error_message"]
 
                 if error_metrics["result_size_bytes"]
                   render_detail_item("Result Size", "#{error_metrics['result_size_bytes']} bytes")

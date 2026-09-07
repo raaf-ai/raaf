@@ -36,10 +36,10 @@ RSpec.describe RAAF::Eval::Comparison::RankingEngine do
       result = described_class.rank_all_fields(field_deltas)
 
       # Output: 0.88 > 0.86 > 0.82
-      expect(result[:output]).to eq([:medium_temp, :low_temp, :high_temp])
+      expect(result[:output]).to eq(%i[medium_temp low_temp high_temp])
 
       # Tokens: 1250 > 1200 > 1150
-      expect(result[:tokens]).to eq([:medium_temp, :low_temp, :high_temp])
+      expect(result[:tokens]).to eq(%i[medium_temp low_temp high_temp])
     end
 
     it "uses alphabetical order for tie-breaking" do
@@ -57,7 +57,7 @@ RSpec.describe RAAF::Eval::Comparison::RankingEngine do
       result = described_class.rank_all_fields(tied_field_deltas)
 
       # Same score, alphabetical order
-      expect(result[:output]).to eq([:apple, :banana, :zebra])
+      expect(result[:output]).to eq(%i[apple banana zebra])
     end
 
     it "handles single configuration" do
@@ -96,7 +96,7 @@ RSpec.describe RAAF::Eval::Comparison::RankingEngine do
     it "ranks configurations by score descending" do
       result = described_class.rank_field(configurations)
 
-      expect(result).to eq([:medium_temp, :low_temp, :high_temp])
+      expect(result).to eq(%i[medium_temp low_temp high_temp])
     end
 
     it "returns configuration names only" do
@@ -116,7 +116,7 @@ RSpec.describe RAAF::Eval::Comparison::RankingEngine do
 
       result = described_class.rank_field(tied_configurations)
 
-      expect(result).to eq([:apple, :zebra])
+      expect(result).to eq(%i[apple zebra])
     end
   end
 end

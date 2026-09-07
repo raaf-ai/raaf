@@ -19,8 +19,8 @@ RSpec.describe "Quality Matchers" do
       configurations: { test: {} }
     )
     run.instance_variable_set(:@results, {
-      test: { success: true, output: similar_output }
-    })
+                                test: { success: true, output: similar_output }
+                              })
     run.instance_variable_set(:@executed, true)
     RAAF::Eval::EvaluationResult.new(run: run, baseline: baseline_span)
   end
@@ -38,17 +38,15 @@ RSpec.describe "Quality Matchers" do
       let(:similar_output) { different_output }
 
       it "fails when quality drops" do
-        expect {
+        expect do
           expect(evaluation_result).to maintain_quality
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
       end
 
       it "provides clear failure message" do
-        begin
-          expect(evaluation_result).to maintain_quality
-        rescue RSpec::Expectations::ExpectationNotMetError => e
-          expect(e.message).to include("quality")
-        end
+        expect(evaluation_result).to maintain_quality
+      rescue RSpec::Expectations::ExpectationNotMetError => e
+        expect(e.message).to include("quality")
       end
     end
   end
@@ -75,7 +73,7 @@ RSpec.describe "Quality Matchers" do
 
   describe "not_hallucinate matcher" do
     it "detects absence of hallucinations" do
-      expect(evaluation_result).to_not not_hallucinate
+      expect(evaluation_result).not_to not_hallucinate
     end
   end
 end

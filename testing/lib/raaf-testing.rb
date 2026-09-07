@@ -5,9 +5,7 @@ require_relative "raaf/testing/matchers"
 require_relative "raaf/testing/prompt_matchers"
 
 # RSpec integration (load when RSpec is available)
-if defined?(RSpec)
-  require_relative "raaf/testing/rspec"
-end
+require_relative "raaf/testing/rspec" if defined?(RSpec)
 
 # Only require mock_provider if RAAF core is available
 begin
@@ -17,6 +15,7 @@ rescue NameError, LoadError
 end
 
 module RAAF
+
   ##
   # Testing utilities and RSpec matchers for Ruby AI Agents Factory
   #
@@ -37,12 +36,12 @@ module RAAF
   #
   # @example Basic RSpec usage
   #   require 'raaf-testing'
-  #   
+  #
   #   RSpec.describe "My Agent" do
   #     include RAAF::Testing::Helpers
-  #     
+  #
   #     let(:agent) { create_test_agent }
-  #     
+  #
   #     it "responds appropriately" do
   #       result = agent.run("Hello")
   #       expect(result).to be_successful
@@ -52,12 +51,12 @@ module RAAF
   #
   # @example Mock provider usage
   #   require 'raaf-testing'
-  #   
+  #
   #   # Create mock provider with predefined responses
   #   mock_provider = RAAF::Testing::MockProvider.new
   #   mock_provider.add_response("Hello", "Hi there!")
   #   mock_provider.add_response("Goodbye", "See you later!")
-  #   
+  #
   #   # Use with agent
   #   agent = RAAF::Agent.new(
   #     name: "TestAgent",
@@ -66,34 +65,35 @@ module RAAF
   #
   # @example Conversation testing
   #   require 'raaf-testing'
-  #   
+  #
   #   conversation = RAAF::Testing::ConversationHelper.new(agent)
-  #   
+  #
   #   conversation.user_says("What's the weather like?")
   #   conversation.agent_responds_with(/weather|temperature/i)
-  #   
+  #
   #   conversation.user_says("Thank you")
   #   conversation.agent_responds_with(/welcome|pleasure/i)
-  #   
+  #
   #   expect(conversation).to be_successful
   #
   # @example Response validation
   #   require 'raaf-testing'
-  #   
+  #
   #   validator = RAAF::Testing::ResponseValidator.new
-  #   
+  #
   #   # Add validation rules
   #   validator.must_contain_keywords(["helpful", "assistant"])
   #   validator.must_not_contain_keywords(["sorry", "can't"])
   #   validator.must_be_shorter_than(500)
   #   validator.must_have_positive_sentiment
-  #   
+  #
   #   # Validate response
   #   result = agent.run("How can you help me?")
   #   expect(result).to pass_validation(validator)
   #
   # @since 1.0.0
   module Testing
+
     # Default configuration
     DEFAULT_CONFIG = {
       # Mock provider settings
@@ -103,7 +103,7 @@ module RAAF
         failure_rate: 0.0,
         usage_tracking: true
       },
-      
+
       # VCR settings
       vcr: {
         cassette_library_dir: "spec/vcr_cassettes",
@@ -111,30 +111,31 @@ module RAAF
         configure_rspec_metadata: true,
         allow_http_connections_when_no_cassette: false
       },
-      
+
       # Test helpers
       helpers: {
         auto_cleanup: true,
         default_timeout: 30,
         retry_count: 3
       },
-      
+
       # Performance testing
       performance: {
         max_response_time: 5.0,
         memory_threshold: 100 * 1024 * 1024, # 100MB
         enable_profiling: false
       },
-      
+
       # Validation settings
       validation: {
         strict_mode: false,
         auto_sanitize: true,
-        content_filters: [:profanity, :pii]
+        content_filters: %i[profanity pii]
       }
     }.freeze
 
     class << self
+
       # @return [Hash] Current configuration
       attr_accessor :config
 
@@ -182,37 +183,35 @@ module RAAF
           # Include testing helpers and matchers
           config.include RAAF::Testing::Helpers
           config.include RAAF::Testing::Matchers
-          
+
           # Include RSpec-specific matchers if available
           if defined?(RAAF::Testing::RSpec)
             config.include RAAF::Testing::RSpec::Matchers
             config.include RAAF::Testing::RSpec::Helpers
           end
-          
+
           # Include DSL testing helpers if DSL gem is available
-          if defined?(RAAF::DSL::Testing::RSpecHelpers)
-            config.include RAAF::DSL::Testing::RSpecHelpers
-          end
-          
+          config.include RAAF::DSL::Testing::RSpecHelpers if defined?(RAAF::DSL::Testing::RSpecHelpers)
+
           # Setup VCR
           setup_vcr if defined?(VCR)
-          
+
           # Setup WebMock
           setup_webmock if defined?(WebMock)
-          
+
           # Global setup and teardown
           config.before(:suite) do
             RAAF::Testing.setup_test_environment
           end
-          
+
           config.after(:suite) do
             RAAF::Testing.cleanup_test_environment
           end
-          
+
           config.before(:each) do
             RAAF::Testing.reset_test_state
           end
-          
+
           config.after(:each) do
             RAAF::Testing.cleanup_test_resources
           end
@@ -225,7 +224,7 @@ module RAAF
       # @param options [Hash] Provider options
       # @return [MockProvider] Mock provider instance
       def create_mock_provider(**options)
-        MockProvider.new(**config[:mock_provider].merge(options))
+        MockProvider.new(**config[:mock_provider], **options)
       end
 
       ##
@@ -239,8 +238,8 @@ module RAAF
           instructions: "You are a helpful test assistant.",
           provider: create_mock_provider
         }
-        
-        RAAF::Agent.new(**defaults.merge(options))
+
+        RAAF::Agent.new(**defaults, **options)
       end
 
       ##
@@ -258,7 +257,7 @@ module RAAF
       # @param options [Hash] Validator options
       # @return [ResponseValidator] Response validator instance
       def create_response_validator(**options)
-        ResponseValidator.new(**config[:validation].merge(options))
+        ResponseValidator.new(**config[:validation], **options)
       end
 
       ##
@@ -273,10 +272,10 @@ module RAAF
           logging_config.log_level = :warn
           logging_config.log_output = :console
         end
-        
+
         # Setup mock services
         setup_mock_services
-        
+
         # Initialize test database if needed
         setup_test_database if defined?(ActiveRecord)
       end
@@ -289,7 +288,7 @@ module RAAF
       def cleanup_test_environment
         # Cleanup mock services
         cleanup_mock_services
-        
+
         # Clear caches
         clear_test_caches
       end
@@ -302,10 +301,10 @@ module RAAF
       def reset_test_state
         # Clear agent registry
         RAAF::Agent.registry.clear if RAAF::Agent.respond_to?(:registry)
-        
+
         # Reset configuration
         @config = nil
-        
+
         # Clear response caches
         MockProvider.clear_all_responses
       end
@@ -318,7 +317,7 @@ module RAAF
       def cleanup_test_resources
         # Cleanup temporary files
         cleanup_temp_files
-        
+
         # Reset timecop if used
         Timecop.return if defined?(Timecop)
       end
@@ -351,12 +350,12 @@ module RAAF
       # @param enabled [Boolean] Whether to enable debug mode
       def debug_mode=(enabled)
         @debug_mode = enabled
-        
-        if enabled
-          RAAF.logger.configure do |config|
-            config.log_level = :debug
-            config.debug_categories = [:all]
-          end
+
+        return unless enabled
+
+        RAAF.logger.configure do |config|
+          config.log_level = :debug
+          config.debug_categories = [:all]
         end
       end
 
@@ -376,12 +375,12 @@ module RAAF
           vcr_config.hook_into config[:vcr][:hook_into]
           vcr_config.configure_rspec_metadata! if config[:vcr][:configure_rspec_metadata]
           vcr_config.allow_http_connections_when_no_cassette = config[:vcr][:allow_http_connections_when_no_cassette]
-          
+
           # Filter sensitive data
-          vcr_config.filter_sensitive_data('<OPENAI_API_KEY>') { ENV['OPENAI_API_KEY'] }
-          vcr_config.filter_sensitive_data('<AZURE_API_KEY>') { ENV['AZURE_API_KEY'] }
-          vcr_config.filter_sensitive_data('<AWS_ACCESS_KEY>') { ENV['AWS_ACCESS_KEY_ID'] }
-          vcr_config.filter_sensitive_data('<AWS_SECRET_KEY>') { ENV['AWS_SECRET_ACCESS_KEY'] }
+          vcr_config.filter_sensitive_data("<OPENAI_API_KEY>") { ENV.fetch("OPENAI_API_KEY", nil) }
+          vcr_config.filter_sensitive_data("<AZURE_API_KEY>") { ENV.fetch("AZURE_API_KEY", nil) }
+          vcr_config.filter_sensitive_data("<AWS_ACCESS_KEY>") { ENV.fetch("AWS_ACCESS_KEY_ID", nil) }
+          vcr_config.filter_sensitive_data("<AWS_SECRET_KEY>") { ENV.fetch("AWS_SECRET_ACCESS_KEY", nil) }
         end
       end
 
@@ -408,7 +407,11 @@ module RAAF
         # Cleanup temporary files created during tests
         temp_dir = Dir.tmpdir
         pattern = File.join(temp_dir, "raaf_test_*")
-        Dir.glob(pattern).each { |file| File.delete(file) rescue nil }
+        Dir.glob(pattern).each do |file|
+          File.delete(file)
+        rescue StandardError
+          nil
+        end
       end
 
       def temp_files_count
@@ -417,7 +420,7 @@ module RAAF
         Dir.glob(pattern).size
       end
 
-      # Note: clear_test_caches is defined above with actual implementation
+      # NOTE: clear_test_caches is defined above with actual implementation
 
       def deep_dup(hash)
         hash.each_with_object({}) do |(key, value), result|
@@ -426,6 +429,9 @@ module RAAF
       rescue TypeError
         hash
       end
+
     end
+
   end
+
 end

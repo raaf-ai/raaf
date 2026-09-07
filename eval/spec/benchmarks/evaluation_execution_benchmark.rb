@@ -14,7 +14,7 @@ puts "=== Evaluation Execution Benchmark ===\n\n"
 # Test span for evaluation
 def create_test_span(complexity: :simple)
   base_span = {
-    span_id: "span_#{rand(10000)}",
+    span_id: "span_#{rand(10_000)}",
     trace_id: "trace_#{rand(1000)}",
     agent_name: "TestAgent",
     metadata: {
@@ -56,7 +56,7 @@ puts "Benchmark 1: Engine Initialization"
 puts "-" * 50
 
 span = create_test_span
-iterations = 10000
+iterations = 10_000
 
 init_time = Benchmark.measure do
   iterations.times do
@@ -70,7 +70,7 @@ end
 init_avg_ms = (init_time.real * 1000) / iterations
 puts "Total time: #{(init_time.real * 1000).round(2)}ms"
 puts "Average per initialization: #{init_avg_ms.round(3)}ms"
-puts "Status: #{init_avg_ms < 10 ? '✓ PASS' : '✗ FAIL'} (target: <10ms)"
+puts "Status: #{init_avg_ms < 10 ? "✓ PASS" : "✗ FAIL"} (target: <10ms)"
 puts "Throughput: #{(iterations / init_time.real).round(2)} initializations/sec"
 
 # Benchmark 2: Configuration Application
@@ -101,9 +101,9 @@ configurations.each_with_index do |config, idx|
   avg_ms = (config_time.real * 1000) / 1000
   config_times << avg_ms
 
-  puts "\nConfiguration #{idx + 1}: #{config.keys.join(', ')}"
+  puts "\nConfiguration #{idx + 1}: #{config.keys.join(", ")}"
   puts "  Average time: #{avg_ms.round(3)}ms"
-  puts "  Status: #{avg_ms < 50 ? '✓ PASS' : '✗ FAIL'} (target: <50ms)"
+  puts "  Status: #{avg_ms < 50 ? "✓ PASS" : "✗ FAIL"} (target: <50ms)"
 end
 
 avg_config_time = config_times.sum / config_times.length
@@ -121,7 +121,7 @@ test_spans = {
 
 test_spans.each do |complexity, test_span|
   extract_time = Benchmark.measure do
-    10000.times do
+    10_000.times do
       # Simulate extraction operations
       test_span.dig(:metadata, :model)
       test_span.dig(:metadata, :instructions)
@@ -132,10 +132,10 @@ test_spans.each do |complexity, test_span|
     end
   end
 
-  avg_ms = (extract_time.real * 1000) / 10000
+  avg_ms = (extract_time.real * 1000) / 10_000
   puts "\n#{complexity.to_s.capitalize} span:"
   puts "  Average extraction time: #{avg_ms.round(3)}ms"
-  puts "  Status: #{avg_ms < 1 ? '✓ PASS' : '✗ FAIL'} (target: <1ms)"
+  puts "  Status: #{avg_ms < 1 ? "✓ PASS" : "✗ FAIL"} (target: <1ms)"
 end
 
 # Benchmark 4: Execution Overhead Measurement
@@ -163,9 +163,9 @@ puts "\nOverhead components:"
 overhead_components.each do |component, time|
   puts "  #{component.to_s.ljust(20)}: #{time}ms"
 end
-puts "  #{'Total overhead'.ljust(20)}: #{total_overhead_ms}ms"
+puts "  #{"Total overhead".ljust(20)}: #{total_overhead_ms}ms"
 puts "\nOverhead percentage: #{overhead_percentage.round(2)}%"
-puts "Status: #{overhead_percentage < 10 ? '✓ PASS' : '✗ FAIL'} (target: <10%)"
+puts "Status: #{overhead_percentage < 10 ? "✓ PASS" : "✗ FAIL"} (target: <10%)"
 
 # Benchmark 5: Concurrent Evaluation Overhead
 puts "\n\nBenchmark 5: Batch Evaluation Initialization"
@@ -175,7 +175,7 @@ batch_sizes = [10, 50, 100, 500]
 
 batch_sizes.each do |size|
   batch_time = Benchmark.measure do
-    engines = Array.new(size) do
+    Array.new(size) do
       RAAF::Eval::Engine.new(
         span: span,
         configuration_overrides: { model: "gpt-4o", temperature: rand }
@@ -224,12 +224,6 @@ valid_configs = [
   { instructions: "New instructions" }
 ]
 
-invalid_configs = [
-  { model: 123 }, # Should be string
-  { temperature: 2.0 }, # Out of range
-  { unknown_param: "value" } # Unknown parameter
-]
-
 validation_iterations = 1000
 
 valid_time = Benchmark.measure do
@@ -243,7 +237,7 @@ end
 
 valid_avg_ms = (valid_time.real * 1000) / (validation_iterations * valid_configs.length)
 puts "Valid config validation: #{valid_avg_ms.round(3)}ms per config"
-puts "Status: #{valid_avg_ms < 5 ? '✓ PASS' : '✗ FAIL'} (target: <5ms)"
+puts "Status: #{valid_avg_ms < 5 ? "✓ PASS" : "✗ FAIL"} (target: <5ms)"
 
 # Summary
 puts "\n\n=== Performance Summary ==="

@@ -134,9 +134,9 @@ module RAAF
           @operator = config[:operator] || :eq
           @value = config[:value]
 
-          unless OPERATORS.include?(@operator)
-            raise ArgumentError, "Unknown operator: #{@operator}. Valid operators: #{OPERATORS.join(', ')}"
-          end
+          return if OPERATORS.include?(@operator)
+
+          raise ArgumentError, "Unknown operator: #{@operator}. Valid operators: #{OPERATORS.join(', ')}"
         end
 
         def matches?(context, _input)

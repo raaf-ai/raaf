@@ -5,7 +5,9 @@ require "digest"
 require "openssl"
 
 module RAAF
+
   module Compliance
+
     ##
     # Comprehensive audit trail for regulatory compliance
     #
@@ -14,6 +16,7 @@ module RAAF
     # capabilities for regulatory compliance requirements.
     #
     class AuditTrail
+
       include RAAF::Logging
 
       # @return [Symbol] Storage backend
@@ -36,7 +39,8 @@ module RAAF
       # @param encryption_enabled [Boolean] Enable encryption
       # @param real_time_monitoring [Boolean] Enable real-time monitoring
       #
-      def initialize(storage_backend: :database, retention_days: 2555, encryption_enabled: true, real_time_monitoring: true)
+      def initialize(storage_backend: :database, retention_days: 2555, encryption_enabled: true,
+                     real_time_monitoring: true)
         @storage_backend = storage_backend
         @retention_days = retention_days
         @encryption_enabled = encryption_enabled
@@ -59,7 +63,8 @@ module RAAF
       # @param session_id [String] Session identifier
       # @return [String] Audit record ID
       #
-      def log_agent_activity(agent_id:, action:, user_id: nil, data: {}, compliance_tags: [], ip_address: nil, user_agent: nil, session_id: nil)
+      def log_agent_activity(agent_id:, action:, user_id: nil, data: {}, compliance_tags: [], ip_address: nil,
+                             user_agent: nil, session_id: nil)
         record = create_audit_record(
           record_type: :agent_activity,
           agent_id: agent_id,
@@ -71,10 +76,10 @@ module RAAF
           user_agent: user_agent,
           session_id: session_id
         )
-        
+
         store_record(record)
         notify_monitors(record) if @real_time_monitoring
-        
+
         log_info("Agent activity logged", record_id: record[:id], agent_id: agent_id, action: action)
         record[:id]
       end
@@ -100,10 +105,10 @@ module RAAF
           purpose: purpose,
           compliance_tags: compliance_tags
         )
-        
+
         store_record(record)
         notify_monitors(record) if @real_time_monitoring
-        
+
         log_info("Data access logged", record_id: record[:id], user_id: user_id, data_type: data_type)
         record[:id]
       end
@@ -128,10 +133,10 @@ module RAAF
           metadata: metadata,
           compliance_tags: [compliance_framework]
         )
-        
+
         store_record(record)
         notify_monitors(record) if @real_time_monitoring
-        
+
         log_info("Compliance event logged", record_id: record[:id], event_type: event_type)
         record[:id]
       end
@@ -147,7 +152,7 @@ module RAAF
       # @param metadata [Hash] Additional metadata
       # @return [String] Audit record ID
       #
-      def log_security_event(event_type:, severity:, user_id: nil, ip_address: nil, description:, metadata: {})
+      def log_security_event(event_type:, severity:, description:, user_id: nil, ip_address: nil, metadata: {})
         record = create_audit_record(
           record_type: :security_event,
           event_type: event_type,
@@ -158,10 +163,10 @@ module RAAF
           metadata: metadata,
           compliance_tags: [:security]
         )
-        
+
         store_record(record)
         notify_monitors(record) if @real_time_monitoring
-        
+
         log_info("Security event logged", record_id: record[:id], event_type: event_type)
         record[:id]
       end
@@ -178,7 +183,8 @@ module RAAF
       # @param limit [Integer] Maximum number of records
       # @return [Array<Hash>] Audit records
       #
-      def query(start_date: nil, end_date: nil, user_id: nil, agent_id: nil, record_type: nil, compliance_tags: [], limit: 1000)
+      def query(start_date: nil, end_date: nil, user_id: nil, agent_id: nil, record_type: nil, compliance_tags: [],
+                limit: 1000)
         filters = {}
         filters[:start_date] = start_date if start_date
         filters[:end_date] = end_date if end_date
@@ -187,14 +193,12 @@ module RAAF
         filters[:record_type] = record_type if record_type
         filters[:compliance_tags] = compliance_tags if compliance_tags.any?
         filters[:limit] = limit
-        
+
         records = @storage.query(filters)
-        
+
         # Decrypt records if encryption is enabled
-        if @encryption_enabled
-          records = records.map { |record| decrypt_record(record) }
-        end
-        
+        records = records.map { |record| decrypt_record(record) } if @encryption_enabled
+
         log_debug("Audit records queried", filters: filters, count: records.size)
         records
       end
@@ -208,11 +212,9 @@ module RAAF
       def get_record(record_id)
         record = @storage.get(record_id)
         return nil unless record
-        
-        if @encryption_enabled
-          record = decrypt_record(record)
-        end
-        
+
+        record = decrypt_record(record) if @encryption_enabled
+
         record
       end
 
@@ -225,13 +227,13 @@ module RAAF
       def verify_record_integrity(record_id)
         record = @storage.get(record_id)
         return false unless record
-        
+
         # Verify hash chain
         calculated_hash = calculate_record_hash(record)
         stored_hash = record[:hash]
-        
+
         valid = calculated_hash == stored_hash
-        
+
         log_info("Record integrity verified", record_id: record_id, valid: valid)
         valid
       end
@@ -255,7 +257,7 @@ module RAAF
       #
       def export_records(format: :csv, **filters)
         records = query(**filters)
-        
+
         case format
         when :csv
           export_csv(records)
@@ -331,7 +333,7 @@ module RAAF
       def create_audit_record(record_type:, **attributes)
         timestamp = Time.current
         record_id = SecureRandom.uuid
-        
+
         record = {
           id: record_id,
           record_type: record_type,
@@ -339,13 +341,13 @@ module RAAF
           sequence_number: generate_sequence_number,
           **attributes
         }
-        
+
         # Add hash for integrity
         record[:hash] = calculate_record_hash(record)
-        
+
         # Add previous record hash for chain integrity
         record[:previous_hash] = get_last_record_hash
-        
+
         record
       end
 
@@ -355,32 +357,32 @@ module RAAF
       end
 
       def encrypt_record(record)
-        cipher = OpenSSL::Cipher.new('AES-256-GCM')
+        cipher = OpenSSL::Cipher.new("AES-256-GCM")
         cipher.encrypt
         cipher.key = @encryption_key
-        
+
         data = JSON.generate(record)
         encrypted_data = cipher.update(data) + cipher.final
-        
+
         {
           id: record[:id],
-          encrypted_data: [encrypted_data].pack('m0'),
-          auth_tag: [cipher.auth_tag].pack('m0'),
+          encrypted_data: [encrypted_data].pack("m0"),
+          auth_tag: [cipher.auth_tag].pack("m0"),
           timestamp: record[:timestamp]
         }
       end
 
       def decrypt_record(encrypted_record)
         return encrypted_record unless encrypted_record[:encrypted_data]
-        
-        cipher = OpenSSL::Cipher.new('AES-256-GCM')
+
+        cipher = OpenSSL::Cipher.new("AES-256-GCM")
         cipher.decrypt
         cipher.key = @encryption_key
-        cipher.auth_tag = encrypted_record[:auth_tag].unpack('m0')[0]
-        
-        encrypted_data = encrypted_record[:encrypted_data].unpack('m0')[0]
+        cipher.auth_tag = encrypted_record[:auth_tag].unpack1("m0")
+
+        encrypted_data = encrypted_record[:encrypted_data].unpack1("m0")
         decrypted_data = cipher.update(encrypted_data) + cipher.final
-        
+
         JSON.parse(decrypted_data, symbolize_names: true)
       end
 
@@ -389,7 +391,7 @@ module RAAF
         record_without_hash = record.dup
         record_without_hash.delete(:hash)
         record_without_hash.delete(:previous_hash)
-        
+
         data = JSON.generate(record_without_hash, sort_keys: true)
         Digest::SHA256.hexdigest(data)
       end
@@ -410,11 +412,9 @@ module RAAF
 
       def notify_monitors(record)
         @monitors.each do |monitor|
-          begin
-            monitor.call(record)
-          rescue StandardError => e
-            log_error("Monitor notification failed", error: e)
-          end
+          monitor.call(record)
+        rescue StandardError => e
+          log_error("Monitor notification failed", error: e)
         end
       end
 
@@ -448,12 +448,12 @@ module RAAF
       end
 
       def export_csv(records)
-        require 'csv'
-        
+        require "csv"
+
         CSV.generate do |csv|
           # Header
           csv << %w[ID RecordType Timestamp UserID AgentID Action Description ComplianceTags]
-          
+
           # Data rows
           records.each do |record|
             csv << [
@@ -464,7 +464,7 @@ module RAAF
               record[:agent_id],
               record[:action],
               record[:description],
-              record[:compliance_tags]&.join(', ')
+              record[:compliance_tags]&.join(", ")
             ]
           end
         end
@@ -475,16 +475,16 @@ module RAAF
       end
 
       def export_pdf(records)
-        require 'prawn'
-        require 'prawn/table'
-        
+        require "prawn"
+        require "prawn/table"
+
         Prawn::Document.new do |pdf|
           pdf.text "Audit Trail Report", size: 20, style: :bold
-          pdf.text "Generated: #{Time.current.strftime('%Y-%m-%d %H:%M:%S')}", size: 12
+          pdf.text "Generated: #{Time.current.strftime("%Y-%m-%d %H:%M:%S")}", size: 12
           pdf.move_down 20
-          
+
           # Create table data
-          table_data = [['ID', 'Type', 'Timestamp', 'User', 'Agent', 'Action']]
+          table_data = [%w[ID Type Timestamp User Agent Action]]
           records.each do |record|
             table_data << [
               record[:id][0..8],
@@ -495,7 +495,7 @@ module RAAF
               record[:action]
             ]
           end
-          
+
           pdf.table(table_data, header: true, width: pdf.bounds.width) do
             row(0).font_style = :bold
             cells.padding = 5
@@ -503,12 +503,14 @@ module RAAF
           end
         end.render
       end
+
     end
 
     ##
     # Database storage backend for audit trail
     #
     class DatabaseStorage
+
       def initialize
         # Initialize database connection
         # This would use ActiveRecord or similar ORM
@@ -561,22 +563,24 @@ module RAAF
       def newest_record_date
         # AuditRecord.maximum(:timestamp)
       end
+
     end
 
     ##
     # File storage backend for audit trail
     #
     class FileStorage
+
       def initialize(base_path = "audit_logs")
         @base_path = base_path
         FileUtils.mkdir_p(@base_path)
       end
 
       def store(record)
-        date = Date.current.strftime('%Y-%m-%d')
+        date = Date.current.strftime("%Y-%m-%d")
         file_path = File.join(@base_path, "#{date}.json")
-        
-        File.open(file_path, 'a') do |f|
+
+        File.open(file_path, "a") do |f|
           f.puts JSON.generate(record)
         end
       end
@@ -594,23 +598,23 @@ module RAAF
 
       def query(filters)
         records = []
-        
+
         Dir.glob(File.join(@base_path, "*.json")).each do |file|
           File.readlines(file).each do |line|
             record = JSON.parse(line.strip, symbolize_names: true)
-            
+
             # Apply filters
             next if filters[:start_date] && record[:timestamp] < filters[:start_date].iso8601
             next if filters[:end_date] && record[:timestamp] > filters[:end_date].iso8601
             next if filters[:user_id] && record[:user_id] != filters[:user_id]
             next if filters[:agent_id] && record[:agent_id] != filters[:agent_id]
             next if filters[:record_type] && record[:record_type] != filters[:record_type]
-            
+
             records << record
             break if records.size >= (filters[:limit] || 1000)
           end
         end
-        
+
         records
       end
 
@@ -620,52 +624,53 @@ module RAAF
 
       def get_last_record
         last_record = nil
-        
+
         Dir.glob(File.join(@base_path, "*.json")).sort.reverse.each do |file|
           File.readlines(file).reverse.each do |line|
             record = JSON.parse(line.strip, symbolize_names: true)
             return record if last_record.nil? || record[:sequence_number] > last_record[:sequence_number]
+
             last_record = record
           end
         end
-        
+
         last_record
       end
 
       def archive(older_than)
         # Move old files to archive directory
         archived_count = 0
-        
+
         Dir.glob(File.join(@base_path, "*.json")).each do |file|
-          file_date = File.basename(file, '.json')
-          if Date.parse(file_date) < older_than.to_date
-            archive_path = File.join(@base_path, 'archive')
-            FileUtils.mkdir_p(archive_path)
-            FileUtils.mv(file, archive_path)
-            archived_count += File.readlines(File.join(archive_path, File.basename(file))).size
-          end
+          file_date = File.basename(file, ".json")
+          next unless Date.parse(file_date) < older_than.to_date
+
+          archive_path = File.join(@base_path, "archive")
+          FileUtils.mkdir_p(archive_path)
+          FileUtils.mv(file, archive_path)
+          archived_count += File.readlines(File.join(archive_path, File.basename(file))).size
         end
-        
+
         archived_count
       end
 
       def purge(older_than)
         purged_count = 0
-        
+
         Dir.glob(File.join(@base_path, "*.json")).each do |file|
-          file_date = File.basename(file, '.json')
+          file_date = File.basename(file, ".json")
           if Date.parse(file_date) < older_than.to_date
             purged_count += File.readlines(file).size
             File.delete(file)
           end
         end
-        
+
         purged_count
       end
 
       def count_by_field(field)
         counts = Hash.new(0)
-        
+
         Dir.glob(File.join(@base_path, "*.json")).each do |file|
           File.readlines(file).each do |line|
             record = JSON.parse(line.strip, symbolize_names: true)
@@ -673,21 +678,24 @@ module RAAF
             counts[value] += 1
           end
         end
-        
+
         counts
       end
 
       def oldest_record_date
         Dir.glob(File.join(@base_path, "*.json")).map do |file|
-          File.basename(file, '.json')
+          File.basename(file, ".json")
         end.min
       end
 
       def newest_record_date
         Dir.glob(File.join(@base_path, "*.json")).map do |file|
-          File.basename(file, '.json')
+          File.basename(file, ".json")
         end.max
       end
+
     end
+
   end
+
 end

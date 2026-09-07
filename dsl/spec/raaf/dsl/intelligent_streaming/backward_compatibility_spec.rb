@@ -176,7 +176,7 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
     context "agents without streaming config" do
       it "agents without streaming config work unchanged" do
         agent = standard_agent_class.new
-        context = context_class.new(data: "test")
+        context_class.new(data: "test")
 
         result = agent.call
 
@@ -449,6 +449,7 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
         error_streaming_agent = Class.new(streaming_agent_class) do
           def call
             raise StandardError, "Stream error" if context[:items].first[:id] == 5
+
             super
           end
         end

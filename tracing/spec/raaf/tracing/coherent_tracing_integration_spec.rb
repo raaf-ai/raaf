@@ -7,6 +7,7 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
   let(:test_pipeline_class) do
     Class.new do
       include RAAF::Tracing::Traceable
+
       trace_as :pipeline
 
       attr_reader :name, :current_span, :agents
@@ -29,9 +30,9 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
 
       def collect_span_attributes
         super.merge({
-          "pipeline.agents_count" => agents.size,
-          "pipeline.name" => name
-        })
+                      "pipeline.agents_count" => agents.size,
+                      "pipeline.name" => name
+                    })
       end
     end
   end
@@ -39,6 +40,7 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
   let(:test_agent_class) do
     Class.new do
       include RAAF::Tracing::Traceable
+
       trace_as :agent
 
       attr_reader :name, :current_span, :parent_component
@@ -60,9 +62,9 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
 
       def collect_span_attributes
         super.merge({
-          "agent.name" => name,
-          "agent.model" => "test-model"
-        })
+                      "agent.name" => name,
+                      "agent.model" => "test-model"
+                    })
       end
     end
   end
@@ -70,6 +72,7 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
   let(:test_tool_class) do
     Class.new do
       include RAAF::Tracing::Traceable
+
       trace_as :tool
 
       attr_reader :name, :current_span, :parent_component
@@ -91,9 +94,9 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
 
       def collect_span_attributes
         super.merge({
-          "tool.name" => name,
-          "tool.type" => "test_tool"
-        })
+                      "tool.name" => name,
+                      "tool.type" => "test_tool"
+                    })
       end
     end
   end
@@ -196,7 +199,7 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
 
       outer_span = nil
       inner_span = nil
-      final_span = nil
+      nil
 
       pipeline.with_tracing(:execute) do
         outer_span = pipeline.current_span
@@ -311,11 +314,11 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
       allow(agent).to receive(:tracer).and_return(mock_tracer)
 
       # Execute with error
-      expect {
+      expect do
         agent.with_tracing(:run) do
           raise StandardError, "Test error"
         end
-      }.to raise_error(StandardError, "Test error")
+      end.to raise_error(StandardError, "Test error")
 
       expect(captured_span.attributes["success"]).to be(false)
       expect(captured_span.attributes["error.type"]).to eq("StandardError")

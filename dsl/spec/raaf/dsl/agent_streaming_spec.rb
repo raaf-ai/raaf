@@ -96,7 +96,7 @@ RSpec.describe "RAAF::DSL::Agent intelligent streaming" do
         log = []
         agent_class.class_eval do
           intelligent_streaming stream_size: 100, over: :companies do
-            on_stream_start { |num, total, data| log << "Start #{num}/#{total}" }
+            on_stream_start { |num, total, _data| log << "Start #{num}/#{total}" }
           end
         end
 
@@ -120,7 +120,7 @@ RSpec.describe "RAAF::DSL::Agent intelligent streaming" do
       it "configures on_stream_complete hook for incremental mode" do
         agent_class.class_eval do
           intelligent_streaming stream_size: 100, over: :companies, incremental: true do
-            on_stream_complete { |num, total, results| puts "Stream #{num}/#{total}" }
+            on_stream_complete { |num, total, _results| puts "Stream #{num}/#{total}" }
           end
         end
 
@@ -132,7 +132,7 @@ RSpec.describe "RAAF::DSL::Agent intelligent streaming" do
       it "configures on_stream_error hook" do
         agent_class.class_eval do
           intelligent_streaming stream_size: 100, over: :companies do
-            on_stream_error { |num, total, error, context| puts "Error in stream #{num}" }
+            on_stream_error { |num, _total, _error, _context| puts "Error in stream #{num}" }
           end
         end
 
@@ -143,19 +143,19 @@ RSpec.describe "RAAF::DSL::Agent intelligent streaming" do
 
     context "error handling" do
       it "raises error for invalid stream_size" do
-        expect {
+        expect do
           agent_class.class_eval do
             intelligent_streaming stream_size: 0, over: :companies
           end
-        }.to raise_error(ArgumentError, /stream_size must be a positive integer/)
+        end.to raise_error(ArgumentError, /stream_size must be a positive integer/)
       end
 
       it "raises error for non-integer stream_size" do
-        expect {
+        expect do
           agent_class.class_eval do
             intelligent_streaming stream_size: "100", over: :companies
           end
-        }.to raise_error(ArgumentError, /stream_size must be a positive integer/)
+        end.to raise_error(ArgumentError, /stream_size must be a positive integer/)
       end
 
       it "prevents calling intelligent_streaming twice" do
@@ -163,11 +163,11 @@ RSpec.describe "RAAF::DSL::Agent intelligent streaming" do
           intelligent_streaming stream_size: 100, over: :companies
         end
 
-        expect {
+        expect do
           agent_class.class_eval do
             intelligent_streaming stream_size: 200, over: :items
           end
-        }.to raise_error(RAAF::DSL::IntelligentStreaming::ConfigurationError, /already configured/)
+        end.to raise_error(RAAF::DSL::IntelligentStreaming::ConfigurationError, /already configured/)
       end
 
       it "allows override with explicit flag" do

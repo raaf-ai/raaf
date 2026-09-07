@@ -198,8 +198,8 @@ module RAAF
         def calculate_attack_results
           test_cases.group_by(&:attack_name).transform_values do |cases|
             total = cases.length
-            successful = cases.count(&:failed?)  # Failed test = successful attack
-            unsuccessful = cases.count(&:passed?)  # Passed test = unsuccessful attack
+            successful = cases.count(&:failed?) # Failed test = successful attack
+            unsuccessful = cases.count(&:passed?) # Passed test = unsuccessful attack
             errored = cases.count(&:error?)
 
             {

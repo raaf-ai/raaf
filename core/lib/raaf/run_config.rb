@@ -62,146 +62,80 @@ module RAAF
 
     ##
     # Backwards compatibility: delegate to model config
-    def temperature
-      model.temperature
-    end
+    delegate :temperature, to: :model
 
-    def temperature=(value)
-      model.temperature = value
-    end
+    delegate :temperature=, to: :model
 
-    def max_tokens
-      model.max_tokens
-    end
+    delegate :max_tokens, to: :model
 
-    def max_tokens=(value)
-      model.max_tokens = value
-    end
+    delegate :max_tokens=, to: :model
 
-    def stream
-      model.stream
-    end
+    delegate :stream, to: :model
 
-    def stream=(value)
-      model.stream = value
-    end
+    delegate :stream=, to: :model
 
-    def previous_response_id
-      model.previous_response_id
-    end
+    delegate :previous_response_id, to: :model
 
-    def previous_response_id=(value)
-      model.previous_response_id = value
-    end
+    delegate :previous_response_id=, to: :model
 
     ##
     # Backwards compatibility: delegate to tracing config
-    def trace_id
-      tracing.trace_id
-    end
+    delegate :trace_id, to: :tracing
 
-    def trace_id=(value)
-      tracing.trace_id = value
-    end
+    delegate :trace_id=, to: :tracing
 
-    def tracing_disabled
-      tracing.tracing_disabled
-    end
+    delegate :tracing_disabled, to: :tracing
 
-    def tracing_disabled=(value)
-      tracing.tracing_disabled = value
-    end
+    delegate :tracing_disabled=, to: :tracing
 
-    def trace_include_sensitive_data
-      tracing.trace_include_sensitive_data
-    end
+    delegate :trace_include_sensitive_data, to: :tracing
 
-    def trace_include_sensitive_data=(value)
-      tracing.trace_include_sensitive_data = value
-    end
+    delegate :trace_include_sensitive_data=, to: :tracing
 
-    def metadata
-      tracing.metadata
-    end
+    delegate :metadata, to: :tracing
 
-    def metadata=(value)
-      tracing.metadata = value
-    end
+    delegate :metadata=, to: :tracing
 
-    def workflow_name
-      tracing.workflow_name
-    end
+    delegate :workflow_name, to: :tracing
 
-    def workflow_name=(value)
-      tracing.workflow_name = value
-    end
+    delegate :workflow_name=, to: :tracing
 
-    def group_id
-      tracing.group_id
-    end
+    delegate :group_id, to: :tracing
 
-    def group_id=(value)
-      tracing.group_id = value
-    end
+    delegate :group_id=, to: :tracing
 
     ##
     # Backwards compatibility: delegate to execution config
-    def max_turns
-      execution.max_turns
-    end
+    delegate :max_turns, to: :execution
 
-    def max_turns=(value)
-      execution.max_turns = value
-    end
+    delegate :max_turns=, to: :execution
 
-    def hooks
-      execution.hooks
-    end
+    delegate :hooks, to: :execution
 
-    def hooks=(value)
-      execution.hooks = value
-    end
+    delegate :hooks=, to: :execution
 
-    def input_guardrails
-      execution.input_guardrails
-    end
+    delegate :input_guardrails, to: :execution
 
-    def input_guardrails=(value)
-      execution.input_guardrails = value
-    end
+    delegate :input_guardrails=, to: :execution
 
-    def output_guardrails
-      execution.output_guardrails
-    end
+    delegate :output_guardrails, to: :execution
 
-    def output_guardrails=(value)
-      execution.output_guardrails = value
-    end
+    delegate :output_guardrails=, to: :execution
 
-    def context
-      execution.context
-    end
+    delegate :context, to: :execution
 
-    def context=(value)
-      execution.context = value
-    end
+    delegate :context=, to: :execution
 
-    def session
-      execution.session
-    end
+    delegate :session, to: :execution
 
-    def session=(value)
-      execution.session = value
-    end
+    delegate :session=, to: :execution
 
     ##
     # Convert to model parameters (delegates to model config)
     #
     # @return [Hash] Parameters for model API calls
     #
-    def to_model_params
-      model.to_model_params
-    end
+    delegate :to_model_params, to: :model
 
     ##
     # Merge with another RunConfig

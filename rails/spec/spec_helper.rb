@@ -83,22 +83,18 @@ module Rails
       )
     end
 
-    # rubocop:disable Rails/Delegate
     # Can't use delegate without ActiveSupport in test environment
     def config
       self.class.config
     end
-    # rubocop:enable Rails/Delegate
 
     def self.routes
       @routes ||= Engine::MockRoutes.new(->(&block) {})
     end
 
-    # rubocop:disable Rails/Delegate
     def routes
       self.class.routes
     end
-    # rubocop:enable Rails/Delegate
 
     def self.logger
       @logger ||= Logger.new(IO::NULL)

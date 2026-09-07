@@ -117,7 +117,7 @@ module RAAF
         body[:system] = system_prompt if system_prompt
 
         # Add tools if provided
-        body[:tools] = convert_tools(tools) if tools && !tools.empty?
+        body[:tools] = convert_tools(tools) if tools.present?
 
         # Add optional parameters
         body[:temperature] = kwargs[:temperature] if kwargs[:temperature]
@@ -182,7 +182,7 @@ module RAAF
         body[:system] = system_prompt if system_prompt
 
         # Add tools if provided
-        body[:tools] = convert_tools(tools) if tools && !tools.empty?
+        body[:tools] = convert_tools(tools) if tools.present?
 
         # Add optional parameters from kwargs
         body[:temperature] = kwargs[:temperature] if kwargs[:temperature]

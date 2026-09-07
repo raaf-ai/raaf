@@ -132,9 +132,7 @@ module RAAF
     #
     # @return [Boolean] true if no messages
     #
-    def empty?
-      @messages.empty?
-    end
+    delegate :empty?, to: :@messages
 
     ##
     # Update session metadata

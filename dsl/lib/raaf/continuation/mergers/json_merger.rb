@@ -41,48 +41,46 @@ module RAAF
         #   result[:content]   # => Complete JSON string
         #   result[:metadata]  # => { merge_success: true, chunk_count: 2, ... }
         def merge(chunks)
-          begin
-            # Extract content from all chunks
-            contents = chunks.map { |chunk| extract_content(chunk) }.compact
+          # Extract content from all chunks
+          contents = chunks.map { |chunk| extract_content(chunk) }.compact
 
-            # Handle empty chunks
-            if contents.empty?
-              return {
-                content: "",
-                metadata: build_metadata(chunks, true)
-              }
-            end
-
-            # Remove empty strings and whitespace-only strings
-            contents = contents.reject { |c| c.to_s.strip.empty? }
-
-            if contents.empty?
-              return {
-                content: "",
-                metadata: build_metadata(chunks, true)
-              }
-            end
-
-            # Merge all content chunks
-            merged = simple_merge(contents)
-
-            # Try to repair and validate JSON
-            merged = repair_json(merged)
-
-            {
-              content: merged,
+          # Handle empty chunks
+          if contents.empty?
+            return {
+              content: "",
               metadata: build_metadata(chunks, true)
             }
-          rescue StandardError => e
-            Rails.logger.error "❌ JSON Merger ERROR: #{e.message}"
-            Rails.logger.error "📋 Error class: #{e.class.name}"
-            Rails.logger.error "🔍 Stack trace:\n#{e.backtrace.join("\n")}"
+          end
 
-            {
-              content: nil,
-              metadata: build_metadata(chunks, false, e)
+          # Remove empty strings and whitespace-only strings
+          contents = contents.reject { |c| c.to_s.strip.empty? }
+
+          if contents.empty?
+            return {
+              content: "",
+              metadata: build_metadata(chunks, true)
             }
           end
+
+          # Merge all content chunks
+          merged = simple_merge(contents)
+
+          # Try to repair and validate JSON
+          merged = repair_json(merged)
+
+          {
+            content: merged,
+            metadata: build_metadata(chunks, true)
+          }
+        rescue StandardError => e
+          Rails.logger.error "❌ JSON Merger ERROR: #{e.message}"
+          Rails.logger.error "📋 Error class: #{e.class.name}"
+          Rails.logger.error "🔍 Stack trace:\n#{e.backtrace.join("\n")}"
+
+          {
+            content: nil,
+            metadata: build_metadata(chunks, false, e)
+          }
         end
 
         protected
@@ -120,17 +118,17 @@ module RAAF
             end
 
             case char
-            when '\\'
+            when "\\"
               escape_next = true
             when '"'
               in_string = !in_string
-            when '{'
+            when "{"
               open_braces += 1 unless in_string
-            when '}'
+            when "}"
               open_braces -= 1 unless in_string
-            when '['
+            when "["
               open_brackets += 1 unless in_string
-            when ']'
+            when "]"
               open_brackets -= 1 unless in_string
             end
           end
@@ -155,7 +153,7 @@ module RAAF
           # Try to parse as-is first (fast path)
           begin
             JSON.parse(content)
-            return content  # Already valid
+            return content # Already valid
           rescue JSON::ParserError
             # Fall through to repair
           end
@@ -164,6 +162,7 @@ module RAAF
           if defined?(RAAF::JsonRepair)
             repaired = RAAF::JsonRepair.repair(content)
             return repaired.to_json if repaired.is_a?(Hash)
+
             return repaired || content
           end
 
@@ -184,7 +183,6 @@ module RAAF
         #
         # @param content [String] JSON content to repair
         # @return [String] Repaired JSON string
-        private
 
         def simple_json_repair(content)
           # Fix trailing commas
@@ -192,7 +190,7 @@ module RAAF
 
           # Convert single quotes to double quotes (basic approach)
           # Only if it looks like a failed JSON string conversion
-          fixed = fixed.gsub(/':/, '":') if fixed.include?("':")
+          fixed = fixed.gsub("':", '":') if fixed.include?("':")
           fixed = fixed.gsub(/'([^']*)'/, '"\\1"') if fixed.include?("'")
 
           fixed
@@ -202,7 +200,6 @@ module RAAF
         #
         # @param contents [Array<String>] Array of JSON content strings
         # @return [String] Merged JSON content
-        private
 
         def simple_merge(contents)
           return "" if contents.empty?

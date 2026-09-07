@@ -35,7 +35,7 @@ module RAAF
                 "but #{failed.size} criteria failed:\n#{failed_details}"
             end
 
-            failure_message_when_negated do |result|
+            failure_message_when_negated do |_result|
               "Expected some criteria to fail minimum score #{format_percent(min_score * 100)}, but all passed"
             end
           end
@@ -64,7 +64,7 @@ module RAAF
               format("%.0f%%", value)
             end
 
-            failure_message do |result|
+            failure_message do |_result|
               if @criterion
                 "Expected criterion '#{@criterion[:criterion]}' to meet score #{format_percent(min_score * 100)}, " \
                   "but got #{format_percent(@criterion[:score] * 100)}: #{@criterion[:reasoning]}"
@@ -73,7 +73,7 @@ module RAAF
               end
             end
 
-            failure_message_when_negated do |result|
+            failure_message_when_negated do |_result|
               "Expected criterion '#{@criterion[:criterion]}' to fail score #{format_percent(min_score * 100)}, " \
                 "but it passed with #{format_percent(@criterion[:score] * 100)}"
             end
@@ -142,7 +142,7 @@ module RAAF
                 "but got #{format_score(result[:score])}"
             end
 
-            failure_message_when_negated do |result|
+            failure_message_when_negated do |_result|
               "Expected overall score to not match weighted average, but it did"
             end
           end
@@ -161,7 +161,7 @@ module RAAF
               "Expected #{expected_count} criteria to be evaluated, but got #{actual_count}"
             end
 
-            failure_message_when_negated do |result|
+            failure_message_when_negated do |_result|
               "Expected criteria count to not be #{expected_count}, but it was"
             end
           end
@@ -217,7 +217,7 @@ module RAAF
               "Expected valid G-Eval result, but found issues:\n#{issues.map { |i| "  - #{i}" }.join("\n")}"
             end
 
-            failure_message_when_negated do |result|
+            failure_message_when_negated do |_result|
               "Expected invalid G-Eval result, but result structure was valid"
             end
           end

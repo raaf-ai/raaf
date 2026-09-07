@@ -905,9 +905,7 @@ RSpec.describe RAAF::Runner do
           expect(result).to be_nil
         ensure
           # Restore RAAF::Tracing if it was defined
-          if tracing_was_defined && original_tracing
-            RAAF.const_set("Tracing", original_tracing)
-          end
+          RAAF.const_set("Tracing", original_tracing) if tracing_was_defined && original_tracing
         end
       end
 
@@ -932,9 +930,7 @@ RSpec.describe RAAF::Runner do
           expect(result).to eq("fallback_tracer")
         ensure
           # Restore TracingRegistry if it was defined
-          if registry_was_defined && original_registry
-            RAAF::Tracing.const_set("TracingRegistry", original_registry)
-          end
+          RAAF::Tracing.const_set("TracingRegistry", original_registry) if registry_was_defined && original_registry
         end
       end
 
@@ -964,7 +960,7 @@ RSpec.describe RAAF::Runner do
 
         # Mock defined? to return true
         allow(Object).to receive(:defined?).and_call_original
-        allow(Object).to receive(:defined?).with('RAAF::Tracing::TracingRegistry').and_return(true)
+        allow(Object).to receive(:defined?).with("RAAF::Tracing::TracingRegistry").and_return(true)
 
         # Create a mock registry class and set it
         mock_registry_class = Class.new do
@@ -988,8 +984,8 @@ RSpec.describe RAAF::Runner do
 
         # Mock defined? to return true
         allow(Object).to receive(:defined?).and_call_original
-        allow(Object).to receive(:defined?).with('RAAF::Tracing::TracingRegistry').and_return(true)
-        allow(Object).to receive(:defined?).with('RAAF::Tracing::NoOpTracer').and_return(true)
+        allow(Object).to receive(:defined?).with("RAAF::Tracing::TracingRegistry").and_return(true)
+        allow(Object).to receive(:defined?).with("RAAF::Tracing::NoOpTracer").and_return(true)
 
         # Create mock classes
         mock_no_op_class = Class.new
@@ -1017,7 +1013,7 @@ RSpec.describe RAAF::Runner do
 
         # Mock defined? to return true
         allow(Object).to receive(:defined?).and_call_original
-        allow(Object).to receive(:defined?).with('RAAF::Tracing::TracingRegistry').and_return(true)
+        allow(Object).to receive(:defined?).with("RAAF::Tracing::TracingRegistry").and_return(true)
 
         # Create mock registry class
         mock_registry_class = Class.new do
@@ -1040,7 +1036,7 @@ RSpec.describe RAAF::Runner do
 
         # Mock defined? to return true
         allow(Object).to receive(:defined?).and_call_original
-        allow(Object).to receive(:defined?).with('RAAF::Tracing::TracingRegistry').and_return(true)
+        allow(Object).to receive(:defined?).with("RAAF::Tracing::TracingRegistry").and_return(true)
 
         # Create mock registry class that raises
         mock_registry_class = Class.new do
@@ -1069,7 +1065,7 @@ RSpec.describe RAAF::Runner do
 
         # Mock defined? to return true
         allow(Object).to receive(:defined?).and_call_original
-        allow(Object).to receive(:defined?).with('RAAF::Tracing::TracingRegistry').and_return(true)
+        allow(Object).to receive(:defined?).with("RAAF::Tracing::TracingRegistry").and_return(true)
 
         # Create mock registry class
         mock_registry_class = Class.new do
@@ -1096,7 +1092,9 @@ RSpec.describe RAAF::Runner do
         # Create mock registry class that returns our test tracer
         mock_registry_class = Class.new do
           class << self
+
             attr_accessor :test_tracer
+
           end
 
           def self.current_tracer
@@ -1113,7 +1111,7 @@ RSpec.describe RAAF::Runner do
         expect(RAAF::Tracing::TracingRegistry.current_tracer).to eq(registry_tracer)
 
         # Temporarily clear the environment variable if it's set
-        original_env = ENV["RAAF_DISABLE_TRACING"]
+        original_env = ENV.fetch("RAAF_DISABLE_TRACING", nil)
         ENV["RAAF_DISABLE_TRACING"] = nil
 
         begin

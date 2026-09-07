@@ -4,7 +4,6 @@ module RAAF
   module Rails
     module Continuous
       class ResultShow < RAAF::Rails::Tracing::BaseComponent
-
         def initialize(result:)
           @result = result
           load_evaluator_metadata
@@ -44,17 +43,11 @@ module RAAF
               { "name" => @result.evaluator_name }
             )
 
-            if evaluator_class.respond_to?(:display_name)
-              @evaluator_display_name = evaluator_class.display_name
-            end
+            @evaluator_display_name = evaluator_class.display_name if evaluator_class.respond_to?(:display_name)
 
-            if evaluator_class.respond_to?(:description)
-              @evaluator_description = evaluator_class.description
-            end
+            @evaluator_description = evaluator_class.description if evaluator_class.respond_to?(:description)
 
-            if evaluator_class.respond_to?(:evaluated_checks)
-              @evaluator_checks = evaluator_class.evaluated_checks
-            end
+            @evaluator_checks = evaluator_class.evaluated_checks if evaluator_class.respond_to?(:evaluated_checks)
           rescue StandardError
             # If evaluator lookup fails, we'll fall back to raw names
           end
@@ -159,40 +152,38 @@ module RAAF
 
           div(class: "mb-4") do
             progress_color = if numeric_score >= 0.8
-                              "bg-green-600"
-                            elsif numeric_score >= 0.6
-                              "bg-yellow-500"
-                            else
-                              "bg-red-600"
-                            end
+                               "bg-green-600"
+                             elsif numeric_score >= 0.6
+                               "bg-yellow-500"
+                             else
+                               "bg-red-600"
+                             end
 
             div(class: "w-full bg-gray-200 rounded-full h-6") do
               div(
                 class: "#{progress_color} h-6 rounded-full transition-all duration-300 flex items-center justify-center",
                 style: "width: #{percentage}%"
               ) do
-                if percentage >= 20
-                  span(class: "text-xs text-white font-medium") { "#{percentage}%" }
-                end
+                span(class: "text-xs text-white font-medium") { "#{percentage}%" } if percentage >= 20
               end
             end
           end
 
           div do
             badge_config = if numeric_score >= 0.8
-                            { color: "green", text: "Good" }
-                          elsif numeric_score >= 0.5
-                            { color: "yellow", text: "Average" }
-                          else
-                            { color: "red", text: "Bad" }
-                          end
+                             { color: "green", text: "Good" }
+                           elsif numeric_score >= 0.5
+                             { color: "yellow", text: "Average" }
+                           else
+                             { color: "red", text: "Bad" }
+                           end
 
             color_classes = case badge_config[:color]
-                           when "green" then "bg-green-100 text-green-800"
-                           when "yellow" then "bg-yellow-100 text-yellow-800"
-                           when "red" then "bg-red-100 text-red-800"
-                           else "bg-gray-100 text-gray-800"
-                           end
+                            when "green" then "bg-green-100 text-green-800"
+                            when "yellow" then "bg-yellow-100 text-yellow-800"
+                            when "red" then "bg-red-100 text-red-800"
+                            else "bg-gray-100 text-gray-800"
+                            end
 
             span(class: "inline-flex items-center px-4 py-2 rounded-full text-lg font-medium #{color_classes}") do
               badge_config[:text]
@@ -294,14 +285,10 @@ module RAAF
             h4(class: "text-sm font-medium text-gray-900 mb-3") { "Value Comparison" }
             div(class: "grid grid-cols-1 sm:grid-cols-3 gap-4") do
               # Current value
-              if current_value
-                render_value_card("Current Value", current_value, "text-blue-600", "bi-bullseye")
-              end
+              render_value_card("Current Value", current_value, "text-blue-600", "bi-bullseye") if current_value
 
               # Baseline value
-              if baseline_value
-                render_value_card("Baseline Value", baseline_value, "text-gray-600", "bi-flag")
-              end
+              render_value_card("Baseline Value", baseline_value, "text-gray-600", "bi-flag") if baseline_value
 
               # Drop/Change
               if drop || max_drop
@@ -341,9 +328,7 @@ module RAAF
             h4(class: "text-sm font-medium text-gray-900 mb-3") { "Evaluation Thresholds" }
 
             # Visual threshold bar
-            if threshold_good && threshold_average
-              render_threshold_bar(threshold_good.to_f, threshold_average.to_f)
-            end
+            render_threshold_bar(threshold_good.to_f, threshold_average.to_f) if threshold_good && threshold_average
 
             # Threshold values
             div(class: "grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3") do
@@ -383,7 +368,8 @@ module RAAF
             div(class: "absolute top-0 bottom-0 w-0.5 bg-green-600", style: "left: #{good_percent}%")
 
             # Score marker
-            div(class: "absolute top-0 bottom-0 w-1 bg-blue-600 rounded", style: "left: calc(#{score_percent}% - 2px)") do
+            div(class: "absolute top-0 bottom-0 w-1 bg-blue-600 rounded",
+                style: "left: calc(#{score_percent}% - 2px)") do
               div(class: "absolute -top-5 left-1/2 transform -translate-x-1/2 text-xs font-medium text-blue-600") do
                 plain "#{score_percent.round}%"
               end
@@ -447,14 +433,17 @@ module RAAF
                 render_detail_row("Evaluator Type", format_evaluator_type(@result.evaluator_type))
                 render_detail_row("Status", render_status_badge(@result.status))
                 render_detail_row("Created", format_timestamp(@result.created_at))
-                render_detail_row("Duration", format_duration(@result.evaluation_duration_ms)) if @result.evaluation_duration_ms
+                if @result.evaluation_duration_ms
+                  render_detail_row("Duration",
+                                    format_duration(@result.evaluation_duration_ms))
+                end
 
                 if @result.metrics&.dig("tokens").present?
                   render_detail_row("Tokens Used", @result.metrics["tokens"].to_s)
                 end
 
                 if @result.metrics&.dig("cost").present?
-                  render_detail_row("Cost", "$#{sprintf('%.4f', @result.metrics["cost"])}")
+                  render_detail_row("Cost", "$#{sprintf('%.4f', @result.metrics['cost'])}")
                 end
               end
             end
@@ -477,9 +466,7 @@ module RAAF
               render_summary_item("Agent", @result.agent_name || "Unknown")
               render_summary_item("Evaluator", evaluator_fancy_name)
               render_summary_item("Type", format_evaluator_type(@result.evaluator_type))
-              if specific_evaluators.any?
-                render_summary_item("Checks", render_evaluator_badges(specific_evaluators))
-              end
+              render_summary_item("Checks", render_evaluator_badges(specific_evaluators)) if specific_evaluators.any?
             end
           end
         end
@@ -488,7 +475,7 @@ module RAAF
           div(class: "flex flex-wrap gap-1") do
             evaluators.each do |evaluator|
               span(class: "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium #{evaluator_badge_color(evaluator)}") do
-                evaluator.to_s.gsub('_', ' ')
+                evaluator.to_s.gsub("_", " ")
               end
             end
           end
@@ -584,25 +571,25 @@ module RAAF
 
         def render_status_badge(status)
           badge_config = case status.to_s
-                        when "good"
-                          { color: "green", icon: "bi-check-circle", text: "Good" }
-                        when "average"
-                          { color: "yellow", icon: "bi-dash-circle", text: "Average" }
-                        when "bad"
-                          { color: "red", icon: "bi-x-circle", text: "Bad" }
-                        when "error"
-                          { color: "orange", icon: "bi-exclamation-triangle", text: "Error" }
-                        else
-                          { color: "gray", icon: "bi-question-circle", text: status }
-                        end
+                         when "good"
+                           { color: "green", icon: "bi-check-circle", text: "Good" }
+                         when "average"
+                           { color: "yellow", icon: "bi-dash-circle", text: "Average" }
+                         when "bad"
+                           { color: "red", icon: "bi-x-circle", text: "Bad" }
+                         when "error"
+                           { color: "orange", icon: "bi-exclamation-triangle", text: "Error" }
+                         else
+                           { color: "gray", icon: "bi-question-circle", text: status }
+                         end
 
           color_classes = case badge_config[:color]
-                         when "green" then "bg-green-100 text-green-800"
-                         when "yellow" then "bg-yellow-100 text-yellow-800"
-                         when "red" then "bg-red-100 text-red-800"
-                         when "orange" then "bg-orange-100 text-orange-800"
-                         else "bg-gray-100 text-gray-800"
-                         end
+                          when "green" then "bg-green-100 text-green-800"
+                          when "yellow" then "bg-yellow-100 text-yellow-800"
+                          when "red" then "bg-red-100 text-red-800"
+                          when "orange" then "bg-orange-100 text-orange-800"
+                          else "bg-gray-100 text-gray-800"
+                          end
 
           span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{color_classes}") do
             i(class: "#{badge_config[:icon]} mr-1")
@@ -612,16 +599,19 @@ module RAAF
 
         def format_score(score)
           return "N/A" unless score
+
           score.is_a?(Numeric) ? score.round(2).to_s : score.to_s
         end
 
         def format_timestamp(time)
           return "N/A" unless time
+
           time.strftime("%Y-%m-%d %H:%M:%S")
         end
 
         def format_duration(ms)
           return "N/A" unless ms
+
           if ms < 1000
             "#{ms.round}ms"
           else
@@ -630,7 +620,7 @@ module RAAF
         end
 
         def format_key(key)
-          key.to_s.split('_').map(&:capitalize).join(' ')
+          key.to_s.split("_").map(&:capitalize).join(" ")
         end
 
         def format_value(value)

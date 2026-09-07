@@ -49,12 +49,12 @@ module RAAF
 
         detected_format = scores.max_by { |_format, score| score }
         format_symbol = detected_format[0]
-        confidence = [detected_format[1], 1.0].min  # Clamp to 1.0
+        confidence = [detected_format[1], 1.0].min # Clamp to 1.0
 
         # Only return if confidence is reasonable (> 0.3)
         confidence > 0.3 ? [format_symbol, confidence] : [:unknown, confidence]
       rescue StandardError => e
-        Rails.logger.debug "FormatDetector error: #{e.message}"
+        Rails.logger.debug { "FormatDetector error: #{e.message}" }
         [:unknown, 0.0]
       end
 
@@ -64,14 +64,13 @@ module RAAF
       #
       # @param content [String] Content to analyze
       # @return [Float] Format score (0.0-1.0)
-      private
 
       def calculate_csv_score(content)
         score = 0.0
 
         # Check for pipe separators (strong indicator of NOT CSV)
         if content.include?("|")
-          return score - 0.5  # Heavy penalty for pipes
+          return score - 0.5 # Heavy penalty for pipes
         end
 
         lines = content.split("\n").reject { |l| l.strip.empty? }
@@ -92,9 +91,7 @@ module RAAF
         end
 
         # Check for quoted fields (CSV indicator)
-        if content.include?('"')
-          score += 0.15
-        end
+        score += 0.15 if content.include?('"')
 
         # Penalize if content looks like JSON or Markdown
         score -= 0.3 if content.include?("{") || content.include?("[")
@@ -107,7 +104,6 @@ module RAAF
       #
       # @param line [String] CSV line to analyze
       # @return [Integer] Number of columns detected
-      private
 
       def count_csv_columns(line)
         # Simple comma count, accounting for quoted fields
@@ -118,32 +114,27 @@ module RAAF
           case char
           when '"'
             in_quotes = !in_quotes
-          when ','
+          when ","
             comma_count += 1 unless in_quotes
           end
         end
 
-        comma_count + 1  # Add 1 because n commas = n+1 columns
+        comma_count + 1 # Add 1 because n commas = n+1 columns
       end
 
       # Calculate Markdown format score
       #
       # @param content [String] Content to analyze
       # @return [Float] Format score (0.0-1.0)
-      private
 
       def calculate_markdown_score(content)
         score = 0.0
 
         # Check for code blocks
-        if content.include?("```") || content.include?("~~~")
-          score += 0.35
-        end
+        score += 0.35 if content.include?("```") || content.include?("~~~")
 
         # Check for headings
-        if content.include?("# ") || content.include?("## ") || content.include?("### ")
-          score += 0.30
-        end
+        score += 0.30 if content.include?("# ") || content.include?("## ") || content.include?("### ")
 
         # Check for tables (pipes with consistent structure)
         if content.include?("|")
@@ -151,11 +142,11 @@ module RAAF
           pipe_lines = lines.select { |l| l.include?("|") }
           if pipe_lines.length >= 2
             # Check if we have header + separator pattern
-            if pipe_lines[0].include?("|") && pipe_lines[1].include?("---")
-              score += 0.35
-            else
-              score += 0.25
-            end
+            score += if pipe_lines[0].include?("|") && pipe_lines[1].include?("---")
+                       0.35
+                     else
+                       0.25
+                     end
           end
         end
 
@@ -168,14 +159,10 @@ module RAAF
         end
 
         # Check for list items
-        if content.include?("\n- ") || content.include?("\n* ") || content.include?("\n+ ")
-          score += 0.15
-        end
+        score += 0.15 if content.include?("\n- ") || content.include?("\n* ") || content.include?("\n+ ")
 
         # Penalize if it looks like JSON
-        if content.lstrip.start_with?("{") || content.lstrip.start_with?("[")
-          score -= 0.3
-        end
+        score -= 0.3 if content.lstrip.start_with?("{") || content.lstrip.start_with?("[")
 
         [[score, 0.0].max, 1.0].min
       end
@@ -184,7 +171,6 @@ module RAAF
       #
       # @param content [String] Content to analyze
       # @return [Float] Format score (0.0-1.0)
-      private
 
       def calculate_json_score(content)
         score = 0.0
@@ -201,9 +187,7 @@ module RAAF
         end
 
         # Check for key-value pattern
-        if stripped.include?('"') && stripped.include?(":")
-          score += 0.25
-        end
+        score += 0.25 if stripped.include?('"') && stripped.include?(":")
 
         # Try to parse as JSON (strong indicator)
         begin
@@ -212,9 +196,7 @@ module RAAF
         rescue JSON::ParserError
           # Invalid JSON, but might still be incomplete
           # Give partial credit if it has the structure
-          if stripped.count("{") > 0 || stripped.count("[") > 0
-            score += 0.15
-          end
+          score += 0.15 if stripped.count("{") > 0 || stripped.count("[") > 0
         end
 
         # Penalize if it looks like CSV or Markdown

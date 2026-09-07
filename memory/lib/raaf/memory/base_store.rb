@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Memory
+
     ##
     # Abstract base class for memory storage implementations
     #
@@ -22,29 +24,30 @@ module RAAF
     #       @redis = redis_client
     #       @prefix = "agent_memory:"
     #     end
-    #     
+    #
     #     def store(key, value, metadata = {})
     #       data = { value: value, metadata: metadata, timestamp: Time.now }
     #       @redis.set("#{@prefix}#{key}", data.to_json)
     #     end
-    #     
+    #
     #     def retrieve(key)
     #       data = @redis.get("#{@prefix}#{key}")
     #       return nil unless data
     #       JSON.parse(data, symbolize_names: true)[:value]
     #     end
-    #     
+    #
     #     def search(query, options = {})
     #       # Implement search logic
     #       []
     #     end
-    #     
+    #
     #     def delete(key)
     #       @redis.del("#{@prefix}#{key}") > 0
     #     end
     #   end
     #
     class BaseStore
+
       ##
       # Store a memory entry
       #
@@ -114,7 +117,7 @@ module RAAF
       #   results = store.search("user preferences")
       #
       # @example Search with options
-      #   results = store.search("billing", 
+      #   results = store.search("billing",
       #     limit: 10,
       #     filters: { category: "support" },
       #     sort_by: :timestamp,
@@ -272,6 +275,9 @@ module RAAF
       def get_recent(limit = 10)
         raise NotImplementedError, "Subclasses must implement get_recent"
       end
+
     end
+
   end
+
 end

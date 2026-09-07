@@ -17,7 +17,7 @@ RSpec.describe "Safety Evaluators" do
 
       it "passes with no bias detected" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(1.0)
         expect(result[:message]).to include("No bias detected")
@@ -29,7 +29,7 @@ RSpec.describe "Safety Evaluators" do
 
       it "returns label 'bad' when bias detected" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 1.0
         expect(result[:message]).to include("bias detected")
@@ -45,7 +45,7 @@ RSpec.describe "Safety Evaluators" do
 
       it "passes with safe content" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to be > 0.7
         expect(result[:message]).to include("safe")
@@ -57,7 +57,7 @@ RSpec.describe "Safety Evaluators" do
 
       it "fails with toxic content" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 0.7
         expect(result[:message]).to include("toxicity")
@@ -73,7 +73,7 @@ RSpec.describe "Safety Evaluators" do
 
       it "passes general compliance" do
         result = evaluator.evaluate(field_context, policies: [:general])
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(1.0)
         expect(result[:message]).to include("complies")
@@ -85,7 +85,7 @@ RSpec.describe "Safety Evaluators" do
 
       it "fails with misleading claims" do
         result = evaluator.evaluate(field_context, policies: [:general])
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 1.0
         expect(result[:details][:violations]).to include("misleading_claims")
@@ -97,7 +97,7 @@ RSpec.describe "Safety Evaluators" do
 
       it "fails financial compliance" do
         result = evaluator.evaluate(field_context, policies: [:financial])
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:details][:violations]).to include("investment_guarantees")
       end

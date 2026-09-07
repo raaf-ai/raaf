@@ -21,7 +21,7 @@ RSpec.describe "RAAF Generic Bug Report" do
       instructions: "You are a test agent",
       model: "gpt-4o-mini"
     )
-    
+
     expect(agent.name).to eq("TestAgent")
     expect(agent.model).to eq("gpt-4o-mini")
   end
@@ -32,9 +32,9 @@ RSpec.describe "RAAF Generic Bug Report" do
       instructions: "You are a test agent",
       model: "gpt-4o-mini"
     )
-    
+
     runner = RAAF::Runner.new(agent: agent)
-    
+
     expect(runner).to be_a(RAAF::Runner)
     expect(runner.agent).to be_a(RAAF::Agent)
   end

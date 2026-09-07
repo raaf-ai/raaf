@@ -154,9 +154,7 @@ module RAAF
     # @param key [Symbol, String] The data key
     # @return [Object, nil] The stored value or nil
     #
-    def [](key)
-      @handoff_data[key]
-    end
+    delegate :[], to: :@handoff_data
 
     ##
     # Array-style write access (unified interface)
@@ -165,36 +163,28 @@ module RAAF
     # @param value [Object] The value to store
     # @return [Object] The stored value
     #
-    def []=(key, value)
-      @handoff_data[key] = value
-    end
+    delegate :[]=, to: :@handoff_data
 
     ##
     # Get all handoff data keys (unified interface)
     #
     # @return [Array<Symbol, String>] All keys in handoff data
     #
-    def keys
-      @handoff_data.keys
-    end
+    delegate :keys, to: :@handoff_data
 
     ##
     # Get all handoff data values (unified interface)
     #
     # @return [Array<Object>] All values in handoff data
     #
-    def values
-      @handoff_data.values
-    end
+    delegate :values, to: :@handoff_data
 
     ##
     # Export handoff data as hash (unified interface)
     #
     # @return [Hash] The handoff data hash with indifferent access
     #
-    def to_h
-      @handoff_data.to_h
-    end
+    delegate :to_h, to: :@handoff_data
 
     ##
     # Delete a key from handoff data (unified interface)
@@ -202,9 +192,7 @@ module RAAF
     # @param key [Symbol, String] The data key
     # @return [Object, nil] The deleted value or nil
     #
-    def delete(key)
-      @handoff_data.delete(key)
-    end
+    delegate :delete, to: :@handoff_data
 
     ##
     # Update handoff data with multiple values (unified interface)
@@ -212,9 +200,7 @@ module RAAF
     # @param hash [Hash] Hash of key-value pairs to merge
     # @return [Hash] The updated handoff data
     #
-    def update(hash)
-      @handoff_data.update(hash)
-    end
+    delegate :update, to: :@handoff_data
 
     ##
     # Build initial message for handoff target agent

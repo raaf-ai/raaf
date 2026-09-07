@@ -51,7 +51,7 @@ ActiveRecord::Schema.define do
 end
 
 class ApplicationMailbox < ActionMailbox::Base
-  routing (/^replies@/i) => :replies
+  routing(/^replies@/i => :replies)
 end
 
 class RepliesMailbox < ActionMailbox::Base

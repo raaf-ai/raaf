@@ -125,7 +125,7 @@ RSpec.describe RAAF::Tool do
         Class.new(described_class) do
           parameters do
             property :text, type: "string", description: "Text to analyze"
-            property :language, type: "string", enum: ["en", "es", "fr"]
+            property :language, type: "string", enum: %w[en es fr]
             required :text
           end
 
@@ -142,7 +142,7 @@ RSpec.describe RAAF::Tool do
       end
 
       it "supports enum values" do
-        expect(parameters[:properties][:language][:enum]).to eq(["en", "es", "fr"])
+        expect(parameters[:properties][:language][:enum]).to eq(%w[en es fr])
       end
     end
   end

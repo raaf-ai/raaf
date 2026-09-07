@@ -17,7 +17,6 @@ end
 
 # Create an agent that uses the prompt class
 class DemoAgent < RAAF::DSL::Agent
-
   agent_name "demo_agent"
   prompt_class DemoPrompt
 
@@ -60,7 +59,6 @@ puts
 puts "=== Error Demonstration ==="
 
 class BadAgent < RAAF::DSL::Agent
-
   agent_name "bad_agent"
 
   def agent_name

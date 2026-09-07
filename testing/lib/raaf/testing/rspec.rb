@@ -1,9 +1,11 @@
 # frozen_string_literal: true
 
-require 'rspec' if defined?(RSpec)
+require "rspec" if defined?(RSpec)
 
 module RAAF
+
   module Testing
+
     ##
     # RSpec integration and custom matchers for testing RAAF components
     #
@@ -13,7 +15,7 @@ module RAAF
     #
     # @example Setup in spec_helper.rb
     #   require 'raaf-testing/rspec'
-    #   
+    #
     #   RSpec.configure do |config|
     #     config.include RAAF::Testing::RSpec::Matchers
     #     config.include RAAF::Testing::RSpec::Helpers
@@ -24,11 +26,11 @@ module RAAF
     #   RAAF::Testing.setup_rspec
     #
     module RSpec
+
       autoload :DSLMatchers, "raaf/testing/rspec/dsl_matchers"
       autoload :AgentMatchers, "raaf/testing/rspec/agent_matchers"
       autoload :ContextMatchers, "raaf/testing/rspec/context_matchers"
-      autoload :Helpers, "raaf/testing/rspec/helpers"
-      
+
       # Include prompt matchers from existing code
       include RAAF::Testing::PromptMatchers if defined?(RAAF::Testing::PromptMatchers)
 
@@ -36,16 +38,19 @@ module RAAF
       # All matchers combined for easy inclusion
       #
       module Matchers
+
         include DSLMatchers
         include AgentMatchers if defined?(AgentMatchers)
         include ContextMatchers if defined?(ContextMatchers)
         include RAAF::Testing::PromptMatchers if defined?(RAAF::Testing::PromptMatchers)
+
       end
 
       ##
       # Test helpers for RAAF RSpec integration
       #
       module Helpers
+
         ##
         # Create a test agent with mock provider
         #
@@ -94,6 +99,7 @@ module RAAF
         def mock_agent_response(agent_class, response, success: true)
           if defined?(RAAF::DSL::Testing::RSpecHelpers)
             extend RAAF::DSL::Testing::RSpecHelpers
+
             mock_agent_response(agent_class, response, success: success)
           else
             # Fallback for when DSL isn't available
@@ -109,9 +115,7 @@ module RAAF
         # @param agent [Object] Agent to test
         # @return [Object] Conversation helper
         #
-        def create_conversation_helper(agent)
-          RAAF::Testing.create_conversation_helper(agent)
-        end
+        delegate :create_conversation_helper, to: :"RAAF::Testing"
 
         ##
         # Stub external services for testing
@@ -125,7 +129,7 @@ module RAAF
               stub_web_search_service(response)
             when :openai_api
               stub_openai_api(response)
-            # Add more services as needed
+              # Add more services as needed
             end
           end
         end
@@ -156,12 +160,12 @@ module RAAF
           thread = Thread.new do
             result = agent.run(input)
           end
-          
+
           unless thread.join(timeout)
             thread.kill
             raise "Agent execution timed out after #{timeout} seconds"
           end
-          
+
           result
         end
 
@@ -173,27 +177,31 @@ module RAAF
             .to_return(
               status: 200,
               body: response.is_a?(String) ? response : response.to_json,
-              headers: { 'Content-Type' => 'application/json' }
+              headers: { "Content-Type" => "application/json" }
             )
         end
 
         def stub_openai_api(response)
           # Stub OpenAI API endpoints
-          stub_request(:post, /api\.openai\.com\/v1\/chat\/completions/)
+          stub_request(:post, %r{api\.openai\.com/v1/chat/completions})
             .to_return(
               status: 200,
               body: response.is_a?(String) ? response : response.to_json,
-              headers: { 'Content-Type' => 'application/json' }
+              headers: { "Content-Type" => "application/json" }
             )
         end
+
       end
+
     end
+
   end
+
 end
 
 # Auto-include matchers and helpers when RSpec is available
-if defined?(::RSpec)
-  ::RSpec.configure do |config|
+if defined?(RSpec)
+  RSpec.configure do |config|
     config.include RAAF::Testing::RSpec::Matchers
     config.include RAAF::Testing::RSpec::Helpers
   end

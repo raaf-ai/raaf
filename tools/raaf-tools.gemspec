@@ -32,11 +32,11 @@ Gem::Specification.new do |spec|
 
   # Dependencies
   # Core dependencies
-  spec.add_dependency "raaf-core", "0.1.0"
   spec.add_dependency "faraday", "~> 2.0"
   spec.add_dependency "json", "~> 2.0"
   spec.add_dependency "nokogiri", "~> 1.13"
-  
+  spec.add_dependency "raaf-core", "0.1.0"
+
   # Basic tools dependencies
   spec.add_dependency "base64", "~> 0.1"
   spec.add_dependency "chronic", "~> 0.10"
@@ -48,7 +48,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "securerandom", "~> 0.2"
   spec.add_dependency "uri", "~> 0.12"
   spec.add_dependency "yaml", "~> 0.2"
-  
+
   # Advanced tools dependencies
   spec.add_dependency "aws-sdk-s3", "~> 1.0"
   spec.add_dependency "docx", "~> 0.8"
@@ -60,12 +60,11 @@ Gem::Specification.new do |spec|
   spec.add_dependency "selenium-webdriver", "~> 4.0"
 
   # Development dependencies
-  spec.add_development_dependency "bundler", "~> 2.0"
   spec.add_development_dependency "rake", "~> 13.0"
   spec.add_development_dependency "rspec", "~> 3.0"
   spec.add_development_dependency "rubocop", "~> 1.0"
   spec.add_development_dependency "rubocop-rake", "~> 0.6"
-  spec.add_development_dependency "rubocop-rspec", "~> 2.0"
+  spec.add_development_dependency "rubocop-rspec", "~> 3.0"
   spec.add_development_dependency "vcr", "~> 6.0"
   spec.add_development_dependency "webmock", "~> 3.0"
 end

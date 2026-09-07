@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 module RAAF
+
   ##
   # RetryHandler provides intelligent retry logic with AI-specific error classification
   # and comprehensive statistics tracking.
@@ -21,6 +22,7 @@ module RAAF
   #   end
   #
   module RetryHandler
+
     include Logger
 
     # AI-specific error classification patterns
@@ -119,12 +121,9 @@ module RAAF
           result = yield
 
           # Record success if this was a retry
-          if attempts > 1
-            record_retry_success
-          end
+          record_retry_success if attempts > 1
 
           return result
-
         rescue *@retry_config[:exceptions] => e
           error_type = classify_error(e)
           record_retry_attempt(error_type)
@@ -133,7 +132,6 @@ module RAAF
           raise if error_type == :authentication_error
 
           handle_retry_attempt(method_name, attempts, e, error_type)
-
         rescue StandardError => e
           # Check if this is a retryable error pattern
           error_type = classify_error(e)
@@ -168,7 +166,7 @@ module RAAF
     #   configure_retry(max_attempts: 3, base_delay: 2.0)
     #
     def configure_retry(max_attempts: nil, base_delay: nil, max_delay: nil,
-                       multiplier: nil, jitter: nil, exceptions: nil)
+                        multiplier: nil, jitter: nil, exceptions: nil)
       @retry_config ||= default_retry_config
 
       @retry_config[:max_attempts] = max_attempts if max_attempts
@@ -246,8 +244,8 @@ module RAAF
         patterns.each do |pattern|
           if pattern.is_a?(Regexp)
             return error_type if error_message.match?(pattern) || error_class.match?(pattern)
-          else
-            return error_type if error_message.include?(pattern.to_s)
+          elsif error_message.include?(pattern.to_s)
+            return error_type
           end
         end
       end
@@ -375,9 +373,7 @@ module RAAF
     #
     def log_retry_attempt(method, attempt, error, error_type, delay)
       # Calculate next delay for informational logging (if not at max attempts)
-      next_delay = if attempt < @retry_config[:max_attempts]
-                     calculate_delay(attempt + 1)
-                   end
+      next_delay = (calculate_delay(attempt + 1) if attempt < @retry_config[:max_attempts])
 
       log_warn(
         "Retry attempt #{attempt}/#{@retry_config[:max_attempts]} for #{method || "operation"} (error_type: #{error_type})",
@@ -410,5 +406,7 @@ module RAAF
         total_attempts: attempts
       )
     end
+
   end
+
 end

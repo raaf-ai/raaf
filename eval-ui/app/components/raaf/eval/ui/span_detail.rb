@@ -66,7 +66,7 @@ module RAAF
                   class: "px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700",
                   data: {
                     action: "click->clipboard#copy",
-                    clipboard_text_value: span.span_id
+                    clipboard_text_value: span.span_id,
                   }
                 ) do
                   text "Copy ID"
@@ -89,7 +89,7 @@ module RAAF
                 class: "absolute top-2 right-2 px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50",
                 data: {
                   action: "click->clipboard#copy",
-                  clipboard_text_value: input_content
+                  clipboard_text_value: input_content,
                 }
               ) do
                 text "Copy"
@@ -123,7 +123,7 @@ module RAAF
                 class: "absolute top-2 right-2 px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50",
                 data: {
                   action: "click->clipboard#copy",
-                  clipboard_text_value: output_content
+                  clipboard_text_value: output_content,
                 }
               ) do
                 text "Copy"
@@ -261,16 +261,14 @@ module RAAF
         end
 
         def render_timeline_message(msg, idx)
-          role_class = msg[:role] == 'user' ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'
+          role_class = msg[:role] == "user" ? "bg-blue-50 border-blue-200" : "bg-green-50 border-green-200"
 
           div(class: "flex items-start space-x-3") do
             # Timeline indicator
             div(class: "flex flex-col items-center") do
-              div(class: "w-3 h-3 rounded-full #{role_class.split.first.gsub('bg-', 'bg-')}") { }
+              div(class: "w-3 h-3 rounded-full #{role_class.split.first.gsub('bg-', 'bg-')}") {}
 
-              unless idx == messages.length - 1
-                div(class: "w-0.5 h-full bg-gray-200 mt-2") { }
-              end
+              div(class: "w-0.5 h-full bg-gray-200 mt-2") {} unless idx == messages.length - 1
             end
 
             # Message content
@@ -315,7 +313,7 @@ module RAAF
           div(class: "bg-white rounded-lg p-4 border border-gray-200") do
             div(class: "flex items-center justify-between mb-2") do
               p(class: "font-semibold text-sm text-gray-900") do
-                text tool_call[:name] || 'Unknown Tool'
+                text tool_call[:name] || "Unknown Tool"
               end
 
               span(class: "text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded") do
@@ -386,19 +384,19 @@ module RAAF
         # Helper methods
 
         def span_type_label
-          span.span_type&.capitalize || 'Unknown'
+          span.span_type&.capitalize || "Unknown"
         end
 
         def status_label
-          span_data.dig('status') || 'Completed'
+          span_data.dig("status") || "Completed"
         end
 
         def status_badge_class
           base = "px-3 py-1 text-xs font-semibold rounded-full"
           case status_label.downcase
-          when 'completed', 'success'
+          when "completed", "success"
             "#{base} bg-green-100 text-green-800"
-          when 'failed', 'error'
+          when "failed", "error"
             "#{base} bg-red-100 text-red-800"
           else
             "#{base} bg-gray-100 text-gray-800"
@@ -410,30 +408,30 @@ module RAAF
         end
 
         def messages
-          @messages ||= span_data['output_messages'] || span_data['input_messages'] || []
+          @messages ||= span_data["output_messages"] || span_data["input_messages"] || []
         end
 
         def tool_calls
-          @tool_calls ||= span_data['tool_calls'] || []
+          @tool_calls ||= span_data["tool_calls"] || []
         end
 
         def handoffs
-          @handoffs ||= span_data['handoffs'] || []
+          @handoffs ||= span_data["handoffs"] || []
         end
 
         def input_content
-          if span_data['input_messages']
-            JSON.pretty_generate(span_data['input_messages'])
+          if span_data["input_messages"]
+            JSON.pretty_generate(span_data["input_messages"])
           else
-            span_data['input']&.to_s || ''
+            span_data["input"]&.to_s || ""
           end
         end
 
         def output_content
-          if span_data['output_messages']
-            JSON.pretty_generate(span_data['output_messages'])
+          if span_data["output_messages"]
+            JSON.pretty_generate(span_data["output_messages"])
           else
-            span_data['output']&.to_s || ''
+            span_data["output"]&.to_s || ""
           end
         end
 
@@ -446,39 +444,39 @@ module RAAF
         end
 
         def input_token_count
-          span_data.dig('metadata', 'tokens', 'input') || 0
+          span_data.dig("metadata", "tokens", "input") || 0
         end
 
         def output_token_count
-          span_data.dig('metadata', 'tokens', 'output') || 0
+          span_data.dig("metadata", "tokens", "output") || 0
         end
 
         def total_token_count
-          span_data.dig('metadata', 'tokens', 'total') || (input_token_count + output_token_count)
+          span_data.dig("metadata", "tokens", "total") || (input_token_count + output_token_count)
         end
 
         def input_cost
-          span_data.dig('metadata', 'cost', 'input') || 0.0
+          span_data.dig("metadata", "cost", "input") || 0.0
         end
 
         def output_cost
-          span_data.dig('metadata', 'cost', 'output') || 0.0
+          span_data.dig("metadata", "cost", "output") || 0.0
         end
 
         def total_cost
-          span_data.dig('metadata', 'cost', 'total') || span_data.dig('metadata', 'cost') || 0.0
+          span_data.dig("metadata", "cost", "total") || span_data.dig("metadata", "cost") || 0.0
         end
 
         def latency_ms
-          span_data.dig('metadata', 'latency_ms') || 0
+          span_data.dig("metadata", "latency_ms") || 0
         end
 
         def ttft_ms
-          span_data.dig('metadata', 'ttft_ms') || 0
+          span_data.dig("metadata", "ttft_ms") || 0
         end
 
         def formatted_timestamp
-          span.created_at&.strftime('%Y-%m-%d %H:%M:%S UTC') || 'Unknown'
+          span.created_at&.strftime("%Y-%m-%d %H:%M:%S UTC") || "Unknown"
         end
 
         def multi_turn_conversation?

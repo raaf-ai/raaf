@@ -33,6 +33,7 @@ module RAAF
 
     # Include Traceable module for proper span hierarchy
     include RAAF::Tracing::Traceable
+
     trace_as :pipeline
 
     attr_reader :current_span
@@ -45,7 +46,7 @@ module RAAF
       def trace_component_type
         :pipeline
       end
-      
+
       # Define the agent execution flow using DSL operators
       # Stores the chained/parallel agent structure for execution
       def flow(chain)
@@ -53,7 +54,7 @@ module RAAF
         # Keep thread-local variable available for ChainedAgent field validation
         # Thread.current[:raaf_pipeline_context_fields] = nil  # Removed: This was clearing context fields too early
       end
-      
+
       # Define shared schema for all agents in the pipeline using field DSL
       # This schema will be automatically injected into agents
       # Uses the same SchemaBuilder class that agents use
@@ -62,22 +63,20 @@ module RAAF
           # Use the same SchemaBuilder class that agents use to ensure consistency
           builder = RAAF::DSL::Agent::SchemaBuilder.new(&block)
           built_schema = builder.build
-          
+
           # Store as a proc that returns the complete built schema (schema + config)
           @pipeline_schema_block = proc { built_schema }
         end
         @pipeline_schema_block
       end
-      
+
       # Define on_end hook using DSL block
       # Executes after all agents complete with the final result
       def on_end(&block)
-        if block_given?
-          @on_end_block = block
-        end
+        @on_end_block = block if block_given?
         @on_end_block
       end
-      
+
       # Context DSL method provided by ContextConfiguration module
       # Override to add pipeline-specific behavior (thread local variable)
       #
@@ -92,21 +91,21 @@ module RAAF
       # Unlike the fixed issues (_tools_config, _context_config), this does NOT
       # cause background job failures because it's transient class definition data.
       def context(&block)
-        super(&block)  # Call the ContextConfiguration module's method
+        super # Call the ContextConfiguration module's method
 
         # Make context fields available immediately for flow definition
         Thread.current[:raaf_pipeline_context_fields] = context_fields if block_given?
         _context_config[:context_rules] || {}
       end
-      
+
       # Backward compatibility method
       def context_config
         _context_config[:context_rules] || {}
       end
-      
+
       # Get required fields from context configuration - now uses ContextConfiguration module
       # This method delegates to the module's implementation
-      
+
       # Get all fields declared in context (both required and optional)
       # These are the fields that will be preserved through the pipeline
       def context_fields
@@ -114,22 +113,22 @@ module RAAF
         requirements = context_rules[:required] || []
         defaults = context_rules[:optional] || {}
         outputs = context_rules[:output] || []
-        
+
         # All context fields are preserved through the pipeline
         (requirements + defaults.keys + outputs).uniq
       end
-      
+
       # Disable validation for this pipeline
       def skip_validation!
         @skip_validation = true
       end
-      
+
       # Enable validation (default)
       def enable_validation!
         @skip_validation = false
       end
     end
-    
+
     # Initialize a pipeline with flexible context options
     #
     # Supports the same flexible API as RAAF agents for consistency:
@@ -142,13 +141,13 @@ module RAAF
     # @param provided_context [Hash] Additional context as keyword arguments
     def initialize(context: nil, tracer: nil, **provided_context)
       # Support both context: hash and direct keyword arguments like agents do
-      if context
-        # Context provided explicitly (like agents)
-        @context = build_context_from_param(context).merge(provided_context)
-      else
-        # Use keyword arguments as context
-        @context = build_initial_context(provided_context)
-      end
+      @context = if context
+                   # Context provided explicitly (like agents)
+                   build_context_from_param(context).merge(provided_context)
+                 else
+                   # Use keyword arguments as context
+                   build_initial_context(provided_context)
+                 end
 
       @flow = self.class.flow_chain
       @tracer = tracer || get_default_tracer
@@ -156,61 +155,59 @@ module RAAF
       @context = @context.set(:pipeline_instance, self) if @context.respond_to?(:set)
       validate_initial_context!
     end
-    
+
     # Access the pipeline schema for agents
     def pipeline_schema
       self.class.pipeline_schema_block
     end
-    
+
     # Validate all agents in the pipeline with context flow tracking
     def validate_pipeline!
       errors = []
-      
+
       # First, provide pipeline context fields to the flow chain for validation
       # This ensures ChainedAgent knows about all pipeline-level context fields
       # Single agents don't need this, only ChainedAgent/ParallelAgents do
       if @flow.respond_to?(:validate_with_pipeline_context)
         @flow.validate_with_pipeline_context(self.class.context_fields)
       end
-      
+
       # Track context as it flows through the pipeline
       context_hash = @context.respond_to?(:to_h) ? @context.to_h : @context
       tracker = RAAF::DSL::ContextFlowTracker.new(context_hash)
-      
+
       # Validate the entire flow
       validate_flow_with_tracking(@flow, tracker, errors)
-      
+
       if errors.any?
         error_message = "Pipeline validation failed! Context errors detected:\n\n"
         errors.each do |error|
           error_message += "Stage #{error[:stage_number]}: #{error[:stage]}\n"
           error_message += "   Error: #{error[:message]}\n"
           error_message += "   Context at this stage: #{error[:available_context].inspect}\n"
-          
-          if error[:missing_variables]
-            error_message += "   Missing: #{error[:missing_variables].inspect}\n"
-          end
-          
+
+          error_message += "   Missing: #{error[:missing_variables].inspect}\n" if error[:missing_variables]
+
           error_message += "\n"
         end
-        
+
         # Add summary
         error_message += "Context Flow Summary:\n"
         summary = tracker.summary
         error_message += "  Initial context: #{summary[:initial_context].inspect}\n"
         error_message += "  Final context: #{summary[:final_context].inspect}\n"
         error_message += "  Fields added during pipeline: #{summary[:fields_added].inspect}\n"
-        
+
         raise RAAF::DSL::Error, error_message
       end
-      
-      if defined?(RAAF::Logger) && self.respond_to?(:log_info)
-        log_info "Pipeline validation successful", 
+
+      if defined?(RAAF::Logger) && respond_to?(:log_info)
+        log_info "Pipeline validation successful",
                  stages: tracker.stage_number,
                  initial_context: tracker.summary[:initial_context],
                  final_context: tracker.summary[:final_context]
       end
-      
+
       true
     end
 
@@ -229,9 +226,7 @@ module RAAF
       @agent_results = []
 
       # Validate pipeline before execution (enabled by default)
-      unless self.class.skip_validation
-        validate_pipeline!
-      end
+      validate_pipeline! unless self.class.skip_validation
 
       begin
         # Update @context with accumulated data from agents
@@ -259,28 +254,27 @@ module RAAF
         if @current_span && merged_result[:usage]
           @current_span.set_attribute("pipeline.usage", merged_result[:usage])
           @current_span.set_attribute("dialog.total_tokens", {
-            prompt_tokens: merged_result[:usage][:input_tokens] || 0,
-            completion_tokens: merged_result[:usage][:output_tokens] || 0,
-            total_tokens: merged_result[:usage][:total_tokens] || 0
-          })
+                                        prompt_tokens: merged_result[:usage][:input_tokens] || 0,
+                                        completion_tokens: merged_result[:usage][:output_tokens] || 0,
+                                        total_tokens: merged_result[:usage][:total_tokens] || 0
+                                      })
         end
 
         # Sanitize the result to ensure it's serializable and free of circular references
         # This converts ActiveRecord objects to plain hashes and maintains HashWithIndifferentAccess
         sanitize_result(merged_result)
-
       rescue RAAF::DSL::PipelineDSL::PipelineFailureError => e
         # Pipeline failed - return structured error result
         RAAF.logger.error "Pipeline #{pipeline_name} failed at agent '#{e.agent_name}': #{e.error_message}"
 
         error_result = ActiveSupport::HashWithIndifferentAccess.new({
-          success: false,
-          error: e.error_message,
-          error_type: e.error_type || "pipeline_failure",
-          failed_at: e.agent_name,
-          pipeline: pipeline_name,
-          full_error_details: e.full_result
-        })
+                                                                      success: false,
+                                                                      error: e.error_message,
+                                                                      error_type: e.error_type || "pipeline_failure",
+                                                                      failed_at: e.agent_name,
+                                                                      pipeline: pipeline_name,
+                                                                      full_error_details: e.full_result
+                                                                    })
 
         sanitize_result(error_result)
       end
@@ -290,7 +284,6 @@ module RAAF
     def pipeline_name
       self.class.name || "UnknownPipeline"
     end
-
 
     # Generate flow structure description
     def flow_structure_description(flow)
@@ -380,15 +373,15 @@ module RAAF
       redacted = {}
       data.each do |key, value|
         key_str = key.to_s.downcase
-        if sensitive_key?(key_str)
-          redacted[key] = "[REDACTED]"
-        elsif value.is_a?(Hash)
-          redacted[key] = redact_sensitive_data(value)
-        elsif value.is_a?(Array) && value.any? { |v| v.is_a?(Hash) }
-          redacted[key] = value.map { |v| v.is_a?(Hash) ? redact_sensitive_data(v) : v }
-        else
-          redacted[key] = value
-        end
+        redacted[key] = if sensitive_key?(key_str)
+                          "[REDACTED]"
+                        elsif value.is_a?(Hash)
+                          redact_sensitive_data(value)
+                        elsif value.is_a?(Array) && value.any? { |v| v.is_a?(Hash) }
+                          value.map { |v| v.is_a?(Hash) ? redact_sensitive_data(v) : v }
+                        else
+                          value
+                        end
       end
       redacted
     end
@@ -414,14 +407,14 @@ module RAAF
                      else
                        RAAF::DSL::ContextVariables.new({})
                      end
-      
+
       # Check block arity to maintain backward compatibility
       if block.arity == 0
         # Legacy: parameterless block with direct context access (deprecated)
         # Temporarily store the current context
         old_context = instance_variable_get(:@context)
         instance_variable_set(:@context, context_vars)
-        
+
         begin
           callback_result = instance_eval(&block)
           callback_result || context_vars
@@ -436,7 +429,7 @@ module RAAF
         callback_result || context_vars
       end
     end
-    
+
     def build_context_from_param(context_param)
       case context_param
       when Hash
@@ -447,99 +440,97 @@ module RAAF
         raise ArgumentError, "Pipeline context must be a Hash or ContextVariables, got #{context_param.class}"
       end
     end
-    
+
     def build_initial_context(provided_context)
       # Start with provided context
       context = provided_context.dup
-      
+
       # Apply enhanced context configuration (unified with agents)
       context_rules = self.class._context_config[:context_rules] || {}
-      
+
       # Process optional fields with defaults
       if context_rules[:optional]
         context_rules[:optional].each do |key, default_value|
           context[key] ||= default_value.is_a?(Proc) ? default_value.call : default_value
         end
       end
-      
+
       # Add any computed context fields (if we have build_*_context methods)
       all_fields = []
       all_fields.concat(context_rules[:required] || [])
       all_fields.concat(context_rules[:optional]&.keys || [])
       all_fields.concat(self.class.required_fields || [])
-      
+
       all_fields.uniq.each do |field|
         method_name = "build_#{field}_context"
-        if respond_to?(method_name, true)
-          context[field] ||= send(method_name)
-        end
+        context[field] ||= send(method_name) if respond_to?(method_name, true)
       end
-      
+
       # Convert to ContextVariables to ensure consistency and prevent recursion
       ensure_context_variables(context)
     end
-    
+
     def validate_initial_context!
       return unless @flow
-      
+
       # Validate Pipeline's own required fields first
       context_rules = self.class._context_config[:context_rules] || {}
       pipeline_required = context_rules[:required] || []
-      pipeline_optional = context_rules[:optional]&.keys || []
+      context_rules[:optional]&.keys || []
       provided = @context.keys.map(&:to_sym)
-      
+
       # Check Pipeline's required fields
       missing_pipeline_fields = pipeline_required - provided
       if missing_pipeline_fields.any?
         raise ArgumentError, <<~MSG
           Pipeline initialization error!
-          
+
           Pipeline #{self.class.name} requires: #{pipeline_required.inspect}
           You provided: #{@context.keys.inspect} (as symbols: #{provided.inspect})
           Missing: #{missing_pipeline_fields.inspect}
-          
+
           Either:
           1. Add missing fields when creating the pipeline:
              pipeline = #{self.class.name}.new(
                #{missing_pipeline_fields.map { |f| "#{f}: #{f}_value" }.join(",\n               ")}
              )
-          
+
           2. Or define defaults in the pipeline class:
              class #{self.class.name}
                context do
-                 optional #{missing_pipeline_fields.map { |f| "#{f}: \"default_value\"" }.join(", ")}
+                 optional #{missing_pipeline_fields.map { |f| "#{f}: \"default_value\"" }.join(', ')}
                end
              end
         MSG
       end
-      
+
       # Validate first agent requirements
       first_agent = extract_first_agent(@flow)
       return unless first_agent && first_agent.respond_to?(:externally_required_fields)
-      
+
       # Use externally_required_fields to only check for fields without defaults
       externally_required = first_agent.externally_required_fields
       missing_agent_fields = externally_required - provided
-      
-      if missing_agent_fields.any?
-        # Show both externally required and all required for debugging
-        all_required = first_agent.respond_to?(:required_fields) ? first_agent.required_fields : externally_required
-        
-        raise ArgumentError, <<~MSG
-          Pipeline initialization error!
-          
-          First agent #{first_agent.name} requires: #{all_required.inspect}
-          You provided: #{@context.keys.inspect} (as symbols: #{provided.inspect})
-          Missing: #{missing_agent_fields.inspect}
-          
-          Add missing fields when creating the pipeline:
-             pipeline = #{self.class.name}.new(
-               #{missing_agent_fields.map { |f| "#{f}: #{f}_value" }.join(",\n               ")}
-             )
-        MSG
-      end
+
+      return unless missing_agent_fields.any?
+
+      # Show both externally required and all required for debugging
+      all_required = first_agent.respond_to?(:required_fields) ? first_agent.required_fields : externally_required
+
+      raise ArgumentError, <<~MSG
+        Pipeline initialization error!
+
+        First agent #{first_agent.name} requires: #{all_required.inspect}
+        You provided: #{@context.keys.inspect} (as symbols: #{provided.inspect})
+        Missing: #{missing_agent_fields.inspect}
+
+        Add missing fields when creating the pipeline:
+           pipeline = #{self.class.name}.new(
+             #{missing_agent_fields.map { |f| "#{f}: #{f}_value" }.join(",\n               ")}
+           )
+      MSG
     end
-    
+
     def extract_first_agent(chain)
       case chain
       when DSL::PipelineDSL::ChainedAgent
@@ -557,7 +548,7 @@ module RAAF
         nil
       end
     end
-    
+
     def execute_chain(chain, context)
       case chain
       when DSL::PipelineDSL::ChainedAgent, DSL::PipelineDSL::ParallelAgents, DSL::PipelineDSL::ConfiguredAgent, DSL::PipelineDSL::RemappedAgent
@@ -575,7 +566,7 @@ module RAAF
         raise "Unknown chain type: #{chain.class}"
       end
     end
-    
+
     def execute_agent(agent_class, context)
       unless agent_class.respond_to?(:requirements_met?) && agent_class.requirements_met?(context)
         required_fields = agent_class.respond_to?(:required_fields) ? agent_class.required_fields || [] : []
@@ -587,14 +578,14 @@ module RAAF
         RAAF.logger.warn "  ✅ Available in context: #{available_keys.inspect}"
         RAAF.logger.warn "  ❌ Missing fields: #{missing_fields.inspect}"
 
-        return [{}, context]  # Return empty result and unchanged context for skipped agents
+        return [{}, context] # Return empty result and unchanged context for skipped agents
       end
 
       # ContextVariables now supports direct splatting via to_hash method
       # Create instance - works for both Agent and Service classes
       # Pass parent_component (this pipeline) for proper span hierarchy
       instance_params = context.to_h
-      instance_params[:parent_component] = self  # Pass pipeline object, not span
+      instance_params[:parent_component] = self # Pass pipeline object, not span
 
       # Don't pass tracer explicitly - let agents discover via TracingRegistry (ambient context pattern)
       instance = agent_class.new(**instance_params)
@@ -609,12 +600,12 @@ module RAAF
       # Prioritize 'call' method if available (for agents with custom processing)
       logger&.debug "Executing #{agent_class.name}"
       result = if is_service_class?(agent_class)
-        instance.call
-      elsif instance.respond_to?(:call)
-        instance.call
-      else
-        instance.run
-      end
+                 instance.call
+               elsif instance.respond_to?(:call)
+                 instance.call
+               else
+                 instance.run
+               end
 
       # Check for failure in result - propagate immediately if agent/service failed
       if result.is_a?(Hash) && result.key?(:success) && result[:success] == false
@@ -625,9 +616,7 @@ module RAAF
       # Merge provisions into context (for backward compatibility)
       if agent_class.respond_to?(:provided_fields)
         agent_class.provided_fields.each do |field|
-          if result.respond_to?(:[]) && result[field]
-            context = context.set(field, result[field])
-          end
+          context = context.set(field, result[field]) if result.respond_to?(:[]) && result[field]
         end
       end
 
@@ -635,17 +624,19 @@ module RAAF
       if result.respond_to?(:[]) && result.is_a?(Hash)
         result.each do |key, value|
           # Only merge non-internal fields (avoid success, errors, etc.)
-          unless key.to_s.match?(/^(success|error|errors|status|metadata)$/i)
-            context = context.set(key, value)
-          end
+          context = context.set(key, value) unless key.to_s.match?(/^(success|error|errors|status|metadata)$/i)
         end
       end
 
       # Return both the agent's result and the updated context
-      agent_result = result.respond_to?(:to_h) ? result.to_h : (result.is_a?(Hash) ? result : {})
+      agent_result = if result.respond_to?(:to_h)
+                       result.to_h
+                     else
+                       (result.is_a?(Hash) ? result : {})
+                     end
       [agent_result, context]
     end
-    
+
     # Check if a class is a Service (as opposed to an Agent)
     def is_service_class?(klass)
       # Check if the class inherits from RAAF::DSL::Service
@@ -654,13 +645,14 @@ module RAAF
       # RAAF::DSL::Service might not be loaded yet
       false
     end
-    
+
     # Simple logger accessor for pipeline
     def logger
       return nil unless defined?(RAAF) && RAAF.respond_to?(:logger)
+
       RAAF.logger
     end
-    
+
     # Validate flow with context tracking through pipeline stages
     def validate_flow_with_tracking(flow, tracker, errors)
       case flow
@@ -668,7 +660,7 @@ module RAAF
         # Sequential chain - validate each stage in order
         validate_flow_with_tracking(flow.first, tracker, errors)
         validate_flow_with_tracking(flow.second, tracker, errors)
-        
+
       when DSL::PipelineDSL::ParallelAgents
         # Parallel execution - each branch gets current context
         flow.agents.each_with_index do |agent, index|
@@ -676,7 +668,7 @@ module RAAF
           validate_single_stage(agent, branch_tracker, errors, "parallel_#{index + 1}")
           tracker.merge_branch_results(branch_tracker)
         end
-        
+
       when DSL::PipelineDSL::ConfiguredAgent
         validate_single_stage(flow.agent_class, tracker, errors)
 
@@ -696,7 +688,7 @@ module RAAF
 
       when Class
         validate_single_stage(flow, tracker, errors)
-        
+
       else
         # Unknown flow type - add warning but continue
         errors << {
@@ -708,7 +700,7 @@ module RAAF
         }
       end
     end
-    
+
     # Validate a single stage (agent or service) with context tracking
     def validate_single_stage(stage_class, tracker, errors, stage_name = nil)
       # Handle different stage types
@@ -735,7 +727,6 @@ module RAAF
 
             raise StandardError, "RemappedAgent requirements not met. Required: #{required.inspect}, Available: #{available.inspect}, Missing: #{missing.inspect}"
           end
-
         rescue StandardError => e
           handle_validation_error(e, stage_name, tracker, errors)
         end
@@ -765,10 +756,7 @@ module RAAF
           test_instance = stage_class.new(validation_mode: true, **context_hash)
 
           # Validate using unified Pipelineable interface if supported
-          if test_instance.can_validate_for_pipeline?
-            test_instance.validate_for_pipeline(context_hash)
-          end
-
+          test_instance.validate_for_pipeline(context_hash) if test_instance.can_validate_for_pipeline?
         rescue StandardError => e
           handle_validation_error(e, stage_name, tracker, errors)
         end
@@ -784,7 +772,7 @@ module RAAF
       if error.message.include?("Missing variables:")
         # Try to extract missing variables from error message
         match = error.message.match(/Missing variables: \[(.*?)\]/)
-        missing_vars = match ? match[1].split(', ').map(&:strip) : nil
+        missing_vars = match ? match[1].split(", ").map(&:strip) : nil
       end
 
       errors << {
@@ -822,19 +810,19 @@ module RAAF
         # Skip usage field - it's handled separately by aggregate_usage_statistics
         next if key.to_s == "usage" || key == :usage
 
-        if base[key].is_a?(Array) && value.is_a?(Array)
-          # Intelligently merge arrays by matching IDs
-          base[key] = merge_arrays_by_id(base[key], value)
-        elsif base[key].is_a?(Hash) && value.is_a?(Hash)
-          # Recursively merge nested hashes with indifferent access
-          base[key] = ActiveSupport::HashWithIndifferentAccess.new(deep_merge_results(base[key], value))
-        elsif value.is_a?(Hash)
-          # Convert new hash values to indifferent access
-          base[key] = ActiveSupport::HashWithIndifferentAccess.new(value)
-        else
-          # Simple replacement or addition for scalars
-          base[key] = value
-        end
+        base[key] = if base[key].is_a?(Array) && value.is_a?(Array)
+                      # Intelligently merge arrays by matching IDs
+                      merge_arrays_by_id(base[key], value)
+                    elsif base[key].is_a?(Hash) && value.is_a?(Hash)
+                      # Recursively merge nested hashes with indifferent access
+                      ActiveSupport::HashWithIndifferentAccess.new(deep_merge_results(base[key], value))
+                    elsif value.is_a?(Hash)
+                      # Convert new hash values to indifferent access
+                      ActiveSupport::HashWithIndifferentAccess.new(value)
+                    else
+                      # Simple replacement or addition for scalars
+                      value
+                    end
       end
       base
     end
@@ -853,16 +841,16 @@ module RAAF
 
       # Merge new items into lookup table
       new_array.each do |new_item|
-        if new_item.is_a?(Hash)
-          id = new_item[:id] || new_item["id"] || new_item[:name] || new_item["name"]
-          if id && base_lookup[id]
-            # Deep merge with existing item
-            base_lookup[id] = ActiveSupport::HashWithIndifferentAccess.new(deep_merge_results(base_lookup[id], new_item))
-          else
-            # Add new item (generate ID if missing) with indifferent access
-            key = id || SecureRandom.uuid
-            base_lookup[key] = ActiveSupport::HashWithIndifferentAccess.new(new_item.dup)
-          end
+        next unless new_item.is_a?(Hash)
+
+        id = new_item[:id] || new_item["id"] || new_item[:name] || new_item["name"]
+        if id && base_lookup[id]
+          # Deep merge with existing item
+          base_lookup[id] = ActiveSupport::HashWithIndifferentAccess.new(deep_merge_results(base_lookup[id], new_item))
+        else
+          # Add new item (generate ID if missing) with indifferent access
+          key = id || SecureRandom.uuid
+          base_lookup[key] = ActiveSupport::HashWithIndifferentAccess.new(new_item.dup)
         end
       end
 
@@ -889,14 +877,14 @@ module RAAF
 
         # Support both input_tokens/output_tokens and prompt_tokens/completion_tokens
         input_tokens = usage[:input_tokens] || usage["input_tokens"] ||
-                      usage[:prompt_tokens] || usage["prompt_tokens"] || 0
+                       usage[:prompt_tokens] || usage["prompt_tokens"] || 0
         output_tokens = usage[:output_tokens] || usage["output_tokens"] ||
-                       usage[:completion_tokens] || usage["completion_tokens"] || 0
+                        usage[:completion_tokens] || usage["completion_tokens"] || 0
 
         # Optional fields
         cache_tokens = usage[:cache_read_input_tokens] || usage["cache_read_input_tokens"] || 0
         reasoning_tokens = usage.dig(:output_tokens_details, :reasoning_tokens) ||
-                          usage.dig("output_tokens_details", "reasoning_tokens") || 0
+                           usage.dig("output_tokens_details", "reasoning_tokens") || 0
 
         # Accumulate totals
         total_input_tokens += input_tokens
@@ -922,17 +910,15 @@ module RAAF
         input_tokens: total_input_tokens,
         output_tokens: total_output_tokens,
         total_tokens: total_input_tokens + total_output_tokens,
-        prompt_tokens: total_input_tokens,      # Alias for compatibility
-        completion_tokens: total_output_tokens,  # Alias for compatibility
+        prompt_tokens: total_input_tokens, # Alias for compatibility
+        completion_tokens: total_output_tokens, # Alias for compatibility
         agent_breakdown: agent_breakdown
       }
 
       # Add optional fields if present
       usage_hash[:cache_read_input_tokens] = total_cache_read_tokens if total_cache_read_tokens > 0
 
-      if total_reasoning_tokens > 0
-        usage_hash[:output_tokens_details] = { reasoning_tokens: total_reasoning_tokens }
-      end
+      usage_hash[:output_tokens_details] = { reasoning_tokens: total_reasoning_tokens } if total_reasoning_tokens > 0
 
       ActiveSupport::HashWithIndifferentAccess.new(usage_hash)
     end
@@ -959,7 +945,7 @@ module RAAF
         # Basic types pass through unchanged
         result
       end
-    rescue => e
+    rescue StandardError => e
       Rails.logger.error "Pipeline sanitization error: #{e.message}" if defined?(Rails)
       result.to_s
     end

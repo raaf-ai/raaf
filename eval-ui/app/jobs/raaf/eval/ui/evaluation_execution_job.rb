@@ -55,12 +55,12 @@ module RAAF
                 {
                   output: execution_result[:output],
                   tokens: execution_result[:tokens],
-                  messages: execution_result[:messages]
+                  messages: execution_result[:messages],
                 },
                 {
                   latency_ms: execution_result[:latency_ms],
                   cost: execution_result[:cost],
-                  token_usage: execution_result[:token_usage]
+                  token_usage: execution_result[:token_usage],
                 }
               )
             rescue StandardError => e
@@ -72,7 +72,7 @@ module RAAF
 
         # Execute a single configuration against the baseline
         # This would integrate with Phase 1's RAAF::Eval::EvaluationEngine
-        def execute_configuration(baseline_span, configuration)
+        def execute_configuration(_baseline_span, configuration)
           # Stub implementation - Phase 1 integration point
           {
             output: "Evaluation output for #{configuration.name}",
@@ -83,8 +83,8 @@ module RAAF
             token_usage: {
               prompt_tokens: 50,
               completion_tokens: 100,
-              total_tokens: 150
-            }
+              total_tokens: 150,
+            },
           }
         end
       end

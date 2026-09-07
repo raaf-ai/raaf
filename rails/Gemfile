@@ -3,7 +3,9 @@
 source "https://rubygems.org"
 
 # Always use local development paths for raaf gems
+gem "phlex-preline", path: "../../phlex-preline"
 gem "raaf-core", path: "../core"
+gem "raaf-eval", path: "../eval"
 gem "raaf-memory", path: "../memory"
 gem "raaf-testing", path: "../testing"
 gem "raaf-tracing", path: "../tracing"

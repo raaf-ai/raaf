@@ -45,7 +45,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
             name: "Test Policy",
             description: "Test policy for specs",
             target_agent_names: ["TestAgent"],
-            target_environments: [::Rails.env],
+            target_environments: [Rails.env],
             sampling_mode: "all",
             active: true,
             evaluators: [{ name: "test_evaluator", config: {} }]
@@ -81,7 +81,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
             name: "Other Policy",
             description: "Policy for different agent",
             target_agent_names: ["OtherAgent"],
-            target_environments: [::Rails.env],
+            target_environments: [Rails.env],
             sampling_mode: "all",
             active: true,
             evaluators: [{ name: "test_evaluator", config: {} }]
@@ -101,7 +101,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
         end
 
         it "logs the error but does not raise" do
-          expect(::Rails.logger).to receive(:warn).with(
+          expect(Rails.logger).to receive(:warn).with(
             /Failed to enqueue evaluations: Test error/
           )
 
@@ -122,7 +122,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
             name: "Test Policy",
             description: "Test policy",
             target_agent_names: ["TestAgent"],
-            target_environments: [::Rails.env],
+            target_environments: [Rails.env],
             sampling_mode: "all",
             active: true,
             evaluators: [{ name: "test_evaluator", config: {} }]
@@ -135,7 +135,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
         end
 
         it "logs the error but does not raise" do
-          expect(::Rails.logger).to receive(:warn).with(
+          expect(Rails.logger).to receive(:warn).with(
             /Failed to enqueue evaluations: Queue error/
           )
 
@@ -232,8 +232,8 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
         5.times do
           start_time = Time.now
           described_class.create!(span_attributes.merge(
-            span_id: "span_#{SecureRandom.hex(12)}"
-          ))
+                                    span_id: "span_#{SecureRandom.hex(12)}"
+                                  ))
           baseline_times << (Time.now - start_time)
         end
         baseline_avg = baseline_times.sum / baseline_times.size
@@ -243,7 +243,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
           name: "Overhead Test Policy",
           description: "Policy for overhead testing",
           target_agent_names: ["TestAgent"],
-          target_environments: [::Rails.env],
+          target_environments: [Rails.env],
           sampling_mode: "all",
           active: true,
           evaluators: [{ name: "test_evaluator", config: {} }]
@@ -257,8 +257,8 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
         5.times do
           start_time = Time.now
           described_class.create!(span_attributes.merge(
-            span_id: "span_#{SecureRandom.hex(12)}"
-          ))
+                                    span_id: "span_#{SecureRandom.hex(12)}"
+                                  ))
           hook_times << (Time.now - start_time)
         end
         hook_avg = hook_times.sum / hook_times.size

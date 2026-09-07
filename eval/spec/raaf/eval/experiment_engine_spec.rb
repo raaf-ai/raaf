@@ -41,7 +41,7 @@ RSpec.describe RAAF::Eval::ExperimentEngine do
     end
 
     it "accepts custom scoring block" do
-      engine.run_experiment(experiment) do |item, output|
+      engine.run_experiment(experiment) do |_item, _output|
         { custom_score: 0.95 }
       end
 
@@ -56,11 +56,11 @@ RSpec.describe RAAF::Eval::ExperimentEngine do
 
     it "compares two experiments" do
       exp_a = create(:experiment, dataset: dataset, model: "gpt-4o", status: "completed",
-                     aggregate_metrics: { "success_rate" => 95.0, "scores" => { "relevance" => { "avg" => 0.85 } },
-                                          "tokens" => { "total_tokens" => 500 } })
+                                  aggregate_metrics: { "success_rate" => 95.0, "scores" => { "relevance" => { "avg" => 0.85 } },
+                                                       "tokens" => { "total_tokens" => 500 } })
       exp_b = create(:experiment, dataset: dataset, model: "claude-3-5-sonnet", status: "completed",
-                     aggregate_metrics: { "success_rate" => 98.0, "scores" => { "relevance" => { "avg" => 0.90 } },
-                                          "tokens" => { "total_tokens" => 450 } })
+                                  aggregate_metrics: { "success_rate" => 98.0, "scores" => { "relevance" => { "avg" => 0.90 } },
+                                                       "tokens" => { "total_tokens" => 450 } })
 
       comparison = engine.compare_experiments(exp_a, exp_b)
 

@@ -49,19 +49,15 @@ module RAAF
         # @param result [Hash] The result to validate
         # @raise [InvalidEvaluatorResultError] if result is invalid
         def validate_result!(result)
-          unless result.is_a?(Hash)
-            raise InvalidEvaluatorResultError, "Result must be a Hash, got #{result.class}"
-          end
+          raise InvalidEvaluatorResultError, "Result must be a Hash, got #{result.class}" unless result.is_a?(Hash)
 
           # Validate label (required)
-          unless result.key?(:label)
-            raise InvalidEvaluatorResultError, "Result must include :label field"
-          end
+          raise InvalidEvaluatorResultError, "Result must include :label field" unless result.key?(:label)
 
-          valid_labels = ["good", "average", "bad"]
+          valid_labels = %w[good average bad]
           unless valid_labels.include?(result[:label])
             raise InvalidEvaluatorResultError,
-              "Label must be one of #{valid_labels.inspect}, got #{result[:label].inspect}"
+                  "Label must be one of #{valid_labels.inspect}, got #{result[:label].inspect}"
           end
 
           # Validate score (optional but must be valid if present)
@@ -87,13 +83,15 @@ module RAAF
         # @param good_threshold [Float] DEPRECATED: Use threshold_good instead
         # @param average_threshold [Float] DEPRECATED: Use threshold_average instead
         # @return [String] Label: "good", "average", or "bad"
-        def calculate_label(score, threshold_good: nil, threshold_average: nil, good_threshold: nil, average_threshold: nil)
+        def calculate_label(score, threshold_good: nil, threshold_average: nil, good_threshold: nil,
+                            average_threshold: nil)
           # Support both new naming (threshold_good/threshold_average) and legacy naming (good_threshold/average_threshold)
           good_thresh = threshold_good || good_threshold || 0.8
           avg_thresh = threshold_average || average_threshold || 0.6
 
           return "good" if score >= good_thresh
           return "average" if score >= avg_thresh
+
           "bad"
         end
 

@@ -6,58 +6,58 @@ module RAAF
   module DSL
     # Error raised when duplicate context determination methods are detected
     class DuplicateContextError < StandardError; end
-    
+
     # ContextConfig class for the context DSL
     class ContextConfig
       def initialize
         @rules = {}
       end
-      
+
       # New DSL methods
       def required(*fields)
         @rules[:required] ||= []
         @rules[:required].concat(fields.map(&:to_sym))
       end
-      
+
       def optional(**fields_with_defaults)
         @rules[:optional] ||= {}
         fields_with_defaults.each do |field, default_value|
           @rules[:optional][field.to_sym] = default_value
         end
       end
-      
+
       def output(*fields)
         @rules[:output] ||= []
         @rules[:output].concat(fields.map(&:to_sym))
       end
-      
+
       def computed(field_name, method_name = nil)
         @rules[:computed] ||= {}
-        method_name ||= "compute_#{field_name}".to_sym
+        method_name ||= :"compute_#{field_name}"
         @rules[:computed][field_name.to_sym] = method_name.to_sym
       end
-      
+
       # Keep existing methods for backward compatibility and other functionality
       def exclude(*keys)
         @rules[:exclude] ||= []
         @rules[:exclude].concat(keys)
       end
-      
+
       def include(*keys)
         @rules[:include] ||= []
         @rules[:include].concat(keys)
       end
-      
+
       def validate(key, type: nil, with: nil)
         @rules[:validations] ||= {}
         @rules[:validations][key] = { type: type, proc: with }
       end
-      
+
       def to_h
         @rules
       end
     end
-    
+
     # Shared context configuration module for Agent and Service classes
     #
     # This module provides unified context DSL functionality that can be shared
@@ -73,7 +73,7 @@ module RAAF
     # @example Usage in Agent class
     #   class MyAgent < RAAF::DSL::Agent
     #     include RAAF::DSL::ContextConfiguration
-    #     
+    #
     #     context do
     #       default :timeout, 30
     #       requires :product, :company
@@ -83,7 +83,7 @@ module RAAF
     # @example Usage in Service class
     #   class MyService < RAAF::DSL::Service
     #     include RAAF::DSL::ContextConfiguration
-    #     
+    #
     #     context do
     #       default :max_results, 10
     #     end
@@ -172,7 +172,7 @@ module RAAF
           # Check both :required (new format) and :requirements (legacy format)
           requirements = context_rules[:required] || context_rules[:requirements] || []
           # Check both :optional (new format) and :defaults (legacy format)
-          defaults = context_rules[:optional] || context_rules[:defaults] || {}
+          context_rules[:optional] || context_rules[:defaults] || {}
 
           # Return only explicitly required fields (optional fields with defaults are handled separately)
           requirements.uniq
@@ -208,17 +208,13 @@ module RAAF
           if _context_config[:context_rules] && _context_config[:context_rules][:output]
             return _context_config[:context_rules][:output]
           end
-          
+
           # Check if service has been instantiated and run to analyze result
-          if respond_to?(:last_result_fields) && last_result_fields
-            return last_result_fields
-          end
-          
+          return last_result_fields if respond_to?(:last_result_fields) && last_result_fields
+
           # Fallback to manual declaration if available (backward compatibility)
-          if respond_to?(:declared_provided_fields)
-            return declared_provided_fields
-          end
-          
+          return declared_provided_fields if respond_to?(:declared_provided_fields)
+
           # Default empty array for services that haven't been analyzed
           []
         end
@@ -244,9 +240,11 @@ module RAAF
           # Check if context has all required fields (or they have defaults)
           if context.is_a?(Hash)
             # Ensure context has indifferent access for key checking
-            context_with_indifferent_access = context.is_a?(ActiveSupport::HashWithIndifferentAccess) ? 
-                                               context : 
-                                               context.with_indifferent_access
+            context_with_indifferent_access = if context.is_a?(ActiveSupport::HashWithIndifferentAccess)
+                                                context
+                                              else
+                                                context.with_indifferent_access
+                                              end
             required.all? { |field| context_with_indifferent_access.key?(field) || defaults.key?(field) }
           elsif context.respond_to?(:keys) && context.respond_to?(:key?)
             # Handle objects that support both keys and key? (like ContextVariables)
@@ -273,7 +271,7 @@ module RAAF
           super
           subclass._context_config = {}
         end
-        
+
         # Detect duplicate context determination (both DSL declaration and build_*_context methods)
         #
         # This validation ensures that context fields are not determined in multiple ways,
@@ -282,76 +280,75 @@ module RAAF
         # @raise [DuplicateContextError] If any field has both DSL declaration and build method
         def detect_duplicate_context_determination!
           return unless _context_config[:context_rules]
-          
+
           context_rules = _context_config[:context_rules]
           duplicates = []
-          
+
           # Collect all declared fields (required and optional)
           declared_fields = []
           declared_fields.concat(context_rules[:required] || [])
           declared_fields.concat((context_rules[:optional] || {}).keys)
-          
+
           # Check for build_*_context methods for declared fields
           declared_fields.each do |field|
             build_method = "build_#{field}_context"
-            if instance_methods.include?(build_method.to_sym) || 
-               private_instance_methods.include?(build_method.to_sym)
-              
-              determination_methods = []
-              
-              # Check if it's required
-              if (context_rules[:required] || []).include?(field)
-                determination_methods << "Declared as 'required' in context DSL"
-              end
-              
-              # Check if it's optional with default
-              if (context_rules[:optional] || {}).key?(field)
-                default_value = context_rules[:optional][field]
-                determination_methods << "Declared as 'optional' with default: #{default_value.inspect}"
-              end
-              
-              determination_methods << "Has method '#{build_method}'"
-              
-              duplicates << {
-                field: field,
-                methods: determination_methods
-              }
+            next unless method_defined?(build_method.to_sym) ||
+                        private_method_defined?(build_method.to_sym)
+
+            determination_methods = []
+
+            # Check if it's required
+            if (context_rules[:required] || []).include?(field)
+              determination_methods << "Declared as 'required' in context DSL"
             end
+
+            # Check if it's optional with default
+            if (context_rules[:optional] || {}).key?(field)
+              default_value = context_rules[:optional][field]
+              determination_methods << "Declared as 'optional' with default: #{default_value.inspect}"
+            end
+
+            determination_methods << "Has method '#{build_method}'"
+
+            duplicates << {
+              field: field,
+              methods: determination_methods
+            }
           end
-          
+
           # Also check for computed fields that might conflict
           if context_rules[:computed]
             context_rules[:computed].each do |field, method_name|
-              if declared_fields.include?(field)
-                duplicates << {
-                  field: field,
-                  methods: [
-                    declared_fields.include?(field) ? "Declared in context DSL" : nil,
-                    "Has computed method '#{method_name}'"
-                  ].compact
-                }
-              end
+              next unless declared_fields.include?(field)
+
+              duplicates << {
+                field: field,
+                methods: [
+                  declared_fields.include?(field) ? "Declared in context DSL" : nil,
+                  "Has computed method '#{method_name}'"
+                ].compact
+              }
             end
           end
-          
-          if duplicates.any?
-            raise_duplicate_context_error(duplicates)
-          end
+
+          return unless duplicates.any?
+
+          raise_duplicate_context_error(duplicates)
         end
-        
+
         private
-        
+
         # Raise a detailed error about duplicate context determination
         #
         # @param duplicates [Array<Hash>] Array of duplicate field information
         # @raise [DuplicateContextError] Always raises with detailed error message
         def raise_duplicate_context_error(duplicates)
-          agent_name = respond_to?(:name) ? name : self.to_s
-          
+          agent_name = respond_to?(:name) ? name : to_s
+
           lines = []
           lines << "RAAF::DSL::DuplicateContextError: Duplicate context determination detected in #{agent_name}!"
           lines << ""
-          
+
           duplicates.each do |duplicate|
             lines << "Field '#{duplicate[:field]}' has multiple determination methods:"
             duplicate[:methods].each do |method|
@@ -359,7 +356,7 @@ module RAAF
             end
             lines << ""
           end
-          
+
           lines << "To fix this issue, choose ONE method for each field:"
           lines << "  Option 1: Remove the field from context DSL and use build_*_context method"
           lines << "  Option 2: Remove the build_*_context method and use context DSL declaration"
@@ -372,7 +369,7 @@ module RAAF
           lines << "  - Fields that require complex computation"
           lines << "  - Fields that depend on other context values"
           lines << "  - Fields that need conditional logic"
-          
+
           raise DuplicateContextError, lines.join("\n")
         end
       end

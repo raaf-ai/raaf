@@ -15,52 +15,52 @@ RSpec.describe RAAF::Pipeline do
   let(:agent1) do
     Class.new(RAAF::DSL::Agent) do
       agent_name "Agent1"
-      
+
       # Context is automatically available through auto-context
-      
+
       result_transform do
         field :markets, computed: :find_markets
       end
-      
+
       def run
-        { markets: ["market1", "market2"] }
+        { markets: %w[market1 market2] }
       end
     end
   end
-  
+
   let(:agent2) do
     Class.new(RAAF::DSL::Agent) do
       agent_name "Agent2"
-      
+
       # Context is automatically available through auto-context
-      
+
       result_transform do
         field :scored_markets, computed: :score
       end
-      
+
       def run
         { scored_markets: @context[:markets].map { |m| { name: m, score: 0.8 } } }
       end
     end
   end
-  
+
   let(:agent3) do
     Class.new(RAAF::DSL::Agent) do
       agent_name "Agent3"
-      
+
       # Context is automatically available through auto-context
-      
+
       result_transform do
         field :companies, computed: :find_companies
       end
-      
+
       def run
         limit = @context[:limit] || 10
-        { companies: ["company1", "company2"].take(limit) }
+        { companies: %w[company1 company2].take(limit) }
       end
     end
   end
-  
+
   describe "class methods" do
     let(:pipeline_class) do
       agents = [agent1, agent2, agent3]
@@ -68,13 +68,13 @@ RSpec.describe RAAF::Pipeline do
         flow agents[0] >> agents[1] >> agents[2]
       end
     end
-    
+
     describe ".flow" do
       it "stores the agent chain" do
         expect(pipeline_class.flow_chain).to be_a(RAAF::DSL::PipelineDSL::ChainedAgent)
       end
     end
-    
+
     describe ".context" do
       let(:pipeline_with_context) do
         Class.new(described_class) do
@@ -83,7 +83,7 @@ RSpec.describe RAAF::Pipeline do
           end
         end
       end
-      
+
       it "stores context defaults" do
         config = pipeline_with_context.context_config
         expect(config[:defaults]).to include(
@@ -92,7 +92,7 @@ RSpec.describe RAAF::Pipeline do
         )
       end
     end
-    
+
     describe ".context_reader (legacy)" do
       # NOTE: context_reader has been removed in favor of auto-context
       # This test is maintained for backward compatibility documentation
@@ -102,7 +102,7 @@ RSpec.describe RAAF::Pipeline do
       end
     end
   end
-  
+
   describe "#initialize" do
     let(:simple_pipeline) do
       agents = [agent1, agent2]
@@ -110,29 +110,29 @@ RSpec.describe RAAF::Pipeline do
         flow agents[0] >> agents[1]
       end
     end
-    
+
     it "builds initial context from provided values" do
       pipeline = simple_pipeline.new(product: "Test", company: "Corp")
       context = pipeline.instance_variable_get(:@context)
       expect(context).to include(product: "Test", company: "Corp")
     end
-    
+
     context "with context defaults" do
       let(:pipeline_with_defaults) do
         agents = [agent1, agent2]
         Class.new(described_class) do
           flow agents[0] >> agents[1]
-          
+
           context do
             optional market_data: { regions: ["NA"] }, analysis_depth: "standard"
           end
         end
       end
-      
+
       it "applies defaults from context block" do
         pipeline = pipeline_with_defaults.new(product: "Test", company: "Corp")
         context = pipeline.instance_variable_get(:@context)
-        
+
         expect(context).to include(
           product: "Test",
           company: "Corp",
@@ -140,7 +140,7 @@ RSpec.describe RAAF::Pipeline do
           analysis_depth: "standard"
         )
       end
-      
+
       it "allows provided values to override defaults" do
         pipeline = pipeline_with_defaults.new(
           product: "Test",
@@ -148,55 +148,53 @@ RSpec.describe RAAF::Pipeline do
           analysis_depth: "deep"
         )
         context = pipeline.instance_variable_get(:@context)
-        
+
         expect(context[:analysis_depth]).to eq("deep")
       end
     end
-    
+
     context "with dynamic context building" do
       let(:pipeline_with_builder) do
         agents = [agent1]
         Class.new(described_class) do
           flow agents[0]
-          
+
           # Context variables are automatically available through auto-context
-          
+
           def build_market_data_context
-            { regions: ["NA", "EU"], segments: ["SMB"] }
+            { regions: %w[NA EU], segments: ["SMB"] }
           end
         end
       end
-      
+
       it "calls build_*_context methods" do
         pipeline = pipeline_with_builder.new(product: "Test", company: "Corp")
         context = pipeline.instance_variable_get(:@context)
-        
+
         expect(context[:market_data]).to eq({
-          regions: ["NA", "EU"],
-          segments: ["SMB"]
-        })
+                                              regions: %w[NA EU],
+                                              segments: ["SMB"]
+                                            })
       end
     end
-    
+
     context "validation" do
       it "validates first agent requirements" do
-        expect {
+        expect do
           simple_pipeline.new(product: "Test") # Missing company
-        }.to raise_error(ArgumentError, /Pipeline initialization error/)
+        end.to raise_error(ArgumentError, /Pipeline initialization error/)
       end
-      
+
       it "provides helpful error message" do
-        begin
-          simple_pipeline.new(product: "Test")
-        rescue ArgumentError => e
-          expect(e.message).to include("First agent Agent1 requires")
-          expect(e.message).to include("Missing: [:company]")
-          expect(e.message).to include("company: company_value")
-        end
+        simple_pipeline.new(product: "Test")
+      rescue ArgumentError => e
+        expect(e.message).to include("First agent Agent1 requires")
+        expect(e.message).to include("Missing: [:company]")
+        expect(e.message).to include("company: company_value")
       end
     end
   end
-  
+
   describe "#run" do
     let(:full_pipeline) do
       agents = [agent1, agent2, agent3]
@@ -204,23 +202,23 @@ RSpec.describe RAAF::Pipeline do
         flow agents[0] >> agents[1] >> agents[2].limit(1)
       end
     end
-    
+
     it "executes the flow chain" do
       pipeline = full_pipeline.new(product: "Test", company: "Corp")
       result = pipeline.run
-      
+
       expect(result).to include(
         product: "Test",
         company: "Corp",
-        markets: ["market1", "market2"],
+        markets: %w[market1 market2],
         scored_markets: array_including(
           { name: "market1", score: 0.8 },
           { name: "market2", score: 0.8 }
         ),
-        companies: ["company1"]  # Limited to 1
+        companies: ["company1"] # Limited to 1
       )
     end
-    
+
     context "with parallel execution" do
       let(:parallel_agent1) do
         Class.new(RAAF::DSL::Agent) do
@@ -234,7 +232,7 @@ RSpec.describe RAAF::Pipeline do
           end
         end
       end
-      
+
       let(:parallel_agent2) do
         Class.new(RAAF::DSL::Agent) do
           agent_name "ParallelAgent2"
@@ -247,18 +245,18 @@ RSpec.describe RAAF::Pipeline do
           end
         end
       end
-      
+
       let(:parallel_pipeline) do
         agents = [parallel_agent1, parallel_agent2, agent3]
         Class.new(described_class) do
           flow (agents[0] | agents[1]) >> agents[2]
         end
       end
-      
+
       it "handles parallel execution in flow" do
         pipeline = parallel_pipeline.new(input: "test", scored_markets: [])
         result = pipeline.run
-        
+
         expect(result).to include(
           result1: "parallel1",
           result2: "parallel2",
@@ -266,53 +264,53 @@ RSpec.describe RAAF::Pipeline do
         )
       end
     end
-    
+
     context "with symbol handlers" do
       let(:pipeline_with_handler) do
         agents = [agent1, agent2]
         Class.new(described_class) do
           flow agents[0] >> agents[1] >> :post_process
-          
+
           private
-          
+
           def post_process(context)
             context[:processed] = true
             context
           end
         end
       end
-      
+
       it "calls symbol methods on pipeline instance" do
         pipeline = pipeline_with_handler.new(product: "Test", company: "Corp")
         result = pipeline.run
-        
+
         expect(result).to include(processed: true)
       end
     end
   end
-  
+
   describe "integration example" do
     let(:market_discovery_pipeline) do
       agents = [agent1, agent2, agent3]
       Class.new(described_class) do
         flow agents[0] >> agents[1] >> agents[2].limit(25)
-        
+
         # Context variables are automatically available through auto-context
-        
+
         context do
           optional market_data: {}, analysis_depth: "standard"
         end
       end
     end
-    
+
     it "works as a complete pipeline with context management" do
       pipeline = market_discovery_pipeline.new(
         product: "SaaS Product",
         company: "Tech Corp"
       )
-      
+
       result = pipeline.run
-      
+
       expect(result).to include(
         product: "SaaS Product",
         company: "Tech Corp",
@@ -393,18 +391,18 @@ RSpec.describe RAAF::Pipeline do
         expect(mock_span).to receive(:set_attribute).with("pipeline.name", pipeline_name)
         expect(mock_span).to receive(:set_attribute).with("pipeline.flow_structure", "Agent1 >> Agent2")
         expect(mock_span).to receive(:set_attribute).with("pipeline.agent_count", 2)
-        expect(mock_span).to receive(:set_attribute).with("pipeline.context_fields", [:product, :company, :analysis_depth])
-        expect(mock_span).to receive(:set_attribute).with("pipeline.required_fields", [:product, :company])
+        expect(mock_span).to receive(:set_attribute).with("pipeline.context_fields", %i[product company analysis_depth])
+        expect(mock_span).to receive(:set_attribute).with("pipeline.required_fields", %i[product company])
         expect(mock_span).to receive(:set_attribute).with("pipeline.optional_fields", [:analysis_depth])
         expect(mock_span).to receive(:set_attribute).with("pipeline.has_schema", false)
         expect(mock_span).to receive(:set_attribute).with("pipeline.has_hooks", false)
         expect(mock_span).to receive(:set_attribute).with("pipeline.validation_enabled", true)
         expect(mock_span).to receive(:set_attribute).with("pipeline.execution_mode", "sequential")
         expect(mock_span).to receive(:set_attribute).with("pipeline.initial_context", hash_including(
-          product: "Test Product",
-          company: "Test Company",
-          analysis_depth: "standard"
-        ))
+                                                                                        product: "Test Product",
+                                                                                        company: "Test Company",
+                                                                                        analysis_depth: "standard"
+                                                                                      ))
 
         pipeline.run
       end
@@ -499,16 +497,16 @@ RSpec.describe RAAF::Pipeline do
       end
 
       describe "#count_agents_in_flow" do
-        it "counts agents in sequential flow" do
-          pipeline = simple_pipeline.new
-          count = pipeline.send(:count_agents_in_flow, pipeline.instance_variable_get(:@flow))
-          expect(count).to eq(2)
-        end
-
         let(:parallel_pipeline) do
           Class.new(described_class) do
             flow agent1 | agent2 | agent3
           end
+        end
+
+        it "counts agents in sequential flow" do
+          pipeline = simple_pipeline.new
+          count = pipeline.send(:count_agents_in_flow, pipeline.instance_variable_get(:@flow))
+          expect(count).to eq(2)
         end
 
         it "counts agents in parallel flow" do
@@ -519,28 +517,27 @@ RSpec.describe RAAF::Pipeline do
       end
 
       describe "#detect_execution_mode" do
-        it "detects sequential execution" do
-          pipeline = simple_pipeline.new
-          mode = pipeline.send(:detect_execution_mode, pipeline.instance_variable_get(:@flow))
-          expect(mode).to eq("sequential")
+        let(:mixed_pipeline) do
+          Class.new(described_class) do
+            flow agent1 >> (agent2 | agent3)
+          end
         end
-
         let(:parallel_pipeline) do
           Class.new(described_class) do
             flow agent1 | agent2
           end
         end
 
+        it "detects sequential execution" do
+          pipeline = simple_pipeline.new
+          mode = pipeline.send(:detect_execution_mode, pipeline.instance_variable_get(:@flow))
+          expect(mode).to eq("sequential")
+        end
+
         it "detects parallel execution" do
           pipeline = parallel_pipeline.new
           mode = pipeline.send(:detect_execution_mode, pipeline.instance_variable_get(:@flow))
           expect(mode).to eq("parallel")
-        end
-
-        let(:mixed_pipeline) do
-          Class.new(described_class) do
-            flow agent1 >> (agent2 | agent3)
-          end
         end
 
         it "detects mixed execution mode" do
@@ -637,7 +634,7 @@ RSpec.describe RAAF::Pipeline do
         Class.new(described_class) do
           flow agent1 >> agent2
 
-          on_end do |context, pipeline, result|
+          on_end do |_context, _pipeline, result|
             result[:processed_at] = Time.now.iso8601
             result
           end
@@ -724,7 +721,7 @@ RSpec.describe RAAF::Pipeline do
   end
 
   # TracingRegistry integration tests
-  describe "TracingRegistry integration", :if => defined?(RAAF::Tracing::TracingRegistry) do
+  describe "TracingRegistry integration", if: defined?(RAAF::Tracing::TracingRegistry) do
     let(:registry_tracer) { double("MockTracer") }
     let(:mock_span) { double("MockSpan", span_id: "span_123", set_attribute: nil, add_event: nil, set_status: nil) }
 

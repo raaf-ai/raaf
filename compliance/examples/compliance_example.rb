@@ -30,10 +30,10 @@ puts "-" * 50
 # Create audit logger with comprehensive configuration
 # The logger supports multiple storage backends and compliance standards
 audit_logger = RAAF::Compliance::AuditLogger.new(
-  log_file: "audit_example.log",  # Primary log file for quick access
-  storage_path: "./audit_logs_example",  # Directory for archived logs
-  store_conversations: true,  # Store full conversation history for context
-  compliance_standards: %w[GDPR SOC2 HIPAA]  # Standards to enforce
+  log_file: "audit_example.log", # Primary log file for quick access
+  storage_path: "./audit_logs_example", # Directory for archived logs
+  store_conversations: true, # Store full conversation history for context
+  compliance_standards: %w[GDPR SOC2 HIPAA] # Standards to enforce
 )
 
 # Create test agent
@@ -62,7 +62,7 @@ audit_logger.log_agent_execution(
   agent,
   messages,
   result,
-  duration_ms: 1234  # Performance metrics for SLA monitoring
+  duration_ms: 1234 # Performance metrics for SLA monitoring
 )
 
 puts "Agent execution logged to audit trail"
@@ -83,7 +83,7 @@ audit_logger.log_tool_usage(
   "database_query",
   { query: "SELECT * FROM users WHERE id = ?", params: ["user123"] },
   "Query executed successfully",
-  rows_returned: 1  # Helps detect data exfiltration attempts
+  rows_returned: 1 # Helps detect data exfiltration attempts
 )
 
 audit_logger.log_tool_usage(
@@ -126,7 +126,7 @@ puts "-" * 50
 audit_logger.log_security_event(
   "unauthorized_access",
   { resource: "admin_panel", user_id: "user123", ip: "192.168.1.100" },
-  :high  # Severity determines alerting and response procedures
+  :high # Severity determines alerting and response procedures
 )
 
 audit_logger.log_security_event(
@@ -156,9 +156,9 @@ puts "-" * 50
 # Common actions: redacted (hidden), blocked (rejected), tokenized (replaced)
 audit_logger.log_pii_detection(
   "chat_message",
-  %w[email phone_number],  # Types of PII detected
-  "redacted",  # Action taken to protect the data
-  message_id: "msg123"  # Reference for investigation
+  %w[email phone_number], # Types of PII detected
+  "redacted", # Action taken to protect the data
+  message_id: "msg123" # Reference for investigation
 )
 
 audit_logger.log_pii_detection(
@@ -183,9 +183,9 @@ puts "-" * 50
 # The source field tracks where consent was obtained
 audit_logger.log_consent_event(
   "user123",
-  "marketing_emails",  # Specific purpose requiring consent
-  "granted",  # Status: granted, revoked, modified
-  source: "preferences_page"  # UI location or API endpoint
+  "marketing_emails", # Specific purpose requiring consent
+  "granted", # Status: granted, revoked, modified
+  source: "preferences_page" # UI location or API endpoint
 )
 
 audit_logger.log_consent_event(
@@ -258,21 +258,21 @@ puts "Exporting audit logs..."
 
 # JSON export for programmatic analysis and archival
 # JSON preserves full structure and metadata
-json_export = audit_logger.export_logs(
+audit_logger.export_logs(
   format: :json,
   output_file: "audit_export.json"
 )
 puts "  ✓ JSON export completed"
 
 # CSV export
-csv_export = audit_logger.export_logs(
+audit_logger.export_logs(
   format: :csv,
   output_file: "audit_export.csv"
 )
 puts "  ✓ CSV export completed"
 
 # SIEM export (Common Event Format)
-siem_export = audit_logger.export_logs(
+audit_logger.export_logs(
   format: :siem,
   output_file: "audit_export.cef"
 )
@@ -346,7 +346,7 @@ puts "Running compliance policy checks:\n\n"
 
 scenarios.each do |scenario|
   result = policy_manager.check_compliance(scenario[:context])
-  
+
   puts "#{scenario[:name]}:"
   if result.compliant?
     puts "  ✅ Compliant"
@@ -400,16 +400,16 @@ puts "-" * 50
 # Generate dashboard metrics for compliance visibility
 # These metrics would typically come from aggregated audit logs
 dashboard_data = {
-  compliance_score: 94.5,  # Overall compliance percentage
-  last_audit: Time.now - 86_400,  # Time since last audit
-  active_policies: 12,  # Number of enforced policies
-  recent_violations: 3,  # Violations in last 24 hours
-  data_subjects: 1542,  # GDPR data subjects tracked
-  consent_records: 1234,  # Active consent records
-  security_events_24h: 7,  # Security events today
-  api_calls_24h: 15_420,  # System usage volume
-  average_response_time: 234,  # Performance metric (ms)
-  encryption_coverage: 98.2  # Percentage of encrypted data
+  compliance_score: 94.5, # Overall compliance percentage
+  last_audit: Time.now - 86_400, # Time since last audit
+  active_policies: 12, # Number of enforced policies
+  recent_violations: 3, # Violations in last 24 hours
+  data_subjects: 1542, # GDPR data subjects tracked
+  consent_records: 1234, # Active consent records
+  security_events_24h: 7, # Security events today
+  api_calls_24h: 15_420, # System usage volume
+  average_response_time: 234, # Performance metric (ms)
+  encryption_coverage: 98.2 # Percentage of encrypted data
 }
 
 puts "Compliance Dashboard Metrics:"
@@ -440,37 +440,37 @@ puts <<~PRACTICES
      - Include sufficient context for investigation
      - Ensure logs are tamper-resistant
      - Implement log rotation and retention policies
-  
+
   2. PII Handling:
      - Detect and redact PII automatically
      - Log PII access with justification
      - Implement data minimization
      - Honor data subject rights (GDPR)
-  
+
   3. Security Monitoring:
      - Set up alerts for high-severity events
      - Monitor for suspicious patterns
      - Track failed authentication attempts
      - Log all administrative actions
-  
+
   4. Compliance Standards:
      - Map requirements to policies
      - Automate compliance checks
      - Generate regular compliance reports
      - Maintain evidence for audits
-  
+
   5. Data Governance:
      - Track consent and preferences
      - Implement data retention policies
      - Monitor data access patterns
      - Ensure data portability
-  
+
   6. Performance Considerations:
      - Use asynchronous logging where possible
      - Implement log aggregation
      - Monitor logging overhead
      - Use appropriate log levels
-  
+
   7. Integration:
      - Export to SIEM systems
      - Integrate with monitoring tools

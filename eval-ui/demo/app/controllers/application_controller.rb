@@ -9,15 +9,15 @@ class ApplicationController < ActionController::Base
   private
 
   def authenticate_user!
-    unless current_user
-      redirect_to login_path, alert: "Please log in to continue"
-    end
+    return if current_user
+
+    redirect_to login_path, alert: "Please log in to continue"
   end
 
   def current_user
     return nil unless session[:user_id]
 
     @current_user ||= User.find_by(id: session[:user_id]) if defined?(User)
-    @current_user ||= OpenStruct.new(id: session[:user_id], email: 'demo@example.com') # Fallback
+    @current_user ||= OpenStruct.new(id: session[:user_id], email: "demo@example.com") # Fallback
   end
 end

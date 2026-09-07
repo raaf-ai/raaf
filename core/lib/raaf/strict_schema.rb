@@ -118,8 +118,6 @@ module RAAF
 
       private
 
-
-
       ##
       # Generate an empty strict object schema
       #
@@ -197,9 +195,7 @@ module RAAF
           properties = json_schema["properties"]
           if properties.is_a?(Hash)
             # Only set required if no explicit required array was provided
-            if json_schema["required"].nil? || json_schema["required"].empty?
-              json_schema["required"] = properties.keys.map(&:to_s)
-            end
+            json_schema["required"] = properties.keys.map(&:to_s) if json_schema["required"].nil? || json_schema["required"].empty?
             json_schema["properties"] = properties.transform_values do |prop_schema|
               ensure_strict_json_schema_recursive(prop_schema, path: [*path, "properties"], root: root)
             end

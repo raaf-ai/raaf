@@ -116,7 +116,7 @@ puts result.final_output
 
 # Access trace metadata for performance analysis.
 # The tracer collects metrics about execution time, span count, and more.
-tracer = RAAF::tracer
+tracer = RAAF.tracer
 if tracer.respond_to?(:trace_summary)
   summary = tracer.trace_summary
   puts "\n=== Trace Summary ==="
@@ -136,20 +136,20 @@ end
 puts "\n" + ("-" * 50)
 puts "\n=== Manual Tracing Example ==="
 
-tracer = RAAF::tracer
+tracer = RAAF.tracer
 
 # Create a custom span with attributes and events
 tracer.span("custom_operation", type: :internal) do |span|
   # Add attributes for filtering and analysis in trace viewers
   span.set_attribute("operation.type", "demo")
   span.set_attribute("operation.category", "example")
-  
+
   # Add events to mark important moments within the span
   span.add_event("Starting custom work")
 
   # Simulate some work that takes time
   sleep(0.1)
-  
+
   # Nested spans for sub-operations
   tracer.span("sub_operation", type: :internal) do |sub_span|
     sub_span.set_attribute("parent.operation", "custom_operation")
@@ -173,10 +173,10 @@ begin
 
   puts "\n=== OpenTelemetry Integration ==="
   puts "Configuring OTLP exporter for external trace collection..."
-  
+
   # Configure OTLP exporter to send traces to your observability platform
   RAAF::Tracing::OTelBridge.configure_otlp(
-    endpoint: "http://localhost:4318/v1/traces"  # Standard OTLP gRPC port
+    endpoint: "http://localhost:4318/v1/traces" # Standard OTLP gRPC port
   )
   puts "✓ OTLP exporter configured"
   puts "  Traces will be sent to: http://localhost:4318/v1/traces"

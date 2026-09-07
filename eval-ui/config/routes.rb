@@ -2,7 +2,7 @@
 
 RAAF::Eval::UI::Engine.routes.draw do
   # Spans resources (browsing and selection)
-  resources :spans, only: [:index, :show] do
+  resources :spans, only: %i[index show] do
     collection do
       get :search
       get :filter
@@ -10,7 +10,7 @@ RAAF::Eval::UI::Engine.routes.draw do
   end
 
   # Evaluations resources (execution and results)
-  resources :evaluations, only: [:new, :create, :show, :destroy] do
+  resources :evaluations, only: %i[new create show destroy] do
     member do
       post :execute
       get :status
@@ -19,7 +19,7 @@ RAAF::Eval::UI::Engine.routes.draw do
   end
 
   # Sessions resources (saved evaluations)
-  resources :sessions, only: [:index, :show, :create, :update, :destroy]
+  resources :sessions, only: %i[index show create update destroy]
 
   # Root route
   root to: "spans#index"

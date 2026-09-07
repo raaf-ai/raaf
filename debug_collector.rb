@@ -3,8 +3,8 @@
 
 # Debug script to understand collector class variables
 
-require_relative 'tracing/lib/raaf/tracing/span_collectors/base_collector'
-require_relative 'tracing/lib/raaf/tracing/span_collectors/agent_collector'
+require_relative "tracing/lib/raaf/tracing/span_collectors/base_collector"
+require_relative "tracing/lib/raaf/tracing/span_collectors/agent_collector"
 
 puts "🔍 Debug: Collector Class Variables"
 puts "=" * 50
@@ -23,7 +23,7 @@ puts "\n🧪 Testing a simple collector:"
 
 class TestCollector < RAAF::Tracing::SpanCollectors::BaseCollector
   span :name, :model
-  span test_attribute: ->(comp) { "test_value" }
+  span test_attribute: ->(_comp) { "test_value" }
 end
 
 test_span_attrs = TestCollector.instance_variable_get(:@span_attrs)
@@ -35,6 +35,7 @@ puts "  TestCollector @span_custom: #{test_span_custom.inspect}"
 # Test the collector
 class SimpleAgent
   attr_reader :name, :model
+
   def initialize
     @name = "TestAgent"
     @model = "gpt-4o"

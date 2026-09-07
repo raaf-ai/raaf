@@ -83,7 +83,6 @@ module RAAF
             i(class: "bi-info-circle text-gray-400 text-2xl mb-2")
             p(class: "text-sm text-gray-500") { "No evaluation policies match this span." }
             p(class: "text-xs text-gray-400 mt-1") do
-              "Create a policy targeting agent "
               code(class: "bg-gray-100 px-1 rounded") { extract_agent_name }
               plain " to enable evaluation."
             end
@@ -149,7 +148,6 @@ module RAAF
                 end
               end
             end
-
           end
         end
 
@@ -226,7 +224,7 @@ module RAAF
         def extract_agent_name
           @span.span_attributes&.dig("agent", "name") ||
             @span.span_attributes&.dig("agent.name") ||
-            @span.name&.gsub(/^agent[\.\:]\s*/i, '') ||
+            @span.name&.gsub(/^agent[.:]\s*/i, "") ||
             "Unknown"
         end
       end

@@ -21,15 +21,13 @@ puts
 
 # Read API key from .env file
 env_file = "/Users/hajee/Enterprise Modules Dropbox/Bert Hajee/enterprisemodules/work/prospects_radar/.env"
-api_key = ENV["OPENAI_API_KEY"]
+api_key = ENV.fetch("OPENAI_API_KEY", nil)
 
-if api_key.nil? || api_key.empty?
-  if File.exist?(env_file)
-    env_content = File.read(env_file)
-    if env_content =~ /OPENAI_API_KEY=(.+)/
-      api_key = $1.strip.split(/\s+#/).first.strip
-      puts "📝 Using OPENAI_API_KEY from .env file"
-    end
+if (api_key.nil? || api_key.empty?) && File.exist?(env_file)
+  env_content = File.read(env_file)
+  if env_content =~ /OPENAI_API_KEY=(.+)/
+    api_key = Regexp.last_match(1).strip.split(/\s+#/).first.strip
+    puts "📝 Using OPENAI_API_KEY from .env file"
   end
 end
 
@@ -115,11 +113,11 @@ agent = RAAF::Agent.new(
 module RAAF
   module Models
     class OpenAIProvider
-      alias_method :original_chat_completion, :chat_completion
+      alias original_chat_completion chat_completion
 
-      def chat_completion(messages:, model:, **kwargs)
+      def chat_completion(messages:, model:, **)
         puts "\n5. OpenAIProvider.chat_completion called"
-        result = original_chat_completion(messages: messages, model: model, **kwargs)
+        result = original_chat_completion(messages: messages, model: model, **)
 
         puts "\n6. OpenAIProvider response:"
         puts "   Response class: #{result.class}"
@@ -144,11 +142,11 @@ end
 # Patch Runner to see what it receives
 module RAAF
   class Runner
-    alias_method :original_run, :run
+    alias original_run run
 
-    def run(message = nil, **kwargs)
+    def run(message = nil, **)
       puts "\n8. Runner.run called"
-      result = original_run(message, **kwargs)
+      result = original_run(message, **)
 
       puts "\n9. Runner result:"
       puts "   Result class: #{result.class}"
@@ -177,8 +175,8 @@ end
 
 provider = RAAF::Models::OpenAIProvider.new
 runner = RAAF::Runner.new(agent: agent, provider: provider)
-result = runner.run("Say hello and tell me your model name.")
+runner.run("Say hello and tell me your model name.")
 
-puts "\n" + "=" * 80
+puts "\n" + ("=" * 80)
 puts "DEBUG COMPLETE"
 puts "=" * 80

@@ -23,7 +23,7 @@ agent = RAAF::Agent.new(
 memory_store = RAAF::Memory.create(:file, file_path: "conversations.json")
 memory_manager = RAAF::MemoryManager.new(
   store: memory_store,
-  token_limit: 4000  # Limit memory context to prevent token overflow
+  token_limit: 4000 # Limit memory context to prevent token overflow
 )
 
 # Create runner with memory manager
@@ -36,9 +36,9 @@ runner = RAAF::Runner.new(
 def run_conversation(runner, message, session = nil)
   session ||= RAAF::Session.new
   
-  puts "\n" + "="*60
+  puts "\n" + ("=" * 60)
   puts "User: #{message}"
-  puts "-"*60
+  puts "-" * 60
   
   result = runner.run(
     [{ role: "user", content: message }],
@@ -47,7 +47,7 @@ def run_conversation(runner, message, session = nil)
   
   response = result.messages.last[:content]
   puts "Assistant: #{response}"
-  puts "="*60
+  puts "=" * 60
   
   [result, session]
 end
@@ -94,7 +94,7 @@ puts "(Creating a new runner with the same memory store)"
 new_runner = RAAF::Runner.new(
   agent: agent,
   memory_manager: RAAF::MemoryManager.new(
-    store: memory_store,  # Same store, so memories persist
+    store: memory_store, # Same store, so memories persist
     token_limit: 4000
   )
 )
@@ -113,7 +113,7 @@ puts "Memory storage type: #{memory_store.class.name.split('::').last}"
 
 # Clean up example by showing how to clear memories
 print "\nWould you like to clear the memory store? (y/n): "
-if gets.chomp.downcase == 'y'
+if gets.chomp.downcase == "y"
   memory_store.clear
   puts "✅ Memory cleared!"
 else

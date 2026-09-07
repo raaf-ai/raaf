@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 RSpec.describe RAAF::Eval::RSpec::SpanEvaluator do
+  subject(:evaluator) { described_class.new(test_span) }
+
   let(:test_span) do
     {
       id: "span_456",
@@ -10,8 +12,6 @@ RSpec.describe RAAF::Eval::RSpec::SpanEvaluator do
       metadata: { model: "gpt-4o" }
     }
   end
-
-  subject(:evaluator) { described_class.new(test_span) }
 
   describe "#with_configuration" do
     it "adds a configuration" do
@@ -70,9 +70,9 @@ RSpec.describe RAAF::Eval::RSpec::SpanEvaluator do
 
     context "with invalid input" do
       it "raises error for invalid type" do
-        expect {
+        expect do
           evaluator.with_configurations("invalid")
-        }.to raise_error(ArgumentError, /Expected Array or Hash/)
+        end.to raise_error(ArgumentError, /Expected Array or Hash/)
       end
     end
   end

@@ -3,12 +3,12 @@
 require "spec_helper"
 
 RSpec.describe "Quality Evaluators" do
-  let(:output_result) {
+  let(:output_result) do
     {
       output: "The capital of France is Paris. It is known for the Eiffel Tower.",
       baseline_output: "Paris is the capital of France. The Eiffel Tower is its famous landmark."
     }
-  }
+  end
   let(:field_context) { RAAF::Eval::DSL::FieldContext.new(:output, output_result) }
 
   describe RAAF::Eval::Evaluators::Quality::SemanticSimilarity do

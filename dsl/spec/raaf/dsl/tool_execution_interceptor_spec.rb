@@ -20,9 +20,7 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Interceptor" do
       @name = name
     end
 
-    def name
-      @name
-    end
+    attr_reader :name
 
     def dsl_wrapped?
       true
@@ -245,9 +243,9 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Interceptor" do
     it "re-raises tool execution errors" do
       agent = FailingToolAgent.new
 
-      expect {
+      expect do
         agent.execute_tool("failing_tool", param: "value")
-      }.to raise_error(StandardError, /Tool failed/)
+      end.to raise_error(StandardError, /Tool failed/)
     end
 
     it "allows error handling at agent level" do
@@ -266,7 +264,7 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Interceptor" do
       agent = InterceptorTestAgent.new
 
       # Verify agent inherits from RAAF::Agent via DSL::Agent
-      expect(agent).to be_kind_of(RAAF::DSL::Agent)
+      expect(agent).to be_a(RAAF::DSL::Agent)
 
       # Verify execute_tool method exists
       expect(agent).to respond_to(:execute_tool)

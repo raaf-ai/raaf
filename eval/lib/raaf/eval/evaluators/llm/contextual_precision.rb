@@ -23,7 +23,7 @@ module RAAF
 
           DEFAULT_GOOD_THRESHOLD = 0.75
           DEFAULT_AVERAGE_THRESHOLD = 0.50
-          RELEVANCE_THRESHOLD = 0.60  # Threshold for considering a document relevant
+          RELEVANCE_THRESHOLD = 0.60 # Threshold for considering a document relevant
 
           ##
           # Evaluate contextual precision
@@ -62,22 +62,21 @@ module RAAF
 
             # Determine label based on score
             label = calculate_label(score,
-                                   good_threshold: good_threshold,
-                                   average_threshold: average_threshold)
+                                    good_threshold: good_threshold,
+                                    average_threshold: average_threshold)
 
             # Build result hash
             build_result(score, label, good_threshold, average_threshold,
-              evaluated_field: field_context.field_name.to_sym,
-              method: "contextual_precision",
-              query: query,
-              document_count: documents.length,
-              relevant_count: doc_relevance.count { |rel| rel[:relevant] },
-              irrelevant_count: doc_relevance.count { |rel| !rel[:relevant] },
-              document_relevance: doc_relevance,
-              precision_reasoning: reasoning,
-              relevance_threshold: relevance_threshold,
-              evaluation_note: precision_note(score, good_threshold, average_threshold)
-            )
+                         evaluated_field: field_context.field_name.to_sym,
+                         method: "contextual_precision",
+                         query: query,
+                         document_count: documents.length,
+                         relevant_count: doc_relevance.count { |rel| rel[:relevant] },
+                         irrelevant_count: doc_relevance.count { |rel| !rel[:relevant] },
+                         document_relevance: doc_relevance,
+                         precision_reasoning: reasoning,
+                         relevance_threshold: relevance_threshold,
+                         evaluation_note: precision_note(score, good_threshold, average_threshold))
           end
 
           private
@@ -94,8 +93,6 @@ module RAAF
             when String
               # If field_context is for query field directly
               field_context.field_name.to_s == "query" ? value : nil
-            else
-              nil
             end
           end
 
@@ -111,12 +108,12 @@ module RAAF
               format_context(ctx)
             when Array
               # Array of documents - join them
-              value.map { |doc| doc.is_a?(Hash) ? (doc[:content] || doc["content"] || doc.to_s) : doc.to_s }.join("\n\n")
+              value.map do |doc|
+                doc.is_a?(Hash) ? (doc[:content] || doc["content"] || doc.to_s) : doc.to_s
+              end.join("\n\n")
             when String
               # If field_context is for context field directly
               field_context.field_name.to_s == "context" ? value : nil
-            else
-              nil
             end
           end
 
@@ -125,7 +122,9 @@ module RAAF
           def format_context(context)
             case context
             when Array
-              context.map { |doc| doc.is_a?(Hash) ? (doc[:content] || doc["content"] || doc.to_s) : doc.to_s }.join("\n\n")
+              context.map do |doc|
+                doc.is_a?(Hash) ? (doc[:content] || doc["content"] || doc.to_s) : doc.to_s
+              end.join("\n\n")
             when String
               context
             when Hash

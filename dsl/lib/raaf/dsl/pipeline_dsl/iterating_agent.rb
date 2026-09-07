@@ -1,9 +1,8 @@
 # frozen_string_literal: true
 
-require 'thread'
-require 'timeout'
-require_relative '../core/context_variables'
-require_relative 'wrapper_dsl'
+require "timeout"
+require_relative "../core/context_variables"
+require_relative "wrapper_dsl"
 
 module RAAF
   module DSL
@@ -74,13 +73,16 @@ module RAAF
           # Check if the iteration field exists and is an array
           return false unless context.respond_to?(:[]) && context.respond_to?(:key?)
           return false unless context.key?(@field)
-          
+
           items = context[@field]
           return false unless items.respond_to?(:each) # Must be enumerable
-          
+
           # Check if wrapped agent's requirements can be met
-          @agent_class.respond_to?(:requirements_met?) ? 
-            @agent_class.requirements_met?(context) : true
+          if @agent_class.respond_to?(:requirements_met?)
+            @agent_class.requirements_met?(context)
+          else
+            true
+          end
         end
 
         # Execute iteration over the specified field
@@ -90,9 +92,7 @@ module RAAF
 
           execute_with_hooks(context, :iterating, agent_name: agent_name, field: @field, parallel: @parallel, output_field: generate_output_field_name(@field)) do
             # Ensure context is ContextVariables if it's a plain Hash
-            unless context.respond_to?(:set)
-              context = RAAF::DSL::ContextVariables.new(context)
-            end
+            context = RAAF::DSL::ContextVariables.new(context) unless context.respond_to?(:set)
 
             items = extract_items(context)
 
@@ -121,10 +121,10 @@ module RAAF
 
         def extract_items(context)
           items = context[@field] || []
-          
+
           # Handle different item types
           items = items.to_a if items.respond_to?(:to_a)
-          
+
           # Apply limit if specified
           if @options[:limit]
             items = items.first(@options[:limit])
@@ -136,22 +136,22 @@ module RAAF
 
         def execute_sequential(items, context)
           results = []
-          
+
           items.each_with_index do |item, index|
             RAAF.logger.debug "Processing item #{index + 1}/#{items.length} in field '#{@field}'"
-            
+
             begin
               result = execute_single_item(item, context, index)
               results << result
-            rescue => e
+            rescue StandardError => e
               error_msg = "Error processing item #{index + 1} in field '#{@field}': #{e.message}"
               RAAF.logger.error error_msg
-              
+
               # For sequential execution, we can choose to continue or stop
               # For now, continue but mark the failure
-              results << { 
-                error: true, 
-                message: e.message, 
+              results << {
+                error: true,
+                message: e.message,
                 item_index: index,
                 original_item: item
               }
@@ -166,17 +166,17 @@ module RAAF
           threads = items.map.with_index do |item, index|
             Thread.new do
               RAAF.logger.debug "Processing item #{index + 1}/#{items.length} in field '#{@field}' (parallel)"
-              
+
               begin
                 execute_single_item(item, context.dup, index)
-              rescue => e
+              rescue StandardError => e
                 error_msg = "Error processing item #{index + 1} in field '#{@field}': #{e.message}"
                 RAAF.logger.error error_msg
-                
+
                 # Return error result for this item
-                { 
-                  error: true, 
-                  message: e.message, 
+                {
+                  error: true,
+                  message: e.message,
                   item_index: index,
                   original_item: item
                 }
@@ -187,17 +187,15 @@ module RAAF
           # Collect results maintaining order
           results = []
           threads.each_with_index do |thread, index|
-            begin
-              results[index] = thread.value
-            rescue => e
-              RAAF.logger.error "Thread error for item #{index + 1}: #{e.message}"
-              results[index] = { 
-                error: true, 
-                message: e.message, 
-                item_index: index,
-                thread_error: true
-              }
-            end
+            results[index] = thread.value
+          rescue StandardError => e
+            RAAF.logger.error "Thread error for item #{index + 1}: #{e.message}"
+            results[index] = {
+              error: true,
+              message: e.message,
+              item_index: index,
+              thread_error: true
+            }
           end
 
           results
@@ -225,8 +223,11 @@ module RAAF
             agent = @agent_class.new(context: item_context)
           else
             # For Agents, maintain backward compatibility with keyword arguments
-            context_hash = item_context.is_a?(RAAF::DSL::ContextVariables) ?
-                           item_context.to_h : item_context
+            context_hash = if item_context.is_a?(RAAF::DSL::ContextVariables)
+                             item_context.to_h
+                           else
+                             item_context
+                           end
 
             RAAF.logger.debug "Instantiating Agent #{@agent_class.name} with context keys: #{context_hash.keys.inspect}"
             RAAF.logger.debug "Custom field name: #{@custom_field_name.inspect}, Field: #{@field.inspect}"
@@ -249,18 +250,18 @@ module RAAF
         def prepare_item_context(item, base_context, index)
           # Create context that includes the current item and preserves base context
           # Ensure we always work with a proper ContextVariables object for Services
-          if base_context.is_a?(RAAF::DSL::ContextVariables)
-            context_hash = base_context.to_h.dup
-          else
-            context_hash = base_context.dup
-          end
-          
+          context_hash = if base_context.is_a?(RAAF::DSL::ContextVariables)
+                           base_context.to_h.dup
+                         else
+                           base_context.dup
+                         end
+
           # Add the current item to context - agents can access it via standard context methods
           # Use a generic name that works for any iteration
           context_hash[:current_item] = item
           context_hash[:item_index] = index
-          
-          # Add item under a specific name - use custom field name if provided, 
+
+          # Add item under a specific name - use custom field name if provided,
           # otherwise generate from the original field
           if @custom_field_name
             RAAF.logger.debug "Using custom field name '#{@custom_field_name}' for item at index #{index}"
@@ -272,7 +273,7 @@ module RAAF
           end
 
           RAAF.logger.debug "Item context keys: #{context_hash.keys.inspect}"
-          
+
           # Return as ContextVariables object for proper Service handling
           RAAF::DSL::ContextVariables.new(context_hash)
         end
@@ -280,12 +281,12 @@ module RAAF
         def generate_output_field_name(input_field)
           # Return custom output field if specified, otherwise generate default
           return @custom_output_field if @custom_output_field
-          
+
           # Generate meaningful output field names
           # :companies -> :processed_companies
-          # :items -> :processed_items  
+          # :items -> :processed_items
           # :markets -> :processed_markets
-          "processed_#{input_field}".to_sym
+          :"processed_#{input_field}"
         end
 
         def singularize_field_name(field)
@@ -295,14 +296,14 @@ module RAAF
           # :markets -> :market
           # :search_terms -> :search_term
           field_str = field.to_s
-          singular = if field_str.end_with?('ies')
-                       field_str.gsub(/ies$/, 'y')
-                     elsif field_str.end_with?('s')
-                       field_str.gsub(/s$/, '')
+          singular = if field_str.end_with?("ies")
+                       field_str.gsub(/ies$/, "y")
+                     elsif field_str.end_with?("s")
+                       field_str.gsub(/s$/, "")
                      else
                        field_str
                      end
-          
+
           singular.to_sym
         end
       end

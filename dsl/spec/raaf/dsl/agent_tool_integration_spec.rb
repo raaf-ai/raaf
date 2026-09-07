@@ -27,9 +27,9 @@ RSpec.describe RAAF::DSL::AgentToolIntegration do
     # Mock safe_lookup: return Class identifiers directly, nil for Symbol identifiers (lazy loading)
     allow(mock_tool_registry).to receive(:safe_lookup) do |identifier|
       if identifier.is_a?(Class)
-        identifier  # Return Class directly
+        identifier # Return Class directly
       else
-        nil  # Return nil for Symbol (lazy loading)
+        nil # Return nil for Symbol (lazy loading)
       end
     end
     # Mock the list method for error messages
@@ -50,7 +50,7 @@ RSpec.describe RAAF::DSL::AgentToolIntegration do
 
           config = test_agent_class._tools_config.last
           expect(config[:tool_identifier]).to eq(:web_search)
-          expect(config[:tool_class]).to be_nil  # NOT resolved yet
+          expect(config[:tool_class]).to be_nil # NOT resolved yet
           expect(config[:options]).to eq(max_results: 10)
         end
       end
@@ -216,7 +216,7 @@ RSpec.describe RAAF::DSL::AgentToolIntegration do
 
       it "stores multiple arguments as array" do
         builder.endpoints("url1", "url2")
-        expect(builder.to_h[:endpoints]).to eq(["url1", "url2"])
+        expect(builder.to_h[:endpoints]).to eq(%w[url1 url2])
       end
     end
 

@@ -3,8 +3,6 @@
 require "spec_helper"
 
 RSpec.describe RAAF::Utils do
-
-
   describe ".prepare_for_openai" do
     it "correctly converts all keys to strings" do
       input = { model: "gpt-4", messages: [{ role: :user, content: "Hello" }] }
@@ -378,7 +376,6 @@ RSpec.describe RAAF::Utils do
     end
   end
 
-
   describe ".safe_parse_json" do
     it "parses valid JSON successfully with indifferent access" do
       json_string = '{"name": "John", "age": 30}'
@@ -532,8 +529,6 @@ RSpec.describe RAAF::Utils do
       expect(result).to eq("Special!@#$% characters with spaces")
     end
   end
-
-
 
   describe "integration scenarios" do
     it "supports typical API request/response cycle" do

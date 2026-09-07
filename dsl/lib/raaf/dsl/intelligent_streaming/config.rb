@@ -149,10 +149,10 @@ module RAAF
         #   - incremental: true -> [stream_num, total, stream_data, stream_results] (4 params)
         #   - incremental: false -> [all_results] (1 param)
         def on_stream_complete(&block)
-          if block_given?
-            validate_complete_hook_arity!(block)
-            @blocks[:on_stream_complete] = block
-          end
+          return unless block_given?
+
+          validate_complete_hook_arity!(block)
+          @blocks[:on_stream_complete] = block
         end
 
         # Configure on_stream_error hook
@@ -169,6 +169,7 @@ module RAAF
         def valid?
           stream_size > 0
         end
+
         # Get state management configuration
         #
         # @return [Hash] Hash with :skip_if, :load_existing, :persist keys
@@ -197,9 +198,9 @@ module RAAF
         private
 
         def validate_stream_size!(size)
-          unless size.is_a?(Integer) && size > 0
-            raise ArgumentError, "stream_size must be a positive integer, got: #{size.inspect}"
-          end
+          return if size.is_a?(Integer) && size > 0
+
+          raise ArgumentError, "stream_size must be a positive integer, got: #{size.inspect}"
         end
 
         def validate_complete_hook_arity!(block)
@@ -207,12 +208,12 @@ module RAAF
 
           if incremental
             # For incremental mode, expect 4 parameters
-            if arity != 4 && arity != -1  # -1 allows any number of params
+            if arity != 4 && arity != -1 # -1 allows any number of params
               raise ArgumentError, "on_stream_complete with incremental: true expects 4 parameters (stream_num, total, stream_data, stream_results), got arity: #{arity}"
             end
           else
             # For non-incremental mode, expect 1 parameter
-            if arity != 1 && arity != -1  # -1 allows any number of params
+            if arity != 1 && arity != -1 # -1 allows any number of params
               raise ArgumentError, "on_stream_complete with incremental: false expects 1 parameter (all_results), got arity: #{arity}"
             end
           end

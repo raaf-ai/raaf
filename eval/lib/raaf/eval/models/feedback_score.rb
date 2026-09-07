@@ -160,15 +160,15 @@ module RAAF
         private
 
         def must_have_span_or_trace
-          if span_id.blank? && trace_id.blank?
-            errors.add(:base, "must have either span_id or trace_id")
-          end
+          return unless span_id.blank? && trace_id.blank?
+
+          errors.add(:base, "must have either span_id or trace_id")
         end
 
         def must_have_value_or_category
-          if value.blank? && category_value.blank?
-            errors.add(:base, "must have either a numerical value or category_value")
-          end
+          return unless value.blank? && category_value.blank?
+
+          errors.add(:base, "must have either a numerical value or category_value")
         end
       end
     end

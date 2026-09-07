@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative 'incremental_config'
+require_relative "incremental_config"
 
 module RAAF
   module DSL

@@ -10,15 +10,13 @@ require "raaf/eval/dsl/field_context"
 
 # Simple test framework
 class TestRunner
-  def self.run_test(name, &block)
-    begin
-      instance_eval(&block)
-      puts "✓ #{name}"
-    rescue => e
-      puts "✗ #{name}"
-      puts "  Error: #{e.message}"
-      puts "  #{e.backtrace.first}"
-    end
+  def self.run_test(name, &)
+    instance_eval(&)
+    puts "✓ #{name}"
+  rescue StandardError => e
+    puts "✗ #{name}"
+    puts "  Error: #{e.message}"
+    puts "  #{e.backtrace.first}"
   end
 
   def self.assert_equal(expected, actual)
@@ -26,16 +24,14 @@ class TestRunner
   end
 
   def self.assert_raises(error_class, pattern = nil)
-    begin
-      yield
-      raise "Expected #{error_class} to be raised, but nothing was raised"
-    rescue error_class => e
-      if pattern && !e.message.match?(pattern)
-        raise "Expected error message to match #{pattern.inspect}, got #{e.message.inspect}"
-      end
-    rescue => e
-      raise "Expected #{error_class}, got #{e.class}: #{e.message}"
+    yield
+    raise "Expected #{error_class} to be raised, but nothing was raised"
+  rescue error_class => e
+    if pattern && !e.message.match?(pattern)
+      raise "Expected error message to match #{pattern.inspect}, got #{e.message.inspect}"
     end
+  rescue StandardError => e
+    raise "Expected #{error_class}, got #{e.class}: #{e.message}"
   end
 end
 
@@ -51,12 +47,12 @@ end
 
 TestRunner.run_test("parses dot notation paths (usage.total_tokens)") do
   parsed = selector.parse_path("usage.total_tokens")
-  assert_equal(["usage", "total_tokens"], parsed)
+  assert_equal(%w[usage total_tokens], parsed)
 end
 
 TestRunner.run_test("parses deeply nested paths") do
   parsed = selector.parse_path("result.metrics.quality.score")
-  assert_equal(["result", "metrics", "quality", "score"], parsed)
+  assert_equal(%w[result metrics quality score], parsed)
 end
 
 TestRunner.run_test("handles symbol field names") do
@@ -146,7 +142,7 @@ end
 TestRunner.run_test("detects duplicate aliases") do
   selector4 = RAAF::Eval::DSL::FieldSelector.new
   selector4.add_field("usage.total_tokens", as: :tokens)
-  
+
   assert_raises(RAAF::Eval::DSL::DuplicateAliasError, /Alias 'tokens' is already assigned/) do
     selector4.add_field("usage.prompt_tokens", as: :tokens)
   end
@@ -157,7 +153,7 @@ TestRunner.run_test("stores fields in order") do
   selector5.add_field("first")
   selector5.add_field("second")
   selector5.add_field("third")
-  assert_equal(["first", "second", "third"], selector5.fields)
+  assert_equal(%w[first second third], selector5.fields)
 end
 
 puts "\n2.7 - Validation tests:\n"
@@ -193,13 +189,13 @@ end
 TestRunner.run_test("creates FieldContext successfully") do
   selector10 = RAAF::Eval::DSL::FieldSelector.new
   result = { output: "text", usage: { total_tokens: 100 } }
-  
+
   selector10.add_field("output")
   selector10.add_field("usage.total_tokens", as: :tokens)
-  
+
   context1 = selector10.create_field_context("output", result)
   assert_equal("text", context1.value)
-  
+
   context2 = selector10.create_field_context(:tokens, result)
   assert_equal(100, context2.value)
 end

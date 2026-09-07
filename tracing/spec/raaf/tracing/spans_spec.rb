@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
-require 'raaf/tracing/spans'
+require "spec_helper"
+require "raaf/tracing/spans"
 
 RSpec.describe RAAF::Tracing::Spans do
   describe RAAF::Tracing::Span do
@@ -57,7 +57,7 @@ RSpec.describe RAAF::Tracing::Spans do
 
       context "with different span kinds" do
         it "accepts all documented span kinds" do
-          kinds = [:pipeline, :agent, :llm, :tool, :handoff, :custom, :internal]
+          kinds = %i[pipeline agent llm tool handoff custom internal]
 
           kinds.each do |kind|
             span = described_class.new(name: span_name, kind: kind)
@@ -162,7 +162,7 @@ RSpec.describe RAAF::Tracing::Spans do
         span.add_event("second")
         span.add_event("third")
 
-        expect(span.events.map { |e| e[:name] }).to eq(["first", "second", "third"])
+        expect(span.events.map { |e| e[:name] }).to eq(%w[first second third])
       end
     end
 
@@ -538,7 +538,7 @@ RSpec.describe RAAF::Tracing::Spans do
         end
 
         expect do
-          tracer.start_span("test") do |span|
+          tracer.start_span("test") do |_span|
             raise StandardError, "Test error"
           end
         end.to raise_error(StandardError, "Test error")
@@ -642,14 +642,14 @@ RSpec.describe RAAF::Tracing::Spans do
             expect(span.attributes["pipeline.name"]).to eq("")
           end
 
-          tracer.pipeline_span("") { }
+          tracer.pipeline_span("") {}
         end
 
         it "handles complex pipeline attributes" do
           complex_config = {
             retry_config: { max_attempts: 3, backoff: "exponential" },
             timeout_config: { default: 30, max: 300 },
-            agent_list: ["Agent1", "Agent2", "Agent3"]
+            agent_list: %w[Agent1 Agent2 Agent3]
           }
 
           tracer.pipeline_span("ComplexPipeline", **complex_config) do |span|
@@ -682,7 +682,7 @@ RSpec.describe RAAF::Tracing::Spans do
             expect(span.attributes["tool.name"]).to eq("web_search")
           end
 
-          tracer.tool_span("web_search") { }
+          tracer.tool_span("web_search") {}
         end
       end
 
@@ -693,7 +693,7 @@ RSpec.describe RAAF::Tracing::Spans do
             expect(span.kind).to eq(:llm)
           end
 
-          tracer.http_span("POST /v1/responses") { }
+          tracer.http_span("POST /v1/responses") {}
         end
       end
 
@@ -706,7 +706,7 @@ RSpec.describe RAAF::Tracing::Spans do
             expect(span.attributes["handoff.to"]).to eq("Agent2")
           end
 
-          tracer.handoff_span("Agent1", "Agent2") { }
+          tracer.handoff_span("Agent1", "Agent2") {}
         end
       end
 
@@ -719,7 +719,7 @@ RSpec.describe RAAF::Tracing::Spans do
             expect(span.attributes["custom.data"]).to eq({ records: 100 })
           end
 
-          tracer.custom_span("validation", { records: 100 }) { }
+          tracer.custom_span("validation", { records: 100 }) {}
         end
       end
     end
@@ -876,7 +876,7 @@ RSpec.describe RAAF::Tracing::Spans do
 
       describe "#on_span_start" do
         it "logs span start event" do
-          # Note: We can't easily test actual logging output without mocking the logger
+          # NOTE: We can't easily test actual logging output without mocking the logger
           # This test ensures the method exists and doesn't raise errors
           expect { processor.on_span_start(span) }.not_to raise_error
         end

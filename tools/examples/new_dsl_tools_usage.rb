@@ -110,15 +110,15 @@ puts "=" * 50
 puts <<~RUBY
   # Example agent setup with new tools
   agent = RAAF::Agent.new(name: "Research Assistant")
-  
+
   # Add API tools for external data
   agent.add_tool(RAAF::Tools::API::TavilySearch.new)
   agent.add_tool(RAAF::Tools::API::ScrapflyPageFetch.new)
-  
+
   # Add native tools for OpenAI features
   agent.add_tool(RAAF::Tools::Native::WebSearch.new)
   agent.add_tool(RAAF::Tools::Native::CodeInterpreter.new)
-  
+
   # Tools are automatically configured and ready to use
   result = agent.run("Search for Ruby AI frameworks and analyze the code examples")
 RUBY

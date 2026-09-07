@@ -21,13 +21,14 @@ module RAAF
       #     proxy :user, except: [:password_digest, :api_key]
       #     proxy_if include_history?, :interaction_history
       #     proxy_all products, only: [:id, :name], as: :available_products
-      #     
+      #
       #     validates :user, presence: [:email, :name]
       #     debug_mode Rails.env.development?
       #   end
       #
       class SmartBuilder
         include RAAF::Logger
+
         def initialize(**options)
           @context_variables = ContextVariables.new({}, **options)
           @proxy_configs = {}
@@ -61,9 +62,7 @@ module RAAF
         #
         def proxy(key, object = nil, **options)
           # If object is nil, try to infer from current context
-          if object.nil? && @current_object_context
-            object = @current_object_context[key]
-          end
+          object = @current_object_context[key] if object.nil? && @current_object_context
 
           store_proxy_config(key, object, options)
           self
@@ -82,7 +81,7 @@ module RAAF
         #
         def proxy_all(objects, **options)
           as_key = options.delete(:as)
-          
+
           case objects
           when Hash
             objects.each { |key, obj| proxy(key, obj, **options) }
@@ -91,13 +90,13 @@ module RAAF
               proxy(as_key, objects, **options)
             else
               objects.each_with_index do |obj, index|
-                proxy("item_#{index}".to_sym, obj, **options)
+                proxy(:"item_#{index}", obj, **options)
               end
             end
           else
             raise ArgumentError, "proxy_all expects Hash or Array, got #{objects.class}"
           end
-          
+
           self
         end
 
@@ -112,7 +111,7 @@ module RAAF
         #   proxy_if user.premium?, :premium_features, features
         #
         # @example Proc condition
-        #   proxy_if -> { params[:include_history] }, :history, interaction_history  
+        #   proxy_if -> { params[:include_history] }, :history, interaction_history
         #
         def proxy_if(condition, key, object = nil, **options)
           should_include = condition.is_a?(Proc) ? condition.call : condition
@@ -245,7 +244,7 @@ module RAAF
         end
 
         def apply_proxies
-          require_relative '../core/object_proxy' unless defined?(RAAF::DSL::ObjectProxy)
+          require_relative "../core/object_proxy" unless defined?(RAAF::DSL::ObjectProxy)
 
           @proxy_configs.each do |key, config|
             object = config[:object]
@@ -264,9 +263,7 @@ module RAAF
         def validate_context
           # Check required keys
           missing_keys = @required_keys.reject { |key| @context_variables.has?(key) }
-          if missing_keys.any?
-            raise ArgumentError, "Required context keys missing: #{missing_keys.join(', ')}"
-          end
+          raise ArgumentError, "Required context keys missing: #{missing_keys.join(', ')}" if missing_keys.any?
 
           # Apply validation rules
           @validation_rules.each do |key, rules|
@@ -276,9 +273,7 @@ module RAAF
 
         def validate_key(key, value, rules)
           # Presence validation
-          if rules[:presence] && value.nil?
-            raise ArgumentError, "Context key '#{key}' is required but missing"
-          end
+          raise ArgumentError, "Context key '#{key}' is required but missing" if rules[:presence] && value.nil?
 
           # Type validation
           if rules[:type] && value && !value.is_a?(rules[:type])
@@ -286,10 +281,8 @@ module RAAF
           end
 
           # Range validation
-          if rules[:range] && value.respond_to?(:between?)
-            unless value.between?(rules[:range].min, rules[:range].max)
-              raise ArgumentError, "Context key '#{key}' must be between #{rules[:range].min} and #{rules[:range].max}"
-            end
+          if rules[:range] && value.respond_to?(:between?) && !value.between?(rules[:range].min, rules[:range].max)
+            raise ArgumentError, "Context key '#{key}' must be between #{rules[:range].min} and #{rules[:range].max}"
           end
 
           # Presence of attributes validation (for objects)
@@ -305,19 +298,19 @@ module RAAF
           end
 
           # Custom validation proc
-          if rules[:validate] && !rules[:validate].call(value)
-            raise ArgumentError, "Context key '#{key}' failed custom validation"
-          end
+          return unless rules[:validate] && !rules[:validate].call(value)
+
+          raise ArgumentError, "Context key '#{key}' failed custom validation"
         end
 
         def log_debug_info
-          log_debug_context "[SmartBuilder] Context built successfully", 
-                           data: {
-                             keys: @context_variables.keys,
-                             proxied_objects: @proxy_configs.keys,
-                             total_size: @context_variables.size,
-                             validation_rules: @validation_rules.keys
-                           }
+          log_debug_context "[SmartBuilder] Context built successfully",
+                            data: {
+                              keys: @context_variables.keys,
+                              proxied_objects: @proxy_configs.keys,
+                              total_size: @context_variables.size,
+                              validation_rules: @validation_rules.keys
+                            }
         end
       end
     end
@@ -330,8 +323,8 @@ module RAAF
       # @param block [Proc] Block containing declarative context configuration
       # @return [ContextVariables] Built context
       #
-      def self.smart_build(**options, &block)
-        Context::SmartBuilder.build(**options, &block)
+      def self.smart_build(...)
+        Context::SmartBuilder.build(...)
       end
 
       # Create a simple context builder (original ContextBuilder)

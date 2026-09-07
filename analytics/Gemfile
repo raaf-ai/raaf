@@ -2,8 +2,7 @@
 
 source "https://rubygems.org"
 
-# Specify your gem's dependencies in the gemspec
-gemspec
+# No gemspec: this directory ships source, not a packaged gem.
 
 group :development do
   gem "rake", "~> 13.0"
@@ -13,14 +12,14 @@ end
 group :test do
   gem "rspec", "~> 3.0"
   gem "simplecov", "~> 0.22"
-  gem "webmock", "~> 3.18"
   gem "vcr", "~> 6.1"
+  gem "webmock", "~> 3.18"
 end
 
 group :development, :test do
-  gem "rubocop", "~> 1.21"
-  gem "rubocop-rake", "~> 0.6"
-  gem "rubocop-rspec", "~> 2.0"
   gem "pry", "~> 0.14"
   gem "pry-byebug", "~> 3.10"
+  gem "rubocop", "~> 1.21"
+  gem "rubocop-rake", "~> 0.6"
+  gem "rubocop-rspec", "~> 3.0"
 end

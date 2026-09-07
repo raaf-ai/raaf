@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'rspec/expectations'
+require "rspec/expectations"
 
 # RSpec matchers for red-team assessment validation
 #
@@ -17,19 +17,19 @@ RSpec::Matchers.define :have_acceptable_risk_level do
     return false unless assessment.is_a?(Hash)
     return false unless assessment[:risk_level]
 
-    [:low, :medium].include?(assessment[:risk_level])
+    %i[low medium].include?(assessment[:risk_level])
   end
 
   failure_message do |assessment|
     actual_risk = assessment[:risk_level] || "unknown"
 
     "expected assessment to have acceptable risk level (low or medium), " \
-    "but risk level was: #{actual_risk}"
+      "but risk level was: #{actual_risk}"
   end
 
   failure_message_when_negated do |assessment|
     "expected assessment not to have acceptable risk level, " \
-    "but risk level was: #{assessment[:risk_level]}"
+      "but risk level was: #{assessment[:risk_level]}"
   end
 
   description do
@@ -54,10 +54,10 @@ RSpec::Matchers.define :have_risk_level do |expected_level|
     actual_level = assessment[:risk_level] || "unknown"
 
     "expected assessment to have risk level #{expected_level}, " \
-    "but actual risk level was: #{actual_level}"
+      "but actual risk level was: #{actual_level}"
   end
 
-  failure_message_when_negated do |assessment|
+  failure_message_when_negated do |_assessment|
     "expected assessment not to have risk level #{expected_level}, but it did"
   end
 
@@ -85,14 +85,14 @@ RSpec::Matchers.define :have_vulnerabilities_below do |threshold|
     actual_count = assessment[:vulnerabilities]&.length || 0
 
     "expected assessment to have vulnerabilities below #{threshold}, " \
-    "but actual count was: #{actual_count}"
+      "but actual count was: #{actual_count}"
   end
 
   failure_message_when_negated do |assessment|
     actual_count = assessment[:vulnerabilities]&.length || 0
 
     "expected assessment not to have vulnerabilities below #{threshold}, " \
-    "but actual count was: #{actual_count}"
+      "but actual count was: #{actual_count}"
   end
 
   description do
@@ -123,10 +123,10 @@ RSpec::Matchers.define :have_no_critical_vulnerabilities do
     end || []
 
     "expected assessment to have no critical vulnerabilities, " \
-    "but found #{critical_vulns.length}: #{critical_vulns.map { |v| v[:type] }}"
+      "but found #{critical_vulns.length}: #{critical_vulns.map { |v| v[:type] }}"
   end
 
-  failure_message_when_negated do |assessment|
+  failure_message_when_negated do |_assessment|
     "expected assessment to have critical vulnerabilities, but none were found"
   end
 
@@ -159,10 +159,10 @@ RSpec::Matchers.define :pass_category do |category|
     end || []
 
     "expected assessment to pass category #{category}, " \
-    "but found #{category_vulns.length} vulnerabilities"
+      "but found #{category_vulns.length} vulnerabilities"
   end
 
-  failure_message_when_negated do |assessment|
+  failure_message_when_negated do |_assessment|
     "expected assessment not to pass category #{category}, but it did"
   end
 
@@ -189,9 +189,9 @@ RSpec::Matchers.define :fail_category do |category|
     !category_vulns.empty?
   end
 
-  failure_message do |assessment|
+  failure_message do |_assessment|
     "expected assessment to fail category #{category}, " \
-    "but no vulnerabilities were found"
+      "but no vulnerabilities were found"
   end
 
   failure_message_when_negated do |assessment|
@@ -200,7 +200,7 @@ RSpec::Matchers.define :fail_category do |category|
     end || []
 
     "expected assessment not to fail category #{category}, " \
-    "but found #{category_vulns.length} vulnerabilities"
+      "but found #{category_vulns.length} vulnerabilities"
   end
 
   description do
@@ -226,10 +226,10 @@ RSpec::Matchers.define :pass_all_categories do
     failed_categories = vulns.map { |v| v[:category] }.uniq
 
     "expected assessment to pass all categories, " \
-    "but found vulnerabilities in: #{failed_categories}"
+      "but found vulnerabilities in: #{failed_categories}"
   end
 
-  failure_message_when_negated do |assessment|
+  failure_message_when_negated do |_assessment|
     "expected assessment not to pass all categories, but it did"
   end
 
@@ -256,14 +256,14 @@ RSpec::Matchers.define :have_scan_coverage_above do |threshold|
     actual_coverage = assessment[:coverage] || 0.0
 
     "expected assessment to have scan coverage above #{threshold}, " \
-    "but actual coverage was: #{actual_coverage}"
+      "but actual coverage was: #{actual_coverage}"
   end
 
   failure_message_when_negated do |assessment|
     actual_coverage = assessment[:coverage] || 0.0
 
     "expected assessment not to have scan coverage above #{threshold}, " \
-    "but actual coverage was: #{actual_coverage}"
+      "but actual coverage was: #{actual_coverage}"
   end
 
   description do
@@ -286,14 +286,14 @@ RSpec::Matchers.define :complete_successfully do
   failure_message do |assessment|
     if assessment[:success] == false
       "expected assessment to complete successfully, " \
-      "but it failed with error: #{assessment[:error]}"
+        "but it failed with error: #{assessment[:error]}"
     else
       "expected assessment to complete successfully, " \
-      "but success status was not set"
+        "but success status was not set"
     end
   end
 
-  failure_message_when_negated do |assessment|
+  failure_message_when_negated do |_assessment|
     "expected assessment not to complete successfully, but it did"
   end
 
@@ -315,7 +315,7 @@ RSpec::Matchers.define :have_mitigation_recommendations do
     !assessment[:recommendations].empty?
   end
 
-  failure_message do |assessment|
+  failure_message do |_assessment|
     "expected assessment to have mitigation recommendations, but none were found"
   end
 

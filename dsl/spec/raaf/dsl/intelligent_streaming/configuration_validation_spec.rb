@@ -21,94 +21,94 @@ RSpec.describe "IntelligentStreaming Configuration Validation" do
   describe "stream_size validation" do
     context "with invalid stream_size values" do
       it "rejects stream_size of 0" do
-        expect {
+        expect do
           Class.new(base_agent_class) do
             intelligent_streaming do
               stream_size 0
               over :items
             end
           end
-        }.to raise_error(ArgumentError, /stream_size must be a positive integer/)
+        end.to raise_error(ArgumentError, /stream_size must be a positive integer/)
       end
 
       it "rejects negative stream_size" do
-        expect {
+        expect do
           Class.new(base_agent_class) do
             intelligent_streaming do
-              stream_size -10
+              stream_size(-10)
               over :items
             end
           end
-        }.to raise_error(ArgumentError, /stream_size must be a positive integer/)
+        end.to raise_error(ArgumentError, /stream_size must be a positive integer/)
       end
 
       it "rejects non-integer stream_size" do
-        expect {
+        expect do
           Class.new(base_agent_class) do
             intelligent_streaming do
               stream_size "100"
               over :items
             end
           end
-        }.to raise_error(ArgumentError, /stream_size must be a positive integer/)
+        end.to raise_error(ArgumentError, /stream_size must be a positive integer/)
       end
 
       it "rejects float stream_size" do
-        expect {
+        expect do
           Class.new(base_agent_class) do
             intelligent_streaming do
               stream_size 10.5
               over :items
             end
           end
-        }.to raise_error(ArgumentError, /stream_size must be a positive integer/)
+        end.to raise_error(ArgumentError, /stream_size must be a positive integer/)
       end
 
       it "rejects nil stream_size" do
-        expect {
+        expect do
           Class.new(base_agent_class) do
             intelligent_streaming do
               stream_size nil
               over :items
             end
           end
-        }.to raise_error(ArgumentError, /stream_size must be a positive integer/)
+        end.to raise_error(ArgumentError, /stream_size must be a positive integer/)
       end
     end
 
     context "with valid stream_size values" do
       it "accepts stream_size of 1" do
-        expect {
+        expect do
           Class.new(base_agent_class) do
             intelligent_streaming do
               stream_size 1
               over :items
             end
           end
-        }.not_to raise_error
+        end.not_to raise_error
       end
 
       it "accepts large stream_size" do
-        expect {
+        expect do
           Class.new(base_agent_class) do
             intelligent_streaming do
               stream_size 10_000
               over :items
             end
           end
-        }.not_to raise_error
+        end.not_to raise_error
       end
 
       it "accepts typical stream_size values" do
         [10, 50, 100, 500, 1000].each do |size|
-          expect {
+          expect do
             Class.new(base_agent_class) do
               intelligent_streaming do
                 stream_size size
                 over :items
               end
             end
-          }.not_to raise_error
+          end.not_to raise_error
         end
       end
     end
@@ -153,14 +153,14 @@ RSpec.describe "IntelligentStreaming Configuration Validation" do
       end
 
       it "validates field name format" do
-        expect {
+        expect do
           Class.new(base_agent_class) do
             intelligent_streaming do
               stream_size 10
               over 123 # Invalid field name type
             end
           end
-        }.to raise_error(ArgumentError, /array_field must be a symbol or string/)
+        end.to raise_error(ArgumentError, /array_field must be a symbol or string/)
       end
     end
   end
@@ -207,7 +207,7 @@ RSpec.describe "IntelligentStreaming Configuration Validation" do
       end
 
       it "validates incremental is boolean" do
-        expect {
+        expect do
           Class.new(base_agent_class) do
             intelligent_streaming do
               stream_size 10
@@ -215,7 +215,7 @@ RSpec.describe "IntelligentStreaming Configuration Validation" do
               incremental "true" # String not boolean
             end
           end
-        }.to raise_error(ArgumentError, /incremental must be true or false/)
+        end.to raise_error(ArgumentError, /incremental must be true or false/)
       end
     end
   end
@@ -288,7 +288,7 @@ RSpec.describe "IntelligentStreaming Configuration Validation" do
 
     context "hook callability" do
       it "rejects non-callable skip_if value" do
-        expect {
+        expect do
           Class.new(base_agent_class) do
             intelligent_streaming do
               stream_size 10
@@ -297,7 +297,7 @@ RSpec.describe "IntelligentStreaming Configuration Validation" do
               skip_if "not a proc" # String not callable
             end
           end
-        }.to raise_error(ArgumentError, /skip_if must be a callable/)
+        end.to raise_error(ArgumentError, /skip_if must be a callable/)
       end
 
       it "accepts valid skip_if block" do
@@ -306,7 +306,7 @@ RSpec.describe "IntelligentStreaming Configuration Validation" do
             stream_size 10
             over :items
 
-            skip_if do |record, context|
+            skip_if do |record, _context|
               record[:processed] == true
             end
           end
@@ -321,7 +321,7 @@ RSpec.describe "IntelligentStreaming Configuration Validation" do
             stream_size 10
             over :items
 
-            load_existing do |record, context|
+            load_existing do |record, _context|
               { cached: true, data: record }
             end
           end
@@ -336,7 +336,7 @@ RSpec.describe "IntelligentStreaming Configuration Validation" do
             stream_size 10
             over :items
 
-            persist do |stream_results, context|
+            persist do |_stream_results, _context|
               # Save to database
               true
             end
@@ -356,15 +356,15 @@ RSpec.describe "IntelligentStreaming Configuration Validation" do
             stream_size 10
             over :items
 
-            skip_if do |record, context|
+            skip_if do |record, _context|
               record[:processed]
             end
 
-            load_existing do |record, context|
+            load_existing do |record, _context|
               { cached: record }
             end
 
-            persist do |stream_results, context|
+            persist do |_stream_results, _context|
               true
             end
           end
@@ -382,7 +382,7 @@ RSpec.describe "IntelligentStreaming Configuration Validation" do
             stream_size 10
             over :items
 
-            skip_if do |record, context|
+            skip_if do |record, _context|
               record[:skip]
             end
           end
@@ -400,7 +400,7 @@ RSpec.describe "IntelligentStreaming Configuration Validation" do
             stream_size 10
             over :items
 
-            persist do |stream_results, context|
+            persist do |_stream_results, _context|
               true
             end
           end
@@ -432,7 +432,7 @@ RSpec.describe "IntelligentStreaming Configuration Validation" do
   describe "configuration conflicts" do
     context "conflicting settings" do
       it "prevents multiple intelligent_streaming blocks" do
-        expect {
+        expect do
           Class.new(base_agent_class) do
             intelligent_streaming do
               stream_size 10
@@ -444,7 +444,7 @@ RSpec.describe "IntelligentStreaming Configuration Validation" do
               over :companies
             end
           end
-        }.to raise_error(ArgumentError, /intelligent_streaming already configured/)
+        end.to raise_error(ArgumentError, /intelligent_streaming already configured/)
       end
 
       it "validates mutually exclusive options" do
@@ -454,7 +454,7 @@ RSpec.describe "IntelligentStreaming Configuration Validation" do
             stream_size 10
             over :items
 
-            skip_if do |record, context|
+            skip_if do |_record, _context|
               false # Never skip
             end
           end
@@ -469,14 +469,14 @@ RSpec.describe "IntelligentStreaming Configuration Validation" do
   describe "missing required configuration" do
     context "missing stream_size" do
       it "raises error when stream_size is not provided" do
-        expect {
+        expect do
           Class.new(base_agent_class) do
             intelligent_streaming do
               over :items
               # Missing stream_size
             end
           end
-        }.to raise_error(ArgumentError, /stream_size is required/)
+        end.to raise_error(ArgumentError, /stream_size is required/)
       end
     end
   end
@@ -498,7 +498,7 @@ RSpec.describe "IntelligentStreaming Configuration Validation" do
               # Complete hook
             end
 
-            skip_if do |record, context|
+            skip_if do |record, _context|
               record[:skip]
             end
           end

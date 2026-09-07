@@ -51,7 +51,7 @@ RSpec.describe RAAF::Eval::Models::EvaluationRun, type: :model do
     it "calculates duration when both timestamps present" do
       run = create(:evaluation_run)
       run.update!(started_at: Time.current, completed_at: Time.current + 10.seconds)
-      
+
       expect(run.duration).to be_within(0.1).of(10.0)
     end
 

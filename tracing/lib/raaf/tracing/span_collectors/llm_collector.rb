@@ -3,8 +3,11 @@
 require_relative "base_collector"
 
 module RAAF
+
   module Tracing
+
     module SpanCollectors
+
       # Specialized collector for LLM completions that captures token usage, costs,
       # latency metrics, and model information. This collector provides detailed visibility
       # into LLM API calls and their financial impact.
@@ -45,6 +48,7 @@ module RAAF
       # @since 1.0.0
       # @author RAAF Team
       class LLMCollector < BaseCollector
+
         # ============================================================================
         # TOKEN USAGE TRACKING
         # These attributes capture token counts from LLM API responses
@@ -53,31 +57,31 @@ module RAAF
         # Input tokens (prompt tokens) sent to the LLM
         # Stored as: llm.tokens.input
         # @return [String] Number of input tokens or "N/A"
-        span "tokens.input": ->(comp) do
+        span "tokens.input": lambda { |comp|
           usage = extract_usage(comp)
           if usage
             (usage[:input_tokens] || usage["input_tokens"] || usage[:prompt_tokens] || usage["prompt_tokens"] || "N/A").to_s
           else
             "N/A"
           end
-        end
+        }
 
         # Output tokens (completion tokens) returned by the LLM
         # Stored as: llm.tokens.output
         # @return [String] Number of output tokens or "N/A"
-        span "tokens.output": ->(comp) do
+        span "tokens.output": lambda { |comp|
           usage = extract_usage(comp)
           if usage
             (usage[:output_tokens] || usage["output_tokens"] || usage[:completion_tokens] || usage["completion_tokens"] || "N/A").to_s
           else
             "N/A"
           end
-        end
+        }
 
         # Cache read tokens - input tokens served from cache (reduced cost)
         # Stored as: llm.tokens.cache_read
         # @return [String] Number of cached input tokens or "N/A"
-        span "tokens.cache_read": ->(comp) do
+        span "tokens.cache_read": lambda { |comp|
           usage = extract_usage(comp)
           if usage
             cache_read = usage[:cache_read_input_tokens] || usage["cache_read_input_tokens"] || 0
@@ -85,12 +89,12 @@ module RAAF
           else
             "N/A"
           end
-        end
+        }
 
         # Cache creation tokens - tokens cached for future use
         # Stored as: llm.tokens.cache_creation
         # @return [String] Number of tokens cached or "N/A"
-        span "tokens.cache_creation": ->(comp) do
+        span "tokens.cache_creation": lambda { |comp|
           usage = extract_usage(comp)
           if usage
             cache_creation = usage[:cache_creation_input_tokens] || usage["cache_creation_input_tokens"] || 0
@@ -98,19 +102,19 @@ module RAAF
           else
             "N/A"
           end
-        end
+        }
 
         # Total tokens used (input + output)
         # Stored as: llm.tokens.total
         # @return [String] Total token count or "N/A"
-        span "tokens.total": ->(comp) do
+        span "tokens.total": lambda { |comp|
           usage = extract_usage(comp)
           if usage
             (usage[:total_tokens] || usage["total_tokens"] || "N/A").to_s
           else
             "N/A"
           end
-        end
+        }
 
         # ============================================================================
         # COST TRACKING
@@ -121,7 +125,7 @@ module RAAF
         # Calculated using provider-specific pricing
         # Stored as: llm.cost.input_cents
         # @return [String] Cost in cents or "N/A"
-        span "cost.input_cents": ->(comp) do
+        span "cost.input_cents": lambda { |comp|
           usage = extract_usage(comp)
           model = extract_model(comp)
           if usage && model
@@ -131,13 +135,13 @@ module RAAF
           else
             "N/A"
           end
-        end
+        }
 
         # Cost for output tokens (in cents)
         # Calculated using provider-specific pricing
         # Stored as: llm.cost.output_cents
         # @return [String] Cost in cents or "N/A"
-        span "cost.output_cents": ->(comp) do
+        span "cost.output_cents": lambda { |comp|
           usage = extract_usage(comp)
           model = extract_model(comp)
           if usage && model
@@ -147,13 +151,13 @@ module RAAF
           else
             "N/A"
           end
-        end
+        }
 
         # Cost savings from cached tokens (in cents)
         # Cached tokens are cheaper than fresh tokens
         # Stored as: llm.cost.cache_savings_cents
         # @return [String] Savings in cents or "N/A"
-        span "cost.cache_savings_cents": ->(comp) do
+        span "cost.cache_savings_cents": lambda { |comp|
           usage = extract_usage(comp)
           model = extract_model(comp)
           if usage && model
@@ -167,12 +171,12 @@ module RAAF
           else
             "N/A"
           end
-        end
+        }
 
         # Total cost (input + output - cache savings, in cents)
         # Stored as: llm.cost.total_cents
         # @return [String] Total cost in cents or "N/A"
-        span "cost.total_cents": ->(comp) do
+        span "cost.total_cents": lambda { |comp|
           usage = extract_usage(comp)
           model = extract_model(comp)
           if usage && model
@@ -189,7 +193,7 @@ module RAAF
           else
             "N/A"
           end
-        end
+        }
 
         # ============================================================================
         # LATENCY & PERFORMANCE METRICS
@@ -199,13 +203,13 @@ module RAAF
         # Total execution time for the LLM call (in milliseconds)
         # Stored as: llm.latency.total_ms
         # @return [String] Duration in milliseconds or "N/A"
-        span "latency.total_ms": ->(comp) do
+        span "latency.total_ms": lambda { |comp|
           if comp.respond_to?(:elapsed_time_ms) && comp.elapsed_time_ms
             comp.elapsed_time_ms.to_s
           else
             "N/A"
           end
-        end
+        }
 
         # ============================================================================
         # MODEL & PROVIDER INFORMATION
@@ -214,37 +218,31 @@ module RAAF
 
         # Model name used for this completion
         # @return [String] Model identifier (e.g., "gpt-4o")
-        span model: ->(comp) do
+        span model: lambda { |comp|
           extract_model(comp) || "N/A"
-        end
+        }
 
         # ============================================================================
         # PRIVATE HELPER METHODS
         # ============================================================================
-
-        private
 
         # Extract usage hash from completion object
         # Handles both direct usage attribute and nested structures
         # @param comp [Object] Completion object from LLM provider
         # @return [Hash, nil] Usage data or nil if not found
         def self.extract_usage(comp)
-          if comp.respond_to?(:usage)
-            comp.usage
-          else
-            nil
-          end
+          return unless comp.respond_to?(:usage)
+
+          comp.usage
         end
 
         # Extract model name from completion object
         # @param comp [Object] Completion object from LLM provider
         # @return [String, nil] Model name or nil if not found
         def self.extract_model(comp)
-          if comp.respond_to?(:model)
-            comp.model
-          else
-            nil
-          end
+          return unless comp.respond_to?(:model)
+
+          comp.model
         end
 
         # Calculate input token cost based on model pricing
@@ -310,7 +308,11 @@ module RAAF
             cached_input_per_1k_cents: 0.05
           }
         }.freeze
+
       end
+
     end
+
   end
+
 end

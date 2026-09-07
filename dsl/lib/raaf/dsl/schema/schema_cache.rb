@@ -42,28 +42,26 @@ module RAAF
             cache_key = model_class.name
 
             @mutex.synchronize do
-              begin
-                model_timestamp = get_model_timestamp(model_class)
+              model_timestamp = get_model_timestamp(model_class)
 
-                # Check if cache is valid
-                if cache_valid?(cache_key, model_timestamp)
-                  @cache_statistics[:hits] += 1
-                  return @cache[cache_key]
-                end
-
-                # Cache miss - generate new schema
-                @cache_statistics[:misses] += 1
-                schema = SchemaGenerator.generate_for_model(model_class)
-
-                # Store in cache with current timestamp
-                @cache[cache_key] = schema
-                @cache_timestamps[cache_key] = Time.current
-
-                schema
-              rescue StandardError => e
-                @cache_statistics[:errors] += 1
-                raise e
+              # Check if cache is valid
+              if cache_valid?(cache_key, model_timestamp)
+                @cache_statistics[:hits] += 1
+                return @cache[cache_key]
               end
+
+              # Cache miss - generate new schema
+              @cache_statistics[:misses] += 1
+              schema = SchemaGenerator.generate_for_model(model_class)
+
+              # Store in cache with current timestamp
+              @cache[cache_key] = schema
+              @cache_timestamps[cache_key] = Time.current
+
+              schema
+            rescue StandardError => e
+              @cache_statistics[:errors] += 1
+              raise e
             end
           end
 
@@ -142,7 +140,7 @@ module RAAF
             File.mtime(model_file)
           rescue StandardError => e
             # If we can't get file timestamp, always regenerate
-            Rails.logger.debug "Could not get file timestamp for #{model_class.name}: #{e.message}"
+            Rails.logger.debug { "Could not get file timestamp for #{model_class.name}: #{e.message}" }
             Time.current
           end
 
@@ -152,9 +150,11 @@ module RAAF
           #
           def get_production_timestamp
             # Try to get Rails boot timestamp, fallback to epoch time for caching
-            Rails.application.config.respond_to?(:cache_classes_timestamp) ?
-              Rails.application.config.cache_classes_timestamp :
+            if Rails.application.config.respond_to?(:cache_classes_timestamp)
+              Rails.application.config.cache_classes_timestamp
+            else
               Time.at(0)
+            end
           end
 
           # Resolves the file path for a model class

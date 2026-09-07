@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'ostruct'
+require "ostruct"
 
 module RAAF
   module DSL
@@ -21,15 +21,15 @@ module RAAF
         String, Symbol,
         Date, DateTime, Time
       ]
-      
+
       # Add BigDecimal if available (it's in stdlib but not always loaded)
       begin
-        require 'bigdecimal'
+        require "bigdecimal"
         primitive_list << BigDecimal
       rescue LoadError
         # BigDecimal not available
       end
-      
+
       # Types that should be returned as-is without serialization
       PRIMITIVE_TYPES = primitive_list.freeze
 
@@ -49,17 +49,17 @@ module RAAF
         #
         def serialize(object, options = {})
           options = normalize_options(options)
-          
+
           # Check for circular references
           seen = options[:seen] ||= Set.new
           return handle_circular_reference(object) if seen.include?(object.object_id)
-          
+
           # Check depth limit
           return handle_depth_limit(object) if options[:depth] >= options[:max_depth]
-          
+
           # Mark object as seen
           seen << object.object_id if trackable?(object)
-          
+
           begin
             case object
             when nil, true, false, Numeric, String, Symbol, Date, DateTime, Time
@@ -105,7 +105,7 @@ module RAAF
 
         # Handle circular reference detection
         def handle_circular_reference(object)
-          { 
+          {
             "__circular_reference__" => true,
             "class" => object.class.name,
             "object_id" => object.object_id.to_s
@@ -120,7 +120,7 @@ module RAAF
           when String
             object.to_s
           else
-            { 
+            {
               "__depth_limit__" => true,
               "class" => object.class.name,
               "to_s" => safe_to_s(object)
@@ -131,14 +131,14 @@ module RAAF
         # Safely call to_s on an object
         def safe_to_s(object)
           object.to_s
-        rescue => e
+        rescue StandardError
           "#<#{object.class.name}:#{object.object_id}>"
         end
 
         # Serialize a Hash
         def serialize_hash(hash, options)
           next_options = options.merge(depth: options[:depth] + 1)
-          
+
           hash.each_with_object({}) do |(key, value), result|
             serialized_key = serialize(key, next_options)
             serialized_value = serialize(value, next_options)
@@ -155,63 +155,59 @@ module RAAF
         # Serialize an ActiveRecord model
         def serialize_active_record(model, options)
           return nil unless model
-          
+
           # Start with basic attributes
           attributes = model.attributes.dup
-          
+
           # Apply only/except filters
           attributes = filter_attributes(attributes, options)
-          
+
           # Add methods if requested
           if options[:methods]
             options[:methods].each do |method|
-              if model.respond_to?(method)
-                attributes[method.to_s] = model.send(method)
-              end
+              attributes[method.to_s] = model.send(method) if model.respond_to?(method)
             end
           end
-          
+
           # Serialize nested values
           next_options = options.merge(depth: options[:depth] + 1)
           attributes.each do |key, value|
             attributes[key] = serialize(value, next_options)
           end
-          
+
           # Add metadata
           attributes["__class__"] = model.class.name
           attributes["__id__"] = model.id if model.respond_to?(:id)
-          
+
           attributes
         end
 
         # Serialize a Struct
         def serialize_struct(struct, options)
           next_options = options.merge(depth: options[:depth] + 1)
-          
+
           result = {
             "__class__" => struct.class.name
           }
-          
+
           struct.members.each do |member|
-            if attribute_allowed?(member, options)
-              result[member.to_s] = serialize(struct[member], next_options)
-            end
+            result[member.to_s] = serialize(struct[member], next_options) if attribute_allowed?(member, options)
           end
-          
+
           result
         end
 
         # Serialize an OpenStruct
         def serialize_open_struct(ostruct, options)
           next_options = options.merge(depth: options[:depth] + 1)
-          
+
           attributes = ostruct.to_h
           attributes = filter_attributes(attributes, options)
-          
+
           result = attributes.each_with_object({}) do |(key, value), hash|
             hash[key.to_s] = serialize(value, next_options)
           end
-          
+
           result["__class__"] = "OpenStruct"
           result
         end
@@ -219,36 +215,36 @@ module RAAF
         # Serialize a generic Ruby object
         def serialize_generic_object(object, options)
           next_options = options.merge(depth: options[:depth] + 1)
-          
+
           result = {
             "__class__" => object.class.name
           }
-          
+
           # Get public methods that look like attributes
           attribute_methods = find_attribute_methods(object)
-          
+
           # Apply filters
           attribute_methods = filter_methods(attribute_methods, options)
-          
+
           # Include methods if specified
           if options[:methods]
             attribute_methods += options[:methods].map(&:to_sym)
             attribute_methods.uniq!
           end
-          
+
           # Serialize each attribute
           attribute_methods.each do |method|
-            if object.respond_to?(method) && object.method(method).arity == 0
-              begin
-                value = object.send(method)
-                result[method.to_s] = serialize(value, next_options)
-              rescue => e
-                # Skip methods that raise errors
-                result[method.to_s] = "[Error: #{e.class.name}]"
-              end
+            next unless object.respond_to?(method) && object.method(method).arity == 0
+
+            begin
+              value = object.send(method)
+              result[method.to_s] = serialize(value, next_options)
+            rescue StandardError => e
+              # Skip methods that raise errors
+              result[method.to_s] = "[Error: #{e.class.name}]"
             end
           end
-          
+
           result
         end
 
@@ -256,21 +252,21 @@ module RAAF
         def find_attribute_methods(object)
           # Get all public methods
           methods = object.public_methods(false)
-          
+
           # Filter to methods that:
           # - Don't have parameters
           # - Don't end with = or ! or ?
           # - Don't start with _
           # - Aren't common object methods
-          
-          excluded_methods = [:to_s, :to_h, :to_a, :inspect, :class, :hash, 
-                            :object_id, :nil?, :empty?, :blank?, :present?,
-                            :eql?, :equal?, :frozen?, :tainted?, :untrusted?]
-          
+
+          excluded_methods = %i[to_s to_h to_a inspect class hash
+                                object_id nil? empty? blank? present?
+                                eql? equal? frozen? tainted? untrusted?]
+
           methods.select do |method|
             method_name = method.to_s
             !method_name.match?(/[=!?]$/) &&
-              !method_name.start_with?('_') &&
+              !method_name.start_with?("_") &&
               !excluded_methods.include?(method) &&
               object.method(method).arity == 0
           end
@@ -279,7 +275,7 @@ module RAAF
         # Filter attributes based on only/except options
         def filter_attributes(attributes, options)
           attributes = attributes.symbolize_keys if attributes.respond_to?(:symbolize_keys)
-          
+
           if options[:only]
             only_keys = options[:only].map(&:to_sym)
             attributes.select { |key, _| only_keys.include?(key.to_sym) }
@@ -305,7 +301,7 @@ module RAAF
         # Check if an attribute is allowed
         def attribute_allowed?(attribute, options)
           attr_sym = attribute.to_sym
-          
+
           if options[:only]
             options[:only].include?(attr_sym)
           elsif options[:except]

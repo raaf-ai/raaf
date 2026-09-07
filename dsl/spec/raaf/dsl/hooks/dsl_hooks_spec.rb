@@ -1,16 +1,16 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
+require "spec_helper"
 
 RSpec.describe "DSL Hooks", type: :unit do
   # Set a fake API key to prevent provider initialization errors
   before(:all) do
-    @original_api_key = ENV['OPENAI_API_KEY']
-    ENV['OPENAI_API_KEY'] = 'test-key-123'
+    @original_api_key = ENV.fetch("OPENAI_API_KEY", nil)
+    ENV["OPENAI_API_KEY"] = "test-key-123"
   end
 
   after(:all) do
-    ENV['OPENAI_API_KEY'] = @original_api_key
+    ENV["OPENAI_API_KEY"] = @original_api_key
   end
 
   describe "on_context_built" do
@@ -82,9 +82,9 @@ RSpec.describe "DSL Hooks", type: :unit do
       }
 
       agent.send(:fire_dsl_hook, :on_result_ready, {
-        result: transformed_result,
-        timestamp: Time.now
-      })
+                   result: transformed_result,
+                   timestamp: Time.now
+                 })
 
       result = agent.instance_variable_get(:@transformed_result)
       expect(result[:transformed_field]).to eq("transformed_value")
@@ -101,13 +101,13 @@ RSpec.describe "DSL Hooks", type: :unit do
       }
 
       agent.send(:fire_dsl_hook, :on_result_ready, {
-        result: transformed_result,
-        timestamp: Time.now
-      })
+                   result: transformed_result,
+                   timestamp: Time.now
+                 })
 
       result = agent.instance_variable_get(:@transformed_result)
       expect(result[:transformed_field]).to eq("original")
-      expect(result[:raw_field]).to be_nil  # Original key removed by transformation
+      expect(result[:raw_field]).to be_nil # Original key removed by transformation
     end
 
     it "includes timestamp with result" do
@@ -115,9 +115,9 @@ RSpec.describe "DSL Hooks", type: :unit do
       test_time = Time.now
 
       agent.send(:fire_dsl_hook, :on_result_ready, {
-        result: { test: "data" },
-        timestamp: test_time
-      })
+                   result: { test: "data" },
+                   timestamp: test_time
+                 })
 
       timestamp = agent.instance_variable_get(:@timestamp)
       expect(timestamp).to be_a(Time)
@@ -143,9 +143,9 @@ RSpec.describe "DSL Hooks", type: :unit do
       agent = agent_class.new
 
       agent.send(:fire_dsl_hook, :on_prompt_generated, {
-        system_prompt: "You are a test assistant",
-        user_prompt: "Test query"
-      })
+                   system_prompt: "You are a test assistant",
+                   user_prompt: "Test query"
+                 })
 
       system_prompt = agent.instance_variable_get(:@system_prompt)
       expect(system_prompt).to include("You are a test assistant")
@@ -155,9 +155,9 @@ RSpec.describe "DSL Hooks", type: :unit do
       agent = agent_class.new
 
       agent.send(:fire_dsl_hook, :on_prompt_generated, {
-        system_prompt: "You are a test assistant",
-        user_prompt: "Analyze this data"
-      })
+                   system_prompt: "You are a test assistant",
+                   user_prompt: "Analyze this data"
+                 })
 
       user_prompt = agent.instance_variable_get(:@user_prompt)
       expect(user_prompt).to include("Analyze this data")
@@ -182,10 +182,10 @@ RSpec.describe "DSL Hooks", type: :unit do
       agent = agent_class.new
 
       agent.send(:fire_dsl_hook, :on_tokens_counted, {
-        input_tokens: 100,
-        output_tokens: 50,
-        total_tokens: 150
-      })
+                   input_tokens: 100,
+                   output_tokens: 50,
+                   total_tokens: 150
+                 })
 
       usage = agent.instance_variable_get(:@token_usage)
       expect(usage[:input_tokens]).to eq(100)
@@ -197,11 +197,11 @@ RSpec.describe "DSL Hooks", type: :unit do
       agent = agent_class.new
 
       agent.send(:fire_dsl_hook, :on_tokens_counted, {
-        input_tokens: 1000,
-        output_tokens: 500,
-        total_tokens: 1500,
-        estimated_cost: 0.025
-      })
+                   input_tokens: 1000,
+                   output_tokens: 500,
+                   total_tokens: 1500,
+                   estimated_cost: 0.025
+                 })
 
       usage = agent.instance_variable_get(:@token_usage)
       expect(usage[:estimated_cost]).to be_a(Float)
@@ -215,11 +215,11 @@ RSpec.describe "DSL Hooks", type: :unit do
       expected_cost = (1_000_000 * 2.50 / 1_000_000) + (1_000_000 * 10.00 / 1_000_000)
 
       agent.send(:fire_dsl_hook, :on_tokens_counted, {
-        input_tokens: 1_000_000,  # 1M input tokens
-        output_tokens: 1_000_000,  # 1M output tokens
-        total_tokens: 2_000_000,
-        estimated_cost: expected_cost
-      })
+                   input_tokens: 1_000_000, # 1M input tokens
+                   output_tokens: 1_000_000, # 1M output tokens
+                   total_tokens: 2_000_000,
+                   estimated_cost: expected_cost
+                 })
 
       usage = agent.instance_variable_get(:@token_usage)
       # For gpt-4o: $2.50 per 1M input + $10.00 per 1M output = $12.50
@@ -246,13 +246,13 @@ RSpec.describe "DSL Hooks", type: :unit do
       agent = agent_class.new
 
       agent.send(:fire_dsl_hook, :on_validation_failed, {
-        error: "Field 'age' must be an integer",
-        error_type: "schema_validation",
-        field: :age,
-        value: "not_a_number",
-        expected_type: :integer,
-        timestamp: Time.now
-      })
+                   error: "Field 'age' must be an integer",
+                   error_type: "schema_validation",
+                   field: :age,
+                   value: "not_a_number",
+                   expected_type: :integer,
+                   timestamp: Time.now
+                 })
 
       error = agent.instance_variable_get(:@validation_error)
       expect(error).to eq("Field 'age' must be an integer")
@@ -268,10 +268,10 @@ RSpec.describe "DSL Hooks", type: :unit do
       agent = agent_class.new
 
       agent.send(:fire_dsl_hook, :on_validation_failed, {
-        error: "Missing required context variable: product_name",
-        error_type: "context_validation",
-        timestamp: Time.now
-      })
+                   error: "Missing required context variable: product_name",
+                   error_type: "context_validation",
+                   timestamp: Time.now
+                 })
 
       error = agent.instance_variable_get(:@validation_error)
       expect(error).to include("Missing required context variable")
@@ -284,13 +284,13 @@ RSpec.describe "DSL Hooks", type: :unit do
       agent = agent_class.new
 
       agent.send(:fire_dsl_hook, :on_validation_failed, {
-        error: "Invalid data type",
-        error_type: "data_validation",
-        field: :company_name,
-        value: 12345,
-        expected_type: :string,
-        timestamp: Time.now
-      })
+                   error: "Invalid data type",
+                   error_type: "data_validation",
+                   field: :company_name,
+                   value: 12_345,
+                   expected_type: :string,
+                   timestamp: Time.now
+                 })
 
       field = agent.instance_variable_get(:@field)
       expect(field).to eq(:company_name)
@@ -317,9 +317,9 @@ RSpec.describe "DSL Hooks", type: :unit do
       expect(agent).to receive(:log_error).with(/Hook.*on_result_ready.*failed/)
 
       # Should not raise error despite hook failing
-      expect {
+      expect do
         agent.send(:fire_dsl_hook, :on_result_ready, { result: {}, timestamp: Time.now })
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 
@@ -383,7 +383,7 @@ RSpec.describe "DSL Hooks", type: :unit do
       agent = agent_class.new(test: "value")
 
       test_context = RAAF::DSL::ContextVariables.new
-      test_context = test_context.set(:test, "value")
+      test_context.set(:test, "value")
 
       agent.send(:fire_dsl_hook, :on_context_built, {})
 
@@ -396,9 +396,9 @@ RSpec.describe "DSL Hooks", type: :unit do
       agent = agent_class.new
 
       agent.send(:fire_dsl_hook, :on_result_ready, {
-        raw_result: { data: "raw" },
-        processed_result: { data: "processed" }
-      })
+                   raw_result: { data: "raw" },
+                   processed_result: { data: "processed" }
+                 })
 
       # deep_symbolize_keys ensures all nested hashes use symbol keys
       expect(agent.instance_variable_get(:@raw)).to eq({ data: "raw" })
@@ -423,12 +423,12 @@ RSpec.describe "DSL Hooks", type: :unit do
       agent = selective_agent_class.new
 
       agent.send(:fire_dsl_hook, :on_tokens_counted, {
-        input_tokens: 100,
-        output_tokens: 50,
-        total_tokens: 150,
-        estimated_cost: 0.01,
-        model: "gpt-4o"
-      })
+                   input_tokens: 100,
+                   output_tokens: 50,
+                   total_tokens: 150,
+                   estimated_cost: 0.01,
+                   model: "gpt-4o"
+                 })
 
       expect(agent.instance_variable_get(:@input)).to eq(100)
       expect(agent.instance_variable_get(:@output)).to eq(50)
@@ -458,9 +458,9 @@ RSpec.describe "DSL Hooks", type: :unit do
       agent = agent_class.new
 
       agent.send(:fire_dsl_hook, :on_prompt_generated, {
-        system_prompt: "System",
-        user_prompt: "User"
-      })
+                   system_prompt: "System",
+                   user_prompt: "User"
+                 })
 
       expect(agent.instance_variable_get(:@has_context)).to be true
       expect(agent.instance_variable_get(:@has_agent)).to be true

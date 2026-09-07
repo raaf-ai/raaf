@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'active_support/core_ext/hash/indifferent_access'
-require 'set'
+require "active_support/core_ext/hash/indifferent_access"
+require "set"
 
 # Swarm-style context variables management with debugging support and deep indifferent access
 #
@@ -29,12 +29,12 @@ require 'set'
 #     user: { profile: { name: "John", settings: { theme: "dark" } } },
 #     items: [{ id: 1, metadata: { type: "document" } }]
 #   )
-#   
+#
 #   # All of these work identically:
 #   puts context[:user][:profile][:name]        # => "John"
 #   puts context["user"]["profile"]["name"]     # => "John"
 #   puts context[:user]["profile"][:name]       # => "John"
-#   
+#
 #   # Arrays containing hashes also support indifferent access:
 #   first_item = context[:items].first
 #   puts first_item[:id]           # => 1
@@ -85,11 +85,11 @@ module RAAF
         # If initial_variables is empty but we have keyword arguments,
         # use the keyword arguments as the initial variables
         actual_variables = if initial_variables.empty? && !options.empty?
-                            options
-                          else
-                            initial_variables
-                          end
-        
+                             options
+                           else
+                             initial_variables
+                           end
+
         # Use deep indifferent access to eliminate string vs symbol key issues in nested structures
         @variables = case actual_variables
                      when ActiveSupport::HashWithIndifferentAccess
@@ -99,7 +99,7 @@ module RAAF
                      else
                        {}.with_indifferent_access
                      end
-        
+
         @created_at = Time.now
 
         debug_log("Context Initialized", variables: @variables)
@@ -124,7 +124,7 @@ module RAAF
         return self if new_variables.nil? || new_variables.empty?
 
         # Convert new variables to deep indifferent access
-        new_variables = new_variables.is_a?(Hash) ? deep_convert_to_indifferent_access(new_variables) : new_variables
+        new_variables = deep_convert_to_indifferent_access(new_variables) if new_variables.is_a?(Hash)
         merged_variables = @variables.merge(new_variables)
 
         # Track changes for debugging
@@ -136,7 +136,6 @@ module RAAF
                     after: merged_variables,
                     changes: changes
                   })
-
 
         # Create new instance
         new_instance = self.class.new(
@@ -241,26 +240,20 @@ module RAAF
       #
       # @return [Array<Symbol>] Array of variable keys
       #
-      def keys
-        @variables.keys
-      end
+      delegate :keys, to: :@variables
 
       # Get the number of variables
       #
       # @return [Integer] Number of context variables
       #
-      def size
-        @variables.size
-      end
+      delegate :size, to: :@variables
       alias length size
 
       # Check if context is empty
       #
       # @return [Boolean] True if no variables are set
       #
-      def empty?
-        @variables.empty?
-      end
+      delegate :empty?, to: :@variables
 
       # Convert to hash (for compatibility)
       #
@@ -273,10 +266,10 @@ module RAAF
       #
       def to_h(options = {})
         serialize_proxies = options.fetch(:serialize_proxies, true)
-        
+
         if serialize_proxies
-          require_relative 'object_proxy' unless defined?(RAAF::DSL::ObjectProxy)
-          
+          require_relative "object_proxy" unless defined?(RAAF::DSL::ObjectProxy)
+
           @variables.transform_values do |value|
             if value.respond_to?(:proxy?) && value.proxy?
               value.to_serialized_hash
@@ -466,6 +459,7 @@ module RAAF
         if obj.is_a?(Hash) || obj.is_a?(Array)
           object_id = obj.object_id
           return obj if visited.include?(object_id)
+
           visited = visited.dup.add(object_id)
         end
 
@@ -476,11 +470,11 @@ module RAAF
           converted_hash = {}
           obj.each do |key, value|
             # Check if this value would cause a circular reference
-            if (value.is_a?(Hash) || value.is_a?(Array)) && visited.include?(value.object_id)
-              converted_hash[key] = "[CIRCULAR_REFERENCE]"
-            else
-              converted_hash[key] = deep_convert_to_indifferent_access(value, visited)
-            end
+            converted_hash[key] = if (value.is_a?(Hash) || value.is_a?(Array)) && visited.include?(value.object_id)
+                                    "[CIRCULAR_REFERENCE]"
+                                  else
+                                    deep_convert_to_indifferent_access(value, visited)
+                                  end
           end
           converted_hash.with_indifferent_access
         when Array

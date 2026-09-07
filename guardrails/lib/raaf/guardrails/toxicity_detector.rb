@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
-require_relative 'base'
+require_relative "base"
 
 module RAAF
+
   module Guardrails
+
     # Detects toxic, harmful, or inappropriate content in messages
     class ToxicityDetector < Base
+
       # Toxicity categories with patterns and severity
       TOXICITY_PATTERNS = {
         harassment: {
@@ -18,7 +21,7 @@ module RAAF
         },
         hate_speech: {
           patterns: [
-            # Note: These are simplified patterns for demonstration
+            # NOTE: These are simplified patterns for demonstration
             # Real implementation would use more sophisticated detection
             /\b(?:hate|despise)\s+(?:all|every)\s+\w+s\b/i,
             /\ball\s+\w+s\s+(?:are|should)\s+(?:die|be\s+eliminated)\b/i
@@ -52,7 +55,7 @@ module RAAF
         profanity: {
           patterns: [
             # Common profanity patterns (simplified)
-            /\b(?:damn|hell|crap)\b/i,  # Mild profanity
+            /\b(?:damn|hell|crap)\b/i # Mild profanity
             # Stronger profanity would be included in production
           ],
           severity: :low
@@ -61,7 +64,7 @@ module RAAF
 
       attr_reader :toxicity_types, :threshold, :severity_levels
 
-      def initialize(action: :flag, toxicity_types: nil, threshold: 0.7, 
+      def initialize(action: :flag, toxicity_types: nil, threshold: 0.7,
                      severity_levels: nil, **options)
         super(action: action, **options)
         @toxicity_types = toxicity_types || TOXICITY_PATTERNS.keys
@@ -71,32 +74,32 @@ module RAAF
 
       protected
 
-      def perform_check(content, context)
+      def perform_check(content, _context)
         violations = []
-        
+
         # Check each toxicity type
         @toxicity_types.each do |type|
           next unless TOXICITY_PATTERNS.key?(type)
-          
+
           category = TOXICITY_PATTERNS[type]
           category[:patterns].each do |pattern|
-            if content.match?(pattern)
-              violations << {
-                type: type,
-                pattern: pattern.source,
-                severity: category[:severity],
-                description: "#{type.to_s.tr('_', ' ').capitalize} detected"
-              }
-            end
+            next unless content.match?(pattern)
+
+            violations << {
+              type: type,
+              pattern: pattern.source,
+              severity: category[:severity],
+              description: "#{type.to_s.tr("_", " ").capitalize} detected"
+            }
           end
         end
-        
+
         return safe_result if violations.empty?
-        
+
         # Determine action based on severity
         max_severity = violations.map { |v| v[:severity] }.max_by { |s| severity_score(s) }
         action = @severity_levels[max_severity] || @action
-        
+
         # Create result with appropriate action
         result = violation_result(violations)
         result.instance_variable_set(:@action, action)
@@ -126,24 +129,24 @@ module RAAF
       # Override violation_result to support custom actions
       def violation_result(violations, modified_content = nil)
         @metrics[:violations] += 1
-        
+
         # Determine action based on severity
         max_severity = violations.map { |v| v[:severity] }.max_by { |s| severity_score(s) }
         determined_action = @severity_levels[max_severity] || @action
-        
+
         # Handle special actions
         case determined_action
         when :block_and_alert
           alert_on_critical_violation(violations)
           determined_action = :block
         end
-        
+
         GuardrailResult.new(
           safe: false,
           action: determined_action,
           content: modified_content,
           violations: violations,
-          metadata: { 
+          metadata: {
             guardrail: self.class.name,
             toxicity_types: violations.map { |v| v[:type] }.uniq,
             max_severity: max_severity
@@ -154,13 +157,16 @@ module RAAF
       def alert_on_critical_violation(violations)
         # In production, this would send alerts to monitoring systems
         @logger.error "CRITICAL TOXICITY DETECTED: #{violations.inspect}"
-        
+
         # Could also:
         # - Send to alerting service
         # - Create incident ticket
         # - Notify security team
         # - Log to audit trail
       end
+
     end
+
   end
+
 end

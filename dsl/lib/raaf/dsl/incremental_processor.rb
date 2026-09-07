@@ -87,7 +87,7 @@ module RAAF
         batches = input_items.each_slice(batch_size).to_a
 
         # Get agent name for logging
-        agent_name = @agent.class.name.split('::').last
+        agent_name = @agent.class.name.split("::").last
 
         RAAF.logger.info "🔍 [#{agent_name}] Input: #{input_items.count} items"
         RAAF.logger.info "📦 [#{agent_name}] Processing in #{batches.count} batch(es) of max #{batch_size} items"
@@ -131,7 +131,6 @@ module RAAF
             # Accumulate results
             all_skipped.concat(skipped_items)
             all_processed.concat(batch_results)
-
           rescue StandardError => e
             # Log error but continue with next batch
             RAAF.logger.error "❌ [#{agent_name}] Batch #{batch_number} failed: #{e.message}"
@@ -141,10 +140,10 @@ module RAAF
             # Report to Rails error subscriber (flows to Faultline) as handled
             # NOTE: Must use ::Rails to avoid resolving to RAAF::Rails inside this namespace
             ::Rails.error.report(e, handled: true, context: {
-              source: "raaf.incremental_processor",
-              agent_name: agent_name,
-              batch_number: batch_number
-            })
+                                   source: "raaf.incremental_processor",
+                                   agent_name: agent_name,
+                                   batch_number: batch_number
+                                 })
 
             # Track failed batch for reporting
             failed_batches << { batch_number: batch_number, error: e.message, error_class: e.class.name }
@@ -213,7 +212,7 @@ module RAAF
       def persist_batch(batch_results, context)
         return if batch_results.empty?
 
-        agent_name = @agent.class.name.split('::').last
+        agent_name = @agent.class.name.split("::").last
 
         RAAF.logger.info "💾 [#{agent_name}] Persisting batch of #{batch_results.count} items"
 
@@ -252,7 +251,6 @@ module RAAF
 
         # Build processed lookup by matching items that were processed
         # We need to track which items were processed vs skipped
-        processed_lookup = {}
         processed_index = 0
 
         # Reconstruct results in original order
@@ -268,7 +266,7 @@ module RAAF
 
             # Check for nil - LLM returned fewer items than expected (non-determinism)
             if processed_item.nil?
-              agent_name = @agent.class.name.split('::').last
+              agent_name = @agent.class.name.split("::").last
               warn_msg = "⚠️ [#{agent_name}] LLM returned fewer processed items than expected! " \
                          "Expected #{original_items.count - skipped_items.count} processed items, " \
                          "but only got #{processed_items.compact.count}. " \
@@ -283,7 +281,7 @@ module RAAF
           end
         end
 
-        agent_name = @agent.class.name.split('::').last
+        agent_name = @agent.class.name.split("::").last
         RAAF.logger.info "🔄 [#{agent_name}] Merged #{result.count} total items (#{processed_items.count} processed + #{skipped_items.count} skipped)"
 
         result

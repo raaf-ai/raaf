@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "set"
 require "active_support/core_ext/hash/indifferent_access"
 
 module RAAF
@@ -28,7 +27,7 @@ module RAAF
   # == Performance Considerations
   #
   # HashWithIndifferentAccess uses Rails' battle-tested implementation for consistency
-  # while providing transparent symbol access. For large nested structures, consider using 
+  # while providing transparent symbol access. For large nested structures, consider using
   # streaming or chunked processing when performance is critical.
   #
   # @example API boundary conversion
@@ -63,8 +62,6 @@ module RAAF
   module Utils
 
     module_function
-
-
 
     ##
     # Prepare hash for OpenAI API (convert to string keys)
@@ -233,6 +230,7 @@ module RAAF
       when Hash
         # Prevent infinite recursion on circular references
         return "[CIRCULAR_REFERENCE]" if visited.include?(obj.object_id)
+
         visited = visited.dup.add(obj.object_id)
 
         # Convert to HashWithIndifferentAccess and transform values safely
@@ -241,6 +239,7 @@ module RAAF
       when Array
         # Prevent infinite recursion on circular array references
         return "[CIRCULAR_REFERENCE]" if visited.include?(obj.object_id)
+
         visited = visited.dup.add(obj.object_id)
 
         obj.map { |item| indifferent_access(item, visited) }
@@ -303,7 +302,6 @@ module RAAF
       parsed = JSON.parse(json_string)
       indifferent_access(parsed)
     end
-
 
     ##
     # Safe JSON parsing with indifferent access

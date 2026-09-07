@@ -10,7 +10,7 @@ RAAF::Eval::UI.configure do |config|
   # Authorization callback for span access
   # This example allows all authenticated users to access all spans
   # In production, you might want to restrict based on team, project, etc.
-  config.authorize_span_access = ->(user, span) {
+  config.authorize_span_access = lambda { |user, _span|
     # Allow access if user is authenticated
     user.present?
 

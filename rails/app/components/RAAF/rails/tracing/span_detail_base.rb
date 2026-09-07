@@ -17,7 +17,7 @@ module RAAF
 
           section_id = "section-#{title.parameterize}-#{@span.span_id}"
           data_size = calculate_data_size(data)
-          is_large_data = data_size > 10000 # Large data threshold for performance optimization
+          is_large_data = data_size > 10_000 # Large data threshold for performance optimization
 
           section(class: "bg-gray-50 rounded-lg p-4", data: { controller: "span-detail" }) do
             button(
@@ -74,10 +74,14 @@ module RAAF
             render_truncated_json_view(data, data_size, use_json_highlighter, compact)
           else
             # Standard JSON view
-            json_data_attrs = use_json_highlighter ? {
-              controller: "json-highlight",
-              json_highlight_target: "json"
-            } : {}
+            json_data_attrs = if use_json_highlighter
+                                {
+                                  controller: "json-highlight",
+                                  json_highlight_target: "json"
+                                }
+                              else
+                                {}
+                              end
 
             pre(
               class: "bg-white p-3 rounded border text-xs overflow-x-auto font-mono max-h-96 overflow-y-auto text-gray-900",
@@ -93,10 +97,14 @@ module RAAF
           truncated_data = truncate_large_data(data)
           truncate_id = "truncate-#{SecureRandom.hex(4)}"
 
-          json_data_attrs = use_json_highlighter ? {
-            controller: "json-highlight",
-            json_highlight_target: "json"
-          } : {}
+          json_data_attrs = if use_json_highlighter
+                              {
+                                controller: "json-highlight",
+                                json_highlight_target: "json"
+                              }
+                            else
+                              {}
+                            end
 
           div(class: "space-y-2") do
             # Performance info banner
@@ -179,23 +187,29 @@ module RAAF
 
         def format_timestamp(time)
           return "N/A" unless time
+
           time.strftime("%Y-%m-%d %H:%M:%S.%3N")
         end
 
         # Format duration using the BaseComponent method
         def format_duration(ms)
           return "N/A" unless ms
-          super(ms)
+
+          super
         end
 
         def render_duration_badge(duration_ms)
-          return span(class: "px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800") { "N/A" } unless duration_ms
+          unless duration_ms
+            return span(class: "px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800") do
+              "N/A"
+            end
+          end
 
           color_class = case duration_ms.to_f
-          when 0..100 then "bg-green-100 text-green-800"
-          when 101..1000 then "bg-yellow-100 text-yellow-800"
-          else "bg-red-100 text-red-800"
-          end
+                        when 0..100 then "bg-green-100 text-green-800"
+                        when 101..1000 then "bg-yellow-100 text-yellow-800"
+                        else "bg-red-100 text-red-800"
+                        end
 
           span(class: "px-2 py-1 text-xs font-medium rounded-full #{color_class}") do
             "#{duration_ms.round}ms"
@@ -208,9 +222,7 @@ module RAAF
               i(class: "#{icon_class} text-blue-600 text-lg")
               div do
                 h3(class: "font-semibold text-blue-900") { title }
-                if subtitle
-                  p(class: "text-sm text-blue-700") { subtitle }
-                end
+                p(class: "text-sm text-blue-700") { subtitle } if subtitle
               end
             end
           end
@@ -244,8 +256,8 @@ module RAAF
           return false unless value.is_a?(String)
 
           stripped = value.strip
-          (stripped.start_with?('{') && stripped.end_with?('}')) ||
-          (stripped.start_with?('[') && stripped.end_with?(']'))
+          (stripped.start_with?("{") && stripped.end_with?("}")) ||
+            (stripped.start_with?("[") && stripped.end_with?("]"))
         end
 
         def format_json_display(data, compact = false)
@@ -267,14 +279,12 @@ module RAAF
         end
 
         def format_json_with_depth_limit(data, compact = false, max_depth = 100)
-          begin
-            compact ? JSON.generate(data, max_nesting: max_depth) : JSON.pretty_generate(data, max_nesting: max_depth)
-          rescue JSON::NestingError
-            # Truncate deeply nested structures and try again
-            truncated_data = truncate_deep_nesting(data, max_depth - 1)
-            result = compact ? JSON.generate(truncated_data) : JSON.pretty_generate(truncated_data)
-            "#{result}\n\n... (some deeply nested content truncated at depth #{max_depth})"
-          end
+          compact ? JSON.generate(data, max_nesting: max_depth) : JSON.pretty_generate(data, max_nesting: max_depth)
+        rescue JSON::NestingError
+          # Truncate deeply nested structures and try again
+          truncated_data = truncate_deep_nesting(data, max_depth - 1)
+          result = compact ? JSON.generate(truncated_data) : JSON.pretty_generate(truncated_data)
+          "#{result}\n\n... (some deeply nested content truncated at depth #{max_depth})"
         end
 
         def truncate_deep_nesting(obj, max_depth, current_depth = 0)
@@ -311,8 +321,8 @@ module RAAF
           end
 
           # Try flexible key matching for nested structures
-          if key.include?('.')
-            @span.span_attributes&.dig(*key.split('.'))
+          if key.include?(".")
+            @span.span_attributes&.dig(*key.split("."))
           else
             nil
           end
@@ -350,7 +360,9 @@ module RAAF
             div(class: "px-3 py-4 sm:px-4 sm:py-5 lg:px-6 border-b border-gray-200") do
               div(class: "flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0") do
                 div(class: "flex-1 min-w-0") do
-                  h3(class: "text-base sm:text-lg leading-6 font-medium text-gray-900 mb-2 truncate") { "Span Overview" }
+                  h3(class: "text-base sm:text-lg leading-6 font-medium text-gray-900 mb-2 truncate") do
+                    "Span Overview"
+                  end
                   # Task 2.3: Span hierarchy navigation and relationship display
                   render_span_hierarchy_navigation
                 end
@@ -378,9 +390,7 @@ module RAAF
                 render_detail_item("Status", render_status_badge(@span.status))
 
                 # Workflow context when available
-                if @trace
-                  render_detail_item("Workflow", @trace.workflow_name || "Unknown")
-                end
+                render_detail_item("Workflow", @trace.workflow_name || "Unknown") if @trace
 
                 # Hierarchy information
                 render_detail_item("Depth", @span.depth || 0)
@@ -391,7 +401,8 @@ module RAAF
 
         # Task 2.3: Span hierarchy navigation showing relationships (mobile-responsive)
         def render_span_hierarchy_navigation
-          nav(class: "flex flex-wrap items-center gap-1 sm:gap-2 text-xs sm:text-sm overflow-x-auto", aria: { label: "Span hierarchy navigation" }) do
+          nav(class: "flex flex-wrap items-center gap-1 sm:gap-2 text-xs sm:text-sm overflow-x-auto",
+              aria: { label: "Span hierarchy navigation" }) do
             # Trace navigation link (mobile-optimized)
             if @trace
               link_to(
@@ -513,10 +524,11 @@ module RAAF
         # Enhanced duration badge with performance colors
         def render_enhanced_duration_badge(duration_ms)
           color_class, performance_text = case duration_ms
-                                         when 0..100 then ["bg-green-100 text-green-800 border-green-200", "Fast"]
-                                         when 101..1000 then ["bg-yellow-100 text-yellow-800 border-yellow-200", "Moderate"]
-                                         else ["bg-red-100 text-red-800 border-red-200", "Slow"]
-                                         end
+                                          when 0..100 then ["bg-green-100 text-green-800 border-green-200", "Fast"]
+                                          when 101..1000 then ["bg-yellow-100 text-yellow-800 border-yellow-200",
+                                                               "Moderate"]
+                                          else ["bg-red-100 text-red-800 border-red-200", "Slow"]
+                                          end
 
           span(
             class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border #{color_class}",
@@ -530,6 +542,7 @@ module RAAF
         # Helper to truncate long IDs for navigation display
         def truncate_id(id, length: 8)
           return "N/A" unless id
+
           id.length > length ? "#{id[0...length]}..." : id
         end
 
@@ -540,9 +553,7 @@ module RAAF
               div(class: "flex items-center justify-between") do
                 h3(class: "text-lg leading-6 font-medium text-gray-900") { "Timing Information" }
                 # Performance indicator in header
-                if @span.duration_ms
-                  render_performance_indicator(@span.duration_ms)
-                end
+                render_performance_indicator(@span.duration_ms) if @span.duration_ms
               end
             end
 
@@ -554,7 +565,8 @@ module RAAF
                 render_timing_detail("Duration", format_duration(@span.duration_ms), icon: "bi-stopwatch")
 
                 if @span.start_time
-                  render_timing_detail("Time Ago", time_ago_in_words(@span.start_time) + " ago", icon: "bi-clock-history")
+                  render_timing_detail("Time Ago", time_ago_in_words(@span.start_time) + " ago",
+                                       icon: "bi-clock-history")
                 end
               end
 
@@ -562,9 +574,7 @@ module RAAF
               render_performance_metrics
 
               # Timeline visualization for longer spans
-              if @span.duration_ms && @span.duration_ms > 1000
-                render_timeline_visualization
-              end
+              render_timeline_visualization if @span.duration_ms && @span.duration_ms > 1000
 
               # Timing comparisons for context
               render_timing_comparisons if @span.parent_id || @trace
@@ -576,9 +586,7 @@ module RAAF
         def render_timing_detail(label, value, icon: nil)
           div(class: "bg-gray-50 rounded-lg p-3") do
             div(class: "flex items-center mb-2") do
-              if icon
-                i(class: "#{icon} text-gray-600 mr-2")
-              end
+              i(class: "#{icon} text-gray-600 mr-2") if icon
               dt(class: "text-sm font-medium text-gray-700") { label }
             end
             dd(class: "text-sm text-gray-900 font-mono") { value || "N/A" }
@@ -587,18 +595,21 @@ module RAAF
 
         # Performance indicator with detailed classification
         def render_performance_indicator(duration_ms)
-          performance_level, performance_text, icon_class = case duration_ms
-                                                          when 0..100
-                                                            ["excellent", "Excellent", "bi-lightning-fill text-green-600"]
-                                                          when 101..500
-                                                            ["good", "Good", "bi-check-circle-fill text-green-600"]
-                                                          when 501..1000
-                                                            ["moderate", "Moderate", "bi-dash-circle-fill text-yellow-600"]
-                                                          when 1001..5000
-                                                            ["slow", "Slow", "bi-exclamation-triangle-fill text-orange-600"]
-                                                          else
-                                                            ["critical", "Critical", "bi-x-circle-fill text-red-600"]
-                                                          end
+          _, performance_text, icon_class = case duration_ms
+                                            when 0..100
+                                              ["excellent", "Excellent",
+                                               "bi-lightning-fill text-green-600"]
+                                            when 101..500
+                                              ["good", "Good", "bi-check-circle-fill text-green-600"]
+                                            when 501..1000
+                                              ["moderate", "Moderate",
+                                               "bi-dash-circle-fill text-yellow-600"]
+                                            when 1001..5000
+                                              ["slow", "Slow",
+                                               "bi-exclamation-triangle-fill text-orange-600"]
+                                            else
+                                              ["critical", "Critical", "bi-x-circle-fill text-red-600"]
+                                            end
 
           div(class: "flex items-center gap-1 text-sm") do
             i(class: icon_class)
@@ -638,6 +649,7 @@ module RAAF
         # Enhanced timestamp formatting with UTC indicator
         def format_enhanced_timestamp(time)
           return "N/A" unless time
+
           time.strftime("%Y-%m-%d %H:%M:%S.%3N UTC")
         end
 
@@ -713,11 +725,11 @@ module RAAF
 
           # Determine color based on percentage
           bar_color = case percentage
-                     when 0..50 then "bg-green-500"
-                     when 51..100 then "bg-yellow-500"
-                     when 101..200 then "bg-orange-500"
-                     else "bg-red-500"
-                     end
+                      when 0..50 then "bg-green-500"
+                      when 51..100 then "bg-yellow-500"
+                      when 101..200 then "bg-orange-500"
+                      else "bg-red-500"
+                      end
 
           div(class: "space-y-1") do
             div(class: "flex justify-between text-xs") do
@@ -736,11 +748,13 @@ module RAAF
         # Helper methods for calculations
         def calculate_throughput
           return "N/A" unless @span.duration_ms&.positive?
+
           (1000.0 / @span.duration_ms).round(2)
         end
 
         def performance_category
           return "Unknown" unless @span.duration_ms
+
           case @span.duration_ms
           when 0..100 then "Excellent"
           when 101..500 then "Good"
@@ -752,6 +766,7 @@ module RAAF
 
         def relative_speed_indicator
           return "Unknown" unless @span.duration_ms
+
           case @span.duration_ms
           when 0..50 then "⚡ Lightning"
           when 51..100 then "🚀 Fast"
@@ -763,6 +778,7 @@ module RAAF
 
         def resource_intensity
           return "Unknown" unless @span.duration_ms
+
           case @span.duration_ms
           when 0..100 then "Light"
           when 101..1000 then "Medium"
@@ -774,16 +790,17 @@ module RAAF
         def typical_comparison_percentage
           # Estimate typical durations based on span kind
           typical_duration = case @span.kind
-                            when "tool" then 500
-                            when "agent" then 2000
-                            when "llm" then 3000
-                            when "handoff" then 100
-                            when "guardrail" then 200
-                            when "pipeline" then 5000
-                            else 1000
-                            end
+                             when "tool" then 500
+                             when "agent" then 2000
+                             when "llm" then 3000
+                             when "handoff" then 100
+                             when "guardrail" then 200
+                             when "pipeline" then 5000
+                             else 1000
+                             end
 
           return nil unless @span.duration_ms
+
           (@span.duration_ms.to_f / typical_duration * 100).round(1)
         end
 
@@ -791,6 +808,7 @@ module RAAF
           # This would require accessing parent span data
           # For now, return a placeholder
           return nil unless @span.duration_ms && @span.parent_id
+
           # In a real implementation, you'd fetch parent span and compare
           75.0 # Placeholder
         end
@@ -799,21 +817,26 @@ module RAAF
           # This would require accessing trace total duration
           # For now, return a placeholder
           return nil unless @span.duration_ms && @trace
+
           # In a real implementation, you'd calculate vs total trace time
           25.0 # Placeholder
         end
 
         # Helper method to render status badge with appropriate colors
         def render_status_badge(status)
-          return span(class: "px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800") { "unknown" } unless status
+          unless status
+            return span(class: "px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800") do
+              "unknown"
+            end
+          end
 
           color_class = case status.to_s.downcase
-                       when "success", "ok" then "bg-green-100 text-green-800 border-green-200"
-                       when "error", "failed" then "bg-red-100 text-red-800 border-red-200"
-                       when "warning", "timeout" then "bg-yellow-100 text-yellow-800 border-yellow-200"
-                       when "pending", "running" then "bg-blue-100 text-blue-800 border-blue-200"
-                       else "bg-gray-100 text-gray-800 border-gray-200"
-                       end
+                        when "success", "ok" then "bg-green-100 text-green-800 border-green-200"
+                        when "error", "failed" then "bg-red-100 text-red-800 border-red-200"
+                        when "warning", "timeout" then "bg-yellow-100 text-yellow-800 border-yellow-200"
+                        when "pending", "running" then "bg-blue-100 text-blue-800 border-blue-200"
+                        else "bg-gray-100 text-gray-800 border-gray-200"
+                        end
 
           span(class: "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border #{color_class}") do
             status.to_s.capitalize
@@ -822,17 +845,21 @@ module RAAF
 
         # Helper method to render kind badge with appropriate styling
         def render_kind_badge(kind)
-          return span(class: "px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800") { "unknown" } unless kind
+          unless kind
+            return span(class: "px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800") do
+              "unknown"
+            end
+          end
 
           color_class = case kind.to_s.downcase
-                       when "tool" then "bg-purple-100 text-purple-800 border-purple-200"
-                       when "agent" then "bg-blue-100 text-blue-800 border-blue-200"
-                       when "llm" then "bg-green-100 text-green-800 border-green-200"
-                       when "handoff" then "bg-orange-100 text-orange-800 border-orange-200"
-                       when "guardrail" then "bg-red-100 text-red-800 border-red-200"
-                       when "pipeline" then "bg-indigo-100 text-indigo-800 border-indigo-200"
-                       else "bg-gray-100 text-gray-800 border-gray-200"
-                       end
+                        when "tool" then "bg-purple-100 text-purple-800 border-purple-200"
+                        when "agent" then "bg-blue-100 text-blue-800 border-blue-200"
+                        when "llm" then "bg-green-100 text-green-800 border-green-200"
+                        when "handoff" then "bg-orange-100 text-orange-800 border-orange-200"
+                        when "guardrail" then "bg-red-100 text-red-800 border-red-200"
+                        when "pipeline" then "bg-indigo-100 text-indigo-800 border-indigo-200"
+                        else "bg-gray-100 text-gray-800 border-gray-200"
+                        end
 
           span(class: "inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border #{color_class}") do
             kind.to_s.capitalize
@@ -847,8 +874,8 @@ module RAAF
           case seconds_ago
           when 0..59 then "#{seconds_ago.to_i} seconds"
           when 60..3599 then "#{(seconds_ago / 60).to_i} minutes"
-          when 3600..86399 then "#{(seconds_ago / 3600).to_i} hours"
-          else "#{(seconds_ago / 86400).to_i} days"
+          when 3600..86_399 then "#{(seconds_ago / 3600).to_i} hours"
+          else "#{(seconds_ago / 86_400).to_i} days"
           end
         end
       end

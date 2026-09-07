@@ -11,14 +11,14 @@ require_relative "raaf/version"
 #
 # @example Basic usage
 #   require 'raaf'
-#   
+#
 #   # Create an agent
 #   agent = RAAF::Agent.new(
 #     name: "Assistant",
 #     instructions: "You are a helpful assistant.",
 #     model: "gpt-4o"
 #   )
-#   
+#
 #   # Run the agent
 #   runner = RAAF::Runner.new(agent: agent)
 #   result = runner.run("Hello, how are you?")
@@ -26,12 +26,12 @@ require_relative "raaf/version"
 #
 # @example With tools
 #   require 'raaf'
-#   
+#
 #   # Define a custom tool
 #   def get_weather(location)
 #     "The weather in #{location} is sunny and 72°F"
 #   end
-#   
+#
 #   # Create agent with tools
 #   agent = RAAF::Agent.new(
 #     name: "WeatherBot",
@@ -39,24 +39,24 @@ require_relative "raaf/version"
 #     model: "gpt-4o",
 #     tools: [method(:get_weather)]
 #   )
-#   
+#
 #   runner = RAAF::Runner.new(agent: agent)
 #   result = runner.run("What's the weather in Tokyo?")
 #
 # @example With tracing
 #   require 'raaf'
-#   
+#
 #   # Set up tracing
 #   tracer = RAAF::Tracing::SpanTracer.new
 #   tracer.add_processor(RAAF::Tracing::OpenAIProcessor.new)
-#   
+#
 #   # Create agent with tracing
 #   agent = RAAF::Agent.new(
 #     name: "TracedAgent",
 #     instructions: "You are a helpful assistant.",
 #     model: "gpt-4o"
 #   )
-#   
+#
 #   runner = RAAF::Runner.new(agent: agent, tracer: tracer)
 #   result = runner.run("Explain quantum computing")
 #
@@ -118,45 +118,42 @@ end
 begin
   # Core framework (required)
   require "raaf-core"
-  
+
   # Providers (required)
   require "raaf-providers"
-  
+
   # Tools (required)
   require "raaf-tools"
-  
+
   # Guardrails (required)
   require "raaf-guardrails"
-  
+
   # Tracing (required)
   require "raaf-tracing"
-  
+
   # Streaming (required)
   require "raaf-streaming"
-  
+
   # Memory (required)
   require "raaf-memory"
-  
+
   # Extensions (required)
   require "raaf-extensions"
-  
+
   # DSL (required)
   require "raaf-dsl"
-  
+
   # Debug tools (required)
   require "raaf-debug"
-  
+
   # Testing utilities (required)
   require "raaf-testing"
-  
+
   # Compliance (required)
   require "raaf-compliance"
-  
+
   # Rails integration (optional - only if Rails is present)
-  if defined?(Rails)
-    require "raaf-rails"
-  end
-  
+  require "raaf-rails" if defined?(Rails)
 rescue LoadError => e
   # Graceful handling of missing subgems
   warn "RAAF Warning: Some subgems are not available: #{e.message}"

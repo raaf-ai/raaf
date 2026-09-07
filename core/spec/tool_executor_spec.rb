@@ -1,8 +1,9 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "raaf/tool_executor"
 
-RSpec.describe RAAF::ToolExecutor do
+RSpec.describe RAAF::Execution::ToolExecutor do
   let(:agent) { create_test_agent(name: "ToolAgent") }
   let(:runner) { double("Runner") }
   let(:tool_executor) { described_class.new(agent, runner) }
@@ -362,9 +363,9 @@ RSpec.describe RAAF::ToolExecutor do
       allow(runner).to receive(:execute_tool).and_raise(ArgumentError.new("Invalid parameter"))
 
       # ArgumentError should be re-raised (not caught and added to conversation)
-      expect {
+      expect do
         tool_executor.send(:execute_single_tool_call, tool_call, conversation, context_wrapper)
-      }.to raise_error(ArgumentError, "Invalid parameter")
+      end.to raise_error(ArgumentError, "Invalid parameter")
     end
 
     it "does not add ArgumentError to conversation" do
@@ -373,9 +374,9 @@ RSpec.describe RAAF::ToolExecutor do
 
       conversation_before = conversation.dup
 
-      expect {
+      expect do
         tool_executor.send(:execute_single_tool_call, tool_call, conversation, context_wrapper)
-      }.to raise_error(ArgumentError)
+      end.to raise_error(ArgumentError)
 
       # Conversation should not be modified when ArgumentError is raised
       expect(conversation).to eq(conversation_before)
@@ -387,9 +388,9 @@ RSpec.describe RAAF::ToolExecutor do
       allow(tool_executor).to receive(:log_error)
 
       # StandardError should be caught and added to conversation
-      expect {
+      expect do
         tool_executor.send(:execute_single_tool_call, tool_call, conversation, context_wrapper)
-      }.not_to raise_error
+      end.not_to raise_error
 
       # Error should be added to conversation as tool response
       error_message = conversation.find { |msg| msg[:role] == "tool" && msg[:tool_call_id] == "call_validation" }

@@ -14,6 +14,7 @@ require_relative "raaf/tracing/models"
 require_relative "raaf/tracing/traced_job" if defined?(ActiveJob)
 
 module RAAF
+
   ##
   # Distributed tracing and monitoring for Ruby AI Agents Factory
   #
@@ -33,12 +34,12 @@ module RAAF
   # @example Basic tracing setup
   #   tracer = RAAF::Tracing::SpanTracer.new
   #   tracer.add_processor(RAAF::Tracing::OpenAIProcessor.new)
-  #   
+  #
   #   agent = RAAF::Agent.new(
   #     name: "Assistant",
   #     instructions: "You are helpful"
   #   )
-  #   
+  #
   #   runner = RAAF::Runner.new(agent: agent, tracer: tracer)
   #   result = runner.run("Hello")
   #
@@ -51,13 +52,14 @@ module RAAF
   # @example OpenTelemetry integration
   #   otel_tracer = RAAF::Tracing::OpenTelemetryIntegration.new
   #   otel_tracer.setup_instrumentation
-  #   
+  #
   #   # Traces will be sent to configured OpenTelemetry exporters
   #   agent = RAAF::Agent.new(name: "Assistant")
   #   runner = RAAF::Runner.new(agent: agent, tracer: otel_tracer)
   #
   # @since 1.0.0
   module Tracing
+
     # Default configuration
     DEFAULT_CONFIG = {
       enabled: true,
@@ -68,6 +70,7 @@ module RAAF
     }.freeze
 
     class << self
+
       # @return [Hash] Current tracing configuration
       attr_accessor :config
 
@@ -108,7 +111,10 @@ module RAAF
         config[:enabled]
       end
 
-      # Note: disable! and enable! methods are defined in raaf/tracing.rb to avoid duplication
+      # NOTE: disable! and enable! methods are defined in raaf/tracing.rb to avoid duplication
+
     end
+
   end
+
 end

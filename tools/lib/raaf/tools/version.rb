@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Tools
+
     ##
     # Current version of the raaf-tools gem
     #
@@ -10,5 +12,7 @@ module RAAF
     #
     # @return [String] the version string in semantic versioning format (MAJOR.MINOR.PATCH)
     VERSION = "0.1.0"
+
   end
+
 end

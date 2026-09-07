@@ -3,7 +3,7 @@
 require_relative "executor_hooks"
 require_relative "logging"
 
-# Note: Traceable module is now provided by raaf-core.rb centrally
+# NOTE: Traceable module is now provided by raaf-core.rb centrally
 
 module RAAF
 
@@ -46,7 +46,6 @@ module RAAF
     include Logger
     include Execution::ExecutorHooks
 
-
     attr_reader :runner, :provider, :agent, :config, :services, :tracer
 
     ##
@@ -79,7 +78,6 @@ module RAAF
     # @raise [ExecutionStoppedError] If execution is stopped
     #
     def execute(messages)
-
       # Delegate to agent's tracing for proper span hierarchy
       # Pass agent name as metadata to ensure proper span naming
       agent_name = @agent.respond_to?(:name) && @agent.name ? @agent.name : @agent.class.name
@@ -87,8 +85,8 @@ module RAAF
       # CRITICAL FIX: Wrap the entire execution in agent context to establish root span for tools
       if defined?(RAAF::Tracing::ToolIntegration) && @runner.respond_to?(:tracing_enabled?) && @runner.tracing_enabled?
         @agent.with_tracing(:execute,
-                           parent_component: @agent.instance_variable_get(:@parent_component),
-                           agent_name: agent_name) do
+                            parent_component: @agent.instance_variable_get(:@parent_component),
+                            agent_name: agent_name) do
           # Capture the agent span IMMEDIATELY and set it as the permanent root for tools
           root_agent_span = @agent.current_span
 
@@ -104,8 +102,8 @@ module RAAF
         end
       else
         @agent.with_tracing(:execute,
-                           parent_component: @agent.instance_variable_get(:@parent_component),
-                           agent_name: agent_name) do
+                            parent_component: @agent.instance_variable_get(:@parent_component),
+                            agent_name: agent_name) do
           result = execute_core_logic(messages)
 
           # Populate span with usage data
@@ -117,7 +115,6 @@ module RAAF
     end
 
     private
-
 
     ##
     # Core execution logic shared by all execution paths
@@ -135,7 +132,6 @@ module RAAF
         end
       end
     end
-
 
     protected
 
@@ -323,7 +319,7 @@ module RAAF
             content: tool_result[:output] || tool_result["output"] || tool_result.to_s,
             tool_call_id: tool_call_id
           }
-          content_preview = begin
+          begin
             if tool_result.respond_to?(:[])
               (tool_result[:output] || tool_result["output"] || tool_result.to_s)[0..50]
             else
@@ -353,8 +349,6 @@ module RAAF
         tool_results: tool_results
       )
     end
-
-    private
 
     ##
     # Populate span with accumulated usage data from result
@@ -413,6 +407,5 @@ module RAAF
     end
 
   end
-
 
 end

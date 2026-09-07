@@ -17,7 +17,7 @@ RSpec.describe "Structural Evaluators" do
 
       it "returns label 'good'" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(1.0)
         expect(result[:message]).to include("Valid JSON")
@@ -29,7 +29,7 @@ RSpec.describe "Structural Evaluators" do
 
       it "returns label 'bad'" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:score]).to eq(0.0)
         expect(result[:message]).to include("Invalid JSON")
@@ -41,7 +41,7 @@ RSpec.describe "Structural Evaluators" do
 
       it "converts and validates" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(1.0)
       end
@@ -56,7 +56,7 @@ RSpec.describe "Structural Evaluators" do
       let(:schema) do
         {
           type: "object",
-          required: ["name", "age"],
+          required: %w[name age],
           properties: {
             name: { type: "string" },
             age: { type: "integer" }
@@ -66,7 +66,7 @@ RSpec.describe "Structural Evaluators" do
 
       it "returns label 'good'" do
         result = evaluator.evaluate(field_context, schema: schema)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(1.0)
         expect(result[:message]).to include("Matches schema")
@@ -78,13 +78,13 @@ RSpec.describe "Structural Evaluators" do
       let(:schema) do
         {
           type: "object",
-          required: ["name", "age"]
+          required: %w[name age]
         }
       end
 
       it "fails with missing fields" do
         result = evaluator.evaluate(field_context, schema: schema)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:details][:validation_errors]).to include("missing required field: age")
       end
@@ -95,7 +95,7 @@ RSpec.describe "Structural Evaluators" do
 
       it "fails without schema parameter" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:message]).to include("requires :schema")
       end
@@ -109,9 +109,9 @@ RSpec.describe "Structural Evaluators" do
       it "passes valid email" do
         result = { output: "test@example.com" }
         context = RAAF::Eval::DSL::FieldContext.new(:output, result)
-        
+
         result = evaluator.evaluate(context, format: :email)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(1.0)
       end
@@ -119,9 +119,9 @@ RSpec.describe "Structural Evaluators" do
       it "fails invalid email" do
         result = { output: "not-an-email" }
         context = RAAF::Eval::DSL::FieldContext.new(:output, result)
-        
+
         result = evaluator.evaluate(context, format: :email)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:details][:violations]).to include("invalid email format")
       end
@@ -131,18 +131,18 @@ RSpec.describe "Structural Evaluators" do
       it "passes valid URL" do
         result = { output: "https://example.com/path" }
         context = RAAF::Eval::DSL::FieldContext.new(:output, result)
-        
+
         result = evaluator.evaluate(context, format: :url)
-        
+
         expect(result[:label]).to eq("good")
       end
 
       it "fails invalid URL" do
         result = { output: "not a url" }
         context = RAAF::Eval::DSL::FieldContext.new(:output, result)
-        
+
         result = evaluator.evaluate(context, format: :url)
-        
+
         expect(result[:label]).to eq("bad")
       end
     end
@@ -151,7 +151,7 @@ RSpec.describe "Structural Evaluators" do
       let(:result) { { output: "ABC123" } }
       let(:custom_format) do
         {
-          pattern: '^[A-Z]{3}[0-9]{3}$',
+          pattern: "^[A-Z]{3}[0-9]{3}$",
           min_length: 6,
           max_length: 6
         }
@@ -159,7 +159,7 @@ RSpec.describe "Structural Evaluators" do
 
       it "validates against custom pattern" do
         result = evaluator.evaluate(field_context, format: custom_format)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(1.0)
       end
@@ -170,7 +170,7 @@ RSpec.describe "Structural Evaluators" do
 
       it "fails without format parameter" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:message]).to include("requires :format")
       end

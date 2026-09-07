@@ -242,3 +242,10 @@ RSpec/PredicateMatcher:
 # Rails-specific cops
 Rails/HttpStatus:
   Enabled: false  # Numeric status codes are often clearer
+
+# Phlex::Rails defines a `format` helper on every component, which shadows
+# Kernel#format and raises ArgumentError when called with a format string.
+# `String#%` is the only way to format a number inside a component.
+Style/FormatString:
+  Exclude:
+    - 'app/components/**/*.rb'

@@ -16,20 +16,20 @@ require "raaf-dsl"
 # Advanced CRM API tool demonstrating complex API patterns
 class CRMTool < RAAF::DSL::Tools::Tool::API
   # Configure the base endpoint
-  endpoint ENV.fetch('CRM_API_URL', 'https://api.example-crm.com/v2')
+  endpoint ENV.fetch("CRM_API_URL", "https://api.example-crm.com/v2")
   
   # Configure API authentication
-  api_key ENV['CRM_API_KEY']
+  api_key ENV.fetch("CRM_API_KEY", nil)
   
   # Set longer timeout for complex operations
   timeout 60
   
   # Configure default headers
   headers({
-    "User-Agent" => "RAAF-CRM-Tool/2.0",
-    "Accept" => "application/json",
-    "Content-Type" => "application/json"
-  })
+            "User-Agent" => "RAAF-CRM-Tool/2.0",
+            "Accept" => "application/json",
+            "Content-Type" => "application/json"
+          })
   
   # Override tool metadata
   configure name: "crm_manager",
@@ -63,7 +63,7 @@ class CRMTool < RAAF::DSL::Tools::Tool::API
     else
       { error: "Unknown action: #{action}", available_actions: available_actions }
     end
-  rescue => e
+  rescue StandardError => e
     handle_error(e, action, params)
   end
   
@@ -85,8 +85,8 @@ class CRMTool < RAAF::DSL::Tools::Tool::API
     }.compact
     
     response = post("/contacts", 
-                   json: contact_data,
-                   headers: auth_headers)
+                    json: contact_data,
+                    headers: auth_headers)
     
     # Transform response for consistency
     transform_contact_response(response)
@@ -102,15 +102,15 @@ class CRMTool < RAAF::DSL::Tools::Tool::API
     )
     
     response = put("/contacts/#{id}", 
-                  json: update_data,
-                  headers: auth_headers)
+                   json: update_data,
+                   headers: auth_headers)
     
     transform_contact_response(response)
   end
   
   def search_contacts(query: nil, limit: 25, offset: 0, filters: {}, sort_by: "created_at", sort_order: "desc")
     search_params = {
-      limit: [limit, 100].min,  # Cap at 100
+      limit: [limit, 100].min, # Cap at 100
       offset: offset,
       sort_by: sort_by,
       sort_order: sort_order
@@ -123,8 +123,8 @@ class CRMTool < RAAF::DSL::Tools::Tool::API
     filters.each { |key, value| search_params["filter_#{key}"] = value }
     
     response = get("/contacts/search", 
-                  params: search_params,
-                  headers: auth_headers)
+                   params: search_params,
+                   headers: auth_headers)
     
     transform_search_response(response, "contacts")
   end
@@ -154,8 +154,8 @@ class CRMTool < RAAF::DSL::Tools::Tool::API
     }.compact
     
     response = post("/companies", 
-                   json: company_data,
-                   headers: auth_headers)
+                    json: company_data,
+                    headers: auth_headers)
     
     transform_company_response(response)
   end
@@ -170,8 +170,8 @@ class CRMTool < RAAF::DSL::Tools::Tool::API
     search_params[:q] = query if query && !query.strip.empty?
     
     response = get("/companies/search", 
-                  params: search_params,
-                  headers: auth_headers)
+                   params: search_params,
+                   headers: auth_headers)
     
     transform_search_response(response, "companies")
   end
@@ -190,8 +190,8 @@ class CRMTool < RAAF::DSL::Tools::Tool::API
     }.compact
     
     response = post("/deals", 
-                   json: deal_data,
-                   headers: auth_headers)
+                    json: deal_data,
+                    headers: auth_headers)
     
     transform_deal_response(response)
   end
@@ -206,8 +206,8 @@ class CRMTool < RAAF::DSL::Tools::Tool::API
     }.merge(filters)
     
     response = get("/analytics/#{report_type}", 
-                  params: analytics_params,
-                  headers: auth_headers)
+                   params: analytics_params,
+                   headers: auth_headers)
     
     transform_analytics_response(response)
   end
@@ -231,8 +231,8 @@ class CRMTool < RAAF::DSL::Tools::Tool::API
       }
       
       response = post("/bulk/import", 
-                     json: batch_data,
-                     headers: auth_headers)
+                      json: batch_data,
+                      headers: auth_headers)
       
       results << transform_bulk_response(response)
     end
@@ -262,15 +262,17 @@ class CRMTool < RAAF::DSL::Tools::Tool::API
   end
   
   def validate_email!(email)
-    unless email.match?(/\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i)
-      raise ArgumentError, "Invalid email format: #{email}"
-    end
+    return if email.match?(/\A[\w+\-.]+@[a-z\d-]+(\.[a-z\d-]+)*\.[a-z]+\z/i)
+
+    raise ArgumentError, "Invalid email format: #{email}"
+    
   end
   
   def validate_id!(id)
-    unless id.to_s.match?(/\A\d+\z/)
-      raise ArgumentError, "Invalid ID format: #{id}"
-    end
+    return if id.to_s.match?(/\A\d+\z/)
+
+    raise ArgumentError, "Invalid ID format: #{id}"
+    
   end
   
   # Response transformation methods
@@ -455,7 +457,7 @@ if __FILE__ == $0
       role: "Developer"
     )
     puts "   Result: #{result}"
-  rescue => e
+  rescue StandardError => e
     puts "   Expected error (API not configured): #{e.message}"
   end
   
@@ -472,7 +474,7 @@ if __FILE__ == $0
       sort_by: "name"
     )
     puts "   Result: #{result}"
-  rescue => e
+  rescue StandardError => e
     puts "   Expected error (API not configured): #{e.message}"
   end
   
@@ -493,7 +495,7 @@ if __FILE__ == $0
       batch_size: 2
     )
     puts "   Result: #{result}"
-  rescue => e
+  rescue StandardError => e
     puts "   Expected error (API not configured): #{e.message}"
   end
   
@@ -515,7 +517,7 @@ if __FILE__ == $0
       email: "invalid-email"
     )
     puts "   Result: #{result}"
-  rescue => e
+  rescue StandardError => e
     puts "   Validation error: #{e.message}"
   end
   

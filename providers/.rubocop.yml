@@ -1,10 +1,8 @@
 # Minimal RuboCop configuration for raaf-providers
 inherit_from: ~ # Don't inherit from any parent configs
 
-require:
-  - rubocop-rspec
-
 plugins:
+  - rubocop-rspec
   - rubocop-rake
 
 AllCops:
@@ -101,12 +99,9 @@ RSpec/MultipleExpectations:
 RSpec/DescribeClass:
   Enabled: false
 
-RSpec/FilePath:
-  Enabled: false  # Provider specs don't follow deep directory structure
-
 RSpec/SpecFilePathFormat:
   Enabled: false  # Provider specs use flat structure
 
 # Disable problematic cops that cause errors
-Capybara/RSpec/PredicateMatcher:
+RSpec/PredicateMatcher:
   Enabled: false

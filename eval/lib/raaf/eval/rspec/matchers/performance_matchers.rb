@@ -119,13 +119,13 @@ module RAAF
               case @comparison_mode
               when :percent
                 "Expected token usage within #{@threshold_percent}% of #{@target_tokens} tokens, " \
-                  "but got #{@actual_tokens} tokens (#{format_percent(@percent_diff)}% difference)"
+                "but got #{@actual_tokens} tokens (#{format_percent(@percent_diff)}% difference)"
               when :max
                 "Expected token usage less than #{format_number(@max_tokens)}, " \
-                  "but got #{format_number(@actual_tokens)} tokens"
+                "but got #{format_number(@actual_tokens)} tokens"
               when :range
                 "Expected token usage between #{format_number(@min_tokens)} and #{format_number(@max_tokens_range)}, " \
-                  "but got #{format_number(@actual_tokens)} tokens"
+                "but got #{format_number(@actual_tokens)} tokens"
               else
                 "Token usage check failed"
               end
@@ -240,13 +240,13 @@ module RAAF
             end
 
             def failure_message
-              "Expected cost less than $#{format('%.6f', @max_cost)}, " \
-                "but got $#{format('%.6f', @actual_cost)}"
+              "Expected cost less than $#{format("%.6f", @max_cost)}, " \
+                "but got $#{format("%.6f", @actual_cost)}"
             end
 
             def failure_message_when_negated
-              "Expected cost to exceed $#{format('%.6f', @max_cost)}, " \
-                "but it was $#{format('%.6f', @actual_cost)}"
+              "Expected cost to exceed $#{format("%.6f", @max_cost)}, " \
+                "but it was $#{format("%.6f", @actual_cost)}"
             end
           end
         end

@@ -130,7 +130,7 @@ RSpec.describe RAAF::Async::Agent do
 
         expect(results.size).to eq(2)
         expect(results[0][:result]).to eq(10)
-        expect(results[1][:error]).to match(/Tool failed/)
+        expect(results[1][:error]).to include("Tool failed")
       end
     end
 

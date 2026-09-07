@@ -14,7 +14,7 @@ module RAAF
 
       # Override initialize to detect streaming scopes
       def initialize(**context_params)
-        super(**context_params)
+        super
         detect_streaming_scopes_if_needed
       end
 
@@ -25,12 +25,12 @@ module RAAF
 
         @streaming_manager = IntelligentStreaming::Manager.new
         @streaming_scopes = @streaming_manager.detect_scopes(self.class.flow_chain)
-      rescue => e
+      rescue StandardError => e
         # Log error but don't fail pipeline initialization
         if defined?(Rails)
           Rails.logger&.warn "Failed to detect streaming scopes: #{e.message}"
-        else
-          puts "Failed to detect streaming scopes: #{e.message}" if ENV['DEBUG']
+        elsif ENV["DEBUG"]
+          puts "Failed to detect streaming scopes: #{e.message}"
         end
         @streaming_scopes = []
       end
@@ -68,8 +68,8 @@ module RAAF
         if defined?(Rails)
           Rails.logger&.info "Pipeline has #{streaming_scopes.size} streaming scope(s)"
           streaming_scopes.each_with_index do |scope, i|
-            Rails.logger&.info "  Scope #{i+1}: trigger=#{scope.trigger_agent.name}, " \
-                              "stream_size=#{scope.stream_size}, field=#{scope.array_field}"
+            Rails.logger&.info "  Scope #{i + 1}: trigger=#{scope.trigger_agent.name}, " \
+                               "stream_size=#{scope.stream_size}, field=#{scope.array_field}"
           end
         end
 

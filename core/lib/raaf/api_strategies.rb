@@ -333,7 +333,7 @@ module RAAF
           last_agent: result.last_agent,
           turns: result.turns,
           tool_results: result.tool_results,
-          provider_metadata: result.metadata  # ← PRESERVE METADATA FROM RUNNER RESULT
+          provider_metadata: result.metadata # ← PRESERVE METADATA FROM RUNNER RESULT
         }
       end
 

@@ -344,9 +344,9 @@ RSpec.describe "Red-Team Infrastructure" do
     end
 
     it "raises error for invalid callback" do
-      expect {
+      expect do
         RAAF::Eval::RedTeam::RedTeamer.new(model_callback: "not a proc")
-      }.to raise_error(ArgumentError, /must be callable/)
+      end.to raise_error(ArgumentError, /must be callable/)
     end
 
     it "accepts configuration options" do

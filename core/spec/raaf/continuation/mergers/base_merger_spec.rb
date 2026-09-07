@@ -6,9 +6,13 @@ RSpec.describe "RAAF::Continuation::Mergers::BaseMerger" do
   # Define the abstract class for testing (assuming this structure based on task description)
   # In production, this would be the actual class
   module RAAF
+
     module Continuation
+
       module Mergers
+
         class BaseMerger
+
           def initialize(config = {})
             @config = config
           end
@@ -74,9 +78,13 @@ RSpec.describe "RAAF::Continuation::Mergers::BaseMerger" do
 
             metadata
           end
+
         end
+
       end
+
     end
+
   end
 
   # Test helper: Create a concrete subclass for testing
@@ -153,7 +161,7 @@ RSpec.describe "RAAF::Continuation::Mergers::BaseMerger" do
       expect(merger.send(:extract_content, hash_chunk)).to be_a(Hash)
 
       # Array content
-      array_chunk = { "content" => ["item1", "item2"] }
+      array_chunk = { "content" => %w[item1 item2] }
       expect(merger.send(:extract_content, array_chunk)).to be_a(Array)
     end
 
@@ -187,8 +195,8 @@ RSpec.describe "RAAF::Continuation::Mergers::BaseMerger" do
       number_chunk = 42
       expect(merger.send(:extract_content, number_chunk)).to eq(42)
 
-      array_chunk = ["item1", "item2"]
-      expect(merger.send(:extract_content, array_chunk)).to eq(["item1", "item2"])
+      array_chunk = %w[item1 item2]
+      expect(merger.send(:extract_content, array_chunk)).to eq(%w[item1 item2])
     end
 
     it "handles nested message with symbol keys" do
@@ -273,7 +281,7 @@ RSpec.describe "RAAF::Continuation::Mergers::BaseMerger" do
     it "includes all required fields" do
       metadata = merger.send(:build_metadata, chunks, true)
 
-      required_fields = [:merge_success, :chunk_count, :timestamp]
+      required_fields = %i[merge_success chunk_count timestamp]
       required_fields.each do |field|
         expect(metadata).to have_key(field)
       end
@@ -352,25 +360,23 @@ RSpec.describe "RAAF::Continuation::Mergers::BaseMerger" do
     let(:advanced_merger_class) do
       Class.new(RAAF::Continuation::Mergers::BaseMerger) do
         def merge(chunks)
-          begin
-            # Use extract_content helper
-            contents = chunks.map { |chunk| extract_content(chunk) }.compact
+          # Use extract_content helper
+          contents = chunks.map { |chunk| extract_content(chunk) }.compact
 
-            # Join contents
-            merged_content = contents.join("\n")
+          # Join contents
+          merged_content = contents.join("\n")
 
-            # Return result with metadata
-            {
-              content: merged_content,
-              metadata: build_metadata(chunks, true)
-            }
-          rescue StandardError => e
-            # Return error result with metadata
-            {
-              content: nil,
-              metadata: build_metadata(chunks, false, e)
-            }
-          end
+          # Return result with metadata
+          {
+            content: merged_content,
+            metadata: build_metadata(chunks, true)
+          }
+        rescue StandardError => e
+          # Return error result with metadata
+          {
+            content: nil,
+            metadata: build_metadata(chunks, false, e)
+          }
         end
       end
     end
@@ -412,6 +418,7 @@ RSpec.describe "RAAF::Continuation::Mergers::BaseMerger" do
       error_merger_class = Class.new(RAAF::Continuation::Mergers::BaseMerger) do
         def merge(chunks)
           raise StandardError, "Merge failed" if chunks.empty?
+
           super
         end
       end
@@ -453,7 +460,7 @@ RSpec.describe "RAAF::Continuation::Mergers::BaseMerger" do
 
       expect { merger.merge(chunks) }.not_to raise_error
       result = merger.merge(chunks)
-      expect(result.length).to eq(100 * 10_000 + 99) # Content + newlines
+      expect(result.length).to eq((100 * 10_000) + 99) # Content + newlines
     end
 
     it "handles unicode content" do
@@ -508,7 +515,7 @@ RSpec.describe "RAAF::Continuation::Mergers::BaseMerger" do
         { "content" => "String content" },
         { "content" => 123 },
         { "content" => true },
-        { "content" => ["array", "content"] },
+        { "content" => %w[array content] },
         { "content" => { "object" => "content" } }
       ]
       # The test merger will call to_s on non-strings when joining

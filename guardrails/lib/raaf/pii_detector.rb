@@ -4,7 +4,9 @@ require "json"
 require_relative "input_guardrail"
 
 module RAAF
+
   module Guardrails
+
     ##
     # PII (Personally Identifiable Information) detection guardrail
     #
@@ -39,7 +41,7 @@ module RAAF
     #     sensitivity_level: :high,
     #     redaction_enabled: true
     #   )
-    #   
+    #
     #   context = {
     #     output: "Contact John Doe at john.doe@example.com or 555-1234"
     #   }
@@ -69,6 +71,7 @@ module RAAF
     # @see RAAF::Guardrails::HealthcarePIIDetector For medical PII detection
     # @see RAAF::Guardrails::FinancialPIIDetector For financial PII detection
     class PIIDetector < InputGuardrail
+
       # PII patterns with confidence scores
       PII_PATTERNS = {
         # High confidence patterns
@@ -546,6 +549,7 @@ module RAAF
         COMMON_FIRST_NAMES.any? { |n| n.casecmp(first_name) == 0 } ||
           COMMON_LAST_NAMES.any? { |n| n.casecmp(last_name) == 0 }
       end
+
     end
 
     ##
@@ -564,6 +568,7 @@ module RAAF
     #
     # @see RAAF::Guardrails::PIIDetector Base PII detector
     class HealthcarePIIDetector < PIIDetector
+
       HEALTHCARE_PATTERNS = {
         mrn: {
           pattern: /\b(?:MRN|Medical Record Number)[:\s]*([A-Z0-9]{6,12})\b/i,
@@ -617,6 +622,7 @@ module RAAF
 
         digits[6] == check
       end
+
     end
 
     ##
@@ -635,6 +641,7 @@ module RAAF
     #
     # @see RAAF::Guardrails::PIIDetector Base PII detector
     class FinancialPIIDetector < PIIDetector
+
       FINANCIAL_PATTERNS = {
         routing_number: {
           pattern: /\b\d{9}\b/,
@@ -678,6 +685,9 @@ module RAAF
 
         checksum.zero?
       end
+
     end
+
   end
+
 end

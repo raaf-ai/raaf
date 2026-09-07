@@ -139,7 +139,7 @@ module RAAF
         # Renamed to avoid conflict with Rails' simple_format method
         def raaf_simple_format(text, options = {})
           return text unless respond_to?(:content_tag)
-          
+
           content_tag(:p, text, options)
         end
       end

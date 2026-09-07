@@ -49,10 +49,10 @@ module RAAF
   class Prompt
     # @return [String] unique identifier for the prompt
     attr_reader :id
-    
+
     # @return [String, nil] version identifier for prompt management
     attr_reader :version
-    
+
     # @return [Hash] variables for prompt substitution
     attr_reader :variables
 
@@ -141,7 +141,7 @@ module RAAF
   #   def generate_prompt(data)
   #     conversation_length = data.context.messages.length
   #     agent_name = data.agent.name
-  #     
+  #
   #     Prompt.new(
   #       id: "context_aware",
   #       variables: {
@@ -157,7 +157,7 @@ module RAAF
   class DynamicPromptData
     # @return [RunContextWrapper] execution context with conversation state
     attr_reader :context
-    
+
     # @return [Agent] agent that will use the generated prompt
     attr_reader :agent
 
@@ -199,7 +199,7 @@ module RAAF
   # @example Basic dynamic function
   #   function = proc do |data|
   #     time_of_day = Time.now.hour < 12 ? "morning" : "afternoon"
-  #     
+  #
   #     Prompt.new(
   #       id: "time_aware_greeting",
   #       variables: {
@@ -208,7 +208,7 @@ module RAAF
   #       }
   #     )
   #   end
-  #   
+  #
   #   dynamic_prompt = DynamicPromptFunction.new(function)
   #
   # @example Conditional prompt generation
@@ -301,10 +301,10 @@ module RAAF
   # @example Converting various prompt types
   #   # Static prompt
   #   api_format = PromptUtil.to_model_input(prompt, context, agent)
-  #   
+  #
   #   # Dynamic prompt function
   #   api_format = PromptUtil.to_model_input(dynamic_function, context, agent)
-  #   
+  #
   #   # Raw proc
   #   api_format = PromptUtil.to_model_input(proc { |data| ... }, context, agent)
   #
@@ -413,7 +413,7 @@ module RAAF
     #       "You are a business-hours support agent. Provide full assistance."
     #     end
     #   end
-    #   
+    #
     #   dynamic_instructions = DynamicInstructions.new(function)
     #
     # @example Context-aware instructions

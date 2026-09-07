@@ -8,7 +8,9 @@ require "raaf/function_tool"
 require "raaf/logging"
 
 module RAAF
+
   module Tools
+
     ##
     # Code Interpreter Tool - Safe sandboxed code execution
     #
@@ -19,36 +21,36 @@ module RAAF
     # @example Basic usage with agent
     #   interpreter = CodeInterpreterTool.new
     #   agent.add_tool(interpreter)
-    #   
+    #
     #   # Agent can now execute code
     #   result = agent.run("Calculate the mean of [1, 2, 3, 4, 5] using Python")
     #
     # @example Data analysis workflow
     #   interpreter = CodeInterpreterTool.new(timeout: 60)
-    #   
+    #
     #   # Upload data file
     #   file_path = interpreter.upload_file("data.csv")
-    #   
+    #
     #   # Execute analysis
     #   result = interpreter.execute_code(
     #     language: "python",
     #     code: """
     #     import pandas as pd
     #     import matplotlib.pyplot as plt
-    #     
+    #
     #     # Load and analyze data
     #     df = pd.read_csv('#{file_path}')
     #     summary = df.describe()
-    #     
+    #
     #     # Create visualization
     #     plt.figure(figsize=(10, 6))
     #     df.hist(bins=20)
     #     plt.savefig('analysis.png')
-    #     
+    #
     #     print(summary)
     #     """
     #   )
-    #   
+    #
     #   # Download results
     #   interpreter.download_file("analysis.png")
     #
@@ -58,15 +60,15 @@ module RAAF
     #     code: """
     #     import numpy as np
     #     from scipy import stats
-    #     
+    #
     #     # Generate sample data
     #     data = np.random.normal(100, 15, 1000)
-    #     
+    #
     #     # Perform statistical analysis
     #     mean = np.mean(data)
     #     std = np.std(data)
     #     confidence_interval = stats.norm.interval(0.95, mean, std/np.sqrt(len(data)))
-    #     
+    #
     #     print(f"Mean: {mean:.2f}")
     #     print(f"Standard Deviation: {std:.2f}")
     #     print(f"95% Confidence Interval: {confidence_interval}")
@@ -89,13 +91,13 @@ module RAAF
     #     code: """
     #     # File processing in Ruby
     #     data = File.readlines('input.txt').map(&:strip)
-    #     
+    #
     #     # Process data
     #     processed = data.map { |line| line.upcase.reverse }
-    #     
+    #
     #     # Write results
     #     File.write('output.txt', processed.join("\n"))
-    #     
+    #
     #     puts "Processed #{data.size} lines"
     #     """
     #   )
@@ -114,7 +116,9 @@ module RAAF
     #     max_file_size: 10 * 1024 * 1024  # 10MB
     #   )
     class CodeInterpreterTool < FunctionTool
+
       include Logger
+
       DEFAULT_TIMEOUT = 10 # seconds
       DEFAULT_MAX_FILE_SIZE = 5 * 1024 * 1024 # 5MB
       DEFAULT_MAX_OUTPUT_LENGTH = 10_000 # characters
@@ -385,10 +389,12 @@ module RAAF
           required: ["code"]
         }
       end
+
     end
 
     # Convenience class for file operations in code interpreter
     class CodeInterpreterFile
+
       attr_reader :path, :session_id
 
       def initialize(path, session_id, workspace_dir)
@@ -420,6 +426,9 @@ module RAAF
       def size
         File.size(@full_path) if exists?
       end
+
     end
+
   end
+
 end

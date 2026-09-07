@@ -165,7 +165,6 @@ end
 
 # Triage agent that analyzes requests and routes them
 class TriageAgent < RAAF::DSL::Agent
-
   agent_name "TriageAgent"
   model "gpt-4o-mini" # Use cheaper model for triage
   max_turns 3
@@ -201,7 +200,6 @@ end
 
 # Specialist agent that handles routed requests
 class SpecialistAgent < RAAF::DSL::Agent
-
   agent_name "SpecialistAgent"
   model "gpt-4o-mini"
   max_turns 2

@@ -31,7 +31,9 @@ module RAAF
         scope :failed, -> { where(status: "failed") }
         scope :cancelled, -> { where(status: "cancelled") }
         scope :finished_successfully, -> { where(status: %w[completed partial]) }
-        scope :processable, -> { pending.where("scheduled_at <= ? OR scheduled_at IS NULL", Time.current).order(priority: :desc, scheduled_at: :asc) }
+        scope :processable, lambda {
+          pending.where("scheduled_at <= ? OR scheduled_at IS NULL", Time.current).order(priority: :desc, scheduled_at: :asc)
+        }
         scope :retryable, -> { pending.where.not(next_retry_at: nil).where("next_retry_at <= ?", Time.current) }
 
         # Base backoff time in seconds for retry calculation
@@ -131,7 +133,7 @@ module RAAF
         # Schedule next retry with exponential backoff
         def schedule_retry!
           # Exponential backoff: 1min, 4min, 9min, etc.
-          delay = RETRY_BASE_DELAY * (attempts ** 2)
+          delay = RETRY_BASE_DELAY * (attempts**2)
           update!(next_retry_at: Time.current + delay.seconds)
         end
 
@@ -140,6 +142,7 @@ module RAAF
         # @return [Float, nil] Duration in seconds or nil
         def duration
           return nil unless started_at && completed_at
+
           completed_at - started_at
         end
 

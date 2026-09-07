@@ -39,7 +39,7 @@ module RAAF
                 threshold_good: good_threshold,
                 threshold_average: average_threshold
               },
-              message: "[#{label.upcase}] #{label == :good ? 'Content appears safe' : 'Potential toxicity detected'}"
+              message: "[#{label.upcase}] #{label == :good ? "Content appears safe" : "Potential toxicity detected"}"
             }
           end
 
@@ -57,7 +57,7 @@ module RAAF
           def detect_profanity(text)
             # Simplified profanity detection
             profanity_patterns = [
-              /\b(?:damn|hell|crap)\b/i,
+              /\b(?:damn|hell|crap)\b/i
               # More serious profanity patterns would be added in production
             ]
             profanity_patterns.any? { |p| text.match?(p) }

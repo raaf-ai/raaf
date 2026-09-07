@@ -124,7 +124,7 @@ module RAAF
         #
         # @return [String] Attack description
         def description
-          "#{attack_name.to_s.split('_').map(&:capitalize).join(' ')} attack"
+          "#{attack_name.to_s.split("_").map(&:capitalize).join(" ")} attack"
         end
 
         # Check if this attack is deterministic
@@ -135,14 +135,14 @@ module RAAF
         #
         # @return [Boolean] True if attack is deterministic
         def deterministic?
-          false  # Override in subclasses for deterministic attacks
+          false # Override in subclasses for deterministic attacks
         end
 
         # Check if this attack requires an LLM for generation
         #
         # @return [Boolean] True if attack uses LLM for generation
         def requires_llm?
-          !deterministic?  # Non-deterministic attacks typically need LLMs
+          !deterministic? # Non-deterministic attacks typically need LLMs
         end
 
         # Get recommended number of samples for this attack
@@ -151,7 +151,7 @@ module RAAF
         #
         # @return [Integer] Recommended sample count
         def recommended_samples
-          deterministic? ? 1 : 5  # Deterministic: 1 sample, LLM-powered: 5 samples
+          deterministic? ? 1 : 5 # Deterministic: 1 sample, LLM-powered: 5 samples
         end
 
         # Validate attack configuration
@@ -159,7 +159,7 @@ module RAAF
         # @return [Boolean] True if configuration is valid
         # @raise [ArgumentError] If configuration is invalid
         def validate_config!
-          true  # Override in subclasses for config validation
+          true # Override in subclasses for config validation
         end
       end
     end

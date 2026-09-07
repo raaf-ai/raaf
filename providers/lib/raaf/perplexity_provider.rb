@@ -98,18 +98,16 @@ module RAAF
       def perform_chat_completion(messages:, model:, tools: nil, stream: false, **kwargs)
         validate_model(model)
 
-        if tools && !tools.empty?
+        if tools.present?
           log_warn("Perplexity does not support function/tool calling. Tools parameter will be ignored.",
                    provider: "PerplexityProvider", model: model)
         end
 
         body = build_request_body(messages, model, stream, **kwargs)
 
-        if stream
-          raise NotImplementedError, "Streaming not yet implemented for PerplexityProvider"
-        else
-          make_api_call(body)
-        end
+        raise NotImplementedError, "Streaming not yet implemented for PerplexityProvider" if stream
+
+        make_api_call(body)
       end
 
       ##
@@ -217,15 +215,15 @@ module RAAF
       def unwrap_response_format(response_format)
         # Detect if response_format is OpenAI-wrapped format from DSL agents
         # DSL agents send: { type: "json_schema", json_schema: { name: "...", strict: true, schema: {...} } }
-        if response_format.is_a?(Hash) &&
-           response_format[:type] == "json_schema" &&
-           response_format[:json_schema]
-          # Extract the schema from OpenAI format
-          schema = response_format[:json_schema][:schema]
-        else
-          # Use raw schema as-is
-          schema = response_format
-        end
+        schema = if response_format.is_a?(Hash) &&
+                    response_format[:type] == "json_schema" &&
+                    response_format[:json_schema]
+                   # Extract the schema from OpenAI format
+                   response_format[:json_schema][:schema]
+                 else
+                   # Use raw schema as-is
+                   response_format
+                 end
 
         # Wrap in Perplexity format
         {

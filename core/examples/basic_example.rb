@@ -25,7 +25,7 @@ puts "🤖 Testing basic agent-runner functionality"
 simple_agent = RAAF::Agent.new(
   name: "BasicAssistant",
   instructions: "You are a helpful assistant. Answer questions directly and completely.",
-  model: "gpt-4o-mini"  # Cost-effective model for basic examples
+  model: "gpt-4o-mini" # Cost-effective model for basic examples
 )
 
 # Create a runner (automatically uses ResponsesProvider with built-in retry)
@@ -44,7 +44,6 @@ begin
   puts "   Message count: #{result.messages.length}"
 
   puts "\n🎉 Basic RAAF functionality verified!"
-
 rescue RAAF::Error => e
   puts "\n❌ RAAF Error: #{e.message}"
   puts "   Make sure OPENAI_API_KEY is set in your environment."

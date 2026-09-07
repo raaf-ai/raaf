@@ -17,7 +17,7 @@ module RAAF
         def initialize(field_name)
           @field_name = field_name
           @evaluators = []
-          @combination_strategy = :and  # default
+          @combination_strategy = :and # default
           @aliases = {}
           @result_formatter = nil
         end
@@ -102,24 +102,22 @@ module RAAF
         # @return [Hash] Hash of results keyed by alias
         def execute_evaluators(field_context)
           @evaluators.each_with_object({}) do |eval_config, results|
-            begin
-              evaluator_class = RAAF::Eval.get_evaluator(eval_config[:name])
-              evaluator = evaluator_class.new
-              result = evaluator.evaluate(field_context, **eval_config[:options])
-              results[eval_config[:alias]] = result
-            rescue StandardError => e
-              # Mark evaluator as failed but continue with others
-              results[eval_config[:alias]] = {
-                passed: false,
-                score: 0.0,
-                details: {
-                  error: e.message,
-                  error_class: e.class.name,
-                  backtrace: e.backtrace&.first(3) || []
-                },
-                message: "Evaluator failed: #{e.message}"
-              }
-            end
+            evaluator_class = RAAF::Eval.get_evaluator(eval_config[:name])
+            evaluator = evaluator_class.new
+            result = evaluator.evaluate(field_context, **eval_config[:options])
+            results[eval_config[:alias]] = result
+          rescue StandardError => e
+            # Mark evaluator as failed but continue with others
+            results[eval_config[:alias]] = {
+              passed: false,
+              score: 0.0,
+              details: {
+                error: e.message,
+                error_class: e.class.name,
+                backtrace: e.backtrace&.first(3) || []
+              },
+              message: "Evaluator failed: #{e.message}"
+            }
           end
         end
 
@@ -132,9 +130,7 @@ module RAAF
           if results.size == 1
             result = results.values.first
             # Transform :label to :passed for compatibility
-            if result[:label] && !result.key?(:passed)
-              result[:passed] = label_to_passed(result[:label])
-            end
+            result[:passed] = label_to_passed(result[:label]) if result[:label] && !result.key?(:passed)
             return result
           end
 
@@ -161,8 +157,8 @@ module RAAF
         # @param strategy [Symbol, Proc] The strategy to validate
         # @raise [InvalidCombinationStrategyError] If strategy is invalid
         def validate_strategy!(strategy)
-          return if [:and, :or].include?(strategy) || strategy.is_a?(Proc)
-          
+          return if %i[and or].include?(strategy) || strategy.is_a?(Proc)
+
           raise InvalidCombinationStrategyError,
                 "Strategy must be :and, :or, or a Proc, got: #{strategy.class}"
         end

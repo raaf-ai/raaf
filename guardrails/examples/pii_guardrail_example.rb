@@ -40,7 +40,7 @@ standard_detector = RAAF::Guardrails::PIIDetector.new(
 # Suitable for highly regulated environments
 high_sensitivity_detector = RAAF::Guardrails::PIIDetector.new(
   name: "high_sensitivity_pii",
-  sensitivity_level: :high,     # More aggressive detection
+  sensitivity_level: :high, # More aggressive detection
   redaction_enabled: true
 )
 
@@ -49,7 +49,7 @@ high_sensitivity_detector = RAAF::Guardrails::PIIDetector.new(
 # Essential for HIPAA compliance
 healthcare_detector = RAAF::Guardrails::HealthcarePIIDetector.new(
   name: "healthcare_pii",
-  sensitivity_level: :high,     # Healthcare requires high sensitivity
+  sensitivity_level: :high, # Healthcare requires high sensitivity
   redaction_enabled: true
 )
 
@@ -58,7 +58,7 @@ healthcare_detector = RAAF::Guardrails::HealthcarePIIDetector.new(
 # Critical for PCI-DSS and financial regulations
 financial_detector = RAAF::Guardrails::FinancialPIIDetector.new(
   name: "financial_pii",
-  sensitivity_level: :medium,   # Balance security with usability
+  sensitivity_level: :medium, # Balance security with usability
   redaction_enabled: true
 )
 
@@ -73,7 +73,7 @@ guardrails.add_guardrail(standard_detector)
 agent = RAAF::Agent.new(
   name: "SecureAssistant",
   model: "gpt-4o",
-  
+
   # Instructions emphasize PII handling best practices
   instructions: <<~INSTRUCTIONS
     You are a helpful assistant that handles sensitive information securely.
@@ -105,21 +105,21 @@ test_inputs = [
 
 test_inputs.each do |input|
   puts "\nInput: #{input}"
-  
+
   # Test detection
   context = { input: input }
   result = standard_detector.check(context)
-  
-  puts "Detection result: #{result.passed? ? 'PASSED' : 'FAILED'}"
+
+  puts "Detection result: #{result.passed? ? "PASSED" : "FAILED"}"
   puts "Message: #{result.message}"
-  
+
   if result.metadata[:detections]
     puts "Detected PII:"
     result.metadata[:detections].each do |detection|
       puts "  - #{detection[:name]}: #{detection[:value]} (confidence: #{detection[:confidence]})"
     end
   end
-  
+
   # Show redacted version
   redacted = standard_detector.redact_text(input)
   puts "Redacted: #{redacted}"
@@ -138,12 +138,12 @@ test_text = "Contact John Smith at 555-987-6543 or email jsmith@company.com. DOB
 
 [standard_detector, high_sensitivity_detector].each do |detector|
   puts "\n#{detector.sensitivity_level.to_s.capitalize} sensitivity:"
-  
+
   context = { input: test_text }
-  result = detector.check(context)
-  
+  detector.check(context)
+
   detections = detector.detect_pii(test_text)
-  puts "Detections: #{detections.map { |d| d[:name] }.join(', ')}"
+  puts "Detections: #{detections.map { |d| d[:name] }.join(", ")}"
   puts "Redacted: #{detector.redact_text(test_text)}"
 end
 
@@ -162,7 +162,7 @@ healthcare_text = <<~TEXT
   Medicare Number: 123-45-6789A
   Insurance ID: ABC123456789
   Provider NPI: 1234567890
-  
+
   Please schedule a follow-up appointment.
 TEXT
 
@@ -192,7 +192,7 @@ financial_text = <<~TEXT
   Routing: 123456789
   SWIFT: CHASUS33XXX
   IBAN: GB82WEST12345698765432
-  
+
   Bitcoin address: 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa
 TEXT
 
@@ -230,11 +230,11 @@ begin
 rescue RAAF::Guardrails::GuardrailError => e
   puts "Guardrail blocked: #{e.message}"
   puts "Attempting with redaction..."
-  
+
   # Try again with a different approach
   runner.guardrails.clear
   runner.guardrails.add_guardrail(high_sensitivity_detector)
-  
+
   result = runner.run("I have a question about social security benefits.")
   puts "Response: #{result.messages.last[:content]}"
 end
@@ -329,7 +329,7 @@ puts "Processing #{documents.length} documents..."
 
 safe_documents = documents.map do |doc|
   detections = standard_detector.detect_pii(doc[:content])
-  
+
   {
     id: doc[:id],
     original: doc[:content],
@@ -341,8 +341,8 @@ end
 
 safe_documents.each do |doc|
   puts "\nDocument #{doc[:id]}:"
-  puts "  Has PII: #{doc[:has_pii] ? 'Yes' : 'No'}"
-  puts "  PII Types: #{doc[:pii_types].join(', ')}" if doc[:has_pii]
+  puts "  Has PII: #{doc[:has_pii] ? "Yes" : "No"}"
+  puts "  PII Types: #{doc[:pii_types].join(", ")}" if doc[:has_pii]
   puts "  Redacted: #{doc[:redacted]}" if doc[:has_pii]
 end
 
@@ -354,29 +354,29 @@ puts <<~PRACTICES
      - Low: Only high-confidence patterns (SSN, credit cards)
      - Medium: Include emails, phones, addresses
      - High: Include potential names, dates, IDs
-  
+
   2. Redaction Strategies:
      - Partial masking for verification (last 4 digits)
      - Full replacement with type indicators
      - Context-aware redaction
-  
+
   3. Custom Patterns:
      - Add organization-specific identifiers
      - Include industry-specific formats
      - Validate with business logic
-  
+
   4. Integration Points:
      - Input validation before processing
      - Output filtering before storage
      - Audit logging for compliance
      - Real-time monitoring
-  
+
   5. Compliance Considerations:
      - GDPR: Right to erasure, data minimization
      - HIPAA: Protected Health Information (PHI)
      - PCI-DSS: Credit card data protection
      - CCPA: California privacy rights
-  
+
   6. Performance Tips:
      - Cache compiled patterns
      - Process in batches

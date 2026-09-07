@@ -23,7 +23,7 @@ RSpec.describe RAAF::Eval::LLMJudge::BiasMitigation do
         )
 
         expect(result).to have_key(:winner)
-        expect(result[:winner]).to be_in([:a, :b, :tie])
+        expect(result[:winner]).to be_in(%i[a b tie])
         expect(result).to have_key(:confidence)
         expect(result).to have_key(:consistent)
         expect(result).to have_key(:position_bias_detected)
@@ -105,7 +105,7 @@ RSpec.describe RAAF::Eval::LLMJudge::BiasMitigation do
         it "returns correlation strength" do
           analysis = analyzer.analyze_length_correlation(evaluations)
 
-          expect(analysis[:bias_strength]).to be_in([:weak, :moderate, :strong, :very_strong])
+          expect(analysis[:bias_strength]).to be_in(%i[weak moderate strong very_strong])
         end
 
         it "includes length statistics" do
@@ -120,7 +120,7 @@ RSpec.describe RAAF::Eval::LLMJudge::BiasMitigation do
 
       context "with no length correlation (no bias)" do
         let(:evaluations) do
-          (1..20).map do |i|
+          (1..20).map do |_i|
             {
               output: "A" * rand(10..100),  # Random length
               score: rand(0.4..0.9)         # Random score

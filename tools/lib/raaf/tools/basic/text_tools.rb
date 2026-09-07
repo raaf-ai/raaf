@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Tools
+
     module Basic
+
       ##
       # Text processing tools for AI agents
       #
@@ -10,9 +13,11 @@ module RAAF
       # text summarization, formatting, searching, replacement, and validation.
       #
       class TextTools
+
         include RAAF::Logger
 
         class << self
+
           ##
           # Word count tool
           #
@@ -83,11 +88,11 @@ module RAAF
                   },
                   format: {
                     type: "string",
-                    enum: ["uppercase", "lowercase", "capitalize", "title", "sentence"],
+                    enum: %w[uppercase lowercase capitalize title sentence],
                     description: "Format type to apply"
                   }
                 },
-                required: ["text", "format"]
+                required: %w[text format]
               }
             )
           end
@@ -119,7 +124,7 @@ module RAAF
                     default: false
                   }
                 },
-                required: ["text", "pattern"]
+                required: %w[text pattern]
               }
             )
           end
@@ -155,7 +160,7 @@ module RAAF
                     default: true
                   }
                 },
-                required: ["text", "pattern", "replacement"]
+                required: %w[text pattern replacement]
               }
             )
           end
@@ -179,11 +184,11 @@ module RAAF
                   },
                   validation_type: {
                     type: "string",
-                    enum: ["email", "url", "phone", "credit_card", "uuid"],
+                    enum: %w[email url phone credit_card uuid],
                     description: "Type of validation to perform"
                   }
                 },
-                required: ["text", "validation_type"]
+                required: %w[text validation_type]
               }
             )
           end
@@ -196,7 +201,7 @@ module RAAF
             words = text.split(/\s+/).length
             characters = text.length
             characters_no_spaces = text.gsub(/\s/, "").length
-            lines = text.split(/\n/).length
+            lines = text.split("\n").length
             paragraphs = text.split(/\n\s*\n/).length
 
             {
@@ -227,11 +232,11 @@ module RAAF
 
             # Select top sentences
             top_sentences = sentence_scores.sort_by { |_, score| -score }
-                                         .first([sentences.length / 2, 3].max)
-                                         .map(&:first)
+                                           .first([sentences.length / 2, 3].max)
+                                           .map(&:first)
 
             summary = top_sentences.join(". ") + "."
-            summary.length > max_length ? summary[0..max_length-4] + "..." : summary
+            summary.length > max_length ? summary[0..max_length - 4] + "..." : summary
           end
 
           def format_text(text:, format:)
@@ -296,10 +301,10 @@ module RAAF
               valid = text.match?(/\A[\w+\-.]+@[a-z\d\-.]+\.[a-z]+\z/i)
               { valid: valid, type: "email", message: valid ? "Valid email" : "Invalid email format" }
             when "url"
-              valid = text.match?(%r{\Ahttps?://[\S]+\z})
+              valid = text.match?(%r{\Ahttps?://\S+\z})
               { valid: valid, type: "url", message: valid ? "Valid URL" : "Invalid URL format" }
             when "phone"
-              valid = text.match?(/\A[\d\s\-\(\)\+]{10,}\z/)
+              valid = text.match?(/\A[\d\s\-()+]{10,}\z/)
               { valid: valid, type: "phone", message: valid ? "Valid phone format" : "Invalid phone format" }
             when "credit_card"
               # Basic Luhn algorithm check
@@ -324,8 +329,13 @@ module RAAF
             end
             sum % 10 == 0
           end
+
         end
+
       end
+
     end
+
   end
+
 end

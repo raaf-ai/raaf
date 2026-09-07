@@ -50,9 +50,11 @@ module RAAF
                 threshold_good: good_threshold,
                 threshold_average: average_threshold
               },
-              message: violations.empty? ?
-                "[#{label.upcase}] Complies with format: #{expected_format}" :
-                "[#{label.upcase}] Format violations: #{violations.join(', ')}"
+              message: if violations.empty?
+                         "[#{label.upcase}] Complies with format: #{expected_format}"
+                       else
+                         "[#{label.upcase}] Format violations: #{violations.join(", ")}"
+                       end
             }
           end
 
@@ -60,7 +62,7 @@ module RAAF
 
           def check_format_compliance(value, format)
             violations = []
-            
+
             case format
             when :email
               violations << "invalid email format" unless valid_email?(value)
@@ -86,98 +88,87 @@ module RAAF
 
           def valid_email?(value)
             return false unless value.is_a?(String)
-            value.match?(/\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i)
+
+            value.match?(/\A[\w+\-.]+@[a-z\d-]+(\.[a-z\d-]+)*\.[a-z]+\z/i)
           end
 
           def valid_url?(value)
             return false unless value.is_a?(String)
-            value.match?(/\Ahttps?:\/\/[\w\-]+(\.[\w\-]+)+[\/\w\-._~:?#\[\]@!\$&'()*+,;=.]*\z/)
+
+            value.match?(%r{\Ahttps?://[\w-]+(\.[\w-]+)+[/\w\-._~:?#\[\]@!$&'()*+,;=]*\z})
           end
 
           def valid_uuid?(value)
             return false unless value.is_a?(String)
+
             value.match?(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i)
           end
 
           def check_markdown_format(value)
             violations = []
             return ["not a string"] unless value.is_a?(String)
-            
+
             # Check for basic markdown structure
             lines = value.split("\n")
-            
+
             # Check for headers
-            has_headers = lines.any? { |l| l.match?(/^#+\s/) }
-            
+            lines.any? { |l| l.match?(/^#+\s/) }
+
             # Check for unbalanced markdown
-            if value.count("**") % 2 != 0
-              violations << "unbalanced bold markers"
-            end
-            
-            if value.count("*") % 2 != 0 && (value.count("*") - value.count("**") * 2) % 2 != 0
+            violations << "unbalanced bold markers" if value.count("**").odd?
+
+            if value.count("*").odd? && (value.count("*") - (value.count("**") * 2)).odd?
               violations << "unbalanced italic markers"
             end
-            
+
             violations
           end
 
           def check_csv_format(value)
             violations = []
             return ["not a string"] unless value.is_a?(String)
-            
+
             lines = value.split("\n")
             return ["empty CSV"] if lines.empty?
-            
+
             # Check for consistent column count
             column_counts = lines.map { |l| l.split(",").size }
-            unless column_counts.uniq.size == 1
-              violations << "inconsistent column count"
-            end
-            
+            violations << "inconsistent column count" unless column_counts.uniq.size == 1
+
             violations
           end
 
           def check_xml_format(value)
             violations = []
             return ["not a string"] unless value.is_a?(String)
-            
+
             # Basic XML validation
-            unless value.match?(/<\?xml/)
-              violations << "missing XML declaration"
-            end
-            
+            violations << "missing XML declaration" unless value.match?(/<\?xml/)
+
             # Check for balanced tags (simplified)
             open_tags = value.scan(/<(\w+)[^>]*>/).flatten
-            close_tags = value.scan(/<\/(\w+)>/).flatten
-            
-            if open_tags.sort != close_tags.sort
-              violations << "unbalanced XML tags"
-            end
-            
+            close_tags = value.scan(%r{</(\w+)>}).flatten
+
+            violations << "unbalanced XML tags" if open_tags.sort != close_tags.sort
+
             violations
           end
 
           def check_custom_format(value, format_spec)
             violations = []
-            
-            if format_spec[:pattern] && value.is_a?(String)
-              unless value.match?(Regexp.new(format_spec[:pattern]))
-                violations << "doesn't match pattern: #{format_spec[:pattern]}"
-              end
+
+            if format_spec[:pattern] && value.is_a?(String) && !value.match?(Regexp.new(format_spec[:pattern]))
+              violations << "doesn't match pattern: #{format_spec[:pattern]}"
             end
-            
-            if format_spec[:min_length] && value.respond_to?(:length)
-              if value.length < format_spec[:min_length]
-                violations << "too short (min: #{format_spec[:min_length]})"
-              end
+
+            if format_spec[:min_length] && value.respond_to?(:length) && (value.length < format_spec[:min_length])
+              violations << "too short (min: #{format_spec[:min_length]})"
             end
-            
-            if format_spec[:max_length] && value.respond_to?(:length)
-              if value.length > format_spec[:max_length]
-                violations << "too long (max: #{format_spec[:max_length]})"
-              end
+
+            if format_spec[:max_length] && value.respond_to?(:length) && (value.length > format_spec[:max_length])
+              violations << "too long (max: #{format_spec[:max_length]})"
             end
-            
+
             violations
           end
 

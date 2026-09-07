@@ -63,7 +63,7 @@ module RAAF
               multiple: true,
               class: "px-3 py-1 text-sm border border-gray-300 rounded",
               data: {
-                action: "change->configuration-comparison#updateSelection"
+                action: "change->configuration-comparison#updateSelection",
               }
             ) do
               configurations.each_with_index do |config, idx|
@@ -101,7 +101,7 @@ module RAAF
             class: tab_class(active),
             data: {
               action: "click->configuration-comparison#switchTab",
-              tab_id: id
+              tab_id: id,
             }
           ) do
             text label
@@ -168,21 +168,19 @@ module RAAF
             # Card body
             div(class: "p-4 space-y-3") do
               # Model info
-              render_config_field("Model", config.dig(:settings, :model) || 'Not specified')
+              render_config_field("Model", config.dig(:settings, :model) || "Not specified")
 
               # Provider info
-              render_config_field("Provider", config.dig(:settings, :provider) || 'Not specified')
+              render_config_field("Provider", config.dig(:settings, :provider) || "Not specified")
 
               # Temperature
               render_config_field("Temperature", format_value(config.dig(:settings, :temperature)))
 
               # Max tokens
-              render_config_field("Max Tokens", config.dig(:settings, :max_tokens) || 'Not specified')
+              render_config_field("Max Tokens", config.dig(:settings, :max_tokens) || "Not specified")
 
               # Differences indicator
-              if baseline && config[:id] != baseline[:id]
-                render_differences_indicator(config)
-              end
+              render_differences_indicator(config) if baseline && config[:id] != baseline[:id]
             end
           end
         end
@@ -231,11 +229,11 @@ module RAAF
         def render_differences_indicator(config)
           diff_count = count_differences(config, baseline)
 
-          if diff_count > 0
-            div(class: "mt-3 pt-3 border-t border-gray-200") do
-              p(class: "text-xs text-orange-600 font-medium") do
-                text "#{diff_count} difference(s) from baseline"
-              end
+          return unless diff_count > 0
+
+          div(class: "mt-3 pt-3 border-t border-gray-200") do
+            p(class: "text-xs text-orange-600 font-medium") do
+              text "#{diff_count} difference(s) from baseline"
             end
           end
         end
@@ -286,12 +284,10 @@ module RAAF
               value = config.dig(:settings, key)
               is_different = baseline_value && value != baseline_value
 
-              td(class: "px-4 py-2 text-xs font-mono border-b #{is_different ? 'bg-yellow-50' : ''}") do
+              td(class: "px-4 py-2 text-xs font-mono border-b #{'bg-yellow-50' if is_different}") do
                 text format_value(value)
 
-                if is_different
-                  span(class: "ml-2 text-orange-600") { text "•" }
-                end
+                span(class: "ml-2 text-orange-600") { text "•" } if is_different
               end
             end
           end
@@ -327,7 +323,7 @@ module RAAF
         def render_parameter_item(key, value)
           div do
             dt(class: "text-xs text-gray-600") do
-              text key.to_s.split('_').map(&:capitalize).join(' ')
+              text key.to_s.split("_").map(&:capitalize).join(" ")
             end
             dd(class: "text-xs text-gray-900 font-mono mt-1") do
               text format_value(value)
@@ -460,16 +456,16 @@ module RAAF
         def format_value(value)
           case value
           when Float
-            format('%.3f', value)
+            format("%.3f", value)
           when NilClass
-            'Not specified'
+            "Not specified"
           else
             value.to_s
           end
         end
 
         def format_metric_value(metric_key, value)
-          return 'N/A' if value.nil?
+          return "N/A" if value.nil?
 
           case metric_key
           when :cost

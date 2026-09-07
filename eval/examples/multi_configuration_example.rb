@@ -72,6 +72,4 @@ RSpec.describe "ResearchAgent Model Comparison", :evaluation do
 end
 
 # Run the example
-if __FILE__ == $PROGRAM_NAME
-  require "rspec/autorun"
-end
+require "rspec/autorun" if __FILE__ == $PROGRAM_NAME

@@ -105,14 +105,14 @@ module RAAF
                 eval_output = eval_result[:output] || ""
                 similarity = MetricsCalculator.semantic_similarity(baseline_output, eval_output)
 
-                if similarity < 0.7
-                  regressions << {
-                    type: :quality,
-                    severity: :high,
-                    config: name,
-                    description: "Quality dropped to #{format_percent(similarity * 100)}"
-                  }
-                end
+                next unless similarity < 0.7
+
+                regressions << {
+                  type: :quality,
+                  severity: :high,
+                  config: name,
+                  description: "Quality dropped to #{format_percent(similarity * 100)}"
+                }
               end
 
               regressions
@@ -136,7 +136,7 @@ module RAAF
             def initialize(target)
               super()
               @target = target
-              @metrics = [:quality, :latency, :tokens]
+              @metrics = %i[quality latency tokens]
             end
 
             def on_metrics(*metrics)
@@ -261,7 +261,7 @@ module RAAF
 
             def failure_message
               "Expected variance within #{@std_deviations} standard deviations (threshold: #{@threshold.round(2)}), " \
-                "but found #{@outliers.size} outlier(s): #{@outliers.map { |x| x.round(2) }.join(', ')}"
+                "but found #{@outliers.size} outlier(s): #{@outliers.map { |x| x.round(2) }.join(", ")}"
             end
 
             def failure_message_when_negated

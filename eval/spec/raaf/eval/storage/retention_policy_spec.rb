@@ -68,7 +68,7 @@ RSpec.describe RAAF::Eval::Storage::RetentionPolicy do
         remaining = RAAF::Eval::Storage::EvaluationRun.all
         expect(remaining.size).to eq(3)
         # Verify we kept the 3 most recent (smallest age_days)
-        expect(remaining.map(&:evaluator_name).sort).to eq(["run_2", "run_3", "run_4"])
+        expect(remaining.map(&:evaluator_name).sort).to eq(%w[run_2 run_3 run_4])
       end
 
       it "keeps all runs when count exceeds total" do
@@ -134,13 +134,13 @@ RSpec.describe RAAF::Eval::Storage::RetentionPolicy do
 
       it "keeps recent run even if not in retention_count" do
         # Many old runs (within last N) + 1 recent run outside count - recent KEPT by days
-        create_run(age_days: 5, name: "recent")  # Keep (within days, insertion_order 0, NOT in last 5)
-        6.times { |i| create_run(age_days: 50 + i, name: "old_#{i}") }  # Last 5 kept by count
+        create_run(age_days: 5, name: "recent") # Keep (within days, insertion_order 0, NOT in last 5)
+        6.times { |i| create_run(age_days: 50 + i, name: "old_#{i}") } # Last 5 kept by count
 
         policy = described_class.new(30, 5)
         deleted_count = policy.cleanup
 
-        expect(deleted_count).to eq(1)  # old_0 deleted (outside days AND not in last 5)
+        expect(deleted_count).to eq(1) # old_0 deleted (outside days AND not in last 5)
         remaining = RAAF::Eval::Storage::EvaluationRun.all
         expect(remaining.size).to eq(6)
         # Should keep the recent run + 5 most recent old runs by insertion order

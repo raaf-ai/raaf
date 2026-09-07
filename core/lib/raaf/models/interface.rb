@@ -316,16 +316,14 @@ module RAAF
       def configure_rate_limiting(enabled: false, requests_per_minute: nil, storage: nil)
         @rate_limiter_enabled = enabled
 
-        if enabled
-          # Create rate limiter with provider-specific defaults
-          @rate_limiter = RAAF::RateLimiter.new(
-            provider: rate_limiter_provider_name,
-            requests_per_minute: requests_per_minute,
-            storage: storage
-          )
-        else
-          @rate_limiter = nil
-        end
+        @rate_limiter = if enabled
+                          # Create rate limiter with provider-specific defaults
+                          RAAF::RateLimiter.new(
+                            provider: rate_limiter_provider_name,
+                            requests_per_minute: requests_per_minute,
+                            storage: storage
+                          )
+                        end
 
         self
       end
@@ -586,9 +584,7 @@ module RAAF
         # CRITICAL: Preserve provider metadata (e.g., search_results from Perplexity)
         # This metadata is needed by downstream pipeline stages
         provider_metadata = response["metadata"] || response[:metadata]
-        if provider_metadata.is_a?(Hash) && provider_metadata.any?
-          responses_format[:metadata] = provider_metadata
-        end
+        responses_format[:metadata] = provider_metadata if provider_metadata.is_a?(Hash) && provider_metadata.any?
 
         responses_format
       end
@@ -602,9 +598,9 @@ module RAAF
       # @yield Block to execute within rate limit
       # @return Result of the block
       #
-      def with_rate_limiting(operation_name)
+      def with_rate_limiting(_operation_name, &)
         if @rate_limiter_enabled && @rate_limiter
-          @rate_limiter.acquire { yield }
+          @rate_limiter.acquire(&)
         else
           yield
         end

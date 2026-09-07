@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'securerandom'
-require 'active_support/core_ext/hash/deep_merge'
+require "securerandom"
+require "active_support/core_ext/hash/deep_merge"
 
 module RAAF
   module DSL
@@ -27,14 +27,13 @@ module RAAF
         return new_data if existing.nil?
         return existing if new_data.nil?
 
-        case
-        when both_single_hashes?(existing, new_data)
+        if both_single_hashes?(existing, new_data)
           # Single records -> deep merge
           existing.deep_merge(new_data)
-        when existing_array_new_single?(existing, new_data)
+        elsif existing_array_new_single?(existing, new_data)
           # Existing array + single new record
           handle_array_single_merge(existing, new_data)
-        when single_existing_new_array?(existing, new_data)
+        elsif single_existing_new_array?(existing, new_data)
           # Single existing + new array -> convert to array and merge
           [existing] + new_data
         else
@@ -62,13 +61,13 @@ module RAAF
       def self.merge_single_with_array(existing_array, new_record)
         return existing_array unless new_record.is_a?(Hash)
 
-        new_id = new_record[:id] || new_record['id']
+        new_id = new_record[:id] || new_record["id"]
 
         if !new_id.nil? && new_id != ""
           # Try to merge by ID
           updated = false
           result = existing_array.map do |item|
-            item_id = item.is_a?(Hash) ? (item[:id] || item['id']) : nil
+            item_id = item.is_a?(Hash) ? (item[:id] || item["id"]) : nil
 
             if item_id == new_id && !updated
               updated = true
@@ -87,8 +86,6 @@ module RAAF
         end
       end
 
-      private
-
       # Checks if both data items are single hash objects
       def self.both_single_hashes?(existing, new_data)
         existing.is_a?(Hash) && new_data.is_a?(Hash)
@@ -106,7 +103,7 @@ module RAAF
 
       # Handles merging a single record into an array
       def self.handle_array_single_merge(existing_array, new_record)
-        if new_record.key?(:id) || new_record.key?('id')
+        if new_record.key?(:id) || new_record.key?("id")
           # Has ID -> try to merge by ID, append if not found
           merge_single_with_array(existing_array, new_record)
         else

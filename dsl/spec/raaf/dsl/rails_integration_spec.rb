@@ -15,6 +15,7 @@ RSpec.describe "Rails Integration", :with_rails do
       %w[Ai::Tools RAAF::Tools].each do |namespace|
         full_name = "#{namespace}::#{const_name}"
         next unless Object.const_defined?(full_name)
+
         Object.send(:remove_const, full_name.split("::").last) if Object.const_defined?(full_name)
       end
     end
@@ -165,7 +166,7 @@ RSpec.describe "Rails Integration", :with_rails do
         end
 
         stub_const(full_name, tool_class)
-        tool_classes["production_tool#{i}".to_sym] = tool_class
+        tool_classes[:"production_tool#{i}"] = tool_class
       end
 
       # Define agent using multiple tools
@@ -175,7 +176,7 @@ RSpec.describe "Rails Integration", :with_rails do
 
         # Register all tools
         20.times do |i|
-          tool "production_tool#{i}".to_sym
+          tool :"production_tool#{i}"
         end
       end
 

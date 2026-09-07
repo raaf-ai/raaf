@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Tracing
+
     # Rails-specific integrations for RAAF tracing
     #
     # This module provides Rails-specific helpers and integrations including:
@@ -10,6 +12,7 @@ module RAAF
     # - Console helpers for debugging
     # - Rake task integrations
     module RailsIntegrations
+
       # ActiveJob integration for automatic tracing
       #
       # Include this module in your ApplicationJob to automatically trace
@@ -30,6 +33,7 @@ module RAAF
       #     end
       #   end
       module JobTracing
+
         extend ActiveSupport::Concern
 
         included do
@@ -41,7 +45,7 @@ module RAAF
         def trace_job_execution
           workflow_name = "#{self.class.name} Job"
 
-          RAAF::trace(workflow_name) do |trace|
+          RAAF.trace(workflow_name) do |trace|
             # Add job-specific metadata
             trace.metadata.merge!(
               job_id: job_id,
@@ -55,6 +59,7 @@ module RAAF
             yield
           end
         end
+
       end
 
       # Middleware for correlating HTTP requests with traces
@@ -67,6 +72,7 @@ module RAAF
       #   # config/application.rb
       #   config.middleware.use RAAF::Tracing::RailsIntegrations::CorrelationMiddleware
       class CorrelationMiddleware
+
         def initialize(app)
           @app = app
         end
@@ -86,6 +92,7 @@ module RAAF
           Thread.current[:raaf_user_agent] = nil
           Thread.current[:raaf_remote_ip] = nil
         end
+
       end
 
       # Console helpers for debugging traces in Rails console
@@ -102,6 +109,7 @@ module RAAF
       #   # Find slow operations
       #   slow_spans(threshold: 5000) # > 5 seconds
       module ConsoleHelpers
+
         # Get recent traces
         #
         # @param limit [Integer] Number of traces to return
@@ -121,7 +129,7 @@ module RAAF
           return [] unless defined?(RAAF::Tracing::Trace)
 
           RAAF::Tracing::Trace.by_workflow(workflow_name)
-                                      .recent.limit(limit).includes(:spans)
+                              .recent.limit(limit).includes(:spans)
         end
 
         # Get failed traces
@@ -143,7 +151,7 @@ module RAAF
           return [] unless defined?(RAAF::Tracing::Span)
 
           RAAF::Tracing::Span.slow(threshold)
-                                     .recent.limit(limit).includes(:trace)
+                             .recent.limit(limit).includes(:trace)
         end
 
         # Get error spans
@@ -229,10 +237,12 @@ module RAAF
 
           nil
         end
+
       end
 
       # Rake task helpers for maintenance and analysis
       class RakeTasks
+
         # Clean up old traces
         #
         # @param older_than [ActiveSupport::Duration] Age threshold
@@ -280,9 +290,13 @@ module RAAF
 
           nil
         end
+
       end
+
     end
+
   end
+
 end
 
 # Auto-include console helpers in Rails console

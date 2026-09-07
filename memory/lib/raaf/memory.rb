@@ -7,6 +7,7 @@ require_relative "memory/file_store"
 require_relative "memory/memory_manager"
 
 module RAAF
+
   ##
   # Memory system for RAAF
   #
@@ -45,16 +46,16 @@ module RAAF
   #     def initialize(redis_client)
   #       @redis = redis_client
   #     end
-  #     
+  #
   #     def get(key)
   #       @redis.get(key)
   #     end
-  #     
+  #
   #     def set(key, value)
   #       @redis.set(key, value)
   #     end
   #   end
-  #   
+  #
   #   store = RAAF::Memory.create_store(
   #     :custom,
   #     store_class: RedisStore,
@@ -62,6 +63,7 @@ module RAAF
   #   )
   #
   module Memory
+
     ##
     # Create a memory store based on type
     #
@@ -150,5 +152,7 @@ module RAAF
     def self.default_store
       @default_store
     end
+
   end
+
 end

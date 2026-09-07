@@ -125,7 +125,7 @@ module RAAF
             # Tool succeeded
             @runner.call_hook(:on_tool_end, context_wrapper, function_name, result)
           end
-        rescue ArgumentError => e
+        rescue ArgumentError
           # ArgumentError indicates invalid parameters - fail immediately
           # Re-raise to stop agent execution (don't pass to LLM)
           raise

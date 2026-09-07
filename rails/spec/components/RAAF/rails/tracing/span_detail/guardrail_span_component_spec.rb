@@ -43,7 +43,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
             "reasoning" => "Content blocked due to PII detection. The system identified potential personal information including email addresses and phone numbers.",
             "policy" => {
               "name" => "Enterprise Security Policy v2.1",
-              "applied_rules" => ["pii_protection", "toxicity_filter"],
+              "applied_rules" => %w[pii_protection toxicity_filter],
               "threshold" => 0.8,
               "action" => "block"
             },
@@ -58,7 +58,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
 
       it "renders guardrail overview with security status" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_css(".bg-orange-50")
         expect(rendered_component).to have_css(".bi-shield-exclamation")
         expect(rendered_component).to have_content("Security Guardrail")
@@ -69,7 +69,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
 
       it "renders security status badge with correct color" do
         render_inline(component)
-        
+
         # Should have blocked status badge in red
         expect(rendered_component).to have_css(".bg-red-100.text-red-800")
         expect(rendered_component).to have_content("Blocked")
@@ -77,16 +77,16 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
 
       it "renders filter results table with all checks" do
         render_inline(component)
-        
+
         # Should have filter results section
         expect(rendered_component).to have_css("#filter-results-content")
         expect(rendered_component).to have_content("Filter Results")
-        
+
         # Should show table with check results
         expect(rendered_component).to have_content("Pii Check")
         expect(rendered_component).to have_content("Toxicity Check")
         expect(rendered_component).to have_content("Profanity Check")
-        
+
         # Should show scores and statuses
         expect(rendered_component).to have_content("85.0%")
         expect(rendered_component).to have_content("12.0%")
@@ -98,7 +98,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
 
       it "renders security reasoning section" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_css("#security-reasoning-content")
         expect(rendered_component).to have_content("Security Reasoning")
         expect(rendered_component).to have_content("Content blocked due to PII detection")
@@ -107,7 +107,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
 
       it "renders policy details section" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_css("#policy-details-content")
         expect(rendered_component).to have_content("Policy Applied")
         expect(rendered_component).to have_content("Enterprise Security Policy v2.1")
@@ -117,7 +117,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
 
       it "renders blocked content section (initially collapsed)" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_css("#blocked-content-content.hidden")
         expect(rendered_component).to have_content("Blocked Content")
         expect(rendered_component).to have_css(".bg-red-50")
@@ -125,10 +125,10 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
 
       it "includes expand/collapse functionality" do
         render_inline(component)
-        
+
         # Should have stimulus controller
         expect(rendered_component).to have_css("[data-controller='span-detail']")
-        
+
         # Should have toggle buttons
         expect(rendered_component).to have_css("[data-action='click->span-detail#toggleSection']")
         expect(rendered_component).to have_css(".toggle-icon")
@@ -147,7 +147,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
 
       it "renders basic guardrail information" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_content("Security Guardrail")
         expect(rendered_component).to have_content("Filter: BasicFilter")
         expect(rendered_component).to have_content("Status: allowed")
@@ -156,7 +156,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
 
       it "does not render empty sections" do
         render_inline(component)
-        
+
         expect(rendered_component).not_to have_css("#filter-results-content")
         expect(rendered_component).not_to have_css("#security-reasoning-content")
         expect(rendered_component).not_to have_css("#policy-details-content")
@@ -176,7 +176,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
 
       it "handles invalid data gracefully" do
         expect { render_inline(component) }.not_to raise_error
-        
+
         expect(rendered_component).to have_content("Security Guardrail")
         expect(rendered_component).to have_content("Filter: Unknown Filter")
       end
@@ -187,7 +187,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
 
       it "renders basic guardrail information with defaults" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_content("Security Guardrail")
         expect(rendered_component).to have_content("Filter: Unknown Filter")
         expect(rendered_component).to have_content("Status: success")
@@ -208,7 +208,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
 
           it "renders appropriate status badge color" do
             render_inline(component)
-            
+
             case status
             when "blocked", "denied"
               expect(rendered_component).to have_css(".bg-red-100.text-red-800")
@@ -217,7 +217,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
             when "flagged", "warning"
               expect(rendered_component).to have_css(".bg-yellow-100.text-yellow-800")
             end
-            
+
             expect(rendered_component).to have_content(status.titleize)
           end
         end
@@ -272,7 +272,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
 
       it "shows debug raw attributes section" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_css("#raw-attributes-content")
         expect(rendered_component).to have_content("Debug: Raw Attributes")
       end
@@ -282,7 +282,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
       let(:span_attributes) { { "some" => "data" } }
 
       around do |example|
-        old_debug = ENV["RAAF_DEBUG"]
+        old_debug = ENV.fetch("RAAF_DEBUG", nil)
         ENV["RAAF_DEBUG"] = "true"
         example.run
         ENV["RAAF_DEBUG"] = old_debug
@@ -290,7 +290,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
 
       it "shows debug raw attributes section" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_css("#raw-attributes-content")
         expect(rendered_component).to have_content("Debug: Raw Attributes")
       end

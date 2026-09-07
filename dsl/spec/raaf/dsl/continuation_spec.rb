@@ -74,7 +74,7 @@ RSpec.describe "RAAF::DSL::Agent continuation configuration" do
       end
 
       it "accepts output_format option (:csv, :markdown, :json, :auto)" do
-        [:csv, :markdown, :json, :auto].each do |format|
+        %i[csv markdown json auto].each do |format|
           test_agent = Class.new(RAAF::DSL::Agent) do
             agent_name "FormatTestAgent"
             model "gpt-4o"
@@ -87,7 +87,7 @@ RSpec.describe "RAAF::DSL::Agent continuation configuration" do
       end
 
       it "accepts on_failure option (:return_partial, :raise_error)" do
-        [:return_partial, :raise_error].each do |failure_mode|
+        %i[return_partial raise_error].each do |failure_mode|
           test_agent = Class.new(RAAF::DSL::Agent) do
             agent_name "FailureTestAgent"
             model "gpt-4o"
@@ -103,77 +103,77 @@ RSpec.describe "RAAF::DSL::Agent continuation configuration" do
 
   describe "Configuration Validation" do
     it "validates max_attempts is positive integer" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "InvalidAttemptsAgent"
           model "gpt-4o"
           enable_continuation(max_attempts: -1)
         end
-      }.to raise_error(RAAF::InvalidConfigurationError, /max_attempts must be a positive integer/)
+      end.to raise_error(RAAF::InvalidConfigurationError, /max_attempts must be a positive integer/)
     end
 
     it "validates max_attempts <= 50" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "TooManyAttemptsAgent"
           model "gpt-4o"
           enable_continuation(max_attempts: 51)
         end
-      }.to raise_error(RAAF::InvalidConfigurationError, /max_attempts cannot exceed 50/)
+      end.to raise_error(RAAF::InvalidConfigurationError, /max_attempts cannot exceed 50/)
     end
 
     it "validates output_format is one of :csv, :markdown, :json, :auto" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "InvalidFormatAgent"
           model "gpt-4o"
           enable_continuation(output_format: :xml)
         end
-      }.to raise_error(RAAF::InvalidConfigurationError, /Invalid output_format: xml/)
+      end.to raise_error(RAAF::InvalidConfigurationError, /Invalid output_format: xml/)
     end
 
     it "validates on_failure is one of :return_partial, :raise_error" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "InvalidFailureAgent"
           model "gpt-4o"
           enable_continuation(on_failure: :skip)
         end
-      }.to raise_error(RAAF::InvalidConfigurationError, /Invalid on_failure mode: skip/)
+      end.to raise_error(RAAF::InvalidConfigurationError, /Invalid on_failure mode: skip/)
     end
 
     it "raises error for invalid max_attempts (negative)" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "NegativeAttemptsAgent"
           model "gpt-4o"
           enable_continuation(max_attempts: -10)
         end
-      }.to raise_error(RAAF::InvalidConfigurationError, /max_attempts must be a positive integer/)
+      end.to raise_error(RAAF::InvalidConfigurationError, /max_attempts must be a positive integer/)
     end
 
     it "raises error for invalid output_format (:xml)" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "XmlFormatAgent"
           model "gpt-4o"
           enable_continuation(output_format: :xml)
         end
-      }.to raise_error(RAAF::InvalidConfigurationError, /Invalid output_format: xml/)
+      end.to raise_error(RAAF::InvalidConfigurationError, /Invalid output_format: xml/)
     end
 
     it "raises error for invalid on_failure mode" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "InvalidOnFailureAgent"
           model "gpt-4o"
           enable_continuation(on_failure: :ignore)
         end
-      }.to raise_error(RAAF::InvalidConfigurationError, /Invalid on_failure mode: ignore/)
+      end.to raise_error(RAAF::InvalidConfigurationError, /Invalid on_failure mode: ignore/)
     end
 
     it "accepts valid configuration combinations" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "ValidCombinationAgent"
           model "gpt-4o"
@@ -183,7 +183,7 @@ RSpec.describe "RAAF::DSL::Agent continuation configuration" do
             on_failure: :return_partial
           )
         end
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 
@@ -226,23 +226,23 @@ RSpec.describe "RAAF::DSL::Agent continuation configuration" do
 
   describe "Edge Cases" do
     it "handles nil values gracefully" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "NilValueAgent"
           model "gpt-4o"
           enable_continuation(max_attempts: nil)
         end
-      }.to raise_error(RAAF::InvalidConfigurationError, /max_attempts must be a positive integer/)
+      end.to raise_error(RAAF::InvalidConfigurationError, /max_attempts must be a positive integer/)
     end
 
     it "handles empty strings" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "EmptyStringAgent"
           model "gpt-4o"
           enable_continuation(output_format: "")
         end
-      }.to raise_error(RAAF::InvalidConfigurationError, /Invalid output_format/)
+      end.to raise_error(RAAF::InvalidConfigurationError, /Invalid output_format/)
     end
 
     it "handles type mismatches (string instead of symbol)" do
@@ -277,7 +277,7 @@ RSpec.describe "RAAF::DSL::Agent continuation configuration" do
     end
 
     it "handles extra unknown options" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "ExtraOptionsAgent"
           model "gpt-4o"
@@ -286,12 +286,12 @@ RSpec.describe "RAAF::DSL::Agent continuation configuration" do
             unknown_option: "value"
           )
         end
-      }.to raise_error(RAAF::InvalidConfigurationError, /Unknown continuation option: unknown_option/)
+      end.to raise_error(RAAF::InvalidConfigurationError, /Unknown continuation option: unknown_option/)
     end
 
     it "validates all combinations of valid options" do
-      valid_formats = [:csv, :markdown, :json, :auto]
-      valid_failures = [:return_partial, :raise_error]
+      valid_formats = %i[csv markdown json auto]
+      valid_failures = %i[return_partial raise_error]
       valid_attempts = [1, 10, 25, 50]
 
       # Test a sampling of combinations
@@ -299,7 +299,7 @@ RSpec.describe "RAAF::DSL::Agent continuation configuration" do
         valid_failures.each do |failure|
           attempts = valid_attempts.sample
 
-          expect {
+          expect do
             Class.new(RAAF::DSL::Agent) do
               agent_name "ComboTestAgent"
               model "gpt-4o"
@@ -309,7 +309,7 @@ RSpec.describe "RAAF::DSL::Agent continuation configuration" do
                 on_failure: failure
               )
             end
-          }.not_to raise_error
+          end.not_to raise_error
         end
       end
     end
@@ -317,88 +317,88 @@ RSpec.describe "RAAF::DSL::Agent continuation configuration" do
 
   describe "Invalid Configuration Error Handling" do
     it "raises InvalidConfigurationError for format: :xml" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "XmlErrorAgent"
           model "gpt-4o"
           enable_continuation(output_format: :xml)
         end
-      }.to raise_error(RAAF::InvalidConfigurationError) do |error|
+      end.to raise_error(RAAF::InvalidConfigurationError) do |error|
         expect(error.message).to include("Invalid output_format: xml")
         expect(error.message).to include("Valid options are: :csv, :markdown, :json, :auto")
       end
     end
 
     it "raises InvalidConfigurationError for negative max_attempts" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "NegativeErrorAgent"
           model "gpt-4o"
           enable_continuation(max_attempts: -5)
         end
-      }.to raise_error(RAAF::InvalidConfigurationError) do |error|
+      end.to raise_error(RAAF::InvalidConfigurationError) do |error|
         expect(error.message).to include("max_attempts must be a positive integer")
       end
     end
 
     it "raises InvalidConfigurationError for max_attempts > 50" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "TooManyErrorAgent"
           model "gpt-4o"
           enable_continuation(max_attempts: 100)
         end
-      }.to raise_error(RAAF::InvalidConfigurationError) do |error|
+      end.to raise_error(RAAF::InvalidConfigurationError) do |error|
         expect(error.message).to include("max_attempts cannot exceed 50")
       end
     end
 
     it "raises InvalidConfigurationError for on_failure: :skip" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "SkipErrorAgent"
           model "gpt-4o"
           enable_continuation(on_failure: :skip)
         end
-      }.to raise_error(RAAF::InvalidConfigurationError) do |error|
+      end.to raise_error(RAAF::InvalidConfigurationError) do |error|
         expect(error.message).to include("Invalid on_failure mode: skip")
         expect(error.message).to include("Valid options are: :return_partial, :raise_error")
       end
     end
 
     it "raises InvalidConfigurationError for max_attempts: 0" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "ZeroAttemptsAgent"
           model "gpt-4o"
           enable_continuation(max_attempts: 0)
         end
-      }.to raise_error(RAAF::InvalidConfigurationError) do |error|
+      end.to raise_error(RAAF::InvalidConfigurationError) do |error|
         expect(error.message).to include("max_attempts must be a positive integer")
       end
     end
 
     it "provides helpful error messages" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "HelpfulErrorAgent"
           model "gpt-4o"
           enable_continuation(output_format: :yaml)
         end
-      }.to raise_error(RAAF::InvalidConfigurationError) do |error|
+      end.to raise_error(RAAF::InvalidConfigurationError) do |error|
         expect(error.message).to include("Invalid output_format: yaml")
         expect(error.message).to include("Valid options are:")
       end
     end
 
     it "includes suggestion for similar valid options" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "SuggestionAgent"
           model "gpt-4o"
           enable_continuation(on_failure: :return_partials) # Note the 's'
         end
-      }.to raise_error(RAAF::InvalidConfigurationError) do |error|
+      end.to raise_error(RAAF::InvalidConfigurationError) do |error|
         expect(error.message).to include("Invalid on_failure mode: return_partials")
         expect(error.message).to include("Did you mean: :return_partial")
       end
@@ -464,7 +464,7 @@ RSpec.describe "RAAF::DSL::Agent continuation configuration" do
     end
 
     it "works with other DSL methods" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "CompleteAgent"
           model "gpt-4o"
@@ -479,17 +479,17 @@ RSpec.describe "RAAF::DSL::Agent continuation configuration" do
             field :result, type: :string
           end
         end
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "validates configuration when method called" do
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "ValidationAgent"
           model "gpt-4o"
           enable_continuation(output_format: :invalid)
         end
-      }.to raise_error(RAAF::InvalidConfigurationError)
+      end.to raise_error(RAAF::InvalidConfigurationError)
     end
   end
 

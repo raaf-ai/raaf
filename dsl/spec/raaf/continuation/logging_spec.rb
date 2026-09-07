@@ -16,7 +16,7 @@ RSpec.describe RAAF::Continuation::Logging do
     end
 
     it "handles different formats" do
-      [:csv, :markdown, :json, :auto].each do |format|
+      %i[csv markdown json auto].each do |format|
         output = capture_stdout do
           RAAF::Continuation::Logging.log_continuation_start(1, format)
         end

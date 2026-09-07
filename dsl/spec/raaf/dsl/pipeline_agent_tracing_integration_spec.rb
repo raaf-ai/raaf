@@ -104,7 +104,7 @@ RSpec.describe "Pipeline and Agent Tracing Integration", skip: "Requires raaf-tr
         optional analysis_depth: "standard", min_confidence: 0.7
       end
 
-      on_end do |context, pipeline, result|
+      on_end do |_context, _pipeline, result|
         result[:pipeline_completed_at] = Time.now.iso8601
         result[:total_markets] = result[:scored_markets]&.length || 0
         result
@@ -138,15 +138,15 @@ RSpec.describe "Pipeline and Agent Tracing Integration", skip: "Requires raaf-tr
 
         # Create appropriate mock response based on agent name
         mock_result = case agent.name
-                     when "MarketAnalyzer"
-                       create_mock_result_for_analyzer
-                     when "MarketScorer"
-                       create_mock_result_for_scorer
-                     when "SearchTermGenerator"
-                       create_mock_result_for_generator
-                     else
-                       create_default_mock_result
-                     end
+                      when "MarketAnalyzer"
+                        create_mock_result_for_analyzer
+                      when "MarketScorer"
+                        create_mock_result_for_scorer
+                      when "SearchTermGenerator"
+                        create_mock_result_for_generator
+                      else
+                        create_default_mock_result
+                      end
 
         allow(mock_runner).to receive(:run).and_return(mock_result)
         mock_runner
@@ -163,7 +163,7 @@ RSpec.describe "Pipeline and Agent Tracing Integration", skip: "Requires raaf-tr
 
       # Collect all spans
       spans = memory_processor.spans
-      expect(spans.length).to eq(4)  # 1 pipeline + 3 agents
+      expect(spans.length).to eq(4) # 1 pipeline + 3 agents
 
       # Find pipeline span (should be root span with no parent)
       pipeline_span = spans.find { |s| s[:kind] == :pipeline }
@@ -448,7 +448,7 @@ RSpec.describe "Pipeline and Agent Tracing Integration", skip: "Requires raaf-tr
     let(:parallel_pipeline_class) do
       agents = [parallel_agent_a, parallel_agent_b]
       Class.new(RAAF::Pipeline) do
-        flow agents[0] | agents[1]  # Parallel execution
+        flow agents[0] | agents[1] # Parallel execution
       end
     end
 
@@ -460,7 +460,7 @@ RSpec.describe "Pipeline and Agent Tracing Integration", skip: "Requires raaf-tr
     end
 
     before do
-      allow(RAAF::Runner).to receive(:new) do |**args|
+      allow(RAAF::Runner).to receive(:new) do |**_args|
         mock_runner = instance_double(RAAF::Runner)
         allow(mock_runner).to receive(:run).and_return(create_default_mock_result)
         mock_runner
@@ -468,7 +468,7 @@ RSpec.describe "Pipeline and Agent Tracing Integration", skip: "Requires raaf-tr
     end
 
     it "traces parallel agent execution correctly" do
-      result = parallel_pipeline.run
+      parallel_pipeline.run
 
       spans = memory_processor.spans
       pipeline_span = spans.find { |s| s[:kind] == :pipeline }

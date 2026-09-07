@@ -6,6 +6,7 @@ module RAAF
       class AgentSpanComponent < SpanDetailBase
         include RAAF::Logger
         include MarkdownRenderer
+
         def view_template
           div(class: "space-y-6") do
             render_agent_overview
@@ -63,19 +64,13 @@ module RAAF
           tabs = []
 
           # System Prompt tab
-          if system_prompt_content.present?
-            tabs << { id: "system-prompt", label: "System Prompt", icon: "bi-gear" }
-          end
+          tabs << { id: "system-prompt", label: "System Prompt", icon: "bi-gear" } if system_prompt_content.present?
 
           # User Prompt tab
-          if user_prompt_content.present?
-            tabs << { id: "user-prompt", label: "User Prompt", icon: "bi-person" }
-          end
+          tabs << { id: "user-prompt", label: "User Prompt", icon: "bi-person" } if user_prompt_content.present?
 
           # Response tab
-          if final_agent_response.present?
-            tabs << { id: "response", label: "Response", icon: "bi-robot" }
-          end
+          tabs << { id: "response", label: "Response", icon: "bi-robot" } if final_agent_response.present?
 
           # Configuration tab
           tabs << { id: "configuration", label: "Configuration", icon: "bi-sliders" }
@@ -91,9 +86,7 @@ module RAAF
           end
 
           # Context tab
-          if context_data.present?
-            tabs << { id: "context", label: "Context", icon: "bi-layers" }
-          end
+          tabs << { id: "context", label: "Context", icon: "bi-layers" } if context_data.present?
 
           # Evaluation tab
           if continuous_evaluation_available?
@@ -131,11 +124,11 @@ module RAAF
 
           # Hide all panels and show the active one
           panel_ids.each do |panel_id|
-            if panel_id == "panel-#{active_tab_id}"
-              js_parts << "document.getElementById('#{panel_id}').classList.remove('hidden');"
-            else
-              js_parts << "document.getElementById('#{panel_id}').classList.add('hidden');"
-            end
+            js_parts << if panel_id == "panel-#{active_tab_id}"
+                          "document.getElementById('#{panel_id}').classList.remove('hidden');"
+                        else
+                          "document.getElementById('#{panel_id}').classList.add('hidden');"
+                        end
           end
 
           # Update tab button styles
@@ -255,14 +248,23 @@ module RAAF
         def render_section_navigation
           # Determine which sections will be rendered
           sections = []
-          sections << { id: "evaluation-policies", label: "Evaluation", icon: "bi-clipboard-check" } if continuous_evaluation_available?
+          if continuous_evaluation_available?
+            sections << { id: "evaluation-policies", label: "Evaluation",
+                          icon: "bi-clipboard-check" }
+          end
           sections << { id: "configuration", label: "Configuration", icon: "bi-gear" }
           sections << { id: "system-prompt", label: "System Prompt", icon: "bi-gear" } if system_prompt_content.present?
           sections << { id: "user-prompt", label: "User Prompt", icon: "bi-person" } if user_prompt_content.present?
           sections << { id: "dialogue", label: "Dialogue", icon: "bi-chat-dots" } if dialogue_messages.present?
           sections << { id: "response", label: "Response", icon: "bi-robot" } if final_agent_response.present?
-          sections << { id: "statistics", label: "Statistics", icon: "bi-bar-chart" } if conversation_stats_data.present?
-          sections << { id: "conversation-flow", label: "Flow", icon: "bi-chat-dots" } if dialogue_messages.present? || tool_executions_data.present?
+          if conversation_stats_data.present?
+            sections << { id: "statistics", label: "Statistics",
+                          icon: "bi-bar-chart" }
+          end
+          if dialogue_messages.present? || tool_executions_data.present?
+            sections << { id: "conversation-flow", label: "Flow",
+                          icon: "bi-chat-dots" }
+          end
           sections << { id: "tool-executions", label: "Tools", icon: "bi-tools" } if tool_executions_data.present?
           sections << { id: "context", label: "Context", icon: "bi-layers" } if context_data.present?
 
@@ -288,25 +290,25 @@ module RAAF
 
         def agent_name
           @agent_name ||= extract_span_attribute("agent.name") ||
-                         extract_span_attribute("name") ||
-                         extract_span_attribute("agent_name") ||
-                         @span.name&.gsub(/^agent[\.\:]\s*/i, '') ||
-                         "Unknown Agent"
+                          extract_span_attribute("name") ||
+                          extract_span_attribute("agent_name") ||
+                          @span.name&.gsub(/^agent[.:]\s*/i, "") ||
+                          "Unknown Agent"
         end
 
         def model_name
           @model_name ||= extract_span_attribute("agent.model") ||
-                         extract_span_attribute("model") ||
-                         extract_span_attribute("llm.model") ||
-                         "Unknown Model"
+                          extract_span_attribute("model") ||
+                          extract_span_attribute("llm.model") ||
+                          "Unknown Model"
         end
 
         def provider_name
           @provider_name ||= begin
             # Try to get explicitly stored provider
             explicit_provider = extract_span_attribute("agent.provider") ||
-                              extract_span_attribute("provider") ||
-                              extract_span_attribute("llm.provider")
+                                extract_span_attribute("provider") ||
+                                extract_span_attribute("llm.provider")
 
             # If found and not "N/A", use it
             return explicit_provider if explicit_provider && explicit_provider != "N/A"
@@ -337,31 +339,30 @@ module RAAF
 
         def context_data
           @context_data ||= extract_span_attribute("context") ||
-                           extract_span_attribute("initial_context") ||
-                           extract_span_attribute("agent.context")
+                            extract_span_attribute("initial_context") ||
+                            extract_span_attribute("agent.context")
         end
-
 
         def dialogue_messages
           @dialogue_messages ||= begin
             # Try prefixed name first (what collector actually stores)
             messages_json = extract_span_attribute("agent.conversation_messages") ||
-                           extract_span_attribute("conversation_messages")
+                            extract_span_attribute("conversation_messages")
             if messages_json.present? && messages_json != "[]"
               begin
                 return JSON.parse(messages_json)
-              rescue JSON::ParserError => e
+              rescue JSON::ParserError
                 # Handle truncated or malformed JSON - try to extract partial conversation
                 log_warn("Truncated conversation messages JSON detected",
-                        length: messages_json.length,
-                        span_id: @span.span_id)
+                         length: messages_json.length,
+                         span_id: @span.span_id)
                 return parse_truncated_conversation_json(messages_json)
               end
             end
 
             # Fallback to LLM span attributes
             llm_messages = extract_span_attribute("llm.request.messages") ||
-                          extract_span_attribute("llm")&.dig("request", "messages")
+                           extract_span_attribute("llm")&.dig("request", "messages")
 
             return llm_messages if llm_messages.present?
 
@@ -414,7 +415,7 @@ module RAAF
 
           llm_children.each do |llm_span|
             messages = llm_span.span_attributes&.dig("llm.request.messages") ||
-                      llm_span.span_attributes&.dig("llm", "request", "messages")
+                       llm_span.span_attributes&.dig("llm", "request", "messages")
             return messages if messages.present?
           end
 
@@ -456,12 +457,14 @@ module RAAF
 
         def extract_dialogue_system_prompt
           return nil unless dialogue_messages.present?
+
           system_message = dialogue_messages.find { |msg| msg["role"] == "system" }
           system_message&.dig("content")
         end
 
         def extract_dialogue_user_prompt
           return nil unless dialogue_messages.present?
+
           user_message = dialogue_messages.find { |msg| msg["role"] == "user" }
           user_message&.dig("content")
         end
@@ -469,7 +472,7 @@ module RAAF
         def tool_executions_data
           @tool_executions_data ||= begin
             tool_json = extract_span_attribute("agent.tool_executions") ||
-                       extract_span_attribute("tool_executions")
+                        extract_span_attribute("tool_executions")
             if tool_json.present? && tool_json != "[]"
               JSON.parse(tool_json)
             else
@@ -484,7 +487,7 @@ module RAAF
         def conversation_stats_data
           @conversation_stats_data ||= begin
             stats_json = extract_span_attribute("agent.conversation_stats") ||
-                        extract_span_attribute("conversation_stats")
+                         extract_span_attribute("conversation_stats")
             if stats_json.present?
               JSON.parse(stats_json)
             else
@@ -576,7 +579,8 @@ module RAAF
         end
 
         def render_agent_configuration
-          div(id: "configuration", class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
+          div(id: "configuration",
+              class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
             # Modern compact header
             div(class: "px-4 py-3 border-b border-emerald-200 bg-emerald-50") do
               div(class: "flex items-center gap-2") do
@@ -591,8 +595,12 @@ module RAAF
                 # Table header
                 thead(class: "bg-gray-50") do
                   tr do
-                    th(class: "px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/3") { "Parameter" }
-                    th(class: "px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") { "Value" }
+                    th(class: "px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/3") do
+                      "Parameter"
+                    end
+                    th(class: "px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
+                      "Value"
+                    end
                   end
                 end
 
@@ -612,9 +620,15 @@ module RAAF
                   render_table_row_with_block("Temperature") { render_param_value(agent_config["temperature"]) }
                   render_table_row_with_block("Max Tokens") { render_param_value(agent_config["max_tokens"]) }
                   render_table_row_with_block("Top P") { render_param_value(agent_config["top_p"]) }
-                  render_table_row_with_block("Frequency Penalty") { render_param_value(agent_config["frequency_penalty"]) }
-                  render_table_row_with_block("Presence Penalty") { render_param_value(agent_config["presence_penalty"]) }
-                  render_table_row_with_block("Parallel Tool Calls") { render_param_value(agent_config["parallel_tool_calls"]) }
+                  render_table_row_with_block("Frequency Penalty") do
+                    render_param_value(agent_config["frequency_penalty"])
+                  end
+                  render_table_row_with_block("Presence Penalty") do
+                    render_param_value(agent_config["presence_penalty"])
+                  end
+                  render_table_row_with_block("Parallel Tool Calls") do
+                    render_param_value(agent_config["parallel_tool_calls"])
+                  end
 
                   # Tool configuration section (if applicable)
                   if agent_config["tool_choice"] && agent_config["tool_choice"] != "N/A"
@@ -692,7 +706,9 @@ module RAAF
         # Render parameter values with badges for N/A
         def render_param_value(value)
           if value.nil? || value == "N/A"
-            span(class: "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600") { "N/A" }
+            span(class: "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600") do
+              "N/A"
+            end
           else
             plain value.to_s
           end
@@ -709,8 +725,12 @@ module RAAF
               # Table header
               thead(class: "bg-gray-50") do
                 tr do
-                  th(class: "px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/3") { "Parameter" }
-                  th(class: "px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") { "Value" }
+                  th(class: "px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/3") do
+                    "Parameter"
+                  end
+                  th(class: "px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider") do
+                    "Value"
+                  end
                 end
               end
 
@@ -730,9 +750,13 @@ module RAAF
                 render_table_row_with_block("Temperature") { render_param_value(agent_config["temperature"]) }
                 render_table_row_with_block("Max Tokens") { render_param_value(agent_config["max_tokens"]) }
                 render_table_row_with_block("Top P") { render_param_value(agent_config["top_p"]) }
-                render_table_row_with_block("Frequency Penalty") { render_param_value(agent_config["frequency_penalty"]) }
+                render_table_row_with_block("Frequency Penalty") do
+                  render_param_value(agent_config["frequency_penalty"])
+                end
                 render_table_row_with_block("Presence Penalty") { render_param_value(agent_config["presence_penalty"]) }
-                render_table_row_with_block("Parallel Tool Calls") { render_param_value(agent_config["parallel_tool_calls"]) }
+                render_table_row_with_block("Parallel Tool Calls") do
+                  render_param_value(agent_config["parallel_tool_calls"])
+                end
 
                 # Tool configuration section (if applicable)
                 if agent_config["tool_choice"] && agent_config["tool_choice"] != "N/A"
@@ -831,17 +855,17 @@ module RAAF
                 div(class: "text-sm font-semibold text-gray-700 mb-1") do
                   plain "Tool Calls (#{tool_executions_data.length}):"
                 end
-                tool_executions_data.each_with_index do |tool_exec, index|
+                tool_executions_data.each_with_index do |tool_exec, _index|
                   div(class: "bg-yellow-50 p-3 rounded border text-sm mb-2") do
                     div(class: "font-semibold text-yellow-800") { tool_exec["name"] || "unknown" }
                     if tool_exec["arguments"] && tool_exec["arguments"] != "{}"
                       div(class: "text-xs text-gray-600 mt-1") do
-                        plain "Args: #{tool_exec["arguments"]}"
+                        plain "Args: #{tool_exec['arguments']}"
                       end
                     end
                     if tool_exec["result"]
                       div(class: "text-xs text-gray-700 mt-1 border-t pt-1") do
-                        plain "Result: #{tool_exec["result"]}"
+                        plain "Result: #{tool_exec['result']}"
                       end
                     end
                   end
@@ -883,24 +907,26 @@ module RAAF
             end
 
             div(class: "space-y-3") do
-              tool_executions_data.each_with_index do |tool_exec, index|
+              tool_executions_data.each_with_index do |tool_exec, _index|
                 div(class: "border rounded-lg p-4 bg-gray-50") do
                   div(class: "flex items-center justify-between mb-2") do
                     div(class: "font-semibold text-gray-900") { tool_exec["name"] || "Unknown Tool" }
-                    div(class: "text-xs text-gray-500") { "Call ID: #{tool_exec["call_id"] || 'unknown'}" }
+                    div(class: "text-xs text-gray-500") { "Call ID: #{tool_exec['call_id'] || 'unknown'}" }
                   end
 
                   if tool_exec["arguments"] && tool_exec["arguments"] != "{}"
                     div(class: "mb-2") do
                       div(class: "text-sm font-medium text-gray-700 mb-1") { "Arguments:" }
-                      render_json_section("", tool_exec["arguments"], collapsed: true, compact: true, use_json_highlighter: true)
+                      render_json_section("", tool_exec["arguments"], collapsed: true, compact: true,
+                                                                      use_json_highlighter: true)
                     end
                   end
 
                   if tool_exec["result"]
                     div(class: "mb-2") do
                       div(class: "text-sm font-medium text-gray-700 mb-1") { "Result:" }
-                      render_json_section("", tool_exec["result"], collapsed: true, compact: true, use_json_highlighter: true)
+                      render_json_section("", tool_exec["result"], collapsed: true, compact: true,
+                                                                   use_json_highlighter: true)
                     end
                   end
                 end
@@ -940,9 +966,9 @@ module RAAF
           end
         end
 
-
         def render_system_prompt_section
-          div(id: "system-prompt", class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
+          div(id: "system-prompt",
+              class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
             div(class: "px-4 py-5 sm:px-6 border-b border-blue-200 bg-blue-50") do
               div(class: "flex items-center gap-3") do
                 i(class: "bi bi-gear text-blue-600 text-lg")
@@ -961,7 +987,8 @@ module RAAF
         end
 
         def render_user_prompt_section
-          div(id: "user-prompt", class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
+          div(id: "user-prompt",
+              class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
             div(class: "px-4 py-5 sm:px-6 border-b border-green-200 bg-green-50") do
               div(class: "flex items-center gap-3") do
                 i(class: "bi bi-person text-green-600 text-lg")
@@ -1083,7 +1110,8 @@ module RAAF
         end
 
         def render_conversation_flow_section
-          div(id: "conversation-flow", class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
+          div(id: "conversation-flow",
+              class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
             div(class: "px-4 py-5 sm:px-6 border-b border-green-200 bg-green-50") do
               div(class: "flex items-center gap-3") do
                 i(class: "bi bi-chat-dots text-green-600 text-lg")
@@ -1117,17 +1145,17 @@ module RAAF
                   div(class: "text-sm font-semibold text-gray-700 mb-1") do
                     plain "Tool Calls (#{tool_executions_data.length}):"
                   end
-                  tool_executions_data.each_with_index do |tool_exec, index|
+                  tool_executions_data.each_with_index do |tool_exec, _index|
                     div(class: "bg-yellow-50 p-3 rounded border text-sm mb-2") do
                       div(class: "font-semibold text-yellow-800") { tool_exec["name"] || "unknown" }
                       if tool_exec["arguments"] && tool_exec["arguments"] != "{}"
                         div(class: "text-xs text-gray-600 mt-1") do
-                          plain "Args: #{tool_exec["arguments"]}"
+                          plain "Args: #{tool_exec['arguments']}"
                         end
                       end
                       if tool_exec["result"]
                         div(class: "text-xs text-gray-700 mt-1 border-t pt-1") do
-                          plain "Result: #{tool_exec["result"]}"
+                          plain "Result: #{tool_exec['result']}"
                         end
                       end
                     end
@@ -1159,7 +1187,8 @@ module RAAF
         end
 
         def render_tool_executions_section
-          div(id: "tool-executions", class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
+          div(id: "tool-executions",
+              class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
             div(class: "px-4 py-5 sm:px-6 border-b border-yellow-200 bg-yellow-50") do
               div(class: "flex items-center gap-3") do
                 i(class: "bi bi-tools text-yellow-600 text-lg")
@@ -1169,24 +1198,26 @@ module RAAF
               end
             end
             div(class: "px-4 py-5 sm:p-6 space-y-3") do
-              tool_executions_data.each_with_index do |tool_exec, index|
+              tool_executions_data.each_with_index do |tool_exec, _index|
                 div(class: "border rounded-lg p-4 bg-gray-50") do
                   div(class: "flex items-center justify-between mb-2") do
                     div(class: "font-semibold text-gray-900") { tool_exec["name"] || "Unknown Tool" }
-                    div(class: "text-xs text-gray-500") { "Call ID: #{tool_exec["call_id"] || 'unknown'}" }
+                    div(class: "text-xs text-gray-500") { "Call ID: #{tool_exec['call_id'] || 'unknown'}" }
                   end
 
                   if tool_exec["arguments"] && tool_exec["arguments"] != "{}"
                     div(class: "mb-2") do
                       div(class: "text-sm font-medium text-gray-700 mb-1") { "Arguments:" }
-                      render_json_section("", tool_exec["arguments"], collapsed: true, compact: true, use_json_highlighter: true)
+                      render_json_section("", tool_exec["arguments"], collapsed: true, compact: true,
+                                                                      use_json_highlighter: true)
                     end
                   end
 
                   if tool_exec["result"]
                     div(class: "mb-2") do
                       div(class: "text-sm font-medium text-gray-700 mb-1") { "Result:" }
-                      render_json_section("", tool_exec["result"], collapsed: true, compact: true, use_json_highlighter: true)
+                      render_json_section("", tool_exec["result"], collapsed: true, compact: true,
+                                                                   use_json_highlighter: true)
                     end
                   end
                 end
@@ -1198,7 +1229,8 @@ module RAAF
         def render_conversation_statistics_section
           return unless conversation_stats_data
 
-          div(id: "statistics", class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
+          div(id: "statistics",
+              class: "bg-white overflow-hidden shadow rounded-lg border border-gray-200 scroll-mt-6") do
             div(class: "px-4 py-5 sm:px-6 border-b border-purple-200 bg-purple-50") do
               div(class: "flex items-center gap-3") do
                 i(class: "bi bi-bar-chart text-purple-600 text-lg")
@@ -1226,7 +1258,7 @@ module RAAF
 
         def render_expandable_text(text, section_id)
           text_id = "#{section_id}-#{@span.span_id}"
-          preview_text = text[0..1000] + "..."  # Increased from 300 to 1000 chars
+          preview_text = text[0..1000] + "..." # Increased from 300 to 1000 chars
 
           div(data: { controller: "span-detail" }) do
             # RAAF EVAL: Full text visible by default for prompt visibility
@@ -1234,7 +1266,8 @@ module RAAF
               plain text
             end
             # Preview hidden by default
-            div(id: "#{text_id}-preview", class: "hidden bg-gray-50 p-4 rounded-lg border text-sm font-mono whitespace-pre-wrap") do
+            div(id: "#{text_id}-preview",
+                class: "hidden bg-gray-50 p-4 rounded-lg border text-sm font-mono whitespace-pre-wrap") do
               plain preview_text
             end
             button(
@@ -1251,7 +1284,7 @@ module RAAF
 
         def render_expandable_markdown_text(text, section_id)
           text_id = "#{section_id}-#{@span.span_id}"
-          preview_text = text[0..1000] + "..."  # Increased from 300 to 1000 chars
+          preview_text = text[0..1000] + "..." # Increased from 300 to 1000 chars
 
           div(data: { controller: "span-detail" }) do
             # RAAF EVAL: Full content visible by default for prompt visibility
@@ -1265,7 +1298,8 @@ module RAAF
               end
             end
             # Preview hidden by default
-            div(id: "#{text_id}-preview", class: "hidden bg-gray-50 p-4 rounded-lg border text-sm prose prose-sm max-w-none") do
+            div(id: "#{text_id}-preview",
+                class: "hidden bg-gray-50 p-4 rounded-lg border text-sm prose prose-sm max-w-none") do
               if looks_like_markdown?(preview_text)
                 raw markdown_to_html(preview_text)
               else
@@ -1288,7 +1322,7 @@ module RAAF
 
         def render_expandable_json_text(json_text, section_id)
           text_id = "#{section_id}-#{@span.span_id}"
-          preview_text = json_text[0..2000] + "..."  # Increased from 500 to 2000 chars
+          preview_text = json_text[0..2000] + "..." # Increased from 500 to 2000 chars
 
           div(data: { controller: "span-detail json-highlight" }) do
             # RAAF EVAL: Full JSON visible by default for debugging
@@ -1336,9 +1370,9 @@ module RAAF
 
           truncated_json.scan(message_pattern) do |role, content|
             # Unescape JSON content
-            unescaped_content = content.gsub(/\\n/, "\n")
-                                      .gsub(/\\"/, '"')
-                                      .gsub(/\\\\/, "\\")
+            unescaped_content = content.gsub("\\n", "\n")
+                                       .gsub('\"', '"')
+                                       .gsub("\\\\", "\\")
 
             messages << {
               "role" => role,

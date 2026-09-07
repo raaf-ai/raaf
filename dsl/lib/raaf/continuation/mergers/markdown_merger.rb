@@ -40,45 +40,43 @@ module RAAF
         #   result[:content]   # => Complete markdown string
         #   result[:metadata]  # => { merge_success: true, chunk_count: 2, ... }
         def merge(chunks)
-          begin
-            # Extract content from all chunks
-            contents = chunks.map { |chunk| extract_content(chunk) }.compact
+          # Extract content from all chunks
+          contents = chunks.map { |chunk| extract_content(chunk) }.compact
 
-            # Handle empty chunks
-            if contents.empty?
-              return {
-                content: "",
-                metadata: build_metadata(chunks, true)
-              }
-            end
-
-            # Remove empty strings and whitespace-only strings
-            contents = contents.reject { |c| c.to_s.strip.empty? }
-
-            if contents.empty?
-              return {
-                content: "",
-                metadata: build_metadata(chunks, true)
-              }
-            end
-
-            # Merge all content chunks
-            merged = simple_merge(contents)
-
-            {
-              content: merged,
+          # Handle empty chunks
+          if contents.empty?
+            return {
+              content: "",
               metadata: build_metadata(chunks, true)
             }
-          rescue StandardError => e
-            Rails.logger.error "❌ Markdown Merger ERROR: #{e.message}"
-            Rails.logger.error "📋 Error class: #{e.class.name}"
-            Rails.logger.error "🔍 Stack trace:\n#{e.backtrace.join("\n")}"
+          end
 
-            {
-              content: nil,
-              metadata: build_metadata(chunks, false, e)
+          # Remove empty strings and whitespace-only strings
+          contents = contents.reject { |c| c.to_s.strip.empty? }
+
+          if contents.empty?
+            return {
+              content: "",
+              metadata: build_metadata(chunks, true)
             }
           end
+
+          # Merge all content chunks
+          merged = simple_merge(contents)
+
+          {
+            content: merged,
+            metadata: build_metadata(chunks, true)
+          }
+        rescue StandardError => e
+          Rails.logger.error "❌ Markdown Merger ERROR: #{e.message}"
+          Rails.logger.error "📋 Error class: #{e.class.name}"
+          Rails.logger.error "🔍 Stack trace:\n#{e.backtrace.join("\n")}"
+
+          {
+            content: nil,
+            metadata: build_metadata(chunks, false, e)
+          }
         end
 
         protected
@@ -120,7 +118,7 @@ module RAAF
           return false if content.nil? || content.empty?
 
           # Count triple backticks
-          backtick_count = content.scan(/```/).count
+          backtick_count = content.scan("```").count
 
           # Odd number means incomplete block
           backtick_count.odd?
@@ -151,7 +149,6 @@ module RAAF
         # @param accumulated [String] Previously merged content
         # @param new_chunk [String] New chunk to add
         # @return [String] Merged content
-        private
 
         def merge_next_chunk(accumulated, new_chunk)
           return accumulated if new_chunk.nil? || new_chunk.empty?

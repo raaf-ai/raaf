@@ -153,7 +153,7 @@ module RAAF
         def with_configurations(configs)
           if configs.is_a?(Array)
             configs.each_with_index do |config, index|
-              name = config[:name] || "config_#{index}".to_sym
+              name = config[:name] || :"config_#{index}"
               @configurations[name.to_sym] = config
             end
           elsif configs.is_a?(Hash)

@@ -46,7 +46,7 @@ module RAAF
             end
 
             def deterministic?
-              false  # LLM-powered generation of escalation steps
+              false # LLM-powered generation of escalation steps
             end
 
             # Execute linear jailbreaking conversation
@@ -107,7 +107,7 @@ module RAAF
               steps_text = llm_generator.call(generation_prompt)
 
               parse_llm_steps(steps_text, num_steps)
-            rescue StandardError => e
+            rescue StandardError
               # Fallback to heuristic generation
               generate_steps_heuristically(baseline_input, num_steps)
             end

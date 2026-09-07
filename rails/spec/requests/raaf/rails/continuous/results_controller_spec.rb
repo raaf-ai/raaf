@@ -1,22 +1,22 @@
 # frozen_string_literal: true
 
-require 'rails_helper'
+require "rails_helper"
 
 RSpec.describe RAAF::Rails::Continuous::ResultsController, type: :request do
-  let(:policy) { EvaluationPolicy.create!(name: 'Test Policy', agent_name: 'TestAgent', evaluators: []) }
-  let(:queue_item) { EvaluationQueue.create!(evaluation_policy: policy, span_id: 'span-1') }
+  let(:policy) { EvaluationPolicy.create!(name: "Test Policy", agent_name: "TestAgent", evaluators: []) }
+  let(:queue_item) { EvaluationQueue.create!(evaluation_policy: policy, span_id: "span-1") }
 
   describe "GET /raaf/rails/continuous/results" do
     before do
-      3.times do |i|
+      3.times do |_i|
         EvaluationResult.create!(
           evaluation_queue: queue_item,
           evaluation_policy: policy,
-          span_id: 'span-1',
-          agent_name: 'TestAgent',
-          evaluator_name: 'test_evaluator',
-          evaluator_type: 'rule_based',
-          status: 'passed',
+          span_id: "span-1",
+          agent_name: "TestAgent",
+          evaluator_name: "test_evaluator",
+          evaluator_type: "rule_based",
+          status: "passed",
           score: 0.9
         )
       end
@@ -28,12 +28,12 @@ RSpec.describe RAAF::Rails::Continuous::ResultsController, type: :request do
     end
 
     it "filters by agent" do
-      get raaf_rails_continuous_results_path(agent: 'TestAgent')
+      get raaf_rails_continuous_results_path(agent: "TestAgent")
       expect(response).to have_http_status(:success)
     end
 
     it "filters by status" do
-      get raaf_rails_continuous_results_path(status: 'passed')
+      get raaf_rails_continuous_results_path(status: "passed")
       expect(response).to have_http_status(:success)
     end
 
@@ -46,11 +46,11 @@ RSpec.describe RAAF::Rails::Continuous::ResultsController, type: :request do
       EvaluationResult.create!(
         evaluation_queue: queue_item,
         evaluation_policy: policy,
-        span_id: 'span-2',
-        agent_name: 'TestAgent',
-        evaluator_name: 'test_evaluator',
-        evaluator_type: 'rule_based',
-        status: 'failed',
+        span_id: "span-2",
+        agent_name: "TestAgent",
+        evaluator_name: "test_evaluator",
+        evaluator_type: "rule_based",
+        status: "failed",
         score: 0.3
       )
 
@@ -64,11 +64,11 @@ RSpec.describe RAAF::Rails::Continuous::ResultsController, type: :request do
       EvaluationResult.create!(
         evaluation_queue: queue_item,
         evaluation_policy: policy,
-        span_id: 'span-1',
-        agent_name: 'TestAgent',
-        evaluator_name: 'test_evaluator',
-        evaluator_type: 'rule_based',
-        status: 'passed',
+        span_id: "span-1",
+        agent_name: "TestAgent",
+        evaluator_name: "test_evaluator",
+        evaluator_type: "rule_based",
+        status: "passed",
         score: 0.9
       )
     end
@@ -79,12 +79,12 @@ RSpec.describe RAAF::Rails::Continuous::ResultsController, type: :request do
     end
 
     it "loads associated span" do
-      span = RAAF::Rails::Tracing::SpanRecord.create!(
-        span_id: 'span-1',
-        trace_id: 'trace-1',
-        name: 'test.span',
-        kind: 'agent',
-        status: 'ok'
+      RAAF::Rails::Tracing::SpanRecord.create!(
+        span_id: "span-1",
+        trace_id: "trace-1",
+        name: "test.span",
+        kind: "agent",
+        status: "ok"
       )
 
       get raaf_rails_continuous_result_path(result)
@@ -92,14 +92,14 @@ RSpec.describe RAAF::Rails::Continuous::ResultsController, type: :request do
     end
 
     it "loads other results for same span" do
-      other_result = EvaluationResult.create!(
+      EvaluationResult.create!(
         evaluation_queue: queue_item,
         evaluation_policy: policy,
-        span_id: 'span-1',
-        agent_name: 'TestAgent',
-        evaluator_name: 'another_evaluator',
-        evaluator_type: 'llm_judge',
-        status: 'passed',
+        span_id: "span-1",
+        agent_name: "TestAgent",
+        evaluator_name: "another_evaluator",
+        evaluator_type: "llm_judge",
+        status: "passed",
         score: 0.85
       )
 

@@ -6,6 +6,7 @@ require_relative "raaf/vector_store"
 require_relative "raaf/semantic_search"
 
 module RAAF
+
   ##
   # Memory and vector storage for Ruby AI Agents Factory
   #
@@ -23,10 +24,10 @@ module RAAF
   #
   # @example Basic memory usage
   #   require 'raaf-memory'
-  #   
+  #
   #   # Create memory store
   #   store = RAAF::Memory.create_store(:file, base_dir: "./memory")
-  #   
+  #
   #   # Use with agent
   #   agent = RAAF::Agent.new(
   #     name: "Assistant",
@@ -35,46 +36,46 @@ module RAAF
   #
   # @example Vector store for semantic search
   #   require 'raaf-memory'
-  #   
+  #
   #   # Create vector store
   #   vector_store = RAAF::VectorStore.new(
   #     name: "knowledge_base",
   #     dimensions: 1536
   #   )
-  #   
+  #
   #   # Add documents
   #   documents = [
   #     "Ruby is a dynamic programming language",
   #     "Python is great for data science",
   #     "JavaScript runs in web browsers"
   #   ]
-  #   
+  #
   #   vector_store.add_documents(documents)
-  #   
+  #
   #   # Search for similar content
   #   results = vector_store.search("web development languages", k: 2)
-  #   
+  #
   # @example Advanced semantic search
   #   require 'raaf-memory'
-  #   
+  #
   #   # Create semantic search database
   #   db = RAAF::SemanticSearch::VectorDatabase.new(
   #     dimension: 1536,
   #     index_type: :hnsw
   #   )
-  #   
+  #
   #   # Index documents
   #   indexer = RAAF::SemanticSearch::DocumentIndexer.new(
   #     vector_db: db
   #   )
-  #   
+  #
   #   documents = [
   #     { content: "Article about Ruby", title: "Ruby Guide", metadata: { category: "programming" } },
   #     { content: "Python tutorial", title: "Python Basics", metadata: { category: "programming" } }
   #   ]
-  #   
+  #
   #   indexer.index_documents(documents)
-  #   
+  #
   #   # Search with filtering
   #   results = indexer.search(
   #     "programming languages",
@@ -85,12 +86,12 @@ module RAAF
   # @example PostgreSQL vector store
   #   require 'raaf-memory'
   #   require 'pg'
-  #   
+  #
   #   # Create PostgreSQL adapter
   #   adapter = RAAF::Adapters::PgVectorAdapter.new(
   #     connection_string: "postgres://user:pass@localhost/db"
   #   )
-  #   
+  #
   #   # Create vector store with PostgreSQL backend
   #   vector_store = RAAF::VectorStore.new(
   #     name: "production_knowledge",
@@ -100,6 +101,7 @@ module RAAF
   #
   # @since 1.0.0
   module Memory
+
     # Re-export main classes for convenience
     VectorStore = RAAF::VectorStore
     SemanticSearch = RAAF::SemanticSearch
@@ -188,5 +190,7 @@ module RAAF
       # Clear any global caches
       SemanticSearch::EmbeddingGenerator.new.clear_cache if defined?(SemanticSearch::EmbeddingGenerator)
     end
+
   end
+
 end

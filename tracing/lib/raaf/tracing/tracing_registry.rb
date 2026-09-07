@@ -3,7 +3,9 @@
 require "securerandom"
 
 module RAAF
+
   module Tracing
+
     # TracingRegistry provides ambient trace context management for RAAF.
     #
     # This registry enables framework-agnostic automatic tracing by storing
@@ -120,11 +122,13 @@ module RAAF
     # @see RAAF::Runner Integration with auto-detection
     # @see RAAF::Tracing::Traceable Updated priority hierarchy
     class TracingRegistry
+
       # Thread-safe process-level tracer storage
       @process_tracer = nil
       @process_tracer_mutex = Mutex.new
 
       class << self
+
         # Execute a block with a specific tracer in the current context.
         #
         # This method sets up a tracer context for the duration of the block,
@@ -170,7 +174,7 @@ module RAAF
           begin
             # Set the new tracer in thread-local storage
             Thread.current[:raaf_tracer] = tracer
-            
+
             # Execute the block with the new tracer context
             yield
           ensure
@@ -216,9 +220,7 @@ module RAAF
         def current_tracer
           # 1. Thread-local tracer (highest priority)
           # This is set by with_tracer() or direct assignment
-          if Thread.current[:raaf_tracer]
-            return Thread.current[:raaf_tracer]
-          end
+          return Thread.current[:raaf_tracer] if Thread.current[:raaf_tracer]
 
           # 2. Fiber-local tracer (async operations)
           # Check if we're in a fiber and it has a tracer
@@ -310,9 +312,7 @@ module RAAF
           Thread.current[:raaf_tracer] = nil
 
           # Clear fiber-local context if we're in a fiber
-          if defined?(Fiber) && fiber_context_available?
-            Fiber.current[:raaf_tracer] = nil
-          end
+          Fiber.current[:raaf_tracer] = nil if defined?(Fiber) && fiber_context_available?
 
           # Clear process-level tracer in a thread-safe manner
           @process_tracer_mutex.synchronize do
@@ -391,7 +391,11 @@ module RAAF
           # If any error occurs in fiber detection, assume no fiber context
           false
         end
+
       end
+
     end
+
   end
+
 end

@@ -49,7 +49,9 @@ module RAAF
                 end
               end
             else
-              div(class: "bg-white shadow rounded-lg p-6 text-center text-gray-500") { "No categorical scores recorded." }
+              div(class: "bg-white shadow rounded-lg p-6 text-center text-gray-500") do
+                "No categorical scores recorded."
+              end
             end
           end
         end

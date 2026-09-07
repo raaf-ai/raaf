@@ -30,14 +30,14 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
                 "status" => "success",
                 "duration_ms" => 800,
                 "input" => { "query" => "market research" },
-                "output" => { "markets" => ["enterprise", "startup"] }
+                "output" => { "markets" => %w[enterprise startup] }
               },
               {
                 "name" => "MarketScoring",
                 "status" => "success",
                 "duration_ms" => 600,
                 "agent" => "ScoringAgent",
-                "scoring_criteria" => ["market_size", "competition", "fit"]
+                "scoring_criteria" => %w[market_size competition fit]
               },
               {
                 "name" => "SearchTermGeneration",
@@ -49,18 +49,18 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
             "data_flow" => [
               {
                 "description" => "Initial market analysis",
-                "input" => { "company_data": "company_123" },
-                "output" => { "markets": ["enterprise", "startup"] }
+                "input" => { company_data: "company_123" },
+                "output" => { markets: %w[enterprise startup] }
               },
               {
                 "description" => "Market scoring",
-                "input" => { "markets": ["enterprise", "startup"] },
-                "output" => { "scored_markets": [{"name": "enterprise", "score": 85}] }
+                "input" => { markets: %w[enterprise startup] },
+                "output" => { scored_markets: [{ name: "enterprise", score: 85 }] }
               },
               {
                 "description" => "Search term generation",
-                "input" => { "scored_markets": [{"name": "enterprise", "score": 85}] },
-                "output" => { "search_terms": ["CTO", "VP Engineering"] }
+                "input" => { scored_markets: [{ name: "enterprise", score: 85 }] },
+                "output" => { search_terms: ["CTO", "VP Engineering"] }
               }
             ],
             "metadata" => {
@@ -84,7 +84,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
 
       it "renders pipeline overview with execution status" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_css(".bg-purple-50")
         expect(rendered_component).to have_css(".bi-diagram-3")
         expect(rendered_component).to have_content("Pipeline Execution")
@@ -95,7 +95,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
 
       it "renders pipeline status badge with correct color" do
         render_inline(component)
-        
+
         # Should have completed status badge in green
         expect(rendered_component).to have_css(".bg-green-100.text-green-800")
         expect(rendered_component).to have_content("Completed")
@@ -103,22 +103,22 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
 
       it "renders stage execution timeline" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_css("#stage-execution-content")
         expect(rendered_component).to have_content("Stage Execution")
-        
+
         # Should show all stages
         expect(rendered_component).to have_content("DataAnalysis")
         expect(rendered_component).to have_content("MarketScoring")
         expect(rendered_component).to have_content("SearchTermGeneration")
-        
+
         # Should show stage statuses
         expect(rendered_component).to have_content("SUCCESS").at_least(3).times
       end
 
       it "renders stage indicators with proper status colors" do
         render_inline(component)
-        
+
         # Should have success indicators (green circles with numbers)
         expect(rendered_component).to have_css(".bg-green-500.text-white")
         expect(rendered_component).to have_content("1")
@@ -128,15 +128,15 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
 
       it "renders data flow sequence" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_css("#data-flow-content")
         expect(rendered_component).to have_content("Data Flow")
-        
+
         # Should show flow steps
         expect(rendered_component).to have_content("Initial market analysis")
         expect(rendered_component).to have_content("Market scoring")
         expect(rendered_component).to have_content("Search term generation")
-        
+
         # Should show input/output data
         expect(rendered_component).to have_content("Input: company_data")
         expect(rendered_component).to have_content("Output: markets")
@@ -144,7 +144,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
 
       it "renders pipeline metadata section" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_css("#pipeline-metadata-content")
         expect(rendered_component).to have_content("Pipeline Metadata")
         expect(rendered_component).to have_content("Total Agents")
@@ -157,17 +157,17 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
 
       it "renders step results section (initially collapsed)" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_css("#step-results-content.hidden")
         expect(rendered_component).to have_content("Step Results")
       end
 
       it "includes expand/collapse functionality" do
         render_inline(component)
-        
+
         # Should have stimulus controller
         expect(rendered_component).to have_css("[data-controller='span-detail']")
-        
+
         # Should have toggle buttons with proper data attributes
         expect(rendered_component).to have_css("[data-action='click->span-detail#toggleSection']")
         expect(rendered_component).to have_css(".toggle-icon")
@@ -186,7 +186,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
 
       it "renders basic pipeline information" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_content("Pipeline Execution")
         expect(rendered_component).to have_content("Pipeline: SimplePipeline")
         expect(rendered_component).to have_content("Status: running")
@@ -195,14 +195,14 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
 
       it "shows running status badge" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_css(".bg-blue-100.text-blue-800")
         expect(rendered_component).to have_content("Running")
       end
 
       it "does not render empty sections" do
         render_inline(component)
-        
+
         expect(rendered_component).not_to have_css("#stage-execution-content")
         expect(rendered_component).not_to have_css("#data-flow-content")
         expect(rendered_component).not_to have_css("#step-results-content")
@@ -231,17 +231,17 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
 
       it "shows failed status correctly" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_css(".bg-red-100.text-red-800")
         expect(rendered_component).to have_content("Failed")
       end
 
       it "shows mixed stage statuses" do
         render_inline(component)
-        
+
         # Should have success indicator for first stage
         expect(rendered_component).to have_css(".bg-green-500.text-white")
-        
+
         # Should have failed indicator for second stage
         expect(rendered_component).to have_css(".bg-red-500.text-white")
       end
@@ -263,7 +263,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
 
       it "shows animated running indicator" do
         render_inline(component)
-        
+
         # Should have animated indicator with arrow
         expect(rendered_component).to have_css(".animate-pulse")
         expect(rendered_component).to have_css(".bi-arrow-right")
@@ -282,7 +282,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
 
       it "handles steps as alternative to stages" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_content("Pipeline Execution")
         expect(rendered_component).to have_content("Stages: 2")
         expect(rendered_component).to have_content("Step1")
@@ -295,7 +295,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
 
       it "renders with defaults" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_content("Pipeline Execution")
         expect(rendered_component).to have_content("Pipeline: Unknown Pipeline")
         expect(rendered_component).to have_content("Status: success")
@@ -316,7 +316,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
 
           it "renders appropriate status badge color" do
             render_inline(component)
-            
+
             case status
             when "success", "completed"
               expect(rendered_component).to have_css(".bg-green-100.text-green-800")
@@ -327,7 +327,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
             when "paused", "waiting"
               expect(rendered_component).to have_css(".bg-yellow-100.text-yellow-800")
             end
-            
+
             expect(rendered_component).to have_content(status.titleize)
           end
         end
@@ -388,7 +388,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
 
       it "shows debug raw attributes section" do
         render_inline(component)
-        
+
         expect(rendered_component).to have_css("#raw-attributes-content")
         expect(rendered_component).to have_content("Debug: Raw Attributes")
       end
@@ -397,7 +397,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
 
   describe "data truncation" do
     let(:span_attributes) { {} }
-    
+
     it "truncates long data appropriately" do
       long_string = "a" * 100
       truncated = component.send(:truncate_data, long_string)

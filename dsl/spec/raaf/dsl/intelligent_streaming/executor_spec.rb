@@ -184,9 +184,9 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Executor do
       end
 
       it "raises error with helpful message" do
-        expect {
+        expect do
           executor.execute(agent_chain)
-        }.to raise_error(RAAF::DSL::IntelligentStreaming::ExecutorError, /No array field 'items' found in context/)
+        end.to raise_error(RAAF::DSL::IntelligentStreaming::ExecutorError, /No array field 'items' found in context/)
       end
     end
 
@@ -198,9 +198,9 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Executor do
       end
 
       it "raises error with helpful message" do
-        expect {
+        expect do
           executor.execute(agent_chain)
-        }.to raise_error(RAAF::DSL::IntelligentStreaming::ExecutorError, /Field 'items' does not contain an array/)
+        end.to raise_error(RAAF::DSL::IntelligentStreaming::ExecutorError, /Field 'items' does not contain an array/)
       end
     end
   end
@@ -233,10 +233,10 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Executor do
       local_skipped_ids = skipped_ids
 
       config_with_state.instance_eval do
-        skip_if { |record|
+        skip_if do |record|
           skip_evaluations << record
           local_skipped_ids.include?(record)
-        }
+        end
       end
 
       executor_with_state.execute(agent_chain)
@@ -251,13 +251,13 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Executor do
       local_cached_results = cached_results
 
       config_with_state.instance_eval do
-        load_existing { |record|
+        load_existing do |record|
           loaded_records << record
           local_cached_results[record]
-        }
+        end
       end
 
-      result = executor_with_state.execute(agent_chain)
+      executor_with_state.execute(agent_chain)
 
       # Should only load for skipped records
       expect(loaded_records.sort).to eq(skipped_ids)
@@ -315,9 +315,9 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Executor do
         local_cached_results = cached_results
         cfg.skip_if { |record| local_skipped_ids.include?(record) }
         cfg.load_existing { |record| local_cached_results[record] }
-        cfg.persist_each_stream { |results|
+        cfg.persist_each_stream do |results|
           persisted_streams << results.size
-        }
+        end
       end
 
       test_executor = described_class.new(scope: scope, context: context, config: test_config)
@@ -340,14 +340,14 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Executor do
           over: array_field,
           incremental: false
         ).tap do |cfg|
-          cfg.on_stream_start { |stream_num, total, data|
+          cfg.on_stream_start do |stream_num, total, data|
             hook_calls << {
               hook: :start,
               stream_num: stream_num,
               total: total,
               data_size: data.size
             }
-          }
+          end
         end
       end
 
@@ -370,13 +370,13 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Executor do
           over: array_field,
           incremental: false
         ).tap do |cfg|
-          cfg.on_stream_complete { |all_results|
+          cfg.on_stream_complete do |all_results|
             hook_calls << {
               hook: :complete,
               param_count: 1,
               results_size: all_results.size
             }
-          }
+          end
         end
       end
 
@@ -401,7 +401,7 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Executor do
           over: array_field,
           incremental: true
         ).tap do |cfg|
-          cfg.on_stream_complete { |stream_num, total, stream_data, stream_results|
+          cfg.on_stream_complete do |stream_num, total, stream_data, stream_results|
             hook_calls << {
               hook: :complete,
               param_count: 4,
@@ -410,7 +410,7 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Executor do
               data_size: stream_data.size,
               results_size: stream_results.size
             }
-          }
+          end
         end
       end
 
@@ -457,7 +457,7 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Executor do
           over: array_field,
           incremental: false
         ).tap do |cfg|
-          cfg.on_stream_error { |stream_num, total, data, error|
+          cfg.on_stream_error do |stream_num, total, data, error|
             hook_calls << {
               hook: :error,
               stream_num: stream_num,
@@ -465,7 +465,7 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Executor do
               data_size: data.size,
               error_message: error.message
             }
-          }
+          end
         end
       end
 
@@ -477,6 +477,7 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Executor do
         allow_any_instance_of(MockAgent).to receive(:run) do |_, context:|
           call_count += 1
           raise StandardError, "Stream processing failed" if call_count == 15 # Second stream
+
           context
         end
 
@@ -523,10 +524,10 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Executor do
       merged = executor.send(:merge_results, all_results)
       # Each item result is preserved as a separate hash in the array
       expect(merged).to eq([
-        { count: 10, data: { a: 1 } },
-        { count: 20, data: { b: 2 } },
-        { count: 15, data: { c: 3 } }
-      ])
+                             { count: 10, data: { a: 1 } },
+                             { count: 20, data: { b: 2 } },
+                             { count: 15, data: { c: 3 } }
+                           ])
     end
 
     it "returns flattened array for non-hash results" do

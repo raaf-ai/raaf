@@ -31,24 +31,24 @@ cost_manager = RAAF::Tracing::CostManager.new(
     "gpt-4" => { input: 0.00003, output: 0.00006 },
     "gpt-3.5-turbo" => { input: 0.0000015, output: 0.000002 }
   },
-  
+
   # Multi-tenant configuration
   tenant_field: "tenant_id",
-  project_field: "project_id", 
+  project_field: "project_id",
   user_field: "user_id",
-  
+
   # Budget management
   enable_budgets: true,
   budget_alert_thresholds: [50, 75, 90, 95],
   budget_enforcement: false,
-  
+
   # Cost optimization
   enable_optimization: true,
   optimization_recommendations: true
 )
 
 puts "Cost Manager initialized with multi-tenant support"
-puts "Supported models: #{cost_manager.instance_variable_get(:@config)[:pricing].keys.join(', ')}"
+puts "Supported models: #{cost_manager.instance_variable_get(:@config)[:pricing].keys.join(", ")}"
 puts
 
 # Set budgets for different entities
@@ -71,7 +71,7 @@ cost_manager.set_budget(
   currency: "USD"
 )
 
-# User budget  
+# User budget
 cost_manager.set_budget(
   amount: 50.0,
   tenant_id: "dept_engineering",
@@ -148,7 +148,7 @@ alert_engine = RAAF::Tracing::AlertEngine.new(
       window_minutes: 60,
       enabled: true
     },
-    
+
     # Custom rule for specific workflow failures
     {
       name: "chatbot_workflow_failures",
@@ -226,19 +226,19 @@ anomaly_detector = RAAF::Tracing::AnomalyDetector.new(
   # Statistical thresholds
   z_score_threshold: 2.5,        # More sensitive than default (3.0)
   min_samples: 15,               # Minimum data points for analysis
-  
+
   # Baseline comparison
-  baseline_days: 7,              # Compare against last 7 days
-  
+  baseline_days: 7, # Compare against last 7 days
+
   # Change detection
-  change_point_sensitivity: 0.6,  # Detect 60% changes
-  
+  change_point_sensitivity: 0.6, # Detect 60% changes
+
   # Seasonal patterns
-  seasonal_adjustment: true,      # Account for day/hour patterns
-  
+  seasonal_adjustment: true, # Account for day/hour patterns
+
   # Performance optimization
   cache_results: true,
-  cache_ttl: 300                 # 5 minutes
+  cache_ttl: 300 # 5 minutes
 )
 
 puts "Anomaly Detector initialized with custom sensitivity settings"
@@ -302,7 +302,7 @@ puts "  Baseline points: #{baseline_data.size}"
 puts "  Detected patterns: #{pattern_anomalies.size}"
 
 pattern_anomalies.each do |anomaly|
-  puts "    • #{anomaly[:type]}: #{anomaly[:description] || 'Pattern detected'}"
+  puts "    • #{anomaly[:type]}: #{anomaly[:description] || "Pattern detected"}"
   puts "      Value: #{anomaly[:value]}, Z-score: #{anomaly[:z_score]}" if anomaly[:z_score]
 end
 puts
@@ -319,15 +319,16 @@ puts "-" * 50
 
 # Create integrated monitoring system
 class AdvancedMonitoringDashboard
+
   def initialize
     @cost_manager = RAAF::Tracing::CostManager.new
     @alert_engine = RAAF::Tracing::AlertEngine.new
     @anomaly_detector = RAAF::Tracing::AnomalyDetector.new
   end
-  
+
   def generate_health_report
     puts "Generating comprehensive health report..."
-    
+
     report = {
       timestamp: Time.now,
       system_status: "operational",
@@ -335,7 +336,7 @@ class AdvancedMonitoringDashboard
       recommendations: [],
       action_items: []
     }
-    
+
     # Cost analysis
     cost_breakdown = @cost_manager.get_cost_breakdown(timeframe: 24.hours)
     report[:components][:cost_management] = {
@@ -344,7 +345,7 @@ class AdvancedMonitoringDashboard
       traces_analyzed: cost_breakdown[:totals][:total_traces],
       avg_cost_per_trace: cost_breakdown[:totals][:avg_cost_per_trace]
     }
-    
+
     # Alert status
     alert_status = @alert_engine.check_all_rules
     active_alerts = alert_status.select { |a| a[:triggered] }
@@ -353,7 +354,7 @@ class AdvancedMonitoringDashboard
       active_alerts: active_alerts.size,
       total_rules: @alert_engine.list_rules.size
     }
-    
+
     # Anomaly detection
     anomalies = @anomaly_detector.detect_performance_anomalies(24.hours)
     report[:components][:anomaly_detection] = {
@@ -361,30 +362,26 @@ class AdvancedMonitoringDashboard
       anomalies_found: anomalies[:anomalies].size,
       analysis_timeframe: "24 hours"
     }
-    
+
     # Generate recommendations
-    if active_alerts.any?
-      report[:action_items] << "Review and respond to #{active_alerts.size} active alerts"
-    end
-    
+    report[:action_items] << "Review and respond to #{active_alerts.size} active alerts" if active_alerts.any?
+
     if anomalies[:anomalies].any?
       report[:action_items] << "Investigate #{anomalies[:anomalies].size} detected anomalies"
     end
-    
+
     high_cost_traces = cost_breakdown[:totals][:avg_cost_per_trace] > 0.01
-    if high_cost_traces
-      report[:recommendations] << "Consider cost optimization - average cost per trace is high"
-    end
-    
+    report[:recommendations] << "Consider cost optimization - average cost per trace is high" if high_cost_traces
+
     report
   end
-  
+
   def display_report(report)
     puts "📊 System Health Report"
     puts "Generated at: #{report[:timestamp]}"
     puts "Overall Status: #{report[:system_status].upcase}"
     puts
-    
+
     puts "Component Status:"
     report[:components].each do |component, data|
       status_icon = case data[:status]
@@ -393,43 +390,45 @@ class AdvancedMonitoringDashboard
                     when "anomalies_detected" then "🔍"
                     else "❓"
                     end
-      
+
       puts "  #{status_icon} #{component.to_s.humanize}: #{data[:status]}"
       data.each do |key, value|
         next if key == :status
+
         puts "     #{key.to_s.humanize}: #{value}"
       end
     end
     puts
-    
+
     if report[:action_items].any?
       puts "🚨 Action Items:"
       report[:action_items].each { |item| puts "  • #{item}" }
       puts
     end
-    
-    if report[:recommendations].any?
-      puts "💡 Recommendations:"
-      report[:recommendations].each { |rec| puts "  • #{rec}" }
-      puts
-    end
+
+    return unless report[:recommendations].any?
+
+    puts "💡 Recommendations:"
+    report[:recommendations].each { |rec| puts "  • #{rec}" }
+    puts
   end
-  
+
   def start_monitoring_loop
     puts "Starting continuous monitoring loop..."
     puts "(In production, this would run as a background process)"
-    
+
     3.times do |i|
       puts "\n--- Monitoring Cycle #{i + 1} ---"
       report = generate_health_report
       display_report(report)
-      
+
       puts "Sleeping for 30 seconds..."
       sleep(1) # Shortened for demo
     end
-    
+
     puts "Monitoring loop completed"
   end
+
 end
 
 # Create and run monitoring dashboard
@@ -473,7 +472,7 @@ services = [
 
 services.each do |service|
   puts "  📡 Calling #{service[:name]} (#{service[:duration]}s)"
-  
+
   # In real implementation, this would create actual spans
   # and propagate correlation IDs across service boundaries
   span_data = {
@@ -482,7 +481,7 @@ services.each do |service|
     duration_ms: service[:duration] * 1000,
     timestamp: Time.now
   }
-  
+
   puts "     Span created: #{span_data[:service_name]} (#{span_data[:duration_ms]}ms)"
 end
 
@@ -501,15 +500,16 @@ puts "-" * 50
 
 # Create performance profiler
 class PerformanceProfiler
+
   def initialize
     @profiles = {}
     @optimization_engine = OptimizationEngine.new
   end
-  
+
   def profile_workflow(workflow_name, duration_samples)
     puts "Profiling workflow: #{workflow_name}"
     puts "Sample count: #{duration_samples.size}"
-    
+
     profile = {
       workflow_name: workflow_name,
       sample_count: duration_samples.size,
@@ -517,28 +517,28 @@ class PerformanceProfiler
       percentiles: calculate_percentiles(duration_samples),
       optimization_opportunities: identify_optimization_opportunities(duration_samples)
     }
-    
+
     @profiles[workflow_name] = profile
     profile
   end
-  
+
   private
-  
+
   def calculate_statistics(samples)
     return {} if samples.empty?
-    
+
     {
       min: samples.min,
       max: samples.max,
       mean: samples.sum.to_f / samples.size,
       median: samples.sort[samples.size / 2],
-      std_dev: Math.sqrt(samples.map { |x| (x - samples.sum.to_f / samples.size) ** 2 }.sum / samples.size)
+      std_dev: Math.sqrt(samples.map { |x| (x - (samples.sum.to_f / samples.size))**2 }.sum / samples.size)
     }
   end
-  
+
   def calculate_percentiles(samples)
     return {} if samples.empty?
-    
+
     sorted = samples.sort
     {
       p50: percentile(sorted, 50),
@@ -548,17 +548,17 @@ class PerformanceProfiler
       p99: percentile(sorted, 99)
     }
   end
-  
+
   def percentile(sorted_array, percentile)
     index = (percentile / 100.0 * (sorted_array.length - 1)).round
     sorted_array[index]
   end
-  
+
   def identify_optimization_opportunities(samples)
     opportunities = []
-    
+
     stats = calculate_statistics(samples)
-    
+
     # High variability
     if stats[:std_dev] > stats[:mean] * 0.5
       opportunities << {
@@ -568,7 +568,7 @@ class PerformanceProfiler
         recommendation: "Investigate inconsistent performance patterns"
       }
     end
-    
+
     # Long tail latency
     percentiles = calculate_percentiles(samples)
     if percentiles[:p95] > percentiles[:p50] * 3
@@ -579,7 +579,7 @@ class PerformanceProfiler
         recommendation: "Optimize slow requests - P95 is 3x median"
       }
     end
-    
+
     # Generally slow performance
     if stats[:mean] > 5000 # 5 seconds
       opportunities << {
@@ -589,14 +589,15 @@ class PerformanceProfiler
         recommendation: "Overall performance optimization needed"
       }
     end
-    
+
     opportunities
   end
-  
+
   class OptimizationEngine
+
     def generate_recommendations(profiles)
       recommendations = []
-      
+
       profiles.each do |workflow_name, profile|
         profile[:optimization_opportunities].each do |opportunity|
           recommendations << {
@@ -609,12 +610,12 @@ class PerformanceProfiler
           }
         end
       end
-      
+
       recommendations.sort_by { |r| priority_score(r[:priority]) }.reverse
     end
-    
+
     private
-    
+
     def calculate_priority(impact, sample_count)
       base_priority = case impact
                       when "high" then 3
@@ -622,10 +623,10 @@ class PerformanceProfiler
                       when "low" then 1
                       else 1
                       end
-      
+
       # Boost priority for high-volume workflows
       volume_multiplier = sample_count > 1000 ? 1.5 : 1.0
-      
+
       case (base_priority * volume_multiplier).round
       when 4..5 then "critical"
       when 3 then "high"
@@ -633,7 +634,7 @@ class PerformanceProfiler
       else "low"
       end
     end
-    
+
     def priority_score(priority)
       case priority
       when "critical" then 4
@@ -643,7 +644,9 @@ class PerformanceProfiler
       else 0
       end
     end
+
   end
+
 end
 
 # Create performance profiler and analyze sample data
@@ -662,7 +665,7 @@ profiles = {}
 workflows.each do |workflow_name, duration_samples|
   profile = profiler.profile_workflow(workflow_name, duration_samples)
   profiles[workflow_name] = profile
-  
+
   puts "\n  #{workflow_name} Profile:"
   puts "    Mean: #{profile[:statistics][:mean]&.round(2)}ms"
   puts "    P95: #{profile[:percentiles][:p95]}ms"
@@ -670,7 +673,7 @@ workflows.each do |workflow_name, duration_samples|
   puts "    Optimization opportunities: #{profile[:optimization_opportunities].size}"
 end
 
-puts "\n" + "="*50
+puts "\n" + ("=" * 50)
 puts "\n📈 Performance Analysis Summary"
 puts "=" * 50
 
@@ -691,7 +694,7 @@ recommendations.each_with_index do |rec, index|
                   when "low" then "ℹ️"
                   else "📝"
                   end
-  
+
   puts "  #{index + 1}. #{priority_icon} #{rec[:workflow]} - #{rec[:type]} (#{rec[:priority]})"
   puts "     #{rec[:description]}"
   puts "     Recommendation: #{rec[:recommendation]}"
@@ -710,43 +713,43 @@ puts <<~PRACTICES
      - Monitor cost per request and optimize expensive operations
      - Use cost forecasting to predict future spending
      - Implement cost allocation for accurate billing
-  
+
   2. Alerting Strategy:
      - Configure alerts for critical metrics (error rate, latency, cost)
      - Use multiple notification channels (Slack, email, webhooks)
      - Set appropriate thresholds to avoid alert fatigue
      - Implement alert suppression for maintenance windows
-  
+
   3. Anomaly Detection:
      - Use statistical methods to detect unusual patterns
      - Account for seasonal variations in usage
      - Combine multiple detection algorithms for accuracy
      - Focus on actionable anomalies that require investigation
-  
+
   4. Performance Monitoring:
      - Profile workflows to identify optimization opportunities
      - Monitor percentiles (P95, P99) not just averages
      - Track long tail latency and performance variability
      - Set up automated performance regression detection
-  
+
   5. Distributed Tracing:
      - Use correlation IDs to trace requests across services
      - Implement trace propagation for complete visibility
      - Aggregate traces from multiple services for analysis
      - Monitor cross-service dependencies and bottlenecks
-  
+
   6. Operational Excellence:
      - Implement health checks and status dashboards
      - Set up automated monitoring loops
      - Create runbooks for common issues
      - Regularly review and tune monitoring configurations
-  
+
   7. Data Retention:
      - Define appropriate retention policies for traces
      - Archive historical data for long-term analysis
      - Implement data compression and optimization
      - Balance storage costs with analytical needs
-  
+
   8. Security and Compliance:
      - Ensure sensitive data is not logged in traces
      - Implement proper access controls for trace data

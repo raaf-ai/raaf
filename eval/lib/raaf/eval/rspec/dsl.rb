@@ -24,9 +24,9 @@ module RAAF
           #     configuration :claude, model: "claude-3-5-sonnet"
           #     run_async true
           #   end
-          def evaluation(&block)
+          def evaluation(&)
             builder = EvaluationBuilder.new
-            builder.instance_eval(&block)
+            builder.instance_eval(&)
 
             # Store evaluation definition for use in examples
             metadata[:evaluation_definition] = builder.build

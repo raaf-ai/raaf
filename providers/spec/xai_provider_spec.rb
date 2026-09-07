@@ -87,9 +87,9 @@ RSpec.describe RAAF::Models::XAIProvider do
         expect do
           # Mock the actual HTTP request to avoid real API calls
           allow(provider).to receive(:make_request).and_return({
-            "id" => "test-id",
-            "choices" => [{ "message" => { "content" => "Test response" } }]
-          })
+                                                                 "id" => "test-id",
+                                                                 "choices" => [{ "message" => { "content" => "Test response" } }]
+                                                               })
           provider.chat_completion(messages: messages, model: model)
         end.not_to raise_error
       end
@@ -97,7 +97,7 @@ RSpec.describe RAAF::Models::XAIProvider do
   end
 
   describe "API integration", skip: "requires real API key" do
-    let(:real_provider) { described_class.new(api_key: ENV["XAI_API_KEY"]) }
+    let(:real_provider) { described_class.new(api_key: ENV.fetch("XAI_API_KEY", nil)) }
 
     before do
       skip "No XAI_API_KEY found" unless ENV["XAI_API_KEY"]

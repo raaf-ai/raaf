@@ -15,6 +15,7 @@ rescue LoadError
 end
 
 module RAAF
+
   # Registry for tool discovery and management
   #
   # This class provides a centralized registry for all RAAF tools,
@@ -35,6 +36,7 @@ module RAAF
   #   # 3. RAAF::Tools::WebSearchTool
   #
   class ToolRegistry
+
     extend RAAF::Logger if defined?(RAAF::Logger)
 
     # Thread-safe registry storage
@@ -42,6 +44,7 @@ module RAAF
     @namespaces = Concurrent::Array.new(["Ai::Tools", "RAAF::Tools", "RAAF::Tools::Basic", "Ai::Tools::Basic"])
 
     class << self
+
       # Register a tool with a name
       #
       # @param name [String, Symbol] Tool name for registration
@@ -70,9 +73,7 @@ module RAAF
 
         # Try registry first
         registered = get(identifier)
-        if registered
-          return registered
-        end
+        return registered if registered
 
         # Auto-discovery in namespaces
         auto_discover(identifier)
@@ -115,13 +116,12 @@ module RAAF
       def safe_lookup(identifier)
         lookup(identifier)
       rescue NameError => e
-        if e.message.include?("RAAF::ToolRegistry") || e.message.include?("uninitialized constant")
-          # ToolRegistry not fully loaded yet - return nil for lazy resolution
-          nil
-        else
-          # Re-raise if it's a different NameError
-          raise
-        end
+        raise unless e.message.include?("RAAF::ToolRegistry") || e.message.include?("uninitialized constant")
+
+        # ToolRegistry not fully loaded yet - return nil for lazy resolution
+        nil
+
+        # Re-raise if it's a different NameError
       end
 
       # Resolve a tool with detailed error information
@@ -316,6 +316,9 @@ module RAAF
 
         suggestions
       end
+
     end
+
   end
+
 end

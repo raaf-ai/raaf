@@ -46,6 +46,7 @@ class MockSkippedBadgeTooltip
 
   def format_skip_reason(reason)
     return reason if reason.length <= 100
+
     "#{reason[0..97]}..."
   end
 
@@ -59,8 +60,8 @@ class MockSkippedBadgeTooltip
       skip_reason: @skip_reason,
       style: @style,
       has_tooltip: has_tooltip?,
-      badge_classes: badge_classes.split.first(4).join(' ') + '...',
-      tooltip_classes: has_tooltip? ? 'hs-tooltip-content...' : nil
+      badge_classes: badge_classes.split.first(4).join(" ") + "...",
+      tooltip_classes: has_tooltip? ? "hs-tooltip-content..." : nil
     }
   end
 end
@@ -70,10 +71,10 @@ puts "\n📋 Test 1: Tooltip Presence Logic"
 puts "-" * 30
 
 test_cases = [
-  { status: 'skipped', skip_reason: 'Test reason', expected: true },
-  { status: 'skipped', skip_reason: nil, expected: false },
-  { status: 'completed', skip_reason: 'Should not show', expected: true },  # Still shows if reason present
-  { status: 'completed', skip_reason: nil, expected: false },
+  { status: "skipped", skip_reason: "Test reason", expected: true },
+  { status: "skipped", skip_reason: nil, expected: false },
+  { status: "completed", skip_reason: "Should not show", expected: true }, # Still shows if reason present
+  { status: "completed", skip_reason: nil, expected: false }
 ]
 
 test_cases.each_with_index do |test_case, i|
@@ -86,27 +87,27 @@ test_cases.each_with_index do |test_case, i|
   result = component.has_tooltip?
   status = result == test_case[:expected] ? "✅" : "❌"
 
-  puts "  #{i+1}. Status: #{test_case[:status]}, Skip reason: #{test_case[:skip_reason] ? 'present' : 'nil'} -> Tooltip: #{result} #{status}"
+  puts "  #{i + 1}. Status: #{test_case[:status]}, Skip reason: #{test_case[:skip_reason] ? "present" : "nil"} -> Tooltip: #{result} #{status}"
 end
 
 # Test 2: CSS Classes for Different Styles
 puts "\n📋 Test 2: CSS Classes Generation"
 puts "-" * 30
 
-styles = [:default, :modern, :detailed]
-statuses = ['completed', 'failed', 'skipped', 'cancelled']
+styles = %i[default modern detailed]
+statuses = %w[completed failed skipped cancelled]
 
 styles.each do |style|
   puts "  Style: #{style}"
   statuses.each do |status|
     component = MockSkippedBadgeTooltip.new(
       status: status,
-      skip_reason: status.include?('skip') || status.include?('cancel') ? 'Test' : nil,
+      skip_reason: status.include?("skip") || status.include?("cancel") ? "Test" : nil,
       style: style
     )
 
     classes = component.badge_classes
-    key_class = classes.split.find { |c| c.include?('bg-') } || 'none'
+    key_class = classes.split.find { |c| c.include?("bg-") } || "none"
 
     puts "    #{status.ljust(10)} -> #{key_class}"
   end
@@ -125,13 +126,13 @@ test_strings = [
 
 test_strings.each_with_index do |reason, i|
   component = MockSkippedBadgeTooltip.new(
-    status: 'skipped',
+    status: "skipped",
     skip_reason: reason,
     style: :modern
   )
 
   truncated = component.format_skip_reason(reason)
-  puts "  #{i+1}. Length: #{reason.length} -> #{truncated.length} (#{truncated.end_with?('...') ? 'truncated' : 'unchanged'})"
+  puts "  #{i + 1}. Length: #{reason.length} -> #{truncated.length} (#{truncated.end_with?("...") ? "truncated" : "unchanged"})"
   if reason.length > 50
     puts "      Original:  #{reason[0..47]}..."
     puts "      Result:    #{truncated[0..47]}..."
@@ -145,28 +146,28 @@ puts "-" * 30
 
 real_world_examples = [
   {
-    status: 'skipped',
-    skip_reason: 'Agent requirements not met',
+    status: "skipped",
+    skip_reason: "Agent requirements not met",
     style: :modern,
-    context: 'Spans List'
+    context: "Spans List"
   },
   {
-    status: 'cancelled',
-    skip_reason: 'User cancelled operation',
+    status: "cancelled",
+    skip_reason: "User cancelled operation",
     style: :detailed,
-    context: 'Trace Detail'
+    context: "Trace Detail"
   },
   {
-    status: 'completed',
+    status: "completed",
     skip_reason: nil,
     style: :default,
-    context: 'Dashboard'
+    context: "Dashboard"
   },
   {
-    status: 'failed',
+    status: "failed",
     skip_reason: nil,
     style: :modern,
-    context: 'Timeline'
+    context: "Timeline"
   }
 ]
 
@@ -179,11 +180,11 @@ real_world_examples.each_with_index do |example, i|
 
   summary = component.render_summary
 
-  puts "  #{i+1}. #{example[:context]} (#{example[:style]} style):"
+  puts "  #{i + 1}. #{example[:context]} (#{example[:style]} style):"
   puts "     Status: #{summary[:status]}"
-  puts "     Has Tooltip: #{summary[:has_tooltip] ? '✅ Yes' : '❌ No'}"
+  puts "     Has Tooltip: #{summary[:has_tooltip] ? "✅ Yes" : "❌ No"}"
   puts "     Badge Classes: #{summary[:badge_classes]}"
-  puts "     Skip Reason: #{summary[:skip_reason] || 'None'}"
+  puts "     Skip Reason: #{summary[:skip_reason] || "None"}"
   puts
 end
 
@@ -192,15 +193,15 @@ puts "\n📋 Test 5: Integration Points"
 puts "-" * 30
 
 integration_points = [
-  'BaseComponent#render_status_badge -> SkippedBadgeTooltip.new(style: :modern)',
-  'TraceDetail#render_status_badge -> SkippedBadgeTooltip.new(style: :detailed)',
-  'SpansList#render_status_badge -> SkippedBadgeTooltip.new(style: :default)',
-  'Dashboard#render_status_badge -> SkippedBadgeTooltip.new(style: :default)'
+  "BaseComponent#render_status_badge -> SkippedBadgeTooltip.new(style: :modern)",
+  "TraceDetail#render_status_badge -> SkippedBadgeTooltip.new(style: :detailed)",
+  "SpansList#render_status_badge -> SkippedBadgeTooltip.new(style: :default)",
+  "Dashboard#render_status_badge -> SkippedBadgeTooltip.new(style: :default)"
 ]
 
 puts "✅ All integration points updated:"
 integration_points.each_with_index do |point, i|
-  puts "  #{i+1}. #{point}"
+  puts "  #{i + 1}. #{point}"
 end
 
 puts "\n🎉 All Core Logic Tests Passed!"

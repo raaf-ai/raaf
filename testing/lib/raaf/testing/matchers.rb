@@ -4,7 +4,9 @@ require "rspec/matchers"
 require_relative "prompt_matchers"
 
 module RAAF
+
   module Testing
+
     ##
     # RSpec matchers for testing AI agents
     #
@@ -12,7 +14,9 @@ module RAAF
     # responses, and interactions.
     #
     module Matchers
+
       include PromptMatchers
+
       ##
       # Matcher for successful agent responses
       #
@@ -25,10 +29,10 @@ module RAAF
         end
 
         failure_message do |result|
-          "expected agent response to be successful, but got: #{result.error || 'unknown error'}"
+          "expected agent response to be successful, but got: #{result.error || "unknown error"}"
         end
 
-        failure_message_when_negated do |result|
+        failure_message_when_negated do |_result|
           "expected agent response to not be successful, but it was"
         end
       end
@@ -154,8 +158,6 @@ module RAAF
             result.usage[:total_tokens] || result.usage["total_tokens"]
           elsif result.respond_to?(:metadata) && result.metadata
             result.metadata[:token_usage] || result.metadata["token_usage"]
-          else
-            nil
           end
         end
       end
@@ -178,11 +180,9 @@ module RAAF
         end
 
         def extract_response_time(result)
-          if result.respond_to?(:metadata) && result.metadata
-            result.metadata[:response_time] || result.metadata["response_time"]
-          else
-            nil
-          end
+          return unless result.respond_to?(:metadata) && result.metadata
+
+          result.metadata[:response_time] || result.metadata["response_time"]
         end
       end
 
@@ -231,11 +231,9 @@ module RAAF
         end
 
         def extract_handoff_target(result)
-          if result.respond_to?(:metadata) && result.metadata
-            result.metadata[:handoff_target] || result.metadata["handoff_target"]
-          else
-            nil
-          end
+          return unless result.respond_to?(:metadata) && result.metadata
+
+          result.metadata[:handoff_target] || result.metadata["handoff_target"]
         end
       end
 
@@ -252,7 +250,7 @@ module RAAF
           violations.any?
         end
 
-        failure_message do |result|
+        failure_message do |_result|
           "expected agent response to be blocked by guardrails, but no violations were found"
         end
 
@@ -318,7 +316,7 @@ module RAAF
           end
         end
 
-        failure_message do |result|
+        failure_message do |_result|
           "expected agent response to have conversation context (multiple messages), but found single message"
         end
       end
@@ -369,7 +367,7 @@ module RAAF
       RSpec::Matchers.define :have_positive_sentiment do
         match do |result|
           sentiment = extract_sentiment(result)
-          sentiment == :positive || sentiment == "positive"
+          [:positive, "positive"].include?(sentiment)
         end
 
         failure_message do |result|
@@ -387,12 +385,12 @@ module RAAF
 
         def analyze_sentiment(result)
           content = if result.respond_to?(:messages) && result.messages.any?
-                     result.messages.last[:content] || result.messages.last["content"] || ""
-                   elsif result.respond_to?(:content)
-                     result.content || ""
-                   else
-                     result.to_s
-                   end
+                      result.messages.last[:content] || result.messages.last["content"] || ""
+                    elsif result.respond_to?(:content)
+                      result.content || ""
+                    else
+                      result.to_s
+                    end
 
           # Simple sentiment analysis
           positive_words = %w[good great excellent amazing wonderful fantastic happy pleased]
@@ -427,10 +425,10 @@ module RAAF
 
         failure_message do |result|
           validation_result = validator.validate(result)
-          "expected agent response to pass validation, but failed: #{validation_result.errors.join(', ')}"
+          "expected agent response to pass validation, but failed: #{validation_result.errors.join(", ")}"
         end
 
-        failure_message_when_negated do |result|
+        failure_message_when_negated do |_result|
           "expected agent response to fail validation, but it passed"
         end
       end
@@ -447,7 +445,7 @@ module RAAF
           result.respond_to?(:streaming?) && result.streaming?
         end
 
-        failure_message do |result|
+        failure_message do |_result|
           "expected agent response to be streaming, but it was not"
         end
       end
@@ -525,7 +523,7 @@ module RAAF
       RSpec::Matchers.define :have_negative_sentiment do
         match do |result|
           sentiment = extract_sentiment(result)
-          sentiment == :negative || sentiment == "negative"
+          [:negative, "negative"].include?(sentiment)
         end
 
         failure_message do |result|
@@ -543,12 +541,12 @@ module RAAF
 
         def analyze_sentiment(result)
           content = if result.respond_to?(:messages) && result.messages.any?
-                     result.messages.last[:content] || result.messages.last["content"] || ""
-                   elsif result.respond_to?(:content)
-                     result.content || ""
-                   else
-                     result.to_s
-                   end
+                      result.messages.last[:content] || result.messages.last["content"] || ""
+                    elsif result.respond_to?(:content)
+                      result.content || ""
+                    else
+                      result.to_s
+                    end
 
           # Simple sentiment analysis
           positive_words = %w[good great excellent amazing wonderful fantastic happy pleased]
@@ -574,7 +572,7 @@ module RAAF
       RSpec::Matchers.define :have_neutral_sentiment do
         match do |result|
           sentiment = extract_sentiment(result)
-          sentiment == :neutral || sentiment == "neutral"
+          [:neutral, "neutral"].include?(sentiment)
         end
 
         failure_message do |result|
@@ -592,12 +590,12 @@ module RAAF
 
         def analyze_sentiment(result)
           content = if result.respond_to?(:messages) && result.messages.any?
-                     result.messages.last[:content] || result.messages.last["content"] || ""
-                   elsif result.respond_to?(:content)
-                     result.content || ""
-                   else
-                     result.to_s
-                   end
+                      result.messages.last[:content] || result.messages.last["content"] || ""
+                    elsif result.respond_to?(:content)
+                      result.content || ""
+                    else
+                      result.to_s
+                    end
 
           # Simple sentiment analysis
           positive_words = %w[good great excellent amazing wonderful fantastic happy pleased]
@@ -616,6 +614,9 @@ module RAAF
           end
         end
       end
+
     end
+
   end
+
 end

@@ -23,10 +23,10 @@ module RAAF
         validates :trace_id, presence: true
         validates :evaluator_name, presence: true
         validates :evaluator_type, presence: true,
-                  inclusion: { in: %w[rule_based statistical llm_judge custom] }
+                                   inclusion: { in: %w[rule_based statistical llm_judge custom] }
         validates :agent_name, presence: true
         validates :status, presence: true,
-                  inclusion: { in: %w[good average bad error] }
+                           inclusion: { in: %w[good average bad error] }
         validates :evaluation_type, inclusion: { in: %w[automated] }
         validates :score, numericality: { in: 0..1 }, allow_nil: true
 
@@ -88,6 +88,7 @@ module RAAF
           return "unknown" if score.nil?
           return "good" if score >= good_threshold
           return "average" if score >= average_threshold
+
           "bad"
         end
 
@@ -96,6 +97,7 @@ module RAAF
         # @return [Float, nil]
         def duration
           return nil if evaluation_duration_ms.nil?
+
           evaluation_duration_ms / 1000.0
         end
 

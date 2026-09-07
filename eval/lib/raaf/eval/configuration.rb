@@ -40,7 +40,7 @@ module RAAF
       ##
       # Initialize configuration with defaults
       def initialize
-        @database_url = ENV["DATABASE_URL"]
+        @database_url = ENV.fetch("DATABASE_URL", nil)
         @logger = Logger.new($stdout, level: Logger::INFO)
         @ai_comparator_model = "gpt-4o"
         @enable_ai_comparator = true

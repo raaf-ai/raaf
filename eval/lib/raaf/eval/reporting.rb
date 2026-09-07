@@ -29,14 +29,14 @@ module RAAF
   module Eval
     module Reporting
       # Load reporting components
-      require_relative 'reporting/multi_run_aggregator'
-      require_relative 'reporting/consistency_analyzer'
-      require_relative 'reporting/console_reporter'
-      require_relative 'reporting/consistency_report'
+      require_relative "reporting/multi_run_aggregator"
+      require_relative "reporting/consistency_analyzer"
+      require_relative "reporting/console_reporter"
+      require_relative "reporting/consistency_report"
 
       # Load domain-specific output reporting (for prospect scoring, etc.)
-      require_relative 'reporting/domain_output_aggregator'
-      require_relative 'reporting/domain_output_reporter'
+      require_relative "reporting/domain_output_aggregator"
+      require_relative "reporting/domain_output_reporter"
     end
   end
 end

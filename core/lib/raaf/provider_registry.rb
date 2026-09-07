@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 module RAAF
+
   ##
   # Registry for mapping provider short names to provider classes
   # and auto-detecting providers based on model names
@@ -66,13 +67,13 @@ module RAAF
       /^llama-/i => :groq,
       /^gemma-/i => :groq,
       /^sonar-/i => :perplexity,
-      /^sonar$/i => :perplexity,  # Support plain "sonar" as model name
-      /^perplexity$/i => :perplexity,  # Support plain "perplexity" as model name
+      /^sonar$/i => :perplexity, # Support plain "sonar" as model name
+      /^perplexity$/i => :perplexity, # Support plain "perplexity" as model name
       /^gemini-/i => :gemini,  # Gemini models
       /^kimi-/i => :moonshot,  # Kimi K2 models (kimi-k2-instruct, kimi-k2-thinking)
-      /^moonshot-/i => :moonshot,  # Moonshot models (moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k)
-      /^deepseek/i => :deepseek,  # DeepSeek (deepseek-chat, deepseek-reasoner, deepseek-v4-*)
-      /^qwen/i => :qwen,  # Alibaba Qwen / DashScope (qwen3-max, qwen-plus, ...)
+      /^moonshot-/i => :moonshot, # Moonshot models (moonshot-v1-8k, moonshot-v1-32k, moonshot-v1-128k)
+      /^deepseek/i => :deepseek, # DeepSeek (deepseek-chat, deepseek-reasoner, deepseek-v4-*)
+      /^qwen/i => :qwen, # Alibaba Qwen / DashScope (qwen3-max, qwen-plus, ...)
       /^glm-/i => :glm,  # Zhipu GLM (glm-4.6, glm-5, ...)
       /^mimo/i => :mimo  # Xiaomi MiMo (mimo-v2.5-pro, mimo-v2.5, ...)
     }.freeze
@@ -112,17 +113,17 @@ module RAAF
       #   provider = ProviderRegistry.create(:anthropic, api_key: ENV['ANTHROPIC_API_KEY'])
       #   provider = ProviderRegistry.create(:openai, api_key: ENV['OPENAI_API_KEY'])
       #
-      def create(provider_name, **options)
+      def create(provider_name, **)
         provider_name = provider_name.to_sym
 
         class_path = PROVIDER_CLASSES[provider_name]
-        raise ArgumentError, "Unknown provider: #{provider_name}. Available: #{PROVIDER_CLASSES.keys.join(', ')}" unless class_path
+        raise ArgumentError, "Unknown provider: #{provider_name}. Available: #{PROVIDER_CLASSES.keys.join(", ")}" unless class_path
 
         # Get the provider class
         provider_class = resolve_class(class_path)
 
         # Create and return instance
-        provider_class.new(**options)
+        provider_class.new(**)
       end
 
       ##
@@ -189,17 +190,19 @@ module RAAF
       #
       def resolve_class(class_path)
         # Check if it's a custom provider first (with thread-safe access)
-        is_custom = @providers_mutex.synchronize do
+        @providers_mutex.synchronize do
           @custom_providers && @custom_providers.value?(class_path)
         end
 
         # Try to constantize the path
-        parts = class_path.split('::')
+        parts = class_path.split("::")
         parts.reduce(Object) { |mod, name| mod.const_get(name) }
       rescue NameError => e
         raise NameError, "Could not load provider class: #{class_path}. Error: #{e.message}"
       end
 
     end
+
   end
+
 end

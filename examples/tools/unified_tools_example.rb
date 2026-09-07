@@ -29,7 +29,7 @@ class CalculatorTool < RAAF::Tool
     result = eval(expression)
     puts "  Result: #{result}"
     result
-  rescue => e
+  rescue StandardError => e
     { error: e.message }
   end
 end
@@ -41,21 +41,21 @@ class WeatherTool < RAAF::Tool::API
   timeout 10
   
   configure name: "weather",
-           description: "Get current weather for a city"
+            description: "Get current weather for a city"
   
   def call(city:, units: "metric")
     get("/weather", params: {
-      q: city,
-      units: units,
-      appid: api_key
-    })
+          q: city,
+          units: units,
+          appid: api_key
+        })
   end
 end
 
 # Example 3: Native OpenAI tool
 class WebSearchTool < RAAF::Tool::Native
   configure name: "web_search",
-           description: "Search the web using OpenAI's web search"
+            description: "Search the web using OpenAI's web search"
   
   native_config do
     web_search true
@@ -68,8 +68,8 @@ class TextAnalyzerTool < RAAF::Tool
   
   parameters do
     property :text, type: "string", description: "Text to analyze"
-    property :language, type: "string", enum: ["en", "es", "fr"], description: "Language of text"
-    property :detail_level, type: "string", enum: ["basic", "detailed"], description: "Level of analysis detail"
+    property :language, type: "string", enum: %w[en es fr], description: "Language of text"
+    property :detail_level, type: "string", enum: %w[basic detailed], description: "Level of analysis detail"
     required :text
   end
   

@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Tools
+
     module Basic
+
       ##
       # Mathematical tools for AI agents
       #
@@ -10,9 +13,11 @@ module RAAF
       # generation, and statistical analysis capabilities.
       #
       class MathTools
+
         include RAAF::Logger
 
         class << self
+
           ##
           # Safe calculator tool
           #
@@ -62,7 +67,7 @@ module RAAF
                     description: "Target unit (e.g., 'miles', 'kg', 'fahrenheit')"
                   }
                 },
-                required: ["value", "from_unit", "to_unit"]
+                required: %w[value from_unit to_unit]
               }
             )
           end
@@ -82,7 +87,7 @@ module RAAF
                 properties: {
                   type: {
                     type: "string",
-                    enum: ["integer", "float", "string", "choice", "uuid"],
+                    enum: %w[integer float string choice uuid],
                     description: "Type of random generation"
                   },
                   min: {
@@ -129,7 +134,7 @@ module RAAF
                   },
                   analysis_type: {
                     type: "string",
-                    enum: ["descriptive", "distribution", "correlation"],
+                    enum: %w[descriptive distribution correlation],
                     description: "Type of statistical analysis",
                     default: "descriptive"
                   }
@@ -145,8 +150,8 @@ module RAAF
             return "Empty expression provided" if expression.nil? || expression.empty?
 
             # Security: Remove any dangerous characters
-            cleaned_expr = expression.gsub(/[^0-9+\-*\/\s\(\).]/, "")
-            
+            cleaned_expr = expression.gsub(%r{[^0-9+\-*/\s().]}, "")
+
             return "Invalid expression: contains unsafe characters" if cleaned_expr != expression
 
             begin
@@ -166,14 +171,14 @@ module RAAF
               # Length (meters)
               "mm" => 0.001, "cm" => 0.01, "m" => 1, "km" => 1000,
               "inch" => 0.0254, "ft" => 0.3048, "yard" => 0.9144, "mile" => 1609.34,
-              
+
               # Weight (grams)
               "mg" => 0.001, "g" => 1, "kg" => 1000,
               "oz" => 28.35, "lb" => 453.59,
-              
+
               # Temperature (handled separately)
               "celsius" => :celsius, "fahrenheit" => :fahrenheit, "kelvin" => :kelvin,
-              
+
               # Volume (liters)
               "ml" => 0.001, "l" => 1, "liter" => 1,
               "cup" => 0.236588, "pint" => 0.473176, "quart" => 0.946353, "gallon" => 3.78541
@@ -211,12 +216,13 @@ module RAAF
             when "float"
               min ||= 0.0
               max ||= 1.0
-              rand * (max - min) + min
+              (rand * (max - min)) + min
             when "string"
               chars = ("a".."z").to_a + ("A".."Z").to_a + ("0".."9").to_a
               Array.new(length) { chars.sample }.join
             when "choice"
-              return "No choices provided" unless choices && !choices.empty?
+              return "No choices provided" unless choices.present?
+
               choices.sample
             when "uuid"
               require "securerandom"
@@ -245,19 +251,19 @@ module RAAF
           def evaluate_expression(expr)
             # Simple expression evaluator for basic arithmetic
             # Only handles: +, -, *, /, (, )
-            
+
             # Remove spaces
             expr = expr.gsub(/\s+/, "")
-            
+
             # Check for valid characters only
-            return "Invalid expression" unless expr.match?(/\A[0-9+\-*\/\(\).]+\z/)
-            
+            return "Invalid expression" unless expr.match?(%r{\A[0-9+\-*/().]+\z})
+
             # Use a simple recursive descent parser
             tokens = tokenize(expr)
             result = parse_expression(tokens)
-            
+
             return "Invalid expression" if result.nil?
-            
+
             result
           end
 
@@ -269,12 +275,10 @@ module RAAF
               when /\d/
                 # Parse number
                 j = i
-                while j < expr.length && expr[j].match?(/[\d.]/)
-                  j += 1
-                end
+                j += 1 while j < expr.length && expr[j].match?(/[\d.]/)
                 tokens << expr[i...j].to_f
                 i = j
-              when /[+\-*\/()]/
+              when %r{[+\-*/()]}
                 tokens << expr[i]
                 i += 1
               else
@@ -287,13 +291,12 @@ module RAAF
           def parse_expression(tokens)
             # Simple expression parser
             # This is a basic implementation - in production, use a proper parser
-            begin
-              # Convert to postfix notation and evaluate
-              postfix = infix_to_postfix(tokens)
-              evaluate_postfix(postfix)
-            rescue StandardError
-              nil
-            end
+
+            # Convert to postfix notation and evaluate
+            postfix = infix_to_postfix(tokens)
+            evaluate_postfix(postfix)
+          rescue StandardError
+            nil
           end
 
           def infix_to_postfix(tokens)
@@ -301,75 +304,74 @@ module RAAF
             output = []
             operators = []
             precedence = { "+" => 1, "-" => 1, "*" => 2, "/" => 2 }
-            
+
             tokens.each do |token|
               if token.is_a?(Numeric)
                 output << token
               elsif token == "("
                 operators << token
               elsif token == ")"
-                while operators.last != "("
-                  output << operators.pop
-                end
-                operators.pop  # Remove "("
+                output << operators.pop while operators.last != "("
+                operators.pop # Remove "("
               elsif precedence[token]
-                while !operators.empty? && operators.last != "(" && 
+                while !operators.empty? && operators.last != "(" &&
                       precedence[operators.last] && precedence[operators.last] >= precedence[token]
                   output << operators.pop
                 end
                 operators << token
               end
             end
-            
+
             output + operators.reverse
           end
 
           def evaluate_postfix(postfix)
             stack = []
-            
+
             postfix.each do |token|
               if token.is_a?(Numeric)
                 stack << token
               else
                 right = stack.pop
                 left = stack.pop
-                
+
                 case token
                 when "+"
-                  stack << left + right
+                  stack << (left + right)
                 when "-"
-                  stack << left - right
+                  stack << (left - right)
                 when "*"
-                  stack << left * right
+                  stack << (left * right)
                 when "/"
                   raise "Division by zero" if right == 0
-                  stack << left / right
+
+                  stack << (left / right)
                 end
               end
             end
-            
+
             stack.first
           end
 
           def convert_temperature(value, from_unit, to_unit)
             # Convert to Celsius first
             celsius = case from_unit
-                     when "celsius"
-                       value
-                     when "fahrenheit"
-                       (value - 32) * 5 / 9
-                     when "kelvin"
-                       value - 273.15
-                     else
-                       raise "Unknown temperature unit: #{from_unit}"
-                     end
+                      when "celsius"
+                        value
+                      when "fahrenheit"
+                        (value - 32) * 5 / 9
+                      when "kelvin"
+                        value - 273.15
+                      else
+                        raise "Unknown temperature unit: #{from_unit}"
+                      end
 
             # Convert from Celsius to target unit
             case to_unit
             when "celsius"
               celsius
             when "fahrenheit"
-              celsius * 9 / 5 + 32
+              (celsius * 9 / 5) + 32
             when "kelvin"
               celsius + 273.15
             else
@@ -380,14 +382,14 @@ module RAAF
           def descriptive_stats(data)
             sorted_data = data.sort
             n = data.length
-            
+
             mean = data.sum / n.to_f
-            median = n.odd? ? sorted_data[n/2] : (sorted_data[n/2-1] + sorted_data[n/2]) / 2.0
+            median = n.odd? ? sorted_data[n / 2] : (sorted_data[(n / 2) - 1] + sorted_data[n / 2]) / 2.0
             mode = data.group_by(&:itself).max_by { |_, v| v.length }&.first
-            
-            variance = data.sum { |x| (x - mean) ** 2 } / n.to_f
+
+            variance = data.sum { |x| (x - mean)**2 } / n.to_f
             std_dev = Math.sqrt(variance)
-            
+
             {
               count: n,
               mean: mean.round(6),
@@ -403,13 +405,13 @@ module RAAF
 
           def distribution_stats(data)
             sorted_data = data.sort
-            n = data.length
-            
+            data.length
+
             # Quartiles
             q1 = percentile(sorted_data, 25)
             q3 = percentile(sorted_data, 75)
             iqr = q3 - q1
-            
+
             {
               quartile_1: q1,
               quartile_3: q3,
@@ -423,24 +425,29 @@ module RAAF
           def percentile(sorted_data, p)
             n = sorted_data.length
             index = (p / 100.0) * (n - 1)
-            
+
             if index == index.to_i
               sorted_data[index.to_i]
             else
               lower = sorted_data[index.floor]
               upper = sorted_data[index.ceil]
-              lower + (upper - lower) * (index - index.floor)
+              lower + ((upper - lower) * (index - index.floor))
             end
           end
 
           def detect_outliers(data, q1, q3, iqr)
-            lower_bound = q1 - 1.5 * iqr
-            upper_bound = q3 + 1.5 * iqr
-            
+            lower_bound = q1 - (1.5 * iqr)
+            upper_bound = q3 + (1.5 * iqr)
+
             data.select { |x| x < lower_bound || x > upper_bound }
           end
+
         end
+
       end
+
     end
+
   end
+
 end

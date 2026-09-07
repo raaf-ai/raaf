@@ -60,7 +60,7 @@ RSpec.describe RAAF::Eval::Models::EvaluationQueueItem, type: :model do
     end
 
     it "returns retryable items" do
-      item = create(:evaluation_queue_item, :retrying)
+      create(:evaluation_queue_item, :retrying)
       expect(described_class.retryable.count).to eq(1)
     end
   end

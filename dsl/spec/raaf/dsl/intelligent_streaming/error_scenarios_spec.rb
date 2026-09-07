@@ -36,9 +36,8 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
 
           def call
             # Fail on stream 2 (items 5-9)
-            if context[:items].any? { |item| item[:id] == 7 }
-              raise StandardError, "Stream processing failed"
-            end
+            raise StandardError, "Stream processing failed" if context[:items].any? { |item| item[:id] == 7 }
+
             super
           end
         end
@@ -50,9 +49,9 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
         executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
 
         # Should raise error but preserve partial results
-        expect {
+        expect do
           executor.execute(context)
-        }.to raise_error(StandardError, "Stream processing failed")
+        end.to raise_error(StandardError, "Stream processing failed")
 
         # First stream (items 1-5) should have been processed before failure
         # This depends on implementation - adjust based on actual behavior
@@ -79,9 +78,8 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
 
           def call
             # Fail on specific stream
-            if context[:items].first[:id] == 6
-              raise StandardError, "Deliberate failure"
-            end
+            raise StandardError, "Deliberate failure" if context[:items].first[:id] == 6
+
             super
           end
         end
@@ -92,9 +90,9 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
         config = error_agent_class._intelligent_streaming_config
         executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
 
-        expect {
+        expect do
           executor.execute(context)
-        }.to raise_error(StandardError, "Deliberate failure")
+        end.to raise_error(StandardError, "Deliberate failure")
 
         expect(error_info).not_to be_nil
         expect(error_info[:stream]).to eq(2)
@@ -112,9 +110,8 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
           end
 
           def call
-            if context[:items].any? { |item| item[:id] == 25 }
-              raise ArgumentError, "Invalid item in stream"
-            end
+            raise ArgumentError, "Invalid item in stream" if context[:items].any? { |item| item[:id] == 25 }
+
             super
           end
         end
@@ -147,7 +144,7 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
             stream_size 3
             over :items
 
-            on_stream_error do |stream_num, total, error, context|
+            on_stream_error do |stream_num, _total, error, _context|
               failures << { stream: stream_num, error: error.message }
             end
           end
@@ -155,8 +152,9 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
           def call
             # Fail on streams 2 and 4
             if context[:items].any? { |item| [4, 10].include?(item[:id]) }
-              raise StandardError, "Stream #{context[:items].first[:id] / 3 + 1} failed"
+              raise StandardError, "Stream #{(context[:items].first[:id] / 3) + 1} failed"
             end
+
             super
           end
         end
@@ -167,9 +165,9 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
         config = error_agent_class._intelligent_streaming_config
         executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
 
-        expect {
+        expect do
           executor.execute(context)
-        }.to raise_error(StandardError)
+        end.to raise_error(StandardError)
 
         # Should have captured the first failure
         expect(failures).not_to be_empty
@@ -188,7 +186,7 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
             stream_size 5
             over :items
 
-            on_stream_start do |stream_num, total, context|
+            on_stream_start do |stream_num, _total, _context|
               if stream_num == 2
                 hook_error_logged = true
                 raise StandardError, "Hook failed"
@@ -205,9 +203,9 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
 
         # Hook errors should not stop execution
         result = nil
-        expect {
+        expect do
           result = executor.execute(context)
-        }.not_to raise_error
+        end.not_to raise_error
 
         expect(result[:success]).to be true
         expect(result[:items].size).to eq(10)
@@ -223,11 +221,9 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
             stream_size 5
             over :items
 
-            on_stream_complete do |stream_num, total, results|
+            on_stream_complete do |stream_num, _total, _results|
               complete_hooks_run << stream_num
-              if stream_num == 1
-                raise StandardError, "Complete hook error"
-              end
+              raise StandardError, "Complete hook error" if stream_num == 1
             end
           end
         end
@@ -261,7 +257,7 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
             stream_size 5
             over :items
 
-            on_stream_start do |stream_num, total, context|
+            on_stream_start do |stream_num, _total, _context|
               raise ArgumentError, "Invalid stream setup" if stream_num == 2
             end
           end
@@ -276,9 +272,7 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
         executor.execute(context)
 
         # Should have logged error with context
-        if error_messages.any?
-          expect(error_messages.any? { |msg| msg.include?("on_stream_start") }).to be true
-        end
+        expect(error_messages.any? { |msg| msg.include?("on_stream_start") }).to be true if error_messages.any?
       end
     end
   end
@@ -291,8 +285,9 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
             stream_size 5
             over :items
 
-            skip_if do |record, context|
+            skip_if do |record, _context|
               raise StandardError, "Skip check failed" if record[:id] == 3
+
               false
             end
           end
@@ -304,9 +299,9 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
         config = error_agent_class._intelligent_streaming_config
         executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
 
-        expect {
+        expect do
           executor.execute(context)
-        }.to raise_error(StandardError, "Skip check failed")
+        end.to raise_error(StandardError, "Skip check failed")
       end
     end
 
@@ -319,7 +314,7 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
             stream_size 5
             over :items
 
-            load_existing do |record, context|
+            load_existing do |record, _context|
               if record[:id] == 7
                 error_count += 1
                 raise StandardError, "Cache load failed"
@@ -336,9 +331,9 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
         executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
 
         # Load errors might be handled gracefully or propagate
-        expect {
+        expect do
           executor.execute(context)
-        }.to raise_error(StandardError, "Cache load failed")
+        end.to raise_error(StandardError, "Cache load failed")
       end
     end
 
@@ -351,11 +346,9 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
             stream_size 5
             over :items
 
-            persist do |stream_results, context|
+            persist do |stream_results, _context|
               persist_attempts << stream_results[:items].size
-              if persist_attempts.size == 2
-                raise StandardError, "Persist failed"
-              end
+              raise StandardError, "Persist failed" if persist_attempts.size == 2
             end
           end
         end
@@ -368,9 +361,9 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
 
         # Persist errors might be logged but shouldn't stop execution
         result = nil
-        expect {
+        expect do
           result = executor.execute(context)
-        }.not_to raise_error
+        end.not_to raise_error
 
         expect(result[:success]).to be true
         expect(persist_attempts).to eq([5, 5])
@@ -381,9 +374,6 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
   describe "retry logic" do
     context "stream retry configuration" do
       it "allows retrying failed streams" do
-        attempt_count = 0
-        max_retries = 2
-
         retry_agent_class = Class.new(base_agent_class) do
           intelligent_streaming do
             stream_size 5
@@ -398,16 +388,15 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
           def call
             attempt_count += 1
             # Fail first attempt, succeed on retry
-            if attempt_count == 1 && context[:items].first[:id] == 6
-              raise StandardError, "Transient error"
-            end
+            raise StandardError, "Transient error" if attempt_count == 1 && context[:items].first[:id] == 6
+
             super
           end
         end
 
         items = (1..10).map { |i| { id: i } }
-        context = context_class.new(items: items)
-        agent = retry_agent_class.new
+        context_class.new(items: items)
+        retry_agent_class.new
 
         # This test assumes retry logic is implemented
         # Adjust based on actual implementation
@@ -422,7 +411,7 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
             over :items
             max_retries 3
 
-            on_stream_error do |stream_num, total, error, context|
+            on_stream_error do |stream_num, _total, _error, _context|
               retry_count[stream_num] ||= 0
               retry_count[stream_num] += 1
             end
@@ -430,9 +419,8 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
 
           def call
             # Always fail for stream 2
-            if context[:items].first[:id] == 6
-              raise StandardError, "Persistent error"
-            end
+            raise StandardError, "Persistent error" if context[:items].first[:id] == 6
+
             super
           end
         end
@@ -443,9 +431,9 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
         config = retry_agent_class._intelligent_streaming_config
         executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
 
-        expect {
+        expect do
           executor.execute(context)
-        }.to raise_error(StandardError, "Persistent error")
+        end.to raise_error(StandardError, "Persistent error")
 
         # Should have tried max_retries times
         # Exact behavior depends on retry implementation
@@ -465,16 +453,15 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
 
           def call
             # Process first stream, fail on second
-            if context[:items].first[:id] > 5
-              raise StandardError, "Processing limit reached"
-            end
+            raise StandardError, "Processing limit reached" if context[:items].first[:id] > 5
+
             super
           end
         end
 
         items = (1..15).map { |i| { id: i } }
-        context = context_class.new(items: items)
-        agent = partial_agent_class.new
+        context_class.new(items: items)
+        partial_agent_class.new
 
         # Behavior depends on allow_partial_results implementation
         # This is a placeholder for the expected behavior
@@ -490,7 +477,7 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
             stream_size 3
             over :items
 
-            on_stream_error do |stream_num, total, error, context|
+            on_stream_error do |stream_num, _total, error, context|
               all_errors << {
                 stream: stream_num,
                 error: error.message,
@@ -515,9 +502,9 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
         config = error_agent_class._intelligent_streaming_config
         executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
 
-        expect {
+        expect do
           executor.execute(context)
-        }.to raise_error(StandardError)
+        end.to raise_error(StandardError)
 
         # Should have collected error information
         expect(all_errors).not_to be_empty

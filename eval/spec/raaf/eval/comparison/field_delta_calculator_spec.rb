@@ -153,7 +153,7 @@ RSpec.describe RAAF::Eval::Comparison::FieldDeltaCalculator do
       result.each_value do |field_delta|
         field_delta[:configurations].each_value do |config_data|
           # Check that percentage delta has at most 2 decimal places
-          expect(config_data[:delta_pct].to_s.split('.').last.length).to be <= 2
+          expect(config_data[:delta_pct].to_s.split(".").last.length).to be <= 2
         end
       end
     end

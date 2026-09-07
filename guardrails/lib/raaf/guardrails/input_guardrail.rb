@@ -3,7 +3,9 @@
 require_relative "base"
 
 module RAAF
+
   module Guardrails
+
     ##
     # Input guardrails validate user messages before agent processing
     #
@@ -35,6 +37,7 @@ module RAAF
     #   agent.add_input_guardrail(guardrail)
     #
     class InputGuardrail
+
       # @!attribute [r] guardrail_function
       #   @return [Proc, Method] The validation function
       # @!attribute [r] name
@@ -155,6 +158,7 @@ module RAAF
           run(context, agent, input)
         end
       end
+
     end
 
     ##
@@ -165,6 +169,7 @@ module RAAF
     # Guardrails module to provide module-level builder methods.
     #
     module InputGuardrailBuilder
+
       ##
       # Create an input guardrail from a block
       #
@@ -247,9 +252,12 @@ module RAAF
       def input_guardrail_from_method(method, name: nil)
         InputGuardrail.new(method, name: name)
       end
+
     end
 
     # Include builder methods
     extend InputGuardrailBuilder
+
   end
+
 end

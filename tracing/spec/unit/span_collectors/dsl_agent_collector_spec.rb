@@ -5,13 +5,12 @@ require "spec_helper"
 RSpec.describe RAAF::Tracing::SpanCollectors::DSL::AgentCollector do
   let(:dsl_agent) do
     agent_class = double("DSLAgentClass",
-      name: "RAAF::DSL::Agent",
-      _context_config: {
-        model: "gpt-4o-mini",
-        max_turns: 3,
-        temperature: 0.7
-      }
-    ).tap do |klass|
+                         name: "RAAF::DSL::Agent",
+                         _context_config: {
+                           model: "gpt-4o-mini",
+                           max_turns: 3,
+                           temperature: 0.7
+                         }).tap do |klass|
       # Set up class method expectations
       allow(klass).to receive(:respond_to?).and_return(false)
       allow(klass).to receive(:respond_to?).with(:_context_config).and_return(true)
@@ -19,11 +18,10 @@ RSpec.describe RAAF::Tracing::SpanCollectors::DSL::AgentCollector do
     end
 
     double("DSLAgent",
-      class: agent_class,
-      agent_name: "DSLTestAgent",
-      tools: ["search", "calculate"],
-      handoffs: ["writer_agent"]
-    ).tap do |agent|
+           class: agent_class,
+           agent_name: "DSLTestAgent",
+           tools: %w[search calculate],
+           handoffs: ["writer_agent"]).tap do |agent|
       agent.instance_variable_set(:@context, { query: "test", depth: "deep" })
       # Set up instance method expectations
       allow(agent).to receive(:respond_to?).and_return(false)
@@ -69,7 +67,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::DSL::AgentCollector do
 
     it "falls back to class name when agent_name not available" do
       allow(dsl_agent).to receive(:respond_to?).with(:agent_name).and_return(false)
-      
+
       attributes = collector.collect_attributes(dsl_agent)
       name_key = attributes.keys.find { |k| k.end_with?(".name") && !k.start_with?("component.") }
       expect(attributes[name_key]).to eq("RAAF::DSL::Agent")
@@ -83,7 +81,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::DSL::AgentCollector do
 
     it "falls back to default model when context config not available" do
       allow(dsl_agent.class).to receive(:respond_to?).with(:_context_config).and_return(false)
-      
+
       attributes = collector.collect_attributes(dsl_agent)
       model_key = attributes.keys.find { |k| k.end_with?(".model") }
       expect(attributes[model_key]).to eq("gpt-4o")
@@ -97,7 +95,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::DSL::AgentCollector do
 
     it "falls back to default max_turns when context config not available" do
       allow(dsl_agent.class).to receive(:respond_to?).with(:_context_config).and_return(false)
-      
+
       attributes = collector.collect_attributes(dsl_agent)
       max_turns_key = attributes.keys.find { |k| k.end_with?(".max_turns") }
       expect(attributes[max_turns_key]).to eq("5")
@@ -111,7 +109,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::DSL::AgentCollector do
 
     it "handles missing temperature gracefully" do
       allow(dsl_agent.class).to receive(:respond_to?).with(:_context_config).and_return(false)
-      
+
       attributes = collector.collect_attributes(dsl_agent)
       temperature_key = attributes.keys.find { |k| k.end_with?(".temperature") }
       expect(attributes[temperature_key]).to be_nil
@@ -120,12 +118,12 @@ RSpec.describe RAAF::Tracing::SpanCollectors::DSL::AgentCollector do
     it "collects context size" do
       attributes = collector.collect_attributes(dsl_agent)
       context_size_key = attributes.keys.find { |k| k.end_with?(".context_size") }
-      expect(attributes[context_size_key]).to eq(2)  # query and depth
+      expect(attributes[context_size_key]).to eq(2) # query and depth
     end
 
     it "handles missing context gracefully" do
       dsl_agent.instance_variable_set(:@context, nil)
-      
+
       attributes = collector.collect_attributes(dsl_agent)
       context_size_key = attributes.keys.find { |k| k.end_with?(".context_size") }
       expect(attributes[context_size_key]).to eq(0)
@@ -139,7 +137,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::DSL::AgentCollector do
 
     it "handles empty context for has_tools" do
       dsl_agent.instance_variable_set(:@context, {})
-      
+
       attributes = collector.collect_attributes(dsl_agent)
       has_tools_key = attributes.keys.find { |k| k.end_with?(".has_tools") }
       expect(attributes[has_tools_key]).to be false
@@ -153,7 +151,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::DSL::AgentCollector do
 
     it "falls back to direct execution mode" do
       allow(dsl_agent).to receive(:respond_to?).with(:has_smart_features?).and_return(false)
-      
+
       attributes = collector.collect_attributes(dsl_agent)
       execution_mode_key = attributes.keys.find { |k| k.end_with?(".execution_mode") }
       expect(attributes[execution_mode_key]).to eq("direct")
@@ -167,7 +165,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::DSL::AgentCollector do
 
     it "handles missing tools gracefully" do
       allow(dsl_agent).to receive(:respond_to?).with(:tools).and_return(false)
-      
+
       attributes = collector.collect_attributes(dsl_agent)
       tools_count_key = attributes.keys.find { |k| k.end_with?(".tools_count") }
       expect(attributes[tools_count_key]).to eq("0")
@@ -181,7 +179,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::DSL::AgentCollector do
 
     it "handles missing handoffs gracefully" do
       allow(dsl_agent).to receive(:respond_to?).with(:handoffs).and_return(false)
-      
+
       attributes = collector.collect_attributes(dsl_agent)
       handoffs_count_key = attributes.keys.find { |k| k.end_with?(".handoffs_count") }
       expect(attributes[handoffs_count_key]).to eq("0")

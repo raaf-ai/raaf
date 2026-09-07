@@ -149,9 +149,7 @@ module RAAF
       #
       # @param client_id [String] Client ID
       # @param message [Hash] Message to send
-      def send_to_client(client_id, message)
-        @websocket_server.send_to_client(client_id, message)
-      end
+      delegate :send_to_client, to: :@websocket_server
 
       ##
       # Create chat room

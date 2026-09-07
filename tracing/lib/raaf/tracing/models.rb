@@ -1,24 +1,26 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Tracing
+
     # Lazy loading approach for ActiveRecord models
     def self.const_missing(name)
-      if (name == :TraceRecord || name == :SpanRecord) && defined?(::ApplicationRecord)
+      if %i[TraceRecord SpanRecord].include?(name) && defined?(::ApplicationRecord)
         case name
         when :TraceRecord
           const_set(:TraceRecord, Class.new(::ApplicationRecord) do
             self.table_name = "raaf_tracing_traces"
-            
+
             # Disable JSON symbolization to prevent method aliasing conflicts
             disable_json_symbolization! if respond_to?(:disable_json_symbolization!)
-            
+
             has_many :spans,
-              class_name: "RAAF::Tracing::SpanRecord",
-              foreign_key: :trace_id,
-              primary_key: :trace_id,
-              dependent: :destroy
-            
+                     class_name: "RAAF::Tracing::SpanRecord",
+                     foreign_key: :trace_id,
+                     primary_key: :trace_id,
+                     dependent: :destroy
+
             # Cleanup method for old traces
             def self.cleanup_old_traces(older_than: 30.days)
               where("started_at < ?", Time.current - older_than).delete_all
@@ -32,21 +34,19 @@ module RAAF
             disable_json_symbolization! if respond_to?(:disable_json_symbolization!)
 
             belongs_to :trace,
-              class_name: "RAAF::Tracing::TraceRecord",
-              foreign_key: :trace_id,
-              primary_key: :trace_id
+                       class_name: "RAAF::Tracing::TraceRecord",
+                       primary_key: :trace_id
 
             belongs_to :parent,
-              class_name: "RAAF::Tracing::SpanRecord",
-              foreign_key: :parent_id,
-              primary_key: :span_id,
-              optional: true
+                       class_name: "RAAF::Tracing::SpanRecord",
+                       primary_key: :span_id,
+                       optional: true
 
             has_many :children,
-              class_name: "RAAF::Tracing::SpanRecord",
-              foreign_key: :parent_id,
-              primary_key: :span_id,
-              dependent: :destroy
+                     class_name: "RAAF::Tracing::SpanRecord",
+                     foreign_key: :parent_id,
+                     primary_key: :span_id,
+                     dependent: :destroy
 
             # Continuous evaluation callback - enqueue evaluation jobs when spans are created
             after_commit :enqueue_continuous_evaluations, on: :create
@@ -83,5 +83,7 @@ module RAAF
         super
       end
     end
+
   end
+
 end

@@ -15,10 +15,9 @@ module EpubPacker # :nodoc:
 
     FileUtils.rm_f(epub_file_name)
 
-    Zip::OutputStream.open(epub_file_name) {
-      |epub|
+    Zip::OutputStream.open(epub_file_name) do |epub|
       create_epub(epub, epub_file_name)
-    }
+    end
 
     entries = Dir.entries(output_dir) - %w[. ..]
 

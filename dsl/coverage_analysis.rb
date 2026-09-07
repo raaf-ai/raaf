@@ -7,8 +7,8 @@ def analyze_coverage_potential
   puts "\n=== RAAF DSL Coverage Analysis ==="
 
   # Count source files
-  source_files = Dir.glob('lib/**/*.rb')
-  test_files = Dir.glob('spec/**/*_spec.rb')
+  source_files = Dir.glob("lib/**/*.rb")
+  test_files = Dir.glob("spec/**/*_spec.rb")
 
   puts "📁 Source files: #{source_files.length}"
   puts "🧪 Test files: #{test_files.length}"
@@ -19,7 +19,7 @@ def analyze_coverage_potential
 
   source_files.each do |source_file|
     # Remove lib/ prefix and .rb suffix
-    relative_path = source_file.sub('lib/', '').sub('.rb', '')
+    relative_path = source_file.sub("lib/", "").sub(".rb", "")
 
     # Look for corresponding test file
     possible_test_files = [
@@ -51,21 +51,21 @@ def analyze_coverage_potential
   # Analyze core components
   puts "\n🎯 Core Component Analysis:"
   core_components = {
-    'Agent' => source_files.select { |f| f.include?('agent') },
-    'Pipeline' => source_files.select { |f| f.include?('pipeline') },
-    'Context' => source_files.select { |f| f.include?('context') },
-    'Prompts' => source_files.select { |f| f.include?('prompt') },
-    'Tools' => source_files.select { |f| f.include?('tools') },
-    'Builders' => source_files.select { |f| f.include?('builders') },
-    'Schema' => source_files.select { |f| f.include?('schema') },
-    'Core' => source_files.select { |f| f.include?('core/') }
+    "Agent" => source_files.select { |f| f.include?("agent") },
+    "Pipeline" => source_files.select { |f| f.include?("pipeline") },
+    "Context" => source_files.select { |f| f.include?("context") },
+    "Prompts" => source_files.select { |f| f.include?("prompt") },
+    "Tools" => source_files.select { |f| f.include?("tools") },
+    "Builders" => source_files.select { |f| f.include?("builders") },
+    "Schema" => source_files.select { |f| f.include?("schema") },
+    "Core" => source_files.select { |f| f.include?("core/") }
   }
 
   core_components.each do |component, files|
     next if files.empty?
 
     tested_files = files.select do |file|
-      relative_path = file.sub('lib/', '').sub('.rb', '')
+      relative_path = file.sub("lib/", "").sub(".rb", "")
       possible_tests = [
         "spec/#{relative_path}_spec.rb",
         "spec/#{relative_path.split('/').last}_spec.rb"
@@ -74,14 +74,18 @@ def analyze_coverage_potential
     end
 
     component_coverage = (tested_files.length.to_f / files.length * 100).round(1)
-    status = component_coverage >= 75 ? "✅" : component_coverage >= 50 ? "⚠️" : "❌"
+    status = if component_coverage >= 75
+               "✅"
+             else
+               component_coverage >= 50 ? "⚠️" : "❌"
+             end
     puts "  #{status} #{component}: #{tested_files.length}/#{files.length} files (#{component_coverage}%)"
 
-    if component_coverage < 75
-      untested = files - tested_files
-      untested.first(3).each do |file|
-        puts "    📝 Missing: #{file}"
-      end
+    next unless component_coverage < 75
+
+    untested = files - tested_files
+    untested.first(3).each do |file|
+      puts "    📝 Missing: #{file}"
     end
   end
 
@@ -98,8 +102,8 @@ def analyze_coverage_potential
   # Line count analysis
   puts "\n📏 Source file size analysis:"
   large_files = source_files.map { |f| [f, File.size(f)] }
-                           .sort_by { |_, size| -size }
-                           .first(10)
+                            .sort_by { |_, size| -size }
+                            .first(10)
 
   large_files.each do |file, size|
     has_test = covered_files.include?(file)
@@ -111,11 +115,11 @@ def analyze_coverage_potential
   puts "\n🎯 Priority areas for 75% coverage:"
 
   priority_files = uncovered_files.select do |file|
-    file.include?('agent.rb') ||
-    file.include?('pipeline') ||
-    file.include?('context') ||
-    file.include?('prompts') ||
-    File.size(file) > 1000
+    file.include?("agent.rb") ||
+      file.include?("pipeline") ||
+      file.include?("context") ||
+      file.include?("prompts") ||
+      File.size(file) > 1000
   end.sort_by { |f| -File.size(f) }
 
   if priority_files.any?
@@ -129,8 +133,8 @@ def analyze_coverage_potential
   # Test quality analysis
   puts "\n📋 Test file analysis:"
   large_test_files = test_files.map { |f| [f, File.size(f)] }
-                              .sort_by { |_, size| -size }
-                              .first(5)
+                               .sort_by { |_, size| -size }
+                               .first(5)
 
   puts "  Largest test files (likely comprehensive):"
   large_test_files.each do |file, size|
@@ -138,7 +142,11 @@ def analyze_coverage_potential
   end
 
   # Coverage goal calculation
-  total_source_lines = source_files.sum { |f| File.readlines(f).count rescue 0 }
+  total_source_lines = source_files.sum do |f|
+    File.readlines(f).count
+  rescue StandardError
+    0
+  end
   puts "\n📊 Line coverage estimation:"
   puts "  Total source lines: ~#{total_source_lines}"
   puts "  Lines needed for 75%: ~#{(total_source_lines * 0.75).to_i}"

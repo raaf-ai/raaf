@@ -7,7 +7,7 @@ begin
   require "rails"
   require "active_record"
   require_relative "../../../../lib/raaf/tracing/engine"
-  
+
   # Check if database connection is available
   ActiveRecord::Base.connection.migration_context.current_version
 rescue LoadError, ActiveRecord::ConnectionNotDefined, ActiveRecord::NoDatabaseError => e
@@ -76,7 +76,7 @@ RSpec.describe RAAF::Tracing::Engine do
       @app ||= Class.new(Rails::Application) do
         config.eager_load = false
         config.logger = Logger.new(File::NULL)
-        
+
         routes.draw do
           mount RAAF::Tracing::Engine => "/tracing"
         end
@@ -91,7 +91,7 @@ RSpec.describe RAAF::Tracing::Engine do
     it "includes dashboard routes" do
       routes = RAAF::Tracing::Engine.routes.routes
       route_names = routes.map(&:name).compact
-      
+
       expect(route_names).to include("openai_agents_tracing.dashboard")
       expect(route_names).to include("openai_agents_tracing.dashboard_performance")
       expect(route_names).to include("openai_agents_tracing.dashboard_costs")
@@ -101,7 +101,7 @@ RSpec.describe RAAF::Tracing::Engine do
     it "includes trace and span routes" do
       routes = RAAF::Tracing::Engine.routes.routes
       route_names = routes.map(&:name).compact
-      
+
       expect(route_names).to include("openai_agents_tracing.traces")
       expect(route_names).to include("openai_agents_tracing.spans")
       expect(route_names).to include("openai_agents_tracing.search")
@@ -120,10 +120,10 @@ RSpec.describe RAAF::Tracing::Engine do
       end
 
       it "automatically adds ActiveRecord processor" do
-        expect(RAAF::tracer).to receive(:add_processor).with(
+        expect(RAAF.tracer).to receive(:add_processor).with(
           an_instance_of(RAAF::Tracing::ActiveRecordProcessor)
         )
-        
+
         # Trigger the initializer
         described_class.initializers.find { |i| i.name == "openai_agents.tracing.configure" }.run
       end
@@ -135,8 +135,8 @@ RSpec.describe RAAF::Tracing::Engine do
       end
 
       it "does not add processor automatically" do
-        expect(RAAF::tracer).not_to receive(:add_processor)
-        
+        expect(RAAF.tracer).not_to receive(:add_processor)
+
         # Trigger the initializer
         described_class.initializers.find { |i| i.name == "openai_agents.tracing.configure" }.run
       end
@@ -147,17 +147,17 @@ RSpec.describe RAAF::Tracing::Engine do
     it "includes tracing assets in precompile list" do
       assets_initializer = described_class.initializers.find { |i| i.name == "openai_agents.tracing.assets" }
       expect(assets_initializer).to be_present
-      
+
       # Mock Rails app config
       app_config = double("app_config")
       assets_config = double("assets_config", precompile: [])
       allow(app_config).to receive(:assets).and_return(assets_config)
       allow(app_config).to receive(:respond_to?).with(:assets).and_return(true)
-      
+
       expect(assets_config.precompile).to receive(:concat).with(
         %w[openai_agents/tracing/application.css openai_agents/tracing/application.js]
       )
-      
+
       assets_initializer.run(app_config)
     end
   end

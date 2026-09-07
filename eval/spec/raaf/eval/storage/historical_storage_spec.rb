@@ -24,14 +24,14 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
         aggregate_score: 0.9
       )
 
-      expect {
+      expect do
         described_class.save(
           evaluator_name: "test",
           configuration_name: "default",
           span_id: "span_1",
           result: result
         )
-      }.to output(/DEPRECATION WARNING/).to_stderr
+      end.to output(/DEPRECATION WARNING/).to_stderr
     end
 
     it "emits deprecation warning only once per method" do
@@ -44,24 +44,24 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
       )
 
       # First call should emit warning
-      expect {
+      expect do
         described_class.save(
           evaluator_name: "test1",
           configuration_name: "default",
           span_id: "span_1",
           result: result
         )
-      }.to output(/DEPRECATION WARNING/).to_stderr
+      end.to output(/DEPRECATION WARNING/).to_stderr
 
       # Second call should not emit warning
-      expect {
+      expect do
         described_class.save(
           evaluator_name: "test2",
           configuration_name: "default",
           span_id: "span_2",
           result: result
         )
-      }.not_to output.to_stderr
+      end.not_to output.to_stderr
     end
 
     it "includes migration guidance in deprecation message" do
@@ -73,35 +73,35 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
         aggregate_score: 0.9
       )
 
-      expect {
+      expect do
         described_class.save(
           evaluator_name: "test",
           configuration_name: "default",
           span_id: "span_1",
           result: result
         )
-      }.to output(/CONTINUOUS_EVAL_MIGRATION/).to_stderr
+      end.to output(/CONTINUOUS_EVAL_MIGRATION/).to_stderr
     end
 
     it "emits deprecation warning for query method" do
-      expect {
+      expect do
         described_class.query(evaluator_name: "test")
-      }.to output(/DEPRECATION WARNING/).to_stderr
+      end.to output(/DEPRECATION WARNING/).to_stderr
     end
 
     it "emits deprecation warning for latest method" do
-      expect {
+      expect do
         described_class.latest(limit: 5)
-      }.to output(/DEPRECATION WARNING/).to_stderr
+      end.to output(/DEPRECATION WARNING/).to_stderr
     end
 
     it "emits deprecation warning for cleanup_retention method" do
       policy = double("RetentionPolicy", cleanup: 0)
       allow(RAAF::Eval::Storage::RetentionPolicy).to receive(:new).and_return(policy)
 
-      expect {
+      expect do
         described_class.cleanup_retention(retention_days: 30)
-      }.to output(/DEPRECATION WARNING/).to_stderr
+      end.to output(/DEPRECATION WARNING/).to_stderr
     end
   end
 
@@ -116,7 +116,7 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
       )
 
       run = nil
-      expect {
+      expect do
         run = described_class.save(
           evaluator_name: "my_evaluator",
           configuration_name: :baseline,
@@ -125,7 +125,7 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
           tags: { environment: "test", version: "1.0.0" },
           duration_ms: 1234.56
         )
-      }.to output(/DEPRECATION WARNING/).to_stderr
+      end.to output(/DEPRECATION WARNING/).to_stderr
 
       expect(run).to be_a(RAAF::Eval::Storage::EvaluationRun)
       expect(run.evaluator_name).to eq("my_evaluator")
@@ -147,14 +147,14 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
       )
 
       run = nil
-      expect {
+      expect do
         run = described_class.save(
           evaluator_name: "test",
           configuration_name: :low_temp,
           span_id: "span_1",
           result: result
         )
-      }.to output.to_stderr
+      end.to output.to_stderr
 
       expect(run.configuration_name).to eq("low_temp")
     end
@@ -207,9 +207,9 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
 
     it "queries by evaluator_name despite deprecation" do
       results = nil
-      expect {
+      expect do
         results = described_class.query(evaluator_name: "quality_check")
-      }.to output(/DEPRECATION WARNING/).to_stderr
+      end.to output(/DEPRECATION WARNING/).to_stderr
 
       expect(results.size).to eq(2)
       expect(results.map(&:evaluator_name).uniq).to eq(["quality_check"])
@@ -220,9 +220,9 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
       described_class.reset_deprecation_warnings!
 
       results = nil
-      expect {
+      expect do
         results = described_class.query(configuration_name: :baseline)
-      }.to output(/DEPRECATION WARNING/).to_stderr
+      end.to output(/DEPRECATION WARNING/).to_stderr
 
       expect(results.size).to eq(2)
       expect(results.map(&:configuration_name).uniq).to eq(["baseline"])
@@ -259,9 +259,9 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
 
     it "returns N most recent runs despite deprecation" do
       results = nil
-      expect {
+      expect do
         results = described_class.latest(limit: 3)
-      }.to output(/DEPRECATION WARNING/).to_stderr
+      end.to output(/DEPRECATION WARNING/).to_stderr
 
       expect(results.size).to eq(3)
       # Verify descending order
@@ -276,9 +276,9 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
       allow(RAAF::Eval::Storage::RetentionPolicy).to receive(:new).and_return(policy)
 
       deleted_count = nil
-      expect {
+      expect do
         deleted_count = described_class.cleanup_retention(retention_days: 30, retention_count: 100)
-      }.to output(/DEPRECATION WARNING/).to_stderr
+      end.to output(/DEPRECATION WARNING/).to_stderr
 
       expect(RAAF::Eval::Storage::RetentionPolicy).to have_received(:new).with(30, 100)
       expect(deleted_count).to eq(5)
@@ -309,9 +309,9 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
       described_class.reset_deprecation_warnings!
       allow(described_class).to receive(:emit_deprecation_warning).and_call_original
 
-      expect {
+      expect do
         described_class.delete(run.id)
-      }.to output(/DEPRECATION WARNING/).to_stderr
+      end.to output(/DEPRECATION WARNING/).to_stderr
 
       expect(RAAF::Eval::Storage::EvaluationRun.find(run.id)).to be_nil
     end
@@ -343,9 +343,9 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
       described_class.reset_deprecation_warnings!
       allow(described_class).to receive(:emit_deprecation_warning).and_call_original
 
-      expect {
+      expect do
         described_class.clear_all
-      }.to output(/DEPRECATION WARNING/).to_stderr
+      end.to output(/DEPRECATION WARNING/).to_stderr
 
       expect(RAAF::Eval::Storage::EvaluationRun.all).to be_empty
     end

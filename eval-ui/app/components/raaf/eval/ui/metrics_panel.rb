@@ -214,8 +214,16 @@ module RAAF
         # Helper methods for data extraction
         def has_regression?
           # Simple heuristic: cost increased by more than 20% or latency increased by more than 30%
-          cost_increase = ((result_cost - baseline_cost) / baseline_cost * 100) rescue 0
-          latency_increase = ((result_latency - baseline_latency) / baseline_latency * 100) rescue 0
+          cost_increase = begin
+            ((result_cost - baseline_cost) / baseline_cost * 100)
+          rescue StandardError
+            0
+          end
+          latency_increase = begin
+            ((result_latency - baseline_latency) / baseline_latency * 100)
+          rescue StandardError
+            0
+          end
 
           cost_increase > 20 || latency_increase > 30
         end
@@ -224,7 +232,7 @@ module RAAF
           {
             current: result_cost,
             change: baseline_cost.zero? ? 0 : ((result_cost - baseline_cost) / baseline_cost * 100).round(1),
-            direction: result_cost < baseline_cost ? :improvement : :regression
+            direction: result_cost < baseline_cost ? :improvement : :regression,
           }
         end
 
@@ -234,7 +242,7 @@ module RAAF
           {
             current: result,
             change: baseline.zero? ? 0 : ((result - baseline).to_f / baseline * 100).round(1),
-            direction: result < baseline ? :improvement : :regression
+            direction: result < baseline ? :improvement : :regression,
           }
         end
 
@@ -242,7 +250,7 @@ module RAAF
           {
             current: result_latency,
             change: baseline_latency.zero? ? 0 : ((result_latency - baseline_latency) / baseline_latency * 100).round(1),
-            direction: result_latency < baseline_latency ? :improvement : :regression
+            direction: result_latency < baseline_latency ? :improvement : :regression,
           }
         end
 

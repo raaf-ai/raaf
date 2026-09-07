@@ -7,7 +7,9 @@ require "raaf/perplexity/search_options"
 require "raaf/perplexity/result_parser"
 
 module RAAF
+
   module Tools
+
     ##
     # Perplexity web search tool for RAAF agents
     #
@@ -40,6 +42,7 @@ module RAAF
     #   agent.add_tool(function_tool)
     #
     class PerplexityTool
+
       ##
       # Initialize Perplexity tool with API credentials and optional parameters
       #
@@ -113,7 +116,7 @@ module RAAF
             query: {
               type: "string",
               description: "Search query for web research. Use expert terminology and combine multiple facts into one comprehensive query. " \
-                          "Example: '[Company] [Legal Form] [City] [Country] comprehensive business profile: business model, industry sector, B2B/B2C focus, company size, activity status'"
+                           "Example: '[Company] [Legal Form] [City] [Country] comprehensive business profile: business model, industry sector, B2B/B2C focus, company size, activity status'"
             },
             max_results: {
               type: "integer",
@@ -125,14 +128,14 @@ module RAAF
               type: "array",
               items: { type: "string" },
               description: "Optional: Array of complete domain names to restrict search to authoritative sources. " \
-                          "CRITICAL: Must be complete domain names with subdomain/domain + TLD (e.g., 'example.com'). " \
-                          "✅ Valid: ['example.com', 'ruby-lang.org', 'subdomain.example.com', 'news.bbc.co.uk'] " \
-                          "❌ Invalid: ['nl' (TLD only), '.nl' (TLD filter), '*.nl' (wildcards), '*.com', 'ruby-*'] " \
-                          "TLD-only patterns are not supported - use complete domain names only."
+                           "CRITICAL: Must be complete domain names with subdomain/domain + TLD (e.g., 'example.com'). " \
+                           "✅ Valid: ['example.com', 'ruby-lang.org', 'subdomain.example.com', 'news.bbc.co.uk'] " \
+                           "❌ Invalid: ['nl' (TLD only), '.nl' (TLD filter), '*.nl' (wildcards), '*.com', 'ruby-*'] " \
+                           "TLD-only patterns are not supported - use complete domain names only."
             },
             search_recency_filter: {
               type: "string",
-              enum: ["hour", "day", "week", "month", "year"],
+              enum: %w[hour day week month year],
               description: "Optional: Time window for search results. Use for time-sensitive queries requiring recent information."
             },
             temperature: {
@@ -376,7 +379,7 @@ module RAAF
         # Build Search API request body
         body = {
           query: query,
-          model: @model  # Search API requires model parameter
+          model: @model # Search API requires model parameter
         }
 
         # Add max_results (use call-time override or initialize default)
@@ -398,18 +401,16 @@ module RAAF
             body.merge!(options) if options
           rescue ArgumentError => e
             # Agent provided invalid recency_filter - fall back to default
-            if e.message.include?("Invalid recency filter")
-              RAAF.logger.warn "⚠️  [PerplexityTool] Invalid recency_filter '#{search_recency_filter}' - falling back to default: #{@default_search_recency_filter.inspect}"
+            raise unless e.message.include?("Invalid recency filter")
 
-              # Retry with default recency_filter
-              options = RAAF::Perplexity::SearchOptions.build(
-                domain_filter: search_domain_filter,
-                recency_filter: @default_search_recency_filter
-              )
-              body.merge!(options) if options
-            else
-              raise
-            end
+            RAAF.logger.warn "⚠️  [PerplexityTool] Invalid recency_filter '#{search_recency_filter}' - falling back to default: #{@default_search_recency_filter.inspect}"
+
+            # Retry with default recency_filter
+            options = RAAF::Perplexity::SearchOptions.build(
+              domain_filter: search_domain_filter,
+              recency_filter: @default_search_recency_filter
+            )
+            body.merge!(options) if options
           end
         end
 
@@ -452,9 +453,15 @@ module RAAF
 
         # Temperature and sampling parameters (call-time override instance defaults)
         body[:temperature] = temperature.nil? ? @temperature : temperature if temperature || @temperature
-        body[:top_p] = top_p.nil? ? @top_p : top_p if (top_p || @top_p)
-        body[:presence_penalty] = presence_penalty.nil? ? @presence_penalty : presence_penalty if (presence_penalty || @presence_penalty)
-        body[:frequency_penalty] = frequency_penalty.nil? ? @frequency_penalty : frequency_penalty if (frequency_penalty || @frequency_penalty)
+        body[:top_p] = top_p.nil? ? @top_p : top_p if top_p || @top_p
+        if presence_penalty || @presence_penalty
+          body[:presence_penalty] =
+            presence_penalty.nil? ? @presence_penalty : presence_penalty
+        end
+        if frequency_penalty || @frequency_penalty
+          body[:frequency_penalty] =
+            frequency_penalty.nil? ? @frequency_penalty : frequency_penalty
+        end
 
         # Other advanced parameters
         body[:response_format] = @response_format if @response_format
@@ -471,18 +478,16 @@ module RAAF
             body.merge!(options) if options
           rescue ArgumentError => e
             # Agent provided invalid recency_filter - fall back to default
-            if e.message.include?("Invalid recency filter")
-              RAAF.logger.warn "⚠️  [PerplexityTool] Invalid recency_filter '#{search_recency_filter}' - falling back to default: #{@default_search_recency_filter.inspect}"
+            raise unless e.message.include?("Invalid recency filter")
 
-              # Retry with default recency_filter
-              options = RAAF::Perplexity::SearchOptions.build(
-                domain_filter: search_domain_filter,
-                recency_filter: @default_search_recency_filter
-              )
-              body.merge!(options) if options
-            else
-              raise
-            end
+            RAAF.logger.warn "⚠️  [PerplexityTool] Invalid recency_filter '#{search_recency_filter}' - falling back to default: #{@default_search_recency_filter.inspect}"
+
+            # Retry with default recency_filter
+            options = RAAF::Perplexity::SearchOptions.build(
+              domain_filter: search_domain_filter,
+              recency_filter: @default_search_recency_filter
+            )
+            body.merge!(options) if options
           end
         end
 
@@ -555,14 +560,19 @@ module RAAF
 
           # Check for TLD-only patterns (with or without leading dot)
           # Only allow complete domain names with at least one subdomain/domain part
-          if !domain.include?(".") || domain.start_with?(".") || domain.count(".") < 1 || domain.split(".").any?(&:empty?)
-            raise ArgumentError,
-                  "Invalid domain pattern '#{domain}': TLD-only patterns are not supported. " \
-                  "Use complete domain names like 'example.nl', 'ruby-lang.org', or 'news.bbc.co.uk'. " \
-                  "TLD filters like '.nl', 'nl', '.com' are not allowed."
+          unless !domain.include?(".") || domain.start_with?(".") || domain.count(".") < 1 || domain.split(".").any?(&:empty?)
+            next
           end
+
+          raise ArgumentError,
+                "Invalid domain pattern '#{domain}': TLD-only patterns are not supported. " \
+                "Use complete domain names like 'example.nl', 'ruby-lang.org', or 'news.bbc.co.uk'. " \
+                "TLD filters like '.nl', 'nl', '.com' are not allowed."
         end
       end
+
     end
+
   end
+
 end

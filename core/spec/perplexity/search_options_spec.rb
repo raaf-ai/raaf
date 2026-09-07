@@ -47,24 +47,24 @@ RSpec.describe RAAF::Perplexity::SearchOptions do
         result = described_class.build(domain_filter: ["ruby-lang.org"])
 
         expect(result).to eq({
-          search_domain_filter: ["ruby-lang.org"]
-        })
+                               search_domain_filter: ["ruby-lang.org"]
+                             })
       end
 
       it "builds options with multiple domains" do
         result = described_class.build(domain_filter: ["ruby-lang.org", "github.com"])
 
         expect(result).to eq({
-          search_domain_filter: ["ruby-lang.org", "github.com"]
-        })
+                               search_domain_filter: ["ruby-lang.org", "github.com"]
+                             })
       end
 
       it "wraps single domain in array" do
         result = described_class.build(domain_filter: "ruby-lang.org")
 
         expect(result).to eq({
-          search_domain_filter: ["ruby-lang.org"]
-        })
+                               search_domain_filter: ["ruby-lang.org"]
+                             })
       end
 
       it "handles array with multiple elements" do
@@ -72,8 +72,8 @@ RSpec.describe RAAF::Perplexity::SearchOptions do
         result = described_class.build(domain_filter: domains)
 
         expect(result).to eq({
-          search_domain_filter: domains
-        })
+                               search_domain_filter: domains
+                             })
       end
     end
 
@@ -82,40 +82,40 @@ RSpec.describe RAAF::Perplexity::SearchOptions do
         result = described_class.build(recency_filter: "hour")
 
         expect(result).to eq({
-          search_recency_filter: "hour"
-        })
+                               search_recency_filter: "hour"
+                             })
       end
 
       it "builds options with day filter" do
         result = described_class.build(recency_filter: "day")
 
         expect(result).to eq({
-          search_recency_filter: "day"
-        })
+                               search_recency_filter: "day"
+                             })
       end
 
       it "builds options with week filter" do
         result = described_class.build(recency_filter: "week")
 
         expect(result).to eq({
-          search_recency_filter: "week"
-        })
+                               search_recency_filter: "week"
+                             })
       end
 
       it "builds options with month filter" do
         result = described_class.build(recency_filter: "month")
 
         expect(result).to eq({
-          search_recency_filter: "month"
-        })
+                               search_recency_filter: "month"
+                             })
       end
 
       it "builds options with year filter" do
         result = described_class.build(recency_filter: "year")
 
         expect(result).to eq({
-          search_recency_filter: "year"
-        })
+                               search_recency_filter: "year"
+                             })
       end
 
       it "validates recency filter" do
@@ -132,9 +132,9 @@ RSpec.describe RAAF::Perplexity::SearchOptions do
         )
 
         expect(result).to eq({
-          search_domain_filter: ["ruby-lang.org"],
-          search_recency_filter: "week"
-        })
+                               search_domain_filter: ["ruby-lang.org"],
+                               search_recency_filter: "week"
+                             })
       end
 
       it "builds options with multiple domains and recency" do
@@ -144,9 +144,9 @@ RSpec.describe RAAF::Perplexity::SearchOptions do
         )
 
         expect(result).to eq({
-          search_domain_filter: ["ruby-lang.org", "github.com"],
-          search_recency_filter: "month"
-        })
+                               search_domain_filter: ["ruby-lang.org", "github.com"],
+                               search_recency_filter: "month"
+                             })
       end
     end
 

@@ -183,24 +183,24 @@ RSpec.describe RAAF::Models::OllamaProvider, :integration do
 
   describe "error handling" do
     it "raises ModelNotFoundError for non-existent model" do
-      expect {
+      expect do
         provider.perform_chat_completion(
           messages: messages,
           model: "nonexistent-model-12345"
         )
-      }.to raise_error(RAAF::Models::ModelNotFoundError, /Model not found/)
+      end.to raise_error(RAAF::Models::ModelNotFoundError, /Model not found/)
     end
 
     it "handles connection errors gracefully when Ollama is not running" do
       # Create provider with invalid host
       invalid_provider = described_class.new(host: "http://localhost:99999")
 
-      expect {
+      expect do
         invalid_provider.perform_chat_completion(
           messages: messages,
           model: model
         )
-      }.to raise_error(RAAF::Models::ConnectionError, /Ollama not running/)
+      end.to raise_error(RAAF::Models::ConnectionError, /Ollama not running/)
     end
   end
 end

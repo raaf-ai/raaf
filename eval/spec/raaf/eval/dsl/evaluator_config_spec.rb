@@ -25,9 +25,9 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorConfig do
       definition.add_field("usage.total_tokens", as: "tokens")
 
       expect(definition.selected_fields).to eq([
-        { path: "output", alias: nil },
-        { path: "usage.total_tokens", alias: "tokens" }
-      ])
+                                                 { path: "output", alias: nil },
+                                                 { path: "usage.total_tokens", alias: "tokens" }
+                                               ])
     end
 
     it "retrieves field by path" do
@@ -117,11 +117,11 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorConfig do
 
     it "provides default history configuration" do
       expect(definition.history_config).to eq({
-        auto_save: false,
-        retention_days: nil,
-        retention_count: nil,
-        tags: []
-      })
+                                                auto_save: false,
+                                                retention_days: nil,
+                                                retention_count: nil,
+                                                tags: []
+                                              })
     end
 
     it "merges partial history configuration" do

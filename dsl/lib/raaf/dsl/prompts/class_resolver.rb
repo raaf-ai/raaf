@@ -37,7 +37,6 @@ module RAAF
         def resolve(prompt_spec, context = {})
           return nil unless can_resolve?(prompt_spec)
 
-          
           prompt_instance = case prompt_spec
                             when Class
                               # Instantiate with context as keyword arguments
@@ -62,18 +61,18 @@ module RAAF
             error_message: e.message,
             backtrace: e.backtrace.first(10)
           }
-          
+
           # Log error if logger is available
           if defined?(RAAF::Logger) && self.class.included_modules.include?(RAAF::Logger)
             log_error("Failed to resolve prompt class", **error_details)
           end
-          
+
           # Re-raise with full context and stack trace
           full_error_message = "Failed to resolve prompt class #{prompt_spec.name}: #{e.class.name} - #{e.message}\n" \
-                              "This usually indicates an error in the prompt's system/user methods or missing required context.\n" \
-                              "Original error: #{e.message}\n" \
-                              "Full stack trace:\n#{e.backtrace.join("\n")}"
-          
+                               "This usually indicates an error in the prompt's system/user methods or missing required context.\n" \
+                               "Original error: #{e.message}\n" \
+                               "Full stack trace:\n#{e.backtrace.join("\n")}"
+
           raise RAAF::DSL::Error, full_error_message
         end
 
@@ -88,25 +87,23 @@ module RAAF
         # @return [Boolean] true if the class is a valid prompt class
         def is_raaf_prompt_class?(prompt_class)
           return false unless prompt_class.is_a?(Class)
-          
+
           # Check if RAAF::DSL::Prompts::Base is defined and class inherits from it
-          if defined?(RAAF::DSL::Prompts::Base) && prompt_class < RAAF::DSL::Prompts::Base
-            return true
-          end
-          
+          return true if defined?(RAAF::DSL::Prompts::Base) && prompt_class < RAAF::DSL::Prompts::Base
+
           # Check for application-specific base classes that might inherit from RAAF::DSL::Prompts::Base
           # This supports patterns like ApplicationPrompt < RAAF::DSL::Prompts::Base
           prompt_class.ancestors.each do |ancestor|
             next if ancestor == prompt_class # Skip self
-            
+
             # Check if any ancestor inherits from RAAF::DSL::Prompts::Base
-            if defined?(RAAF::DSL::Prompts::Base) && 
-               ancestor.is_a?(Class) && 
+            if defined?(RAAF::DSL::Prompts::Base) &&
+               ancestor.is_a?(Class) &&
                ancestor < RAAF::DSL::Prompts::Base
               return true
             end
           end
-          
+
           false
         rescue StandardError
           # If there's any error checking inheritance, assume it's not a prompt class
@@ -119,12 +116,10 @@ module RAAF
         # @return [Boolean] true if the object is a valid prompt instance
         def is_raaf_prompt_instance?(prompt_obj)
           return false if prompt_obj.nil? || prompt_obj.is_a?(Class)
-          
+
           # Check if it's an instance of RAAF::DSL::Prompts::Base or a descendant
-          if defined?(RAAF::DSL::Prompts::Base) && prompt_obj.is_a?(RAAF::DSL::Prompts::Base)
-            return true
-          end
-          
+          return true if defined?(RAAF::DSL::Prompts::Base) && prompt_obj.is_a?(RAAF::DSL::Prompts::Base)
+
           # Check if it's an instance of a class that inherits from RAAF::DSL::Prompts::Base
           is_raaf_prompt_class?(prompt_obj.class)
         rescue StandardError

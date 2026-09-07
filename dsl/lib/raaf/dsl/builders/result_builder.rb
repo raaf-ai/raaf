@@ -17,11 +17,11 @@ module RAAF
       #
       class ResultBuilder
         attr_reader :mapping
-        
+
         def initialize
           @mapping = {}
         end
-        
+
         # Define a field in the result mapping
         #
         # @param name [Symbol] The field name in the output result
@@ -52,7 +52,7 @@ module RAAF
             raise ArgumentError, "Field #{name} must specify one of: from, value, or computed"
           end
         end
-        
+
         # Define multiple fields that map directly from AI response
         #
         # @param fields [Array<Symbol>] Field names to map directly
@@ -65,7 +65,7 @@ module RAAF
             field(field_name, from: field_name)
           end
         end
-        
+
         # Define a group of related fields with a prefix
         #
         # @param prefix [String, Symbol] Prefix for field names
@@ -80,9 +80,9 @@ module RAAF
         def group(prefix, &block)
           group_builder = self.class.new
           group_builder.instance_eval(&block)
-          
+
           group_builder.mapping.each do |field_name, config|
-            prefixed_name = "#{prefix}_#{field_name}".to_sym
+            prefixed_name = :"#{prefix}_#{field_name}"
             @mapping[prefixed_name] = config
           end
         end

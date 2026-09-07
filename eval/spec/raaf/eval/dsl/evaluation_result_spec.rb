@@ -6,15 +6,13 @@ RSpec.describe RAAF::Eval::DSL::EvaluationResult do
   let(:field_results) do
     {
       "output" => { label: "good",
-        score: 0.9,
-        details: { quality: "high" },
-        message: "Output quality is high"
-      },
+                    score: 0.9,
+                    details: { quality: "high" },
+                    message: "Output quality is high" },
       "usage.total_tokens" => { label: "bad",
-        score: 0.4,
-        details: { efficiency: "low" },
-        message: "Token usage is inefficient"
-      }
+                                score: 0.4,
+                                details: { efficiency: "low" },
+                                message: "Token usage is inefficient" }
     }
   end
 
@@ -145,9 +143,9 @@ RSpec.describe RAAF::Eval::DSL::EvaluationResult do
 
     it "returns nil when no scores available" do
       result_no_scores = described_class.new(field_results: {
-        "field1" => { label: "good" },
-        "field2" => { label: "bad" }
-      })
+                                               "field1" => { label: "good" },
+                                               "field2" => { label: "bad" }
+                                             })
       expect(result_no_scores.average_score).to be_nil
     end
 

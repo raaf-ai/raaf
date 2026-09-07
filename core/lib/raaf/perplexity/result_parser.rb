@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Perplexity
+
     ##
     # Parser for Perplexity API responses
     #
@@ -27,6 +29,7 @@ module RAAF
     #   #    }
     #
     class ResultParser
+
       ##
       # Extracts text content from Perplexity response
       #
@@ -117,9 +120,9 @@ module RAAF
         if include_search_results_in_content && search_results.any?
           content += "\n\n## Search Results\n\n"
           search_results.each_with_index do |sr, idx|
-            content += "#{idx + 1}. **#{sr['title']}**\n"
-            content += "   URL: #{sr['url']}\n"
-            content += "   Snippet: #{sr['snippet']}\n\n"
+            content += "#{idx + 1}. **#{sr["title"]}**\n"
+            content += "   URL: #{sr["url"]}\n"
+            content += "   Snippet: #{sr["snippet"]}\n\n"
           end
         elsif include_search_results_in_content && search_results.empty?
           content += "\n\n## Search Results\n\nNo search results were returned for this query.\n"
@@ -133,6 +136,9 @@ module RAAF
           model: result["model"]
         }
       end
+
     end
+
   end
+
 end

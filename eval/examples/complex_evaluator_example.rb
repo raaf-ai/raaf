@@ -6,21 +6,21 @@
 # including multiple field selections, complex evaluation logic, progress callbacks,
 # and historical tracking.
 
-require 'raaf/eval'
+require "raaf/eval"
 
 class ComprehensiveQualityEvaluator
   include RAAF::Eval::DSL::EvaluatorDefinition
 
   # Select multiple fields
-  select 'output', as: :output
-  select 'usage.total_tokens', as: :tokens
-  select 'usage.prompt_tokens', as: :prompt_tokens
+  select "output", as: :output
+  select "usage.total_tokens", as: :tokens
+  select "usage.prompt_tokens", as: :prompt_tokens
 
   # Define evaluation for output field with combined criteria
   evaluate_field :output do
     evaluate_with :semantic_similarity, threshold: 0.85
     evaluate_with :no_regression
-    combine_with :and  # Both criteria must pass
+    combine_with :and # Both criteria must pass
   end
 
   # Define evaluation for token usage
@@ -44,9 +44,9 @@ puts "Evaluator created: #{evaluator.class.name}"
 # Configuration inspection
 config = ComprehensiveQualityEvaluator.instance_variable_get(:@_evaluator_config)
 puts "\nConfiguration:"
-puts "- Fields selected: #{config[:selections].map { |s| s[:as] }.join(', ')}"
-puts "- Fields evaluated: #{config[:field_evaluations].keys.join(', ')}"
-puts "- Progress callback: #{config[:progress_callback] ? 'Yes' : 'No'}"
+puts "- Fields selected: #{config[:selections].map { |s| s[:as] }.join(", ")}"
+puts "- Fields evaluated: #{config[:field_evaluations].keys.join(", ")}"
+puts "- Progress callback: #{config[:progress_callback] ? "Yes" : "No"}"
 puts "- History enabled: #{config[:history_options][:auto_save]}"
 
 # The evaluator can now be used to evaluate spans

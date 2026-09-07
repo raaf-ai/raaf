@@ -165,7 +165,7 @@ module RAAF
         def render_pagination
           div(class: "flex justify-between items-center mt-4") do
             div(class: "text-sm text-gray-700") do
-              "Showing #{(@page - 1) * @per_page + 1} to #{@page * @per_page} of #{@spans.count} results"
+              "Showing #{((@page - 1) * @per_page) + 1} to #{@page * @per_page} of #{@spans.count} results"
             end
             div(class: "flex gap-2") do
               button(class: "px-3 py-1 border border-gray-300 rounded", disabled: @page == 1) { "Previous" }
@@ -189,7 +189,7 @@ module RAAF
         end
 
         def agent_options
-          ["GPTAgent", "ClaudeAgent", "ResearchAgent"]
+          %w[GPTAgent ClaudeAgent ResearchAgent]
         end
 
         def model_options
@@ -197,7 +197,7 @@ module RAAF
         end
 
         def status_options
-          ["completed", "failed", "running"]
+          %w[completed failed running]
         end
       end
     end

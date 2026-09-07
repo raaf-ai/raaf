@@ -29,8 +29,8 @@ class CreateRaafPromptVersions < ActiveRecord::Migration[7.0]
       t.timestamps
     end
 
-    add_index :raaf_prompt_versions, [:prompt_id, :version_number], unique: true,
-              name: "idx_prompt_versions_on_prompt_and_version"
+    add_index :raaf_prompt_versions, %i[prompt_id version_number], unique: true,
+                                                                   name: "idx_prompt_versions_on_prompt_and_version"
     add_index :raaf_prompt_versions, :status
     add_index :raaf_prompt_versions, :model
     add_index :raaf_prompt_versions, :created_at

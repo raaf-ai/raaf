@@ -44,7 +44,7 @@ module RAAF
       attr_reader :persistence_handler_block
 
       def initialize
-        @chunk_size = nil  # Default: process all at once
+        @chunk_size = nil # Default: process all at once
         @skip_if_block = nil
         @load_existing_block = nil
         @persistence_handler_block = nil
@@ -62,6 +62,7 @@ module RAAF
           unless size.is_a?(Integer) && size > 0
             raise ArgumentError, "chunk_size must be a positive integer, got: #{size.inspect}"
           end
+
           @chunk_size = size
         end
       end
@@ -83,6 +84,7 @@ module RAAF
       #   end
       def skip_if(&block)
         raise ArgumentError, "skip_if requires a block" unless block_given?
+
         @skip_if_block = block
       end
 
@@ -108,6 +110,7 @@ module RAAF
       #   end
       def load_existing(&block)
         raise ArgumentError, "load_existing requires a block" unless block_given?
+
         @load_existing_block = block
       end
 
@@ -132,6 +135,7 @@ module RAAF
       #   end
       def persistence_handler(&block)
         raise ArgumentError, "persistence_handler requires a block" unless block_given?
+
         @persistence_handler_block = block
       end
 
@@ -145,9 +149,7 @@ module RAAF
         errors << "load_existing block is required" unless @load_existing_block
         errors << "persistence_handler block is required" unless @persistence_handler_block
 
-        unless errors.empty?
-          raise RuntimeError, "Incremental processing configuration incomplete: #{errors.join(', ')}"
-        end
+        raise "Incremental processing configuration incomplete: #{errors.join(', ')}" unless errors.empty?
 
         true
       end

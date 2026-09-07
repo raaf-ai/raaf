@@ -15,6 +15,7 @@ require_relative "raaf/compliance/breach_detection"
 require_relative "raaf/compliance/export_control"
 
 module RAAF
+
   ##
   # Regulatory compliance and audit capabilities for Ruby AI Agents Factory
   #
@@ -38,7 +39,7 @@ module RAAF
   #
   # @example Basic compliance setup
   #   require 'raaf-compliance'
-  #   
+  #
   #   # Configure compliance framework
   #   RAAF::Compliance.configure do |config|
   #     config.enable_audit_trail = true
@@ -47,7 +48,7 @@ module RAAF
   #     config.hipaa_enabled = true
   #     config.soc2_enabled = true
   #   end
-  #   
+  #
   #   # Create compliance-aware agent
   #   agent = RAAF::Agent.new(
   #     name: "ComplianceAgent",
@@ -57,10 +58,10 @@ module RAAF
   #
   # @example Audit trail usage
   #   require 'raaf-compliance'
-  #   
+  #
   #   # Enable audit trail
   #   audit_trail = RAAF::Compliance::AuditTrail.new
-  #   
+  #
   #   # Log agent activities
   #   audit_trail.log_agent_activity(
   #     agent_id: "agent_123",
@@ -69,7 +70,7 @@ module RAAF
   #     data: { message: "Hello", response: "Hi there!" },
   #     compliance_tags: [:gdpr, :hipaa]
   #   )
-  #   
+  #
   #   # Query audit logs
   #   logs = audit_trail.query(
   #     start_date: 30.days.ago,
@@ -79,32 +80,32 @@ module RAAF
   #
   # @example Data retention management
   #   require 'raaf-compliance'
-  #   
+  #
   #   # Configure data retention
   #   retention = RAAF::Compliance::DataRetention.new
-  #   
+  #
   #   # Set retention policies
   #   retention.add_policy(
   #     data_type: :conversation,
   #     retention_period: 2555.days,
   #     disposal_method: :secure_delete
   #   )
-  #   
+  #
   #   # Execute retention policies
   #   retention.execute_policies
   #
   # @example GDPR compliance
   #   require 'raaf-compliance'
-  #   
+  #
   #   # Enable GDPR compliance
   #   gdpr = RAAF::Compliance::GDPRCompliance.new
-  #   
+  #
   #   # Handle right to be forgotten
   #   gdpr.handle_erasure_request(user_id: "user_123")
-  #   
+  #
   #   # Handle data portability request
   #   user_data = gdpr.export_user_data(user_id: "user_123")
-  #   
+  #
   #   # Check processing lawfulness
   #   lawful = gdpr.verify_processing_lawfulness(
   #     user_id: "user_123",
@@ -113,16 +114,16 @@ module RAAF
   #
   # @example Compliance reporting
   #   require 'raaf-compliance'
-  #   
+  #
   #   # Generate compliance report
   #   reporting = RAAF::Compliance::Reporting.new
-  #   
+  #
   #   # Generate GDPR compliance report
   #   gdpr_report = reporting.generate_gdpr_report(
   #     start_date: 1.month.ago,
   #     end_date: Time.current
   #   )
-  #   
+  #
   #   # Generate SOC2 compliance report
   #   soc2_report = reporting.generate_soc2_report(
   #     period: "2024-Q1"
@@ -130,26 +131,27 @@ module RAAF
   #
   # @since 1.0.0
   module Compliance
+
     # Default configuration
     DEFAULT_CONFIG = {
       # Audit trail settings
       audit_trail: {
         enabled: true,
         storage_backend: :database,
-        retention_days: 2555,  # 7 years
+        retention_days: 2555, # 7 years
         encryption_enabled: true,
         real_time_monitoring: true
       },
-      
+
       # Data retention settings
       data_retention: {
         enabled: true,
-        default_retention_days: 2555,  # 7 years
+        default_retention_days: 2555, # 7 years
         automatic_cleanup: true,
         secure_deletion: true,
         archive_before_deletion: true
       },
-      
+
       # GDPR settings
       gdpr: {
         enabled: false,
@@ -159,7 +161,7 @@ module RAAF
         storage_limitation: true,
         breach_notification_hours: 72
       },
-      
+
       # HIPAA settings
       hipaa: {
         enabled: false,
@@ -169,7 +171,7 @@ module RAAF
         integrity_controls: true,
         transmission_security: true
       },
-      
+
       # SOC2 settings
       soc2: {
         enabled: false,
@@ -179,7 +181,7 @@ module RAAF
         confidentiality_controls: true,
         privacy_controls: true
       },
-      
+
       # Policy management
       policy_management: {
         enabled: true,
@@ -187,23 +189,23 @@ module RAAF
         policy_approval_workflow: true,
         policy_training_tracking: true
       },
-      
+
       # Reporting settings
       reporting: {
         enabled: true,
         automated_reports: true,
-        report_formats: [:pdf, :csv, :json],
+        report_formats: %i[pdf csv json],
         report_retention_days: 2555
       },
-      
+
       # Data classification
       data_classification: {
         enabled: true,
         automatic_classification: true,
-        sensitivity_levels: [:public, :internal, :confidential, :restricted],
-        classification_algorithms: [:keyword, :ml, :regex]
+        sensitivity_levels: %i[public internal confidential restricted],
+        classification_algorithms: %i[keyword ml regex]
       },
-      
+
       # Consent management
       consent_management: {
         enabled: true,
@@ -212,7 +214,7 @@ module RAAF
         consent_renewal: true,
         consent_audit_trail: true
       },
-      
+
       # Breach detection
       breach_detection: {
         enabled: true,
@@ -221,18 +223,19 @@ module RAAF
         automated_response: true,
         notification_enabled: true
       },
-      
+
       # Export control
       export_control: {
         enabled: true,
         geographical_restrictions: true,
         data_localization: true,
-        transfer_mechanisms: [:adequacy, :bcr, :scc],
+        transfer_mechanisms: %i[adequacy bcr scc],
         export_approval_workflow: true
       }
     }.freeze
 
     class << self
+
       # @return [Hash] Current configuration
       attr_accessor :config
 
@@ -269,7 +272,7 @@ module RAAF
       # @param options [Hash] Audit trail options
       # @return [AuditTrail] Audit trail instance
       def create_audit_trail(**options)
-        AuditTrail.new(**config[:audit_trail].merge(options))
+        AuditTrail.new(**config[:audit_trail], **options)
       end
 
       ##
@@ -278,7 +281,7 @@ module RAAF
       # @param options [Hash] Data retention options
       # @return [DataRetention] Data retention instance
       def create_data_retention(**options)
-        DataRetention.new(**config[:data_retention].merge(options))
+        DataRetention.new(**config[:data_retention], **options)
       end
 
       ##
@@ -287,7 +290,7 @@ module RAAF
       # @param options [Hash] GDPR options
       # @return [GDPRCompliance] GDPR compliance instance
       def create_gdpr_compliance(**options)
-        GDPRCompliance.new(**config[:gdpr].merge(options))
+        GDPRCompliance.new(**config[:gdpr], **options)
       end
 
       ##
@@ -296,7 +299,7 @@ module RAAF
       # @param options [Hash] HIPAA options
       # @return [HIPAACompliance] HIPAA compliance instance
       def create_hipaa_compliance(**options)
-        HIPAACompliance.new(**config[:hipaa].merge(options))
+        HIPAACompliance.new(**config[:hipaa], **options)
       end
 
       ##
@@ -305,7 +308,7 @@ module RAAF
       # @param options [Hash] SOC2 options
       # @return [SOC2Compliance] SOC2 compliance instance
       def create_soc2_compliance(**options)
-        SOC2Compliance.new(**config[:soc2].merge(options))
+        SOC2Compliance.new(**config[:soc2], **options)
       end
 
       ##
@@ -323,7 +326,7 @@ module RAAF
       # @param options [Hash] Policy manager options
       # @return [PolicyManager] Policy manager instance
       def create_policy_manager(**options)
-        PolicyManager.new(**config[:policy_management].merge(options))
+        PolicyManager.new(**config[:policy_management], **options)
       end
 
       ##
@@ -332,7 +335,7 @@ module RAAF
       # @param options [Hash] Reporting options
       # @return [Reporting] Reporting instance
       def create_reporting(**options)
-        Reporting.new(**config[:reporting].merge(options))
+        Reporting.new(**config[:reporting], **options)
       end
 
       ##
@@ -341,7 +344,7 @@ module RAAF
       # @param options [Hash] Data classification options
       # @return [DataClassification] Data classification instance
       def create_data_classification(**options)
-        DataClassification.new(**config[:data_classification].merge(options))
+        DataClassification.new(**config[:data_classification], **options)
       end
 
       ##
@@ -350,7 +353,7 @@ module RAAF
       # @param options [Hash] Consent manager options
       # @return [ConsentManager] Consent manager instance
       def create_consent_manager(**options)
-        ConsentManager.new(**config[:consent_management].merge(options))
+        ConsentManager.new(**config[:consent_management], **options)
       end
 
       ##
@@ -359,7 +362,7 @@ module RAAF
       # @param options [Hash] Breach detection options
       # @return [BreachDetection] Breach detection instance
       def create_breach_detection(**options)
-        BreachDetection.new(**config[:breach_detection].merge(options))
+        BreachDetection.new(**config[:breach_detection], **options)
       end
 
       ##
@@ -368,7 +371,7 @@ module RAAF
       # @param options [Hash] Export control options
       # @return [ExportControl] Export control instance
       def create_export_control(**options)
-        ExportControl.new(**config[:export_control].merge(options))
+        ExportControl.new(**config[:export_control], **options)
       end
 
       ##
@@ -397,24 +400,24 @@ module RAAF
       # @return [Array<String>] Array of validation errors
       def validate_configuration
         errors = []
-        
+
         # Check required settings for enabled features
         if config[:gdpr][:enabled] && !config[:consent_management][:enabled]
           errors << "GDPR requires consent management to be enabled"
         end
-        
+
         if config[:hipaa][:enabled] && !config[:audit_trail][:enabled]
           errors << "HIPAA requires audit trail to be enabled"
         end
-        
+
         if config[:soc2][:enabled] && !config[:breach_detection][:enabled]
           errors << "SOC2 requires breach detection to be enabled"
         end
-        
+
         if config[:data_retention][:enabled] && config[:data_retention][:default_retention_days] < 1
           errors << "Data retention period must be at least 1 day"
         end
-        
+
         errors
       end
 
@@ -454,6 +457,9 @@ module RAAF
       rescue TypeError
         hash
       end
+
     end
+
   end
+
 end

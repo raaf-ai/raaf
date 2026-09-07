@@ -136,7 +136,7 @@ RSpec.describe "RAAF::ToolRegistry error handling" do
       # Register many tools
       10.times do |i|
         stub_const("Tool#{i}", Class.new)
-        RAAF::ToolRegistry.register("tool_#{i}".to_sym, Object.const_get("Tool#{i}"))
+        RAAF::ToolRegistry.register(:"tool_#{i}", Object.const_get("Tool#{i}"))
       end
 
       result = RAAF::ToolRegistry.resolve_with_details(:tool) # partial match

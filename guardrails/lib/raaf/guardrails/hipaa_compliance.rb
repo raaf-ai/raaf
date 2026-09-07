@@ -1,17 +1,20 @@
 # frozen_string_literal: true
 
-require_relative 'base'
-require_relative 'pii_detector'
+require_relative "base"
+require_relative "pii_detector"
 
 module RAAF
+
   module Guardrails
+
     # Ensures HIPAA (Health Insurance Portability and Accountability Act) compliance
     class HIPAACompliance < Base
+
       # PHI (Protected Health Information) identifiers under HIPAA
       PHI_IDENTIFIERS = {
         names: /\b(?:patient|Mr\.|Mrs\.|Ms\.|Dr\.)\s+[A-Z][a-z]+\s+[A-Z][a-z]+\b/,
-        geographic: /\b\d{5}(?:-\d{4})?\b/,  # ZIP codes
-        dates: /\b(?:0[1-9]|1[0-2])[-\/](?:0[1-9]|[12]\d|3[01])[-\/](?:19|20)\d{2}\b/,
+        geographic: /\b\d{5}(?:-\d{4})?\b/, # ZIP codes
+        dates: %r{\b(?:0[1-9]|1[0-2])[-/](?:0[1-9]|[12]\d|3[01])[-/](?:19|20)\d{2}\b},
         phone: /\b(?:\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}\b/,
         fax: /\bfax:?\s*(?:\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}\b/i,
         email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,
@@ -22,7 +25,7 @@ module RAAF
         certificate_license: /\b(?:License|Certificate):?\s*#?[A-Z0-9]{6,}/i,
         vehicle_id: /\b(?:VIN|Vehicle ID):?\s*[A-Z0-9]{17}\b/i,
         device_id: /\b(?:Device ID|Serial):?\s*[A-Z0-9]{8,}/i,
-        web_url: /https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b/,
+        web_url: %r{https?://(?:www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b},
         ip_address: /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/,
         biometric: /\b(?:fingerprint|retina|iris|voice|facial)\s*(?:scan|print|recognition)\b/i,
         photo: /\b(?:photo|photograph|image|picture)\s*(?:of|showing)?\s*(?:patient|face)\b/i
@@ -33,10 +36,10 @@ module RAAF
         diagnosis: {
           patterns: [
             /\b(?:diagnosed with|diagnosis of|suffering from)\s+[A-Za-z\s]+\b/i,
-            /\bICD-?10:?\s*[A-Z]\d{2}(?:\.\d+)?\b/i,  # ICD-10 codes
+            /\bICD-?10:?\s*[A-Z]\d{2}(?:\.\d+)?\b/i, # ICD-10 codes
             /\b(?:cancer|diabetes|hypertension|depression|anxiety)\b/i
           ],
-          description: 'Medical diagnosis information'
+          description: "Medical diagnosis information"
         },
         treatment: {
           patterns: [
@@ -44,7 +47,7 @@ module RAAF
             /\b(?:mg|mcg|ml|units)\s+(?:daily|twice|three times)\b/i,
             /\b(?:surgery|procedure|operation)\s+(?:on|scheduled|performed)\b/i
           ],
-          description: 'Medical treatment information'
+          description: "Medical treatment information"
         },
         lab_results: {
           patterns: [
@@ -52,7 +55,7 @@ module RAAF
             /\b(?:positive|negative|normal|abnormal)\s+(?:for|test|result)\b/i,
             /\b(?:cholesterol|glucose|hemoglobin|blood pressure):?\s*\d+/i
           ],
-          description: 'Laboratory or test results'
+          description: "Laboratory or test results"
         },
         provider_info: {
           patterns: [
@@ -60,29 +63,29 @@ module RAAF
             /\b(?:physician|doctor|nurse|therapist)\s+(?:name|contact)\b/i,
             /\b(?:hospital|clinic|medical center)\s+[A-Z][a-z]+/i
           ],
-          description: 'Healthcare provider information'
+          description: "Healthcare provider information"
         }
       }.freeze
 
       # HIPAA safeguards
       SAFEGUARDS = {
-        administrative: [
-          :access_management,
-          :workforce_training,
-          :access_authorization,
-          :incident_response
+        administrative: %i[
+          access_management
+          workforce_training
+          access_authorization
+          incident_response
         ],
-        physical: [
-          :facility_controls,
-          :workstation_security,
-          :device_controls,
-          :media_controls
+        physical: %i[
+          facility_controls
+          workstation_security
+          device_controls
+          media_controls
         ],
-        technical: [
-          :access_control,
-          :audit_controls,
-          :integrity,
-          :transmission_security
+        technical: %i[
+          access_control
+          audit_controls
+          integrity
+          transmission_security
         ]
       }.freeze
 
@@ -97,11 +100,11 @@ module RAAF
         @minimum_necessary = minimum_necessary
         @safeguards = configure_safeguards(safeguards)
         @audit_required = audit_required
-        
+
         # Create internal PHI detector
         @phi_detector = PIIDetector.new(
           action: :redact,
-          custom_patterns: PHI_IDENTIFIERS.transform_values { |pattern| { pattern: pattern, description: 'PHI' } }
+          custom_patterns: PHI_IDENTIFIERS.transform_values { |pattern| { pattern: pattern, description: "PHI" } }
         )
       end
 
@@ -109,16 +112,14 @@ module RAAF
 
       def perform_check(content, context)
         violations = []
-        
+
         # Check for PHI exposure
         phi_result = @phi_detector.check_input(content, context)
-        if phi_result.violated?
-          violations.concat(convert_phi_violations(phi_result.violations))
-        end
-        
+        violations.concat(convert_phi_violations(phi_result.violations)) if phi_result.violated?
+
         # Check medical information patterns
         violations.concat(check_medical_patterns(content))
-        
+
         # Check minimum necessary principle
         if @minimum_necessary && excessive_phi_disclosure?(content, context)
           violations << {
@@ -127,7 +128,7 @@ module RAAF
             description: "Potential violation of HIPAA minimum necessary standard"
           }
         end
-        
+
         # Check authorization
         if context[:disclosure_type] && !authorized_disclosure?(context)
           violations << {
@@ -136,16 +137,16 @@ module RAAF
             description: "PHI disclosure lacks proper authorization"
           }
         end
-        
+
         # Check safeguards implementation
         safeguard_violations = check_safeguards(context)
         violations.concat(safeguard_violations)
-        
+
         # Audit if required
         audit_check(content, context, violations) if @audit_required
-        
+
         return safe_result if violations.empty?
-        
+
         # Add HIPAA-specific metadata
         result = violation_result(violations)
         result.metadata[:hipaa_violations] = categorize_violations(violations)
@@ -162,27 +163,27 @@ module RAAF
           physical: SAFEGUARDS[:physical],
           technical: SAFEGUARDS[:technical]
         }
-        
+
         custom_safeguards ? default_safeguards.merge(custom_safeguards) : default_safeguards
       end
 
       def check_medical_patterns(content)
         violations = []
-        
+
         MEDICAL_PATTERNS.each do |category, config|
           config[:patterns].each do |pattern|
-            if content.match?(pattern)
-              violations << {
-                type: "hipaa_#{category}".to_sym,
-                category: category,
-                severity: :high,
-                description: "#{config[:description]} detected",
-                pattern: pattern.source
-              }
-            end
+            next unless content.match?(pattern)
+
+            violations << {
+              type: :"hipaa_#{category}",
+              category: category,
+              severity: :high,
+              description: "#{config[:description]} detected",
+              pattern: pattern.source
+            }
           end
         end
-        
+
         violations
       end
 
@@ -225,31 +226,31 @@ module RAAF
       def excessive_phi_disclosure?(content, context)
         # Check if more PHI is being disclosed than necessary
         phi_count = PHI_IDENTIFIERS.values.sum { |pattern| content.scan(pattern).size }
-        
+
         # Context-dependent thresholds
         threshold = case context[:purpose]
-                   when :treatment then 10
-                   when :payment then 5
-                   when :operations then 3
-                   else 1
-                   end
-        
+                    when :treatment then 10
+                    when :payment then 5
+                    when :operations then 3
+                    else 1
+                    end
+
         phi_count > threshold
       end
 
       def authorized_disclosure?(context)
         # Check HIPAA-compliant authorization
         return true if context[:patient_authorization]
-        return true if context[:purpose] && [:treatment, :payment, :operations].include?(context[:purpose])
+        return true if context[:purpose] && %i[treatment payment operations].include?(context[:purpose])
         return true if context[:required_by_law]
         return true if context[:public_health_activity]
-        
+
         false
       end
 
       def check_safeguards(context)
         violations = []
-        
+
         # Check administrative safeguards
         if context[:access_type] && !proper_access_controls?(context)
           violations << {
@@ -259,7 +260,7 @@ module RAAF
             description: "Inadequate administrative access controls"
           }
         end
-        
+
         # Check technical safeguards
         if context[:transmission_type] && !secure_transmission?(context)
           violations << {
@@ -269,7 +270,7 @@ module RAAF
             description: "PHI transmission lacks encryption"
           }
         end
-        
+
         violations
       end
 
@@ -277,34 +278,36 @@ module RAAF
         return false unless context[:user_authenticated]
         return false unless context[:user_authorized]
         return false if context[:role] && !authorized_role?(context[:role])
-        
+
         true
       end
 
       def authorized_role?(role)
         # Example authorized roles
-        [:physician, :nurse, :medical_staff, :billing, :admin].include?(role)
+        %i[physician nurse medical_staff billing admin].include?(role)
       end
 
       def secure_transmission?(context)
         return true if context[:encrypted]
         return true if context[:transmission_type] == :internal
-        
+
         false
       end
 
       def categorize_violations(violations)
         {
           phi_identifiers: violations.count { |v| v[:type] == :hipaa_phi_exposure },
-          medical_information: violations.count { |v| v[:type].to_s.start_with?('hipaa_') && v[:type] != :hipaa_phi_exposure },
-          safeguard_failures: violations.count { |v| v[:type].to_s.include?('safeguard') },
+          medical_information: violations.count do |v|
+            v[:type].to_s.start_with?("hipaa_") && v[:type] != :hipaa_phi_exposure
+          end,
+          safeguard_failures: violations.count { |v| v[:type].to_s.include?("safeguard") },
           authorization_issues: violations.count { |v| v[:type] == :unauthorized_disclosure }
         }
       end
 
       def determine_required_actions(violations)
         actions = []
-        
+
         violations.each do |violation|
           case violation[:type]
           when :hipaa_phi_exposure
@@ -324,33 +327,27 @@ module RAAF
             actions << "Review and update minimum necessary policies"
           end
         end
-        
+
         actions.uniq
       end
 
       def assess_breach_risk(violations)
         # HIPAA breach risk assessment factors
         risk_score = 0
-        
+
         # Nature and extent of PHI
         phi_count = violations.count { |v| v[:type] == :hipaa_phi_exposure }
         risk_score += phi_count * 2
-        
+
         # Unauthorized person who received PHI
-        if violations.any? { |v| v[:type] == :unauthorized_disclosure }
-          risk_score += 5
-        end
-        
+        risk_score += 5 if violations.any? { |v| v[:type] == :unauthorized_disclosure }
+
         # Whether PHI was actually viewed
-        if violations.any? { |v| v[:severity] == :critical }
-          risk_score += 3
-        end
-        
+        risk_score += 3 if violations.any? { |v| v[:severity] == :critical }
+
         # Mitigation possibilities
-        if violations.any? { |v| v[:type].to_s.include?('safeguard') }
-          risk_score += 2
-        end
-        
+        risk_score += 2 if violations.any? { |v| v[:type].to_s.include?("safeguard") }
+
         case risk_score
         when 0..2 then :low
         when 3..5 then :medium
@@ -361,10 +358,10 @@ module RAAF
 
       def audit_check(content, context, violations)
         return unless @logger
-        
+
         audit_entry = {
           timestamp: Time.now.iso8601,
-          check_type: 'HIPAA Compliance',
+          check_type: "HIPAA Compliance",
           content_hash: Digest::SHA256.hexdigest(content),
           violations_found: violations.size,
           violation_categories: categorize_violations(violations),
@@ -373,19 +370,22 @@ module RAAF
           breach_risk_level: assess_breach_risk(violations),
           context: sanitize_context_for_audit(context)
         }
-        
+
         @logger.info "HIPAA Compliance Check: #{audit_entry.to_json}"
-        
+
         # For high-risk violations, additional logging may be required
-        if audit_entry[:breach_risk_level] == :critical
-          @logger.error "CRITICAL HIPAA VIOLATION - Potential breach detected"
-        end
+        return unless audit_entry[:breach_risk_level] == :critical
+
+        @logger.error "CRITICAL HIPAA VIOLATION - Potential breach detected"
       end
 
       def sanitize_context_for_audit(context)
         # Remove any actual PHI from audit logs
-        context.reject { |k, _| [:patient_data, :phi, :medical_info].include?(k) }
+        context.reject { |k, _| %i[patient_data phi medical_info].include?(k) }
       end
+
     end
+
   end
+
 end

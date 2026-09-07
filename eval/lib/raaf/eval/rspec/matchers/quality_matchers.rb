@@ -96,7 +96,7 @@ module RAAF
             def failure_message
               if @across_all
                 "Expected all configurations to maintain quality above #{format_percent(@threshold * 100)}, " \
-                  "but #{@failures.join(', ')} failed"
+                  "but #{@failures.join(", ")} failed"
               else
                 "Expected quality similarity of at least #{format_percent(@threshold * 100)}, " \
                   "but got #{format_percent(@similarity * 100)}"

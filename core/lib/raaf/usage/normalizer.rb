@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Usage
+
     # Normalizes token usage data from different providers into a canonical format
     #
     # All providers return different usage field names:
@@ -18,6 +20,7 @@ module RAAF
     #     provider_metadata: { provider_name, model, raw_usage }
     #   }
     class Normalizer
+
       # Normalize provider usage data to canonical format
       #
       # @param response [Hash] Provider response containing usage data
@@ -26,7 +29,7 @@ module RAAF
       # @return [Hash, nil] Normalized usage hash or nil if no usage data
       def self.normalize(response, provider_name:, model:)
         usage = extract_usage_from_response(response)
-        return nil unless usage && !usage.empty?
+        return nil unless usage.present?
 
         {
           input_tokens: extract_input_tokens(usage),
@@ -42,8 +45,6 @@ module RAAF
         }.compact
       end
 
-      private
-
       # Extract usage from response (handles both symbol and string keys)
       def self.extract_usage_from_response(response)
         response[:usage] || response["usage"]
@@ -53,14 +54,14 @@ module RAAF
       # Tries: input_tokens -> prompt_tokens -> 0
       def self.extract_input_tokens(usage)
         usage[:input_tokens] || usage["input_tokens"] ||
-        usage[:prompt_tokens] || usage["prompt_tokens"] || 0
+          usage[:prompt_tokens] || usage["prompt_tokens"] || 0
       end
 
       # Extract output tokens (handles multiple naming conventions)
       # Tries: output_tokens -> completion_tokens -> 0
       def self.extract_output_tokens(usage)
         usage[:output_tokens] || usage["output_tokens"] ||
-        usage[:completion_tokens] || usage["completion_tokens"] || 0
+          usage[:completion_tokens] || usage["completion_tokens"] || 0
       end
 
       # Extract or calculate total tokens
@@ -80,7 +81,7 @@ module RAAF
 
         # Reasoning tokens (o1, o3, reasoning models)
         reasoning = usage.dig(:output_tokens_details, :reasoning_tokens) ||
-                   usage.dig("output_tokens_details", "reasoning_tokens")
+                    usage.dig("output_tokens_details", "reasoning_tokens")
         details[:reasoning_tokens] = reasoning if reasoning && reasoning > 0
 
         # Future: audio_tokens for multimodal
@@ -95,13 +96,16 @@ module RAAF
 
         # Cached tokens (prompt caching - future)
         cached = usage.dig(:input_tokens_details, :cached_tokens) ||
-                usage.dig("input_tokens_details", "cached_tokens")
+                 usage.dig("input_tokens_details", "cached_tokens")
         details[:cached_tokens] = cached if cached && cached > 0
 
         # Future: audio_tokens for multimodal
 
         details.empty? ? nil : details
       end
+
     end
+
   end
+
 end

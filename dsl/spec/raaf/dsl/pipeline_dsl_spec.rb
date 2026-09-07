@@ -99,7 +99,7 @@ RSpec.describe RAAF::DSL::PipelineDSL do
       Class.new(RAAF::DSL::Agent) do
         # Context is automatically available through auto-context
         # Input fields: :product, :company
-        
+
         result_transform do
           field :analysis
           field :scores
@@ -114,7 +114,7 @@ RSpec.describe RAAF::DSL::PipelineDSL do
     end
 
     it "extracts output fields from result_transform" do
-      expect(introspectable_agent.pipeline_output_fields).to eq([:analysis, :scores])
+      expect(introspectable_agent.pipeline_output_fields).to eq(%i[analysis scores])
     end
   end
 
@@ -139,11 +139,11 @@ RSpec.describe RAAF::DSL::PipelineDSL do
     end
 
     it "detects field mismatches between agents" do
-      expect {
+      expect do
         chained = incompatible_agent1 >> incompatible_agent2
         # Field validation happens when the pipeline is executed or validated
         chained.validate_fields({})
-      }.to raise_error(RAAF::DSL::PipelineDSL::FieldMismatchError)
+      end.to raise_error(RAAF::DSL::PipelineDSL::FieldMismatchError)
     end
   end
 
@@ -201,9 +201,9 @@ RSpec.describe RAAF::DSL::PipelineDSL do
         end
 
         flow test_agent1 >> test_agent2
-        
+
         # Context variables are automatically available through auto-context
-        
+
         context do
           default :option1, "default_value"
         end

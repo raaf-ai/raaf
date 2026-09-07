@@ -21,15 +21,15 @@ RSpec.describe "RAAF Providers Bug Report" do
       api_key: "test-key",
       timeout: 30
     )
-    
+
     agent = RAAF::Agent.new(
       name: "TestAgent",
       instructions: "You are a test agent",
       model: "gpt-4o-mini"
     )
-    
-    runner = RAAF::Runner.new(agent: agent, provider: provider)
-    
+
+    RAAF::Runner.new(agent: agent, provider: provider)
+
     # Add expectations for your specific provider bug
     expect(provider).to be_a(RAAF::Models::ResponsesProvider)
   end
@@ -39,30 +39,30 @@ RSpec.describe "RAAF Providers Bug Report" do
       api_key: "test-key",
       timeout: 30
     )
-    
+
     agent = RAAF::Agent.new(
       name: "TestAgent",
       instructions: "You are a test agent",
       model: "claude-3-5-sonnet-20241022"
     )
-    
-    runner = RAAF::Runner.new(agent: agent, provider: provider)
-    
+
+    RAAF::Runner.new(agent: agent, provider: provider)
+
     # Add expectations for your specific provider bug
     expect(provider).to be_a(RAAF::Models::AnthropicProvider)
   end
 
   it "tests provider failover logic" do
     primary_provider = RAAF::Models::ResponsesProvider.new(api_key: "test-key")
-    fallback_provider = RAAF::Models::AnthropicProvider.new(api_key: "test-key")
-    
+    RAAF::Models::AnthropicProvider.new(api_key: "test-key")
+
     # Test provider failover logic
-    agent = RAAF::Agent.new(
+    RAAF::Agent.new(
       name: "TestAgent",
       instructions: "You are a test agent",
       model: "gpt-4o-mini"
     )
-    
+
     # Add your specific test case for provider failover
     expect(primary_provider).to be_a(RAAF::Models::ResponsesProvider)
   end

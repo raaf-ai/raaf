@@ -4,7 +4,9 @@ require "rails"
 require_relative "../logging"
 
 module RAAF
+
   module Tracing
+
     # Rails mountable engine for RAAF (Ruby AI Agents Factory) tracing
     #
     # This engine provides a complete web interface for viewing and analyzing
@@ -36,7 +38,9 @@ module RAAF
     #
     # Visit /tracing in your Rails app to view traces and spans.
     class Engine < ::Rails::Engine
+
       include RAAF::Logger
+
       isolate_namespace RAAF::Tracing
 
       # Set the root path for the engine
@@ -106,10 +110,12 @@ module RAAF
         #{root}/app/controllers/concerns
         #{root}/lib
       ]
+
     end
 
     # Configuration class for the tracing engine
     class Configuration
+
       attr_accessor :auto_configure, :mount_path, :retention_days, :sampling_rate
 
       def initialize
@@ -118,10 +124,12 @@ module RAAF
         @retention_days = 30
         @sampling_rate = 1.0
       end
+
     end
 
     # Global configuration accessor
     class << self
+
       def configuration
         @configuration ||= Configuration.new
       end
@@ -129,6 +137,9 @@ module RAAF
       def configure
         yield(configuration) if block_given?
       end
+
     end
+
   end
+
 end

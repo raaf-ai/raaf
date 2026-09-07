@@ -30,13 +30,12 @@ RSpec.describe "DeepEval-Inspired LLM Evaluators" do
           good_threshold, average_threshold = resolve_thresholds(options)
           score = 0.75 # Mock score
           label = calculate_label(score,
-                                 good_threshold: good_threshold,
-                                 average_threshold: average_threshold)
+                                  good_threshold: good_threshold,
+                                  average_threshold: average_threshold)
 
           build_result(score, label, good_threshold, average_threshold,
-            evaluated_field: field_context.field_name,
-            method: "test"
-          )
+                       evaluated_field: field_context.field_name,
+                       method: "test")
         end
       end
     end
@@ -85,33 +84,33 @@ RSpec.describe "DeepEval-Inspired LLM Evaluators" do
 
     context "threshold validation" do
       it "raises error when good_threshold <= average_threshold" do
-        expect {
+        expect do
           test_evaluator_class.new(good_threshold: 0.70, average_threshold: 0.90)
-        }.to raise_error(ArgumentError, /good_threshold .* must be > average_threshold/)
+        end.to raise_error(ArgumentError, /good_threshold .* must be > average_threshold/)
       end
 
       it "raises error when good_threshold equals average_threshold" do
-        expect {
+        expect do
           test_evaluator_class.new(good_threshold: 0.80, average_threshold: 0.80)
-        }.to raise_error(ArgumentError, /good_threshold .* must be > average_threshold/)
+        end.to raise_error(ArgumentError, /good_threshold .* must be > average_threshold/)
       end
 
       it "raises error when good_threshold > 1.0" do
-        expect {
+        expect do
           test_evaluator_class.new(good_threshold: 1.5, average_threshold: 0.70)
-        }.to raise_error(ArgumentError, /Thresholds must be between 0.0 and 1.0/)
+        end.to raise_error(ArgumentError, /Thresholds must be between 0.0 and 1.0/)
       end
 
       it "raises error when average_threshold < 0.0" do
-        expect {
+        expect do
           test_evaluator_class.new(good_threshold: 0.90, average_threshold: -0.1)
-        }.to raise_error(ArgumentError, /Thresholds must be between 0.0 and 1.0/)
+        end.to raise_error(ArgumentError, /Thresholds must be between 0.0 and 1.0/)
       end
 
       it "accepts valid threshold boundaries (0.0 and 1.0)" do
-        expect {
+        expect do
           test_evaluator_class.new(good_threshold: 1.0, average_threshold: 0.0)
-        }.not_to raise_error
+        end.not_to raise_error
       end
     end
 
@@ -130,8 +129,8 @@ RSpec.describe "DeepEval-Inspired LLM Evaluators" do
             good_threshold, average_threshold = resolve_thresholds(options)
             score = 0.85
             label = calculate_label(score,
-                                   good_threshold: good_threshold,
-                                   average_threshold: average_threshold)
+                                    good_threshold: good_threshold,
+                                    average_threshold: average_threshold)
             build_result(score, label, good_threshold, average_threshold, evaluated_field: field_context.field_name)
           end
         end
@@ -152,8 +151,8 @@ RSpec.describe "DeepEval-Inspired LLM Evaluators" do
             good_threshold, average_threshold = resolve_thresholds(options)
             score = 0.70
             label = calculate_label(score,
-                                   good_threshold: good_threshold,
-                                   average_threshold: average_threshold)
+                                    good_threshold: good_threshold,
+                                    average_threshold: average_threshold)
             build_result(score, label, good_threshold, average_threshold, evaluated_field: field_context.field_name)
           end
         end
@@ -174,8 +173,8 @@ RSpec.describe "DeepEval-Inspired LLM Evaluators" do
             good_threshold, average_threshold = resolve_thresholds(options)
             score = 0.50
             label = calculate_label(score,
-                                   good_threshold: good_threshold,
-                                   average_threshold: average_threshold)
+                                    good_threshold: good_threshold,
+                                    average_threshold: average_threshold)
             build_result(score, label, good_threshold, average_threshold, evaluated_field: field_context.field_name)
           end
         end
@@ -213,7 +212,9 @@ RSpec.describe "DeepEval-Inspired LLM Evaluators" do
 
   describe RAAF::Eval::Evaluators::LLM::Hallucination do
     let(:evaluator) { described_class.new }
-    let(:context_data) { "France is a country in Western Europe. Paris is its capital city and home to the Eiffel Tower." }
+    let(:context_data) do
+      "France is a country in Western Europe. Paris is its capital city and home to the Eiffel Tower."
+    end
 
     context "with factual content" do
       it "returns 'good' label for factual content" do
@@ -248,9 +249,9 @@ RSpec.describe "DeepEval-Inspired LLM Evaluators" do
 
     context "without context" do
       it "raises error when context is missing" do
-        expect {
+        expect do
           evaluator.evaluate(field_context)
-        }.to raise_error(NoMethodError, /undefined method/)
+        end.to raise_error(NoMethodError, /undefined method/)
       end
     end
 
@@ -265,10 +266,9 @@ RSpec.describe "DeepEval-Inspired LLM Evaluators" do
 
       it "uses call-time threshold overrides" do
         eval_result = evaluator.evaluate(field_context,
-          context: context_data,
-          good_threshold: 0.95,
-          average_threshold: 0.85
-        )
+                                         context: context_data,
+                                         good_threshold: 0.95,
+                                         average_threshold: 0.85)
 
         expect(eval_result[:details][:thresholds][:good]).to eq(0.95)
         expect(eval_result[:details][:thresholds][:average]).to eq(0.85)
@@ -342,9 +342,9 @@ RSpec.describe "DeepEval-Inspired LLM Evaluators" do
 
     context "without query" do
       it "raises error when query is missing" do
-        expect {
+        expect do
           evaluator.evaluate(field_context)
-        }.to raise_error(NoMethodError, /undefined method/)
+        end.to raise_error(NoMethodError, /undefined method/)
       end
     end
 
@@ -433,7 +433,7 @@ RSpec.describe "DeepEval-Inspired LLM Evaluators" do
       it "handles array of context documents" do
         eval_result = evaluator.evaluate(array_field_context, retrieval_context: array_retrieval_context)
 
-        expect(eval_result[:label]).to satisfy { |label| ["good", "average", "bad"].include?(label) }
+        expect(eval_result[:label]).to(satisfy { |label| %w[good average bad].include?(label) })
         expect(eval_result[:score]).to be_between(0.0, 1.0)
       end
 
@@ -449,9 +449,9 @@ RSpec.describe "DeepEval-Inspired LLM Evaluators" do
       let(:no_context_field_context) { RAAF::Eval::DSL::FieldContext.new(:output, no_context_output) }
 
       it "raises error when retrieval_context is missing" do
-        expect {
+        expect do
           evaluator.evaluate(no_context_field_context)
-        }.to raise_error(NoMethodError, /undefined method/)
+        end.to raise_error(NoMethodError, /undefined method/)
       end
     end
 
@@ -534,9 +534,9 @@ RSpec.describe "DeepEval-Inspired LLM Evaluators" do
       end
 
       it "checks only specified bias types" do
-        result = evaluator.evaluate(field_context, bias_types: [:gender, :racial])
+        result = evaluator.evaluate(field_context, bias_types: %i[gender racial])
 
-        expect(result[:details][:bias_types_checked]).to eq([:gender, :racial])
+        expect(result[:details][:bias_types_checked]).to eq(%i[gender racial])
       end
 
       it "checks all bias types by default" do
@@ -550,9 +550,9 @@ RSpec.describe "DeepEval-Inspired LLM Evaluators" do
       let(:result) { { output: "Some content" } }
 
       it "raises error for invalid bias types" do
-        expect {
+        expect do
           evaluator.evaluate(field_context, bias_types: [:invalid_type])
-        }.to raise_error(ArgumentError, /Invalid bias types/)
+        end.to raise_error(ArgumentError, /Invalid bias types/)
       end
     end
 
@@ -641,9 +641,9 @@ RSpec.describe "DeepEval-Inspired LLM Evaluators" do
       end
 
       it "checks only specified categories" do
-        result = evaluator.evaluate(field_context, categories: [:hate_speech, :harassment])
+        result = evaluator.evaluate(field_context, categories: %i[hate_speech harassment])
 
-        expect(result[:details][:categories_checked]).to eq([:hate_speech, :harassment])
+        expect(result[:details][:categories_checked]).to eq(%i[hate_speech harassment])
       end
 
       it "checks all categories by default" do
@@ -657,9 +657,9 @@ RSpec.describe "DeepEval-Inspired LLM Evaluators" do
       let(:result) { { output: "Some content" } }
 
       it "raises error for invalid categories" do
-        expect {
+        expect do
           evaluator.evaluate(field_context, categories: [:invalid_category])
-        }.to raise_error(ArgumentError, /Invalid toxicity categories/)
+        end.to raise_error(ArgumentError, /Invalid toxicity categories/)
       end
     end
 

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative 'merge_strategy'
+require_relative "merge_strategy"
 
 module RAAF
   module DSL
@@ -32,7 +32,7 @@ module RAAF
       # Override the run method to add automatic merging
       def run(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
         # Call the original run method
-        ai_result = super(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker, skip_retries: skip_retries, previous_result: previous_result)
+        ai_result = super
 
         # Only apply automatic merging if enabled for this agent class and successful
         if self.class.respond_to?(:auto_merge_enabled?) && self.class.auto_merge_enabled? &&
@@ -123,7 +123,7 @@ module RAAF
 
       # Check if a value is present (not nil and not empty)
       def present?(value)
-        !value.nil? && (value != "" && (!value.respond_to?(:empty?) || !value.empty?))
+        !value.nil? && value != "" && (!value.respond_to?(:empty?) || !value.empty?)
       end
     end
   end

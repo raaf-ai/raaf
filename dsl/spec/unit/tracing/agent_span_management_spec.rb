@@ -8,6 +8,7 @@ RSpec.describe "Agent Span Management", type: :unit do
   # Test agent for span management testing
   class TestAgent < RAAF::DSL::Agent
     include RAAF::Tracing::Traceable
+
     trace_as :agent
 
     def initialize(parent_component: nil, **options)
@@ -17,9 +18,9 @@ RSpec.describe "Agent Span Management", type: :unit do
 
     def collect_span_attributes
       super.merge({
-        "agent.name" => self.class.name,
-        "agent.type" => "test_agent"
-      })
+                    "agent.name" => self.class.name,
+                    "agent.type" => "test_agent"
+                  })
     end
 
     # Simplified run method for testing
@@ -33,6 +34,7 @@ RSpec.describe "Agent Span Management", type: :unit do
   # Mock pipeline component for testing parent contexts
   class MockPipeline
     include RAAF::Tracing::Traceable
+
     trace_as :pipeline
 
     def initialize
@@ -75,9 +77,9 @@ RSpec.describe "Agent Span Management", type: :unit do
     it "prioritizes run method parent_component over constructor parent_component" do
       other_pipeline = MockPipeline.new
       other_pipeline.instance_variable_set(:@current_span, {
-        span_id: "other_pipeline_span",
-        trace_id: "other_trace_id"
-      })
+                                             span_id: "other_pipeline_span",
+                                             trace_id: "other_trace_id"
+                                           })
 
       child_agent = TestAgent.new(parent_component: mock_pipeline)
       result = child_agent.run_without_timeout(parent_component: other_pipeline)
@@ -94,11 +96,11 @@ RSpec.describe "Agent Span Management", type: :unit do
     end
 
     it "properly cleans up span after failed execution" do
-      expect {
+      expect do
         test_agent.with_tracing(:run) do
           raise StandardError, "Test error"
         end
-      }.to raise_error(StandardError, "Test error")
+      end.to raise_error(StandardError, "Test error")
 
       expect(test_agent.current_span).to be_nil
     end
@@ -125,13 +127,13 @@ RSpec.describe "Agent Span Management", type: :unit do
 
       test_agent.run_without_timeout
 
-      expect(captured_span).to_not be_nil
+      expect(captured_span).not_to be_nil
       expect(captured_span[:attributes]).to include({
-        "component.type" => "agent",
-        "component.name" => "TestAgent",
-        "agent.name" => "TestAgent",
-        "agent.type" => "test_agent"
-      })
+                                                      "component.type" => "agent",
+                                                      "component.name" => "TestAgent",
+                                                      "agent.name" => "TestAgent",
+                                                      "agent.type" => "test_agent"
+                                                    })
     end
 
     it "includes success and duration attributes" do
@@ -143,8 +145,8 @@ RSpec.describe "Agent Span Management", type: :unit do
       test_agent.run_without_timeout
 
       expect(captured_span[:attributes]).to include({
-        "success" => true
-      })
+                                                      "success" => true
+                                                    })
       expect(captured_span[:attributes]).to have_key("duration_ms")
     end
   end
@@ -170,8 +172,8 @@ RSpec.describe "Agent Span Management", type: :unit do
 
       test_agent.run_without_timeout
 
-      expect(captured_span[:trace_id]).to_not be_nil
-      expect(captured_span[:trace_id]).to_not eq("trace_abc_456")
+      expect(captured_span[:trace_id]).not_to be_nil
+      expect(captured_span[:trace_id]).not_to eq("trace_abc_456")
       expect(captured_span[:parent_id]).to be_nil
     end
   end
@@ -183,18 +185,18 @@ RSpec.describe "Agent Span Management", type: :unit do
         captured_span = span
       end
 
-      expect {
+      expect do
         test_agent.with_tracing(:run) do
           raise StandardError, "Test error"
         end
-      }.to raise_error(StandardError, "Test error")
+      end.to raise_error(StandardError, "Test error")
 
       expect(captured_span[:status]).to eq(:error)
       expect(captured_span[:attributes]).to include({
-        "success" => false,
-        "error.type" => "StandardError",
-        "error.message" => "Test error"
-      })
+                                                      "success" => false,
+                                                      "error.type" => "StandardError",
+                                                      "error.message" => "Test error"
+                                                    })
       expect(captured_span[:attributes]).to have_key("error.backtrace")
     end
   end

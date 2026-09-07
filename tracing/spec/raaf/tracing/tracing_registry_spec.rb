@@ -51,12 +51,12 @@ RSpec.describe RAAF::Tracing::TracingRegistry do
       end
 
       it "properly restores context even when block raises exception" do
-        expect {
+        expect do
           described_class.with_tracer(mock_tracer) do
             expect(described_class.current_tracer).to eq(mock_tracer)
             raise StandardError, "test error"
           end
-        }.to raise_error(StandardError, "test error")
+        end.to raise_error(StandardError, "test error")
 
         expect(described_class.current_tracer).to be_a(RAAF::Tracing::NoOpTracer)
       end
@@ -76,7 +76,7 @@ RSpec.describe RAAF::Tracing::TracingRegistry do
 
         main_fiber_tracer = nil
         nested_fiber_tracer = nil
-        main_thread = Thread.current
+        Thread.current
 
         described_class.with_tracer(mock_tracer) do
           main_fiber_tracer = described_class.current_tracer
@@ -226,9 +226,7 @@ RSpec.describe RAAF::Tracing::TracingRegistry do
 
     it "maintains context across yield boundaries" do
       def test_method(&block)
-        described_class.with_tracer(another_tracer) do
-          yield
-        end
+        described_class.with_tracer(another_tracer, &block)
       end
 
       described_class.with_tracer(mock_tracer) do
@@ -262,6 +260,7 @@ RSpec.describe RAAF::Tracing::TracingRegistry do
       end
     end
   end
+
   # Helper method to check if fiber-local storage is available
   def fiber_storage_available?
     return false unless defined?(Fiber)
@@ -277,6 +276,7 @@ end
 
 # Simple barrier class for thread synchronization in tests
 class Barrier
+
   def initialize(count)
     @count = count
     @waiting = 0
@@ -294,4 +294,5 @@ class Barrier
       end
     end
   end
+
 end

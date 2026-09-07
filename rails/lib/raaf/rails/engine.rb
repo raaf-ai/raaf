@@ -58,7 +58,6 @@ module RAAF
           inflect.acronym "RAAF"
         end
       end
-
       # Initialize the engine
       initializer "raaf-rails.initialize" do |app|
         # Install CORS only when the host application asks for it.

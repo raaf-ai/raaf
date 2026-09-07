@@ -301,7 +301,6 @@ module RAAF
       autoload :ConfigGenerator, "raaf/dsl/generators/config_generator"
     end
 
-
     # Configure the gem with a block
     #
     # @example
@@ -410,9 +409,7 @@ module RAAF
         begin
           const = const_get(const_name)
           # Recursively eager load nested modules that also support eager loading
-          if const.is_a?(Module) && const.respond_to?(:eager_load!)
-            const.eager_load!
-          end
+          const.eager_load! if const.is_a?(Module) && const.respond_to?(:eager_load!)
         rescue NameError, LoadError => e
           # Log any errors but don't fail the entire eager loading process
           # Use basic warn instead of Rails.logger since logger may not be available during initialization

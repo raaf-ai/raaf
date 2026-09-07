@@ -109,7 +109,7 @@ module RAAF
 
             # Increment policy evaluation counter if any succeeded
             policy.increment_evaluation_count! if results[:succeeded] > 0
-          rescue => e
+          rescue StandardError => e
             # Catastrophic failure (before any evaluator ran) - mark as failed
             queue_item.fail!(e.message, e.class.name) if queue_item.processing?
             raise
@@ -127,12 +127,12 @@ module RAAF
           # For manual evaluations, run all evaluators (all checks)
           # For automatic evaluations, only run evaluators with automatic trigger mode checks
           evaluators_to_run = if @manual_evaluation
-            RAAF.logger.info "[ContinuousEval] Manual evaluation - running all evaluators"
-            policy.evaluators_for_manual_evaluation
-          else
-            RAAF.logger.info "[ContinuousEval] Automatic evaluation - running only automatic trigger mode checks"
-            policy.evaluators_for_auto_evaluation
-          end
+                                RAAF.logger.info "[ContinuousEval] Manual evaluation - running all evaluators"
+                                policy.evaluators_for_manual_evaluation
+                              else
+                                RAAF.logger.info "[ContinuousEval] Automatic evaluation - running only automatic trigger mode checks"
+                                policy.evaluators_for_auto_evaluation
+                              end
 
           if evaluators_to_run.empty?
             RAAF.logger.info "[ContinuousEval] No evaluators to run (all checks may be manual trigger mode)"
@@ -140,7 +140,7 @@ module RAAF
           end
 
           evaluators_to_run.each do |evaluator_config|
-            evaluator_name = evaluator_config['name'] || evaluator_config[:name] || 'unknown'
+            evaluator_name = evaluator_config["name"] || evaluator_config[:name] || "unknown"
             begin
               execute_and_store_evaluator(span, policy, queue_item, evaluator_config)
               results[:succeeded] += 1
@@ -183,16 +183,16 @@ module RAAF
             trace_id: span.trace_id,
             evaluation_policy_id: policy.id,
             queue_item_id: queue_item.id,
-            evaluation_type: 'automated',
-            evaluator_name: evaluator_config['name'] || evaluator_config[:name],
-            evaluator_type: evaluator_config['type'] || evaluator_config[:type],
+            evaluation_type: "automated",
+            evaluator_name: evaluator_config["name"] || evaluator_config[:name],
+            evaluator_type: evaluator_config["type"] || evaluator_config[:type],
             evaluator_version: nil,
             agent_name: extract_agent_name(span),
             agent_version: extract_agent_version(span),
             model: extract_model(span),
             provider: extract_provider(span),
             environment: ::Rails.env,
-            status: 'error',
+            status: "error",
             score: nil,
             scores: {},
             metrics: extract_metrics(span),
@@ -207,14 +207,15 @@ module RAAF
             evaluation_completed_at: Time.current,
             metadata: { failure: true }
           )
-        rescue StandardError => store_error
+        rescue StandardError => e
           # Log but don't fail if we can't store the failure result
-          RAAF.logger.error "[ContinuousEval] Failed to store failure result: #{store_error.message}"
+          RAAF.logger.error "[ContinuousEval] Failed to store failure result: #{e.message}"
         end
 
         def find_span(span_id)
           span = RAAF::Rails::Tracing::SpanRecord.find_by(span_id: span_id)
           raise RAAF::Eval::SpanNotFoundError, "Span not found: #{span_id}" unless span
+
           span
         end
 
@@ -230,7 +231,7 @@ module RAAF
           ) do |item|
             item.priority = policy.priority
             item.max_attempts = policy.max_retries
-            item.status = 'pending'
+            item.status = "pending"
             item.scheduled_at = Time.current
           end
         end
@@ -246,28 +247,30 @@ module RAAF
           # Extract checks (enabled fields) from config
           # Checks are in format "field_name:evaluator_type" (e.g., "individual_scores:consistency")
           # We need to extract just the field name for filtering
-          checks = evaluator_config['checks'] || evaluator_config[:checks]
+          checks = evaluator_config["checks"] || evaluator_config[:checks]
           only_fields = if checks.present?
-            checks.map do |check|
-              # Extract field name from "field:evaluator" or just "field" format
-              field_name = check.to_s.split(':').first
-              field_name.to_sym
-            end.uniq
-          end
+                          checks.map do |check|
+                            # Extract field name from "field:evaluator" or just "field" format
+                            field_name = check.to_s.split(":").first
+                            field_name.to_sym
+                          end.uniq
+                        end
 
           # Check if this is a statistical evaluator that needs historical consistency or re-runs
-          evaluator_type = evaluator_config['type'] || evaluator_config[:type]
+          evaluator_type = evaluator_config["type"] || evaluator_config[:type]
 
           # Also check if any specific evaluators require statistical processing (consistency, no_regression)
           # This handles the case where evaluator_type is 'rule_based' but individual checks use 'consistency'
-          check_specific_evaluators = evaluator_config['check_specific_evaluators'] || evaluator_config[:check_specific_evaluators] || {}
-          has_statistical_checks = check_specific_evaluators.values.any? { |v| %w[consistency no_regression].include?(v) }
+          check_specific_evaluators = evaluator_config["check_specific_evaluators"] || evaluator_config[:check_specific_evaluators] || {}
+          has_statistical_checks = check_specific_evaluators.values.any? do |v|
+            %w[consistency no_regression].include?(v)
+          end
 
           ::Rails.logger.info "🔍 [EvaluationJob] evaluator_type from config: #{evaluator_type.inspect}"
           ::Rails.logger.info "🔍 [EvaluationJob] check_specific_evaluators: #{check_specific_evaluators.inspect}"
           ::Rails.logger.info "🔍 [EvaluationJob] has_statistical_checks: #{has_statistical_checks}"
 
-          if evaluator_type == 'statistical' || has_statistical_checks
+          if evaluator_type == "statistical" || has_statistical_checks
             # For statistical evaluators or checks with consistency/no_regression, use statistical path
             ::Rails.logger.info "🔬 [EvaluationJob] Taking STATISTICAL path"
             stat_result = execute_statistical_evaluator(span, evaluator, evaluator_config, only_fields)
@@ -298,7 +301,8 @@ module RAAF
           duration_ms = ((completed_at - started_at) * 1000).round
 
           # Store individual result for each checked field (with evaluation metadata)
-          store_per_field_results(span, policy, queue_item, evaluator_config, result, started_at, completed_at, duration_ms, only_fields, evaluation_metadata)
+          store_per_field_results(span, policy, queue_item, evaluator_config, result, started_at, completed_at,
+                                  duration_ms, only_fields, evaluation_metadata)
         end
 
         ##
@@ -315,34 +319,34 @@ module RAAF
           ::Rails.logger.info "🔬 [EvaluationJob] execute_statistical_evaluator called for fields: #{only_fields.inspect}"
 
           # Get trials configuration (default to 3)
-          check_trials = evaluator_config['check_trials'] || evaluator_config[:check_trials] || {}
+          check_trials = evaluator_config["check_trials"] || evaluator_config[:check_trials] || {}
           ::Rails.logger.info "🔬 [EvaluationJob] check_trials config: #{check_trials.inspect}"
-          default_trials = evaluator_config.dig('config', 'trials') ||
-                          evaluator_config.dig(:config, :trials) || 3
+          default_trials = evaluator_config.dig("config", "trials") ||
+                           evaluator_config.dig(:config, :trials) || 3
 
           # Get consistency mode configuration (default to "historical")
-          check_consistency_modes = evaluator_config['check_consistency_modes'] || evaluator_config[:check_consistency_modes] || {}
+          check_consistency_modes = evaluator_config["check_consistency_modes"] || evaluator_config[:check_consistency_modes] || {}
 
           # Get the original checks to find full check names (field:evaluator format)
-          checks = evaluator_config['checks'] || evaluator_config[:checks] || []
+          checks = evaluator_config["checks"] || evaluator_config[:checks] || []
 
           # Determine consistency mode - check per-field first, then default
           # check_consistency_modes uses full check names (e.g., "product_market_fit_score:consistency")
           # while only_fields contains just field names (e.g., :product_market_fit_score)
           primary_field = only_fields&.first&.to_s
           consistency_mode = if primary_field
-            # Find the full check name that starts with this field name
-            matching_check = checks.find { |c| c.to_s.split(':').first == primary_field }
-            if matching_check
-              RAAF.logger.info "[ContinuousEval] Looking up consistency_mode for check: #{matching_check}"
-              check_consistency_modes[matching_check] || check_consistency_modes[matching_check.to_s] || "historical"
-            else
-              # Fallback to just the field name
-              check_consistency_modes[primary_field] || check_consistency_modes[primary_field.to_sym] || "historical"
-            end
-          else
-            evaluator_config['consistency_mode'] || evaluator_config[:consistency_mode] || "historical"
-          end
+                               # Find the full check name that starts with this field name
+                               matching_check = checks.find { |c| c.to_s.split(":").first == primary_field }
+                               if matching_check
+                                 RAAF.logger.info "[ContinuousEval] Looking up consistency_mode for check: #{matching_check}"
+                                 check_consistency_modes[matching_check] || check_consistency_modes[matching_check.to_s] || "historical"
+                               else
+                                 # Fallback to just the field name
+                                 check_consistency_modes[primary_field] || check_consistency_modes[primary_field.to_sym] || "historical"
+                               end
+                             else
+                               evaluator_config["consistency_mode"] || evaluator_config[:consistency_mode] || "historical"
+                             end
 
           ::Rails.logger.info "🔬 [EvaluationJob] Determined consistency_mode: #{consistency_mode}"
           agent_name = extract_agent_name(span)
@@ -353,7 +357,8 @@ module RAAF
             execute_statistical_with_rerun(span, evaluator, evaluator_config, only_fields, check_trials, default_trials)
           else
             ::Rails.logger.info "📜 [EvaluationJob] Calling execute_statistical_with_historical"
-            execute_statistical_with_historical(span, evaluator, evaluator_config, only_fields, check_trials, default_trials, agent_name)
+            execute_statistical_with_historical(span, evaluator, evaluator_config, only_fields, check_trials,
+                                                default_trials, agent_name)
           end
         end
 
@@ -402,21 +407,19 @@ module RAAF
           run_results = []
           replay_usage = Hash.new(0)
           max_trials.times do |i|
-            begin
-              RAAF.logger.debug "[ContinuousEval] Replay #{i + 1}/#{max_trials} for #{agent_name}"
-              replay_result = replayer.replay
-              (replay_result[:usage] || {}).each { |key, value| replay_usage[key.to_sym] += value.to_i }
-              if replay_result[:success] && replay_result[:content].present?
-                # Parse the JSON response content
-                parsed_result = parse_replay_content(replay_result[:content])
-                run_results << parsed_result if parsed_result
-                ::Rails.logger.info "🔄 [EvaluationJob] Replay #{i + 1} succeeded, parsed keys: #{parsed_result&.keys&.first(5)}"
-              else
-                ::Rails.logger.warn "🔄 [EvaluationJob] Replay #{i + 1} failed: #{replay_result[:error]}"
-              end
-            rescue StandardError => e
-              RAAF.logger.warn "[ContinuousEval] Replay #{i + 1} failed: #{e.message}"
+            RAAF.logger.debug "[ContinuousEval] Replay #{i + 1}/#{max_trials} for #{agent_name}"
+            replay_result = replayer.replay
+            (replay_result[:usage] || {}).each { |key, value| replay_usage[key.to_sym] += value.to_i }
+            if replay_result[:success] && replay_result[:content].present?
+              # Parse the JSON response content
+              parsed_result = parse_replay_content(replay_result[:content])
+              run_results << parsed_result if parsed_result
+              ::Rails.logger.info "🔄 [EvaluationJob] Replay #{i + 1} succeeded, parsed keys: #{parsed_result&.keys&.first(5)}"
+            else
+              ::Rails.logger.warn "🔄 [EvaluationJob] Replay #{i + 1} failed: #{replay_result[:error]}"
             end
+          rescue StandardError => e
+            RAAF.logger.warn "[ContinuousEval] Replay #{i + 1} failed: #{e.message}"
           end
 
           RAAF.logger.info "[ContinuousEval] Replay completed: #{run_results.size}/#{max_trials} successful runs"
@@ -429,7 +432,8 @@ module RAAF
 
           # Build span_data with replay values for ALL fields from the shared runs
           # Pass evaluator_config to enable transform_span_data and field selector lookup
-          span_data = build_rerun_span_data(span, run_results, only_fields, check_trials, default_trials, evaluator_config: evaluator_config)
+          span_data = build_rerun_span_data(span, run_results, only_fields, check_trials, default_trials,
+                                            evaluator_config: evaluator_config)
           ::Rails.logger.info "🔄 [EvaluationJob] span_data[:product_market_fit_score]: #{span_data[:product_market_fit_score].inspect}"
           ::Rails.logger.info "🔄 [EvaluationJob] span_data[:industry_score]: #{span_data[:industry_score].inspect}"
 
@@ -473,9 +477,9 @@ module RAAF
 
           # Strip markdown code fences if present
           clean_content = content
-            .gsub(/\A```(?:json)?\s*\n?/, '')
-            .gsub(/\n?```\s*\z/, '')
-            .strip
+                          .gsub(/\A```(?:json)?\s*\n?/, "")
+                          .gsub(/\n?```\s*\z/, "")
+                          .strip
 
           parsed = JSON.parse(clean_content)
           deep_symbolize_keys(parsed)
@@ -509,7 +513,8 @@ module RAAF
             evaluation_metadata[:attempted_reruns] = attempted_reruns if attempted_reruns
             evaluation_metadata[:successful_reruns] = successful_reruns if successful_reruns
             evaluation_metadata[:fallback_mode] = "historical"
-            evaluation_metadata[:note] = "Complex agents with incremental processing may not support re-run mode. Using historical spans instead."
+            evaluation_metadata[:note] =
+              "Complex agents with incremental processing may not support re-run mode. Using historical spans instead."
           end
 
           # Refuse rather than grade what cannot be compared. Without a repeat
@@ -519,11 +524,11 @@ module RAAF
           # honest missing one.
           if historical_spans.empty?
             reason = if span_input_digest(span).nil?
-              "The span records no input messages to key on"
-            else
-              "No recorded #{agent_name} span shares this span's input (scanned up to the " \
-              "#{HISTORICAL_SCAN_LIMIT} most recent)"
-            end
+                       "The span records no input messages to key on"
+                     else
+                       "No recorded #{agent_name} span shares this span's input (scanned up to the " \
+                         "#{HISTORICAL_SCAN_LIMIT} most recent)"
+                     end
             raise RAAF::Eval::NoComparableSpansError,
                   "#{reason}. Historical consistency compares repeats of the same question; comparing spans " \
                   "with different inputs would report population variance as inconsistency, so it refuses instead."
@@ -535,7 +540,8 @@ module RAAF
           # For consistency evaluation, we need to merge values from multiple spans
           span_data = build_historical_span_data(span, historical_spans, only_fields, check_trials, default_trials,
                                                  evaluator_config: evaluator_config)
-          evaluation_metadata = evaluation_metadata.merge(mode: "historical", historical_spans_found: historical_spans.size)
+          evaluation_metadata = evaluation_metadata.merge(mode: "historical",
+                                                          historical_spans_found: historical_spans.size)
 
           # Execute evaluation
           result = evaluator.evaluate(span_data, only_fields: only_fields)
@@ -559,20 +565,18 @@ module RAAF
 
           # Try common AI agent namespaces
           %w[Ai::Agents:: Agents:: ::].each do |namespace|
-            begin
-              full_name = "#{namespace}#{agent_name}"
-              klass = full_name.constantize
-              return klass if klass.respond_to?(:new)
-            rescue NameError
-              # Continue to next namespace
-            end
+            full_name = "#{namespace}#{agent_name}"
+            klass = full_name.constantize
+            return klass if klass.respond_to?(:new)
+          rescue NameError
+            # Continue to next namespace
           end
 
           # Try converting agent_name from "DomainActionAgent" format to "Ai::Agents::Domain::Action"
           # e.g., "ProspectScoringAgent" → "Ai::Agents::Prospect::Scoring"
-          if agent_name.end_with?('Agent')
+          if agent_name.end_with?("Agent")
             # Remove "Agent" suffix
-            name_without_agent = agent_name.sub(/Agent$/, '')
+            name_without_agent = agent_name.sub(/Agent$/, "")
             # Split on capital letters to get parts: "ProspectScoring" → ["Prospect", "Scoring"]
             parts = name_without_agent.scan(/[A-Z][a-z0-9]*/)
             if parts.size >= 2
@@ -598,17 +602,17 @@ module RAAF
           attrs = span.span_attributes || {}
 
           # Try various locations for input
-          input = attrs['agent.input'] || attrs['input']
+          input = attrs["agent.input"] || attrs["input"]
           return input if input.present?
 
           # Try to extract from conversation messages
-          messages_json = attrs['agent.conversation_messages']
+          messages_json = attrs["agent.conversation_messages"]
           return nil unless messages_json
 
           begin
             messages = messages_json.is_a?(String) ? JSON.parse(messages_json) : messages_json
-            user_messages = messages.select { |m| m['role'] == 'user' }
-            user_messages.first&.dig('content')
+            user_messages = messages.select { |m| m["role"] == "user" }
+            user_messages.first&.dig("content")
           rescue JSON::ParserError
             nil
           end
@@ -623,7 +627,7 @@ module RAAF
           attrs = span.span_attributes || {}
 
           # Try to get context from span attributes first
-          context_json = attrs['agent.context'] || attrs['context']
+          context_json = attrs["agent.context"] || attrs["context"]
           ::Rails.logger.info "🔧 [EvaluationJob] context_json from attrs: #{context_json.present? ? 'present' : 'nil'}"
           if context_json.present?
             begin
@@ -643,13 +647,13 @@ module RAAF
             begin
               # Strip markdown code fence if present (handle both ``` and ```json)
               ::Rails.logger.info "🔧 [EvaluationJob] Input first 100 chars: #{input.first(100).inspect}"
-              clean_input = input.gsub(/\A```(?:json)?\s*\n?/, '').gsub(/\n?```\s*\z/, '')
+              clean_input = input.gsub(/\A```(?:json)?\s*\n?/, "").gsub(/\n?```\s*\z/, "")
               ::Rails.logger.info "🔧 [EvaluationJob] Clean input first 100 chars: #{clean_input.first(100).inspect}"
               parsed = JSON.parse(clean_input)
               ::Rails.logger.info "🔧 [EvaluationJob] Parsed JSON keys: #{parsed.keys.first(5)}"
-              if parsed.is_a?(Hash) && parsed['input_data'].is_a?(Hash)
+              if parsed.is_a?(Hash) && parsed["input_data"].is_a?(Hash)
                 ::Rails.logger.info "🔧 [EvaluationJob] ✅ Extracted context from input_data with keys: #{parsed['input_data'].keys.first(5)}"
-                return deep_symbolize_keys(parsed['input_data'])
+                return deep_symbolize_keys(parsed["input_data"])
               else
                 ::Rails.logger.info "🔧 [EvaluationJob] input_data not found or not a Hash"
               end
@@ -679,10 +683,10 @@ module RAAF
           # which may try to call AR methods on deserialized (hash) context objects.
           # For consistency evaluation, we want full reprocessing anyway.
           rerun_context = if context.present?
-            context.merge(force_reprocess: true)
-          else
-            { force_reprocess: true }
-          end
+                            context.merge(force_reprocess: true)
+                          else
+                            { force_reprocess: true }
+                          end
 
           # Instantiate the agent with context (RAAF DSL agents get all data from context)
           ::Rails.logger.info "🏃 [EvaluationJob] Instantiating agent with context (force_reprocess: true): #{rerun_context.keys}"
@@ -743,14 +747,15 @@ module RAAF
         # @param default_trials [Integer] Default number of trials
         # @param evaluator_config [Hash] Evaluator configuration for transformation lookup
         # @return [Hash] Span data with arrays for consistency evaluation
-        def build_rerun_span_data(span, run_results, only_fields, check_trials = {}, default_trials = 3, evaluator_config: nil)
+        def build_rerun_span_data(span, run_results, only_fields, check_trials = {}, default_trials = 3,
+                                  evaluator_config: nil)
           current_data = span_to_result_hash(span)
           ::Rails.logger.info "📦 [EvaluationJob] build_rerun_span_data called with #{run_results.size} results for fields: #{only_fields.inspect}"
 
           # Get the custom evaluator class for transformation
           evaluator_class = nil
           if evaluator_config
-            evaluator_name = evaluator_config['name'] || evaluator_config[:name]
+            evaluator_name = evaluator_config["name"] || evaluator_config[:name]
             evaluator_class = RAAF::Eval::Continuous::EvaluatorDiscovery.find_custom_evaluator_by_name(evaluator_name)
             ::Rails.logger.info "📦 [EvaluationJob] Found evaluator class: #{evaluator_class}" if evaluator_class
           end
@@ -820,8 +825,8 @@ module RAAF
           # Fallback: try common nested patterns for scoring agents
           # Pattern: prospect_evaluations.*.criterion_scores.<criterion>.score
           # where <criterion> maps to field names like industry_score -> industry
-          if field_name.to_s.end_with?('_score')
-            criterion_code = field_name.to_s.sub(/_score$/, '')
+          if field_name.to_s.end_with?("_score")
+            criterion_code = field_name.to_s.sub(/_score$/, "")
             val = extract_criterion_score(result, criterion_code)
             return val if val.present?
           end
@@ -836,7 +841,7 @@ module RAAF
         # @param path [String] Dot-notation path (e.g., "prospect_evaluations.*.criterion_scores.industry.score")
         # @return [Object, nil] The extracted value(s)
         def extract_value_by_path(data, path)
-          parts = path.split('.')
+          parts = path.split(".")
           extract_value_by_parts(data, parts)
         end
 
@@ -852,20 +857,21 @@ module RAAF
           current_part = parts.first
           remaining_parts = parts.drop(1)
 
-          if current_part == '*'
+          if current_part == "*"
             # Wildcard: data should be an array, iterate and continue with remaining path
             return nil unless data.is_a?(Array)
 
-            if remaining_parts.empty?
-              return data # Return the array itself if no remaining path
-            else
-              # For simplicity, return the first match from the array
-              data.each do |item|
-                val = extract_value_by_parts(item, remaining_parts)
-                return val if val.present?
-              end
-              return nil
+            return data if remaining_parts.empty?
+
+            # Return the array itself if no remaining path
+
+            # For simplicity, return the first match from the array
+            data.each do |item|
+              val = extract_value_by_parts(item, remaining_parts)
+              return val if val.present?
             end
+            nil
+
           elsif data.is_a?(Hash)
             next_data = data[current_part.to_sym] || data[current_part.to_s]
             extract_value_by_parts(next_data, remaining_parts)
@@ -884,22 +890,22 @@ module RAAF
         # @return [Object, nil] The score value
         def extract_criterion_score(result, criterion_code)
           result = result.to_h.with_indifferent_access if result.respond_to?(:to_h)
-          evaluations = result[:prospect_evaluations] || result['prospect_evaluations'] || []
+          evaluations = result[:prospect_evaluations] || result["prospect_evaluations"] || []
           return nil if evaluations.empty?
 
           first_eval = evaluations.first
-          criterion_scores = first_eval[:criterion_scores] || first_eval['criterion_scores']
+          criterion_scores = first_eval[:criterion_scores] || first_eval["criterion_scores"]
           return nil unless criterion_scores
 
           # Handle both array format (original) and hash format (transformed)
           if criterion_scores.is_a?(Hash)
             # Hash format: criterion_scores[criterion_code][:score]
             criterion = criterion_scores[criterion_code.to_sym] || criterion_scores[criterion_code.to_s]
-            criterion[:score] || criterion['score'] if criterion
+            criterion[:score] || criterion["score"] if criterion
           elsif criterion_scores.is_a?(Array)
             # Array format: find by criterion_code
-            cs = criterion_scores.find { |c| (c[:criterion_code] || c['criterion_code']) == criterion_code }
-            cs[:score] || cs['score'] if cs
+            cs = criterion_scores.find { |c| (c[:criterion_code] || c["criterion_code"]) == criterion_code }
+            cs[:score] || cs["score"] if cs
           end
         end
 
@@ -940,12 +946,15 @@ module RAAF
         # @return [String, nil] digest, or nil when the span records no input
         def span_input_digest(span)
           attrs = span.span_attributes || {}
-          messages_json = attrs['agent.conversation_messages']
+          messages_json = attrs["agent.conversation_messages"]
           return nil if messages_json.blank?
 
           messages = messages_json.is_a?(String) ? JSON.parse(messages_json) : messages_json
-          input = messages.reject { |message| (message['role'] || message[:role]).to_s == 'assistant' }
-                          .map { |message| [(message['role'] || message[:role]), (message['content'] || message[:content])] }
+          input = messages.reject { |message| (message["role"] || message[:role]).to_s == "assistant" }
+                          .map do |message|
+            [message["role"] || message[:role],
+             message["content"] || message[:content]]
+          end
           return nil if input.empty?
 
           Digest::SHA256.hexdigest(JSON.generate(input))
@@ -967,12 +976,13 @@ module RAAF
         # @param default_trials [Integer] Default number of trials
         # @param evaluator_config [Hash, nil] Evaluator configuration for transformation lookup
         # @return [Hash] Span data with historical values
-        def build_historical_span_data(span, historical_spans, only_fields, check_trials, default_trials, evaluator_config: nil)
+        def build_historical_span_data(span, historical_spans, only_fields, check_trials, default_trials,
+                                       evaluator_config: nil)
           current_data = span_to_result_hash(span)
 
           evaluator_class = nil
           if evaluator_config
-            evaluator_name = evaluator_config['name'] || evaluator_config[:name]
+            evaluator_name = evaluator_config["name"] || evaluator_config[:name]
             evaluator_class = RAAF::Eval::Continuous::EvaluatorDiscovery.find_custom_evaluator_by_name(evaluator_name)
           end
           field_selections = evaluator_class.respond_to?(:field_selections) ? evaluator_class.field_selections : []
@@ -1026,7 +1036,7 @@ module RAAF
           result_hash = {
             agent_name: extract_agent_name(span),
             model: extract_model(span),
-            input_messages: extract_messages(span, 'user'),
+            input_messages: extract_messages(span, "user"),
             output: extract_output_text(span),
             output_text: extract_output_text(span),
             tool_calls: extract_tool_calls(span),
@@ -1057,9 +1067,10 @@ module RAAF
         # @param duration_ms [Integer] Total duration in milliseconds
         # @param only_fields [Array<Symbol>, nil] Fields that were evaluated (nil = all)
         # @param evaluation_metadata [Hash] Additional metadata about the evaluation execution (mode, fallback info, etc.)
-        def store_per_field_results(span, policy, queue_item, evaluator_config, result, started_at, completed_at, duration_ms, only_fields, evaluation_metadata = {})
-          evaluator_name = evaluator_config['name'] || evaluator_config[:name]
-          evaluator_type = evaluator_config['type'] || evaluator_config[:type]
+        def store_per_field_results(span, policy, queue_item, evaluator_config, result, started_at, completed_at,
+                                    duration_ms, only_fields, evaluation_metadata = {})
+          evaluator_name = evaluator_config["name"] || evaluator_config[:name]
+          evaluator_type = evaluator_config["type"] || evaluator_config[:type]
 
           # Get field results and individual evaluator results
           field_results = result.field_results
@@ -1067,10 +1078,10 @@ module RAAF
 
           # Filter to only the checked fields if specified
           fields_to_store = if only_fields.present?
-            field_results.select { |field_name, _| only_fields.include?(field_name.to_sym) }
-          else
-            field_results
-          end
+                              field_results.select { |field_name, _| only_fields.include?(field_name.to_sym) }
+                            else
+                              field_results
+                            end
 
           # Calculate duration per field (approximate)
           per_field_duration = fields_to_store.any? ? (duration_ms / fields_to_store.size) : duration_ms
@@ -1089,9 +1100,9 @@ module RAAF
             # Extract reasoning from multiple possible locations
             # Evaluators may store it at top level or inside details
             reasoning = field_result[:reasoning] ||
-                       field_result.dig(:details, :reasoning) ||
-                       field_result.dig(:details, "reasoning") ||
-                       field_result[:message]  # Fallback to message if no reasoning
+                        field_result.dig(:details, :reasoning) ||
+                        field_result.dig(:details, "reasoning") ||
+                        field_result[:message] # Fallback to message if no reasoning
 
             # Get the specific evaluators used for this field
             # evaluator_results[field_name] is a hash keyed by evaluator alias
@@ -1109,14 +1120,17 @@ module RAAF
             }.merge(evaluation_metadata)
 
             spend = evaluation_spend(field_result, field_evaluators)
-            spend[:evaluation_cost] = (spend[:evaluation_cost] + per_field_replay_cost).round(6) if per_field_replay_cost.positive?
+            if per_field_replay_cost.positive?
+              spend[:evaluation_cost] =
+                (spend[:evaluation_cost] + per_field_replay_cost).round(6)
+            end
 
             RAAF::Eval::Models::ContinuousEvaluationResult.create!(
               span_id: span.span_id,
               trace_id: span.trace_id,
               evaluation_policy_id: policy.id,
               queue_item_id: queue_item.id,
-              evaluation_type: 'automated',
+              evaluation_type: "automated",
               evaluator_name: evaluator_name,
               evaluator_type: evaluator_type,
               evaluator_version: nil,
@@ -1156,7 +1170,7 @@ module RAAF
         # @return [String, nil] Markdown-formatted result or nil if no formatter defined
         def generate_formatted_result(evaluator_config, field_name, field_result, span_data)
           # Get the evaluator name from config
-          evaluator_name = evaluator_config['name'] || evaluator_config[:name]
+          evaluator_name = evaluator_config["name"] || evaluator_config[:name]
           return nil unless evaluator_name
 
           # Find the evaluator class using EvaluatorDiscovery
@@ -1166,17 +1180,13 @@ module RAAF
             # Priority 1: Per-field result_format block
             if evaluator_class.respond_to?(:field_result_formatter_for)
               field_formatter = evaluator_class.field_result_formatter_for(field_name)
-              if field_formatter
-                return field_formatter.call(field_result, span_data)
-              end
+              return field_formatter.call(field_result, span_data) if field_formatter
             end
 
             # Priority 2: Evaluator-level result_format block
             if evaluator_class.respond_to?(:result_formatter_block)
               evaluator_formatter = evaluator_class.result_formatter_block
-              if evaluator_formatter
-                return evaluator_formatter.call(field_result, span_data)
-              end
+              return evaluator_formatter.call(field_result, span_data) if evaluator_formatter
             end
           end
 
@@ -1200,9 +1210,7 @@ module RAAF
           builtin_class = detect_builtin_evaluator_class(details)
           return nil unless builtin_class
 
-          if builtin_class.respond_to?(:format_result)
-            return builtin_class.format_result(field_result)
-          end
+          return builtin_class.format_result(field_result) if builtin_class.respond_to?(:format_result)
 
           nil
         end
@@ -1213,15 +1221,15 @@ module RAAF
         # @return [Class, nil] The evaluator class or nil
         def detect_builtin_evaluator_class(details)
           # Consistency evaluator: has coefficient_of_variation
-          if details[:coefficient_of_variation] || details['coefficient_of_variation']
-            return RAAF::Eval::Evaluators::Statistical::Consistency if defined?(RAAF::Eval::Evaluators::Statistical::Consistency)
+          if (details[:coefficient_of_variation] || details["coefficient_of_variation"]) && defined?(RAAF::Eval::Evaluators::Statistical::Consistency)
+            return RAAF::Eval::Evaluators::Statistical::Consistency
           end
 
           # NoRegression evaluator: has no_baseline, drop, or max_drop
-          if details[:no_baseline] || details['no_baseline'] ||
-             details[:drop] || details['drop'] ||
-             details[:max_drop] || details['max_drop']
-            return RAAF::Eval::Evaluators::Regression::NoRegression if defined?(RAAF::Eval::Evaluators::Regression::NoRegression)
+          if (details[:no_baseline] || details["no_baseline"] ||
+             details[:drop] || details["drop"] ||
+             details[:max_drop] || details["max_drop"]) && defined?(RAAF::Eval::Evaluators::Regression::NoRegression)
+            return RAAF::Eval::Evaluators::Regression::NoRegression
           end
 
           nil
@@ -1251,9 +1259,9 @@ module RAAF
             trace_id: span.trace_id,
             evaluation_policy_id: policy.id,
             queue_item_id: queue_item.id,
-            evaluation_type: 'automated',
-            evaluator_name: evaluator_config['name'] || evaluator_config[:name],
-            evaluator_type: evaluator_config['type'] || evaluator_config[:type],
+            evaluation_type: "automated",
+            evaluator_name: evaluator_config["name"] || evaluator_config[:name],
+            evaluator_type: evaluator_config["type"] || evaluator_config[:type],
             evaluator_version: nil, # TODO: Add version tracking
             agent_name: extract_agent_name(span),
             agent_version: extract_agent_version(span),
@@ -1295,32 +1303,32 @@ module RAAF
 
         def extract_agent_name(span)
           attrs = span.span_attributes || {}
-          attrs['agent.name'] || attrs['agent_name'] || 'unknown'
+          attrs["agent.name"] || attrs["agent_name"] || "unknown"
         end
 
         def extract_agent_version(span)
           attrs = span.span_attributes || {}
-          attrs['agent_version']
+          attrs["agent_version"]
         end
 
         def extract_model(span)
           attrs = span.span_attributes || {}
-          attrs['agent.model'] || attrs['model']
+          attrs["agent.model"] || attrs["model"]
         end
 
         def extract_provider(span)
           attrs = span.span_attributes || {}
-          attrs['provider']
+          attrs["provider"]
         end
 
         def extract_messages(span, role)
           attrs = span.span_attributes || {}
-          messages_json = attrs['agent.conversation_messages']
+          messages_json = attrs["agent.conversation_messages"]
           return [] unless messages_json
 
           begin
             messages = messages_json.is_a?(String) ? JSON.parse(messages_json) : messages_json
-            messages.select { |m| m['role'] == role }.map { |m| m['content'] }
+            messages.select { |m| m["role"] == role }.map { |m| m["content"] }
           rescue JSON::ParserError
             []
           end
@@ -1328,7 +1336,7 @@ module RAAF
 
         def extract_output_text(span)
           attrs = span.span_attributes || {}
-          attrs['agent.final_agent_response'] || ''
+          attrs["agent.final_agent_response"] || ""
         end
 
         ##
@@ -1337,7 +1345,7 @@ module RAAF
         # @return [Hash, nil] Parsed response hash with symbolized keys, or nil if parsing fails
         def parse_agent_response(span)
           attrs = span.span_attributes || {}
-          response_text = attrs['agent.final_agent_response']
+          response_text = attrs["agent.final_agent_response"]
           return nil if response_text.blank?
 
           begin
@@ -1369,7 +1377,7 @@ module RAAF
 
         def extract_tool_calls(span)
           attrs = span.span_attributes || {}
-          tool_executions = attrs['agent.tool_executions']
+          tool_executions = attrs["agent.tool_executions"]
           return [] unless tool_executions
 
           begin
@@ -1419,9 +1427,9 @@ module RAAF
           {
             evaluation_cost: cost.round(6),
             evaluation_models: usages.keys,
-            evaluation_usage: usages.values.each_with_object(Hash.new(0)) { |usage, totals|
+            evaluation_usage: usages.values.each_with_object(Hash.new(0)) do |usage, totals|
               usage.each { |key, value| totals[key] += value }
-            }
+            end
           }
         end
 
@@ -1433,7 +1441,7 @@ module RAAF
         #
         # @return [Hash{String => Hash}] usage totals keyed by judge model
         def collect_judge_usages(field_result, field_evaluators)
-          candidates = [ field_result ] + Array(field_evaluators&.values)
+          candidates = [field_result] + Array(field_evaluators&.values)
 
           candidates.each_with_object({}) do |result, totals|
             details = result.is_a?(Hash) ? (result[:details] || result["details"]) : nil
@@ -1454,15 +1462,16 @@ module RAAF
           # SpanRecord uses start_time and end_time, not started_at and ended_at
           return span.duration_ms if span.duration_ms
           return nil unless span.start_time && span.end_time
+
           ((span.end_time - span.start_time) * 1000).round
         end
 
         def extract_token_usage(span)
           attrs = span.span_attributes || {}
           {
-            input_tokens: attrs['input_tokens']&.to_i || 0,
-            output_tokens: attrs['output_tokens']&.to_i || 0,
-            total_tokens: attrs['total_tokens']&.to_i || 0
+            input_tokens: attrs["input_tokens"]&.to_i || 0,
+            output_tokens: attrs["output_tokens"]&.to_i || 0,
+            total_tokens: attrs["total_tokens"]&.to_i || 0
           }
         end
 

@@ -266,7 +266,7 @@ module RAAF
 
             # Calculate regression coefficient
             numerator = lengths.zip(scores).sum { |l, s| (l - mean_length) * (s - mean_score) }
-            denominator = lengths.sum { |l| (l - mean_length) ** 2 }
+            denominator = lengths.sum { |l| (l - mean_length)**2 }
             beta = denominator.zero? ? 0 : numerator / denominator
 
             # Adjust scores
@@ -292,8 +292,8 @@ module RAAF
             mean_y = y.sum.to_f / n
 
             numerator = x.zip(y).sum { |xi, yi| (xi - mean_x) * (yi - mean_y) }
-            denom_x = Math.sqrt(x.sum { |xi| (xi - mean_x) ** 2 })
-            denom_y = Math.sqrt(y.sum { |yi| (yi - mean_y) ** 2 })
+            denom_x = Math.sqrt(x.sum { |xi| (xi - mean_x)**2 })
+            denom_y = Math.sqrt(y.sum { |yi| (yi - mean_y)**2 })
 
             denominator = denom_x * denom_y
             return 0.0 if denominator.zero?
@@ -305,7 +305,7 @@ module RAAF
             return 0.0 if values.size < 2
 
             mean = values.sum.to_f / values.size
-            variance = values.sum { |v| (v - mean) ** 2 } / (values.size - 1)
+            variance = values.sum { |v| (v - mean)**2 } / (values.size - 1)
             Math.sqrt(variance)
           end
 
@@ -325,7 +325,7 @@ module RAAF
         class FormatBiasAnalyzer
           FORMAT_INDICATORS = {
             markdown_headers: /^#+\s/m,
-            bullet_lists: /^[\-\*]\s/m,
+            bullet_lists: /^[-*]\s/m,
             numbered_lists: /^\d+\.\s/m,
             code_blocks: /```/,
             bold_text: /\*\*[^*]+\*\*/,
@@ -380,7 +380,7 @@ module RAAF
             mean_0 = group_0.sum.to_f / group_0.size
 
             overall_mean = continuous_var.sum.to_f / n
-            overall_std = Math.sqrt(continuous_var.sum { |v| (v - overall_mean) ** 2 } / n)
+            overall_std = Math.sqrt(continuous_var.sum { |v| (v - overall_mean)**2 } / n)
 
             return 0.0 if overall_std.zero?
 
@@ -462,7 +462,7 @@ module RAAF
             return 0.0 if values.size < 2
 
             mean = values.sum.to_f / values.size
-            values.sum { |v| (v - mean) ** 2 } / (values.size - 1)
+            values.sum { |v| (v - mean)**2 } / (values.size - 1)
           end
         end
       end

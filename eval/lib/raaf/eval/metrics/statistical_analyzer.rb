@@ -17,10 +17,10 @@ module RAAF
 
             mean = values.sum.to_f / values.size
             std_dev = standard_deviation(values, mean)
-            
+
             # Using t-distribution approximation
             margin = 1.96 * (std_dev / Math.sqrt(values.size))
-            
+
             {
               min: mean - margin,
               max: mean + margin,
@@ -46,12 +46,12 @@ module RAAF
 
             # Pooled standard deviation
             pooled_std = Math.sqrt(
-              ((baseline_std**2 / baseline_values.size) + (result_std**2 / result_values.size))
+              ((baseline_std**2) / baseline_values.size) + ((result_std**2) / result_values.size)
             )
 
             # T-statistic
             t_stat = (result_mean - baseline_mean) / pooled_std
-            
+
             # Approximate p-value (simplified)
             p_value = 2 * (1 - normal_cdf(t_stat.abs))
 
@@ -79,7 +79,7 @@ module RAAF
             result_std = standard_deviation(result_values, result_mean)
 
             # Pooled standard deviation
-            pooled_std = Math.sqrt((baseline_std**2 + result_std**2) / 2)
+            pooled_std = Math.sqrt(((baseline_std**2) + (result_std**2)) / 2)
 
             cohens_d = (result_mean - baseline_mean) / pooled_std
 

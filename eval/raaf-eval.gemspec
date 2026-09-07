@@ -42,9 +42,9 @@ Gem::Specification.new do |spec|
   spec.add_dependency "pg", "~> 1.5"
 
   # NLP and statistical analysis
+  spec.add_dependency "matrix", "~> 0.4"
   spec.add_dependency "rouge", "~> 4.0"
   spec.add_dependency "ruby-statistics", "~> 3.0"
-  spec.add_dependency "matrix", "~> 0.4"
 
   # JSON handling
   spec.add_dependency "json", "~> 2.0"
@@ -56,11 +56,13 @@ Gem::Specification.new do |spec|
   spec.add_dependency "ostruct", "~> 0.6"
 
   # Development dependencies
-  spec.add_development_dependency "bundler", "~> 2.0"
+  spec.add_development_dependency "database_cleaner-active_record", "~> 2.0"
+  spec.add_development_dependency "factory_bot", "~> 6.2"
   spec.add_development_dependency "rake", "~> 13.0"
   spec.add_development_dependency "rspec", "~> 3.0"
   spec.add_development_dependency "rubocop", "~> 1.21"
-  spec.add_development_dependency "factory_bot", "~> 6.2"
-  spec.add_development_dependency "database_cleaner-active_record", "~> 2.0"
+  spec.add_development_dependency "rubocop-rails"
+  spec.add_development_dependency "rubocop-rake"
+  spec.add_development_dependency "rubocop-rspec", "~> 3.0"
   spec.add_development_dependency "timecop", "~> 0.9"
 end

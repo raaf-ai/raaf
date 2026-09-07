@@ -8,9 +8,9 @@ module RAAF
     module Prompts
       # Base class for AI prompts with Phlex-inspired design and automatic context access
       #
-      # This class provides a clean, convention-over-configuration way to build AI prompts 
-      # using heredocs for natural text writing with Ruby interpolation support. Context 
-      # variables are automatically accessible via method_missing without requiring 
+      # This class provides a clean, convention-over-configuration way to build AI prompts
+      # using heredocs for natural text writing with Ruby interpolation support. Context
+      # variables are automatically accessible via method_missing without requiring
       # explicit declarations.
       #
       # Key features:
@@ -82,10 +82,8 @@ module RAAF
           super
         end
 
-
         # Schema functionality has been moved to agent classes
         # Prompts now focus purely on content generation
-
 
         def initialize(**kwargs)
           @context = kwargs
@@ -158,7 +156,6 @@ module RAAF
           raise NotImplementedError, "Subclasses must implement #user"
         end
 
-
         # Render both prompts as a hash (for compatibility with PromptLoader)
         def render_messages
           {
@@ -181,53 +178,48 @@ module RAAF
         def dry_run_validation!
           # Skip if no context to validate
           return if @context.nil? || @context.empty?
-          
+
           # Create spy context
           spy = RAAF::DSL::ContextSpy.new(@context)
-          
+
           # Track original context
           original_context = @context
           original_context_variables = @context_variables
-          
+
           begin
             # Replace with spy
             @context = spy
             @context_variables = spy if @context_variables
-            
+
             # Try to render both prompts (ignore errors, just track access)
-            [:system, :user].each do |prompt_type|
-              begin
-                render(prompt_type)
-              rescue => e
-                # Ignore errors during dry run, we're just tracking access
-              end
+            %i[system user].each do |prompt_type|
+              render(prompt_type)
+            rescue StandardError
+              # Ignore errors during dry run, we're just tracking access
             end
-            
           ensure
             # Restore original context
             @context = original_context
             @context_variables = original_context_variables
           end
-          
+
           # Report missing variables
           if spy.missing_variables.any?
             # Try to find suggestions for missing variables
             suggestions = find_suggestions_for(spy.missing_variables, original_context.keys)
-            
-            error_msg = "Context validation failed for #{self.class.name}:\n" \
-                        "  Missing variables: #{spy.missing_variables.uniq.inspect}\n" \
-                        "  Available context: #{original_context.keys.inspect}\n" \
-                        "  Accessed variables: #{spy.accessed_variables.uniq.inspect}\n"
-            
-            if suggestions.any?
-              error_msg += "\n  Did you mean? #{suggestions.inspect}"
-            end
-            
+
+            error_msg = "Context validation failed for #{self.class.name}:\n  " \
+                        "Missing variables: #{spy.missing_variables.uniq.inspect}\n  " \
+                        "Available context: #{original_context.keys.inspect}\n  " \
+                        "Accessed variables: #{spy.accessed_variables.uniq.inspect}\n"
+
+            error_msg += "\n  Did you mean? #{suggestions.inspect}" if suggestions.any?
+
             error_msg += "\n\nThis error was detected during dry-run validation before executing any agents."
-            
+
             raise RAAF::DSL::Error, error_msg
           end
-          
+
           true
         end
 
@@ -235,7 +227,7 @@ module RAAF
         def validate_context
           dry_run_validation!
           true
-        rescue RAAF::DSL::Error => e
+        rescue RAAF::DSL::Error
           false
         end
 
@@ -243,51 +235,49 @@ module RAAF
 
         # Render a specific prompt method
         def render_prompt(type)
-          begin
-            # Call the method and get its return value
-            content = send(type)
+          # Call the method and get its return value
+          content = send(type)
 
-            # If it's an array (multiple heredocs), join them
-            if content.is_a?(Array)
-              content.map(&:to_s).map(&:rstrip).join("\n\n")
-            else
-              content.to_s.rstrip
-            end
-          rescue StandardError => e
-            # Re-raise with additional context but preserve the original error and stack trace
-            raise e.class, "Error in #{type} method of #{self.class.name}: #{e.message}", e.backtrace
+          # If it's an array (multiple heredocs), join them
+          if content.is_a?(Array)
+            content.map(&:to_s).map(&:rstrip).join("\n\n")
+          else
+            content.to_s.rstrip
           end
+        rescue StandardError => e
+          # Re-raise with additional context but preserve the original error and stack trace
+          raise e.class, "Error in #{type} method of #{self.class.name}: #{e.message}", e.backtrace
         end
 
         private
 
         def find_suggestions_for(missing_vars, available_keys)
           suggestions = {}
-          
+
           missing_vars.each do |missing|
             missing_str = missing.to_s
-            
+
             # Find similar keys (pluralization, partial matches)
             similar = available_keys.select do |key|
               key_str = key.to_s
-              
+
               # Basic pluralization/singularization (simple approach)
-              missing_singular = missing_str.end_with?('s') ? missing_str.chomp('s') : missing_str
-              missing_plural = missing_str.end_with?('s') ? missing_str : "#{missing_str}s"
-              key_singular = key_str.end_with?('s') ? key_str.chomp('s') : key_str
-              key_plural = key_str.end_with?('s') ? key_str : "#{key_str}s"
-              
+              missing_singular = missing_str.end_with?("s") ? missing_str.chomp("s") : missing_str
+              missing_plural = missing_str.end_with?("s") ? missing_str : "#{missing_str}s"
+              key_singular = key_str.end_with?("s") ? key_str.chomp("s") : key_str
+              key_plural = key_str.end_with?("s") ? key_str : "#{key_str}s"
+
               # Check for matches
               key_str.include?(missing_singular) ||
-              key_str.include?(missing_plural) ||
-              missing_str.include?(key_singular) ||
-              missing_str.include?(key_plural) ||
-              (key_singular == missing_singular && key_singular != key_str)
+                key_str.include?(missing_plural) ||
+                missing_str.include?(key_singular) ||
+                missing_str.include?(key_plural) ||
+                (key_singular == missing_singular && key_singular != key_str)
             end
-            
+
             suggestions[missing] = similar unless similar.empty?
           end
-          
+
           suggestions
         end
 

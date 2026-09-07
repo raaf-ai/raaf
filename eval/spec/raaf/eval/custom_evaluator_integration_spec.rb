@@ -38,6 +38,7 @@ RSpec.describe "Custom Evaluator Integration" do
 
       def extract_citations(text)
         return [] unless text.is_a?(String)
+
         text.scan(/\[(\d+)\]/).flatten.map(&:to_i)
       end
 
@@ -61,32 +62,44 @@ RSpec.describe "Custom Evaluator Integration" do
 
       def evaluate(field_context, **options)
         output = field_context.value
-        tokens = field_context[:usage][:total_tokens] rescue 0
-        model = field_context[:configuration][:model] rescue "unknown"
+        tokens = begin
+          field_context[:usage][:total_tokens]
+        rescue StandardError
+          0
+        end
+        model = begin
+          field_context[:configuration][:model]
+        rescue StandardError
+          "unknown"
+        end
 
         base_score = calculate_quality(output)
 
         # Adjust based on model
         adjusted_score = case model
-        when "gpt-4o"
-          base_score * 1.0
-        when "gpt-3.5-turbo"
-          base_score * 1.1
-        else
-          base_score
-        end
+                         when "gpt-4o"
+                           base_score * 1.0
+                         when "gpt-3.5-turbo"
+                           base_score * 1.1
+                         else
+                           base_score
+                         end
 
         # Penalize inefficiency
         efficiency_penalty = if tokens > 1000 && output.to_s.length < 200
-          0.1
-        else
-          0.0
-        end
+                               0.1
+                             else
+                               0.0
+                             end
 
         final_score = [adjusted_score - efficiency_penalty, 0].max
 
         {
-          label: final_score >= 0.7 ? "good" : (final_score >= 0.5 ? "average" : "bad"),
+          label: if final_score >= 0.7
+                   "good"
+                 else
+                   (final_score >= 0.5 ? "average" : "bad")
+                 end,
           score: final_score,
           details: {
             evaluated_field: field_context.field_name,
@@ -107,6 +120,7 @@ RSpec.describe "Custom Evaluator Integration" do
         # Simplified quality calculation
         return 0.0 if text.to_s.empty?
         return 0.5 if text.to_s.length < 10
+
         0.85
       end
     end
@@ -120,7 +134,7 @@ RSpec.describe "Custom Evaluator Integration" do
   describe "global registration" do
     it "registers custom evaluator globally via RAAF::Eval.register_evaluator" do
       RAAF::Eval.register_evaluator(:citation_grounding, citation_grounding_evaluator)
-      
+
       registry = RAAF::Eval::DSL::EvaluatorRegistry.instance
       expect(registry.registered?(:citation_grounding)).to be true
       expect(registry.get(:citation_grounding)).to eq(citation_grounding_evaluator)
@@ -128,11 +142,11 @@ RSpec.describe "Custom Evaluator Integration" do
 
     it "can use globally registered evaluator in DSL" do
       RAAF::Eval.register_evaluator(:citation_grounding, citation_grounding_evaluator)
-      
+
       # Should not raise error
-      expect {
+      expect do
         RAAF::Eval::DSL::EvaluatorRegistry.instance.get(:citation_grounding)
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 
@@ -148,7 +162,7 @@ RSpec.describe "Custom Evaluator Integration" do
       }
 
       field_context = RAAF::Eval::DSL::FieldContext.new(:output, result_hash)
-      knowledge_base = ["1", "2"]
+      knowledge_base = %w[1 2]
 
       evaluator_instance = citation_grounding_evaluator.new
       result = evaluator_instance.evaluate(field_context, knowledge_base: knowledge_base)
@@ -217,11 +231,11 @@ RSpec.describe "Custom Evaluator Integration" do
 
       field_context = RAAF::Eval::DSL::FieldContext.new(:output, result_hash)
       evaluator_instance = smart_quality_evaluator.new
-      
+
       # Should not raise error despite missing usage and configuration
-      expect {
+      expect do
         evaluator_instance.evaluate(field_context)
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 
@@ -247,13 +261,13 @@ RSpec.describe "Custom Evaluator Integration" do
       result_hash = { output: "Test" }
       field_context = RAAF::Eval::DSL::FieldContext.new(:output, result_hash)
       evaluator_instance = invalid_evaluator.new
-      
+
       result = evaluator_instance.evaluate(field_context)
-      
-      expect {
+
+      expect do
         evaluator_instance.validate_result!(result)
-      }.to raise_error(RAAF::Eval::DSL::InvalidEvaluatorResultError,
-                       /must include :label/)
+      end.to raise_error(RAAF::Eval::DSL::InvalidEvaluatorResultError,
+                         /must include :label/)
     end
   end
 
@@ -270,7 +284,7 @@ RSpec.describe "Custom Evaluator Integration" do
         }
 
         field_context = RAAF::Eval::DSL::FieldContext.new(:output, result_hash)
-        knowledge_base = ["1", "2"] # Only 1 and 2 are in knowledge base
+        knowledge_base = %w[1 2] # Only 1 and 2 are in knowledge base
 
         evaluator_instance = citation_grounding_evaluator.new
         result = evaluator_instance.evaluate(field_context, knowledge_base: knowledge_base)
@@ -287,7 +301,7 @@ RSpec.describe "Custom Evaluator Integration" do
         }
 
         field_context = RAAF::Eval::DSL::FieldContext.new(:output, result_hash)
-        knowledge_base = ["1", "2"]
+        knowledge_base = %w[1 2]
 
         evaluator_instance = citation_grounding_evaluator.new
         result = evaluator_instance.evaluate(field_context, knowledge_base: knowledge_base)
@@ -339,18 +353,18 @@ RSpec.describe "Custom Evaluator Integration" do
     before do
       # Auto-register built-ins
       RAAF::Eval::DSL::EvaluatorRegistry.instance.auto_register_built_ins
-      
+
       # Register custom evaluator
       RAAF::Eval.register_evaluator(:citation_grounding, citation_grounding_evaluator)
     end
 
     it "can retrieve both built-in and custom evaluators" do
       registry = RAAF::Eval::DSL::EvaluatorRegistry.instance
-      
+
       # Built-in evaluators
       expect(registry.registered?(:semantic_similarity)).to be true
       expect(registry.registered?(:token_efficiency)).to be true
-      
+
       # Custom evaluator
       expect(registry.registered?(:citation_grounding)).to be true
     end
@@ -358,7 +372,7 @@ RSpec.describe "Custom Evaluator Integration" do
     it "lists all registered evaluators (built-in + custom)" do
       registry = RAAF::Eval::DSL::EvaluatorRegistry.instance
       names = registry.all_names
-      
+
       # Should have 22 built-ins + 1 custom
       expect(names.size).to eq(23)
       expect(names).to include(:semantic_similarity, :citation_grounding)

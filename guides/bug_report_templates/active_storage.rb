@@ -60,7 +60,7 @@ class BugTest < ActiveSupport::TestCase
       profile: {
         content_type: "text/plain",
         filename: "dummy.txt",
-        io: ::StringIO.new("dummy"),
+        io: ::StringIO.new("dummy")
       }
     )
 

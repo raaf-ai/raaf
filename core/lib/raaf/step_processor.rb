@@ -292,10 +292,10 @@ module RAAF
             else
               # Direct tool tracing with explicit parent - uses ToolCollector instead of AgentCollector
               tool.with_tracing(:execute_tool,
-                               parent_component: captured_agent_span,
-                               tool_name: tool.name,
-                               "function" => { "name" => tool.name },
-                               tool_arguments: arguments) do
+                                parent_component: captured_agent_span,
+                                tool_name: tool.name,
+                                "function" => { "name" => tool.name },
+                                tool_arguments: arguments) do
                 tool.call(**arguments.symbolize_keys)
               end
             end
@@ -471,7 +471,7 @@ module RAAF
       return nil unless last_message
 
       content = last_message.raw_item[:content]
-      return content if content && !content.empty?
+      return content if content.present?
 
       ""
     end
@@ -568,7 +568,6 @@ module RAAF
       # Return JSON format like Python implementation
       { assistant: target_agent.name }.to_json
     end
-
 
   end
 

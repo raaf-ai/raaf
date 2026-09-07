@@ -64,9 +64,9 @@ RSpec.describe "Complete Integration Tests" do
         model "gpt-4o"
 
         # Different registration patterns
-        tool :search                              # Symbol
-        tool Ai::Tools::CalculatorTool           # Class reference
-        tool :weather, timeout: 30                # With options
+        tool :search # Symbol
+        tool Ai::Tools::CalculatorTool # Class reference
+        tool :weather, timeout: 30 # With options
       end
 
       agent = agent_class.new
@@ -206,7 +206,7 @@ RSpec.describe "Complete Integration Tests" do
           begin
             agent = agent_class.new
             results << { success: true, thread: i, agent: agent }
-          rescue => e
+          rescue StandardError => e
             results << { success: false, thread: i, error: e }
           end
         end
@@ -273,7 +273,7 @@ RSpec.describe "Complete Integration Tests" do
           # Each agent uses 5-10 tools
           tool_count = rand(5..10)
           tool_count.times do |tool_index|
-            tool "load_test_tool#{tool_index}".to_sym
+            tool :"load_test_tool#{tool_index}"
           end
         end
 
@@ -381,7 +381,7 @@ RSpec.describe "Complete Integration Tests" do
 
       begin
         agent_class.new
-        fail "Should have raised an error"
+        raise "Should have raised an error"
       rescue RAAF::DSL::ToolResolutionError => e
         # Error should contain all helpful information
         expect(e.identifier).to eq(:completely_missing_tool)

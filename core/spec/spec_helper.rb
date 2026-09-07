@@ -116,8 +116,8 @@ ENV["RAAF_SUPPRESS_WARNINGS"] = "true"
 
 # Set dummy API key for tests to allow provider initialization
 # Use consistent dummy key that matches VCR recordings
-ENV["OPENAI_API_KEY"] = "test-api-key" unless ENV["OPENAI_API_KEY"] && !ENV["OPENAI_API_KEY"].empty?
-ENV["ANTHROPIC_API_KEY"] = "test-anthropic-key" unless ENV["ANTHROPIC_API_KEY"] && !ENV["ANTHROPIC_API_KEY"].empty?
+ENV["OPENAI_API_KEY"] = "test-api-key" if ENV["OPENAI_API_KEY"].to_s.empty?
+ENV["ANTHROPIC_API_KEY"] = "test-anthropic-key" if ENV["ANTHROPIC_API_KEY"].to_s.empty?
 
 require "raaf-core"
 require "rspec/collection_matchers"
@@ -137,7 +137,7 @@ if defined?(VCR)
     config.filter_sensitive_data("<ANTHROPIC_API_KEY>") { ENV.fetch("ANTHROPIC_API_KEY", nil) }
 
     # Allow real HTTP connections for integration tests when explicitly enabled
-    config.allow_http_connections_when_no_cassette = !ENV["VCR_ALLOW_HTTP"].nil? && !ENV["VCR_ALLOW_HTTP"].empty?
+    config.allow_http_connections_when_no_cassette = !ENV["VCR_ALLOW_HTTP"].to_s.empty?
   end
 end
 

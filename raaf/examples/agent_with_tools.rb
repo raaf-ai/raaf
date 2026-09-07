@@ -43,7 +43,7 @@ agent = RAAF::Agent.new(
 )
 
 puts "Created agent: #{agent.name}"
-puts "Available tools: #{agent.tools.map(&:name).join(', ')}"
+puts "Available tools: #{agent.tools.map(&:name).join(", ")}"
 puts
 
 # Create runner

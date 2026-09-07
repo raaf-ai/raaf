@@ -83,7 +83,7 @@ module RAAF
           @target_purpose = target_purpose
           @simulator_model = simulator_model
           @config = config
-          @attack_cache = {}  # Cache: { vulnerability_type => [baseline_attacks] }
+          @attack_cache = {} # Cache: { vulnerability_type => [baseline_attacks] }
         end
 
         # Perform comprehensive red-teaming scan
@@ -158,9 +158,7 @@ module RAAF
         private
 
         def validate_callback!(callback)
-          unless callback.respond_to?(:call)
-            raise ArgumentError, "model_callback must be callable (Proc or lambda)"
-          end
+          raise ArgumentError, "model_callback must be callable (Proc or lambda)" unless callback.respond_to?(:call)
 
           # Check arity (should accept 1 parameter)
           if callback.arity != 1 && callback.arity != -1
@@ -225,12 +223,12 @@ module RAAF
             vuln_type = vuln.vulnerability_type
 
             cached = @attack_cache[vuln_type]
-            if cached.nil? || cached.empty?
-              # No cache available, generate fresh attacks
-              baseline_attacks[vuln_type] = vuln.generate_baseline_attacks(5)
-            else
-              baseline_attacks[vuln_type] = cached
-            end
+            baseline_attacks[vuln_type] = if cached.nil? || cached.empty?
+                                            # No cache available, generate fresh attacks
+                                            vuln.generate_baseline_attacks(5)
+                                          else
+                                            cached
+                                          end
           end
 
           baseline_attacks
@@ -245,21 +243,17 @@ module RAAF
 
             baselines.each do |baseline|
               attack_methods.each do |attack|
-                begin
-                  test_case = execute_single_attack(
-                    vulnerability: vuln,
-                    attack: attack,
-                    baseline_input: baseline
-                  )
-                  test_cases << test_case
-                rescue StandardError => e
-                  # Handle errors based on ignore_errors setting
-                  if @ignore_errors
-                    test_cases << create_error_test_case(vuln, attack, baseline, e)
-                  else
-                    raise e
-                  end
-                end
+                test_case = execute_single_attack(
+                  vulnerability: vuln,
+                  attack: attack,
+                  baseline_input: baseline
+                )
+                test_cases << test_case
+              rescue StandardError => e
+                # Handle errors based on ignore_errors setting
+                raise e unless @ignore_errors
+
+                test_cases << create_error_test_case(vuln, attack, baseline, e)
               end
             end
           end

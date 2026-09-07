@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Tracing
+
     # NoOpTracer provides a zero-overhead tracer implementation for disabled tracing.
     #
     # This tracer implements the same interface as SpanTracer but performs no actual
@@ -50,6 +52,7 @@ module RAAF
     #   noop_tracer.agent_span("test") { expensive_work() } # Just calls block
     #
     class NoOpTracer
+
       # Initialize a new NoOpTracer instance.
       #
       # @return [NoOpTracer] New tracer instance
@@ -63,7 +66,7 @@ module RAAF
       # @param metadata [Hash] Span metadata (ignored)
       # @yield Block to execute
       # @return [Object] Result of block execution
-      def agent_span(span_name, metadata = {}, &block)
+      def agent_span(_span_name, _metadata = {}, &block)
         # Just execute the block without creating any span
         block.call if block_given?
       end
@@ -74,7 +77,7 @@ module RAAF
       # @param metadata [Hash] Span metadata (ignored)
       # @yield Block to execute
       # @return [Object] Result of block execution
-      def tool_span(span_name, metadata = {}, &block)
+      def tool_span(_span_name, _metadata = {}, &block)
         # Just execute the block without creating any span
         block.call if block_given?
       end
@@ -85,14 +88,14 @@ module RAAF
       # @param metadata [Hash] Span metadata (ignored)
       # @yield [NoOpSpan] Block to execute with span
       # @return [Object] Result of block execution
-      def custom_span(span_name, metadata = {}, &block)
-        if block_given?
-          # Provide a NoOpSpan if block expects span parameter
-          if block.arity > 0
-            block.call(NoOpSpan.new)
-          else
-            block.call
-          end
+      def custom_span(_span_name, _metadata = {}, &block)
+        return unless block_given?
+
+        # Provide a NoOpSpan if block expects span parameter
+        if block.arity > 0
+          block.call(NoOpSpan.new)
+        else
+          block.call
         end
       end
 
@@ -102,7 +105,7 @@ module RAAF
       # @param metadata [Hash] Span metadata (ignored)
       # @yield Block to execute
       # @return [Object] Result of block execution
-      def pipeline_span(span_name, metadata = {}, &block)
+      def pipeline_span(_span_name, _metadata = {}, &block)
         # Just execute the block without creating any span
         block.call if block_given?
       end
@@ -113,7 +116,7 @@ module RAAF
       # @param metadata [Hash] Span metadata (ignored)
       # @yield Block to execute
       # @return [Object] Result of block execution
-      def response_span(span_name, metadata = {}, &block)
+      def response_span(_span_name, _metadata = {}, &block)
         # Just execute the block without creating any span
         block.call if block_given?
       end
@@ -163,7 +166,7 @@ module RAAF
       # @param args [Array] Method arguments (ignored)
       # @param block [Proc] Block argument
       # @return [Object] Result of block execution if block given, nil otherwise
-      def method_missing(method_name, *args, &block)
+      def method_missing(_method_name, *_args, &block)
         # If a block is given, execute it (maintaining expected behavior)
         if block_given?
           if block.arity > 0
@@ -183,7 +186,7 @@ module RAAF
       # @param method_name [Symbol] Method to check
       # @param include_private [Boolean] Whether to include private methods
       # @return [Boolean] Always true
-      def respond_to_missing?(method_name, include_private = false)
+      def respond_to_missing?(_method_name, _include_private = false)
         true
       end
 
@@ -200,6 +203,7 @@ module RAAF
       def inspect
         to_s
       end
+
     end
 
     # NoOpSpan provides a zero-overhead span implementation for disabled tracing.
@@ -209,6 +213,7 @@ module RAAF
     # the span interface but performs no operations.
     #
     class NoOpSpan
+
       # Initialize a new NoOpSpan instance.
       #
       # @return [NoOpSpan] New span instance
@@ -221,7 +226,7 @@ module RAAF
       # @param key [String] Attribute key (ignored)
       # @param value [Object] Attribute value (ignored)
       # @return [NoOpSpan] Self for chaining
-      def set_attribute(key, value)
+      def set_attribute(_key, _value)
         self
       end
 
@@ -230,7 +235,7 @@ module RAAF
       # @param name [String] Event name (ignored)
       # @param attributes [Hash] Event attributes (ignored)
       # @return [NoOpSpan] Self for chaining
-      def add_event(name, attributes = {})
+      def add_event(_name, _attributes = {})
         self
       end
 
@@ -238,7 +243,7 @@ module RAAF
       #
       # @param status [Symbol] Status (ignored)
       # @return [NoOpSpan] Self for chaining
-      def set_status(status)
+      def set_status(_status)
         self
       end
 
@@ -246,7 +251,7 @@ module RAAF
       #
       # @param exception [Exception] Exception to record (ignored)
       # @return [NoOpSpan] Self for chaining
-      def record_exception(exception)
+      def record_exception(_exception)
         self
       end
 
@@ -284,7 +289,7 @@ module RAAF
       # @param args [Array] Method arguments (ignored)
       # @param block [Proc] Block argument
       # @return [NoOpSpan] Self for chaining
-      def method_missing(method_name, *args, &block)
+      def method_missing(_method_name, *_args, &block)
         # Execute block if provided
         block.call if block_given?
         # Return self for method chaining
@@ -296,7 +301,7 @@ module RAAF
       # @param method_name [Symbol] Method to check
       # @param include_private [Boolean] Whether to include private methods
       # @return [Boolean] Always true
-      def respond_to_missing?(method_name, include_private = false)
+      def respond_to_missing?(_method_name, _include_private = false)
         true
       end
 
@@ -313,6 +318,9 @@ module RAAF
       def inspect
         to_s
       end
+
     end
+
   end
+
 end

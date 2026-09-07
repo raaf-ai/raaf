@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../dsl/evaluator"
-require 'json'
+require "json"
 
 module RAAF
   module Eval
@@ -51,9 +51,11 @@ module RAAF
                 threshold_good: good_threshold,
                 threshold_average: average_threshold
               },
-              message: validation_errors.empty? ?
-                "[#{label.upcase}] Matches schema" :
-                "[#{label.upcase}] Schema violations: #{validation_errors.join(', ')}"
+              message: if validation_errors.empty?
+                         "[#{label.upcase}] Matches schema"
+                       else
+                         "[#{label.upcase}] Schema violations: #{validation_errors.join(", ")}"
+                       end
             }
           end
 
@@ -61,29 +63,25 @@ module RAAF
 
           def validate_against_schema(value, schema)
             errors = []
-            
+
             # Basic schema validation
-            if schema[:type]
-              unless validate_type(value, schema[:type])
-                errors << "type mismatch: expected #{schema[:type]}, got #{value.class.name.downcase}"
-              end
+            if schema[:type] && !validate_type(value, schema[:type])
+              errors << "type mismatch: expected #{schema[:type]}, got #{value.class.name.downcase}"
             end
 
             if schema[:required] && value.is_a?(Hash)
               schema[:required].each do |key|
-                unless value.key?(key.to_s) || value.key?(key.to_sym)
-                  errors << "missing required field: #{key}"
-                end
+                errors << "missing required field: #{key}" unless value.key?(key.to_s) || value.key?(key.to_sym)
               end
             end
 
             if schema[:properties] && value.is_a?(Hash)
               schema[:properties].each do |key, prop_schema|
-                if value.key?(key.to_s) || value.key?(key.to_sym)
-                  prop_value = value[key.to_s] || value[key.to_sym]
-                  prop_errors = validate_against_schema(prop_value, prop_schema)
-                  errors.concat(prop_errors.map { |e| "#{key}.#{e}" })
-                end
+                next unless value.key?(key.to_s) || value.key?(key.to_sym)
+
+                prop_value = value[key.to_s] || value[key.to_sym]
+                prop_errors = validate_against_schema(prop_value, prop_schema)
+                errors.concat(prop_errors.map { |e| "#{key}.#{e}" })
               end
             end
 

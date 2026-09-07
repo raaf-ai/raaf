@@ -66,16 +66,16 @@ module RAAF
         #
         # @param next_agent [Class, Agent, Service] Next component in chain
         # @return [ChainedAgent] Chained wrapper
-        def >>(next_agent)
-          ChainedAgent.new(self, next_agent)
+        def >>(other)
+          ChainedAgent.new(self, other)
         end
 
         # Run this component in parallel with another
         #
         # @param other_agent [Class, Agent, Service] Component to run in parallel
         # @return [ParallelAgents] Parallel wrapper
-        def |(other_agent)
-          ParallelAgents.new([self, other_agent])
+        def |(other)
+          ParallelAgents.new([self, other])
         end
 
         # Abstract method that must be implemented by including class
@@ -202,19 +202,19 @@ module RAAF
         #
         def extract_agent_class
           # Handle different wrapper types
-          if instance_variable_defined?(:@agent_class)
-            # RemappedAgent, ConfiguredAgent, IteratingAgent, BatchedAgent
-            component = @agent_class
-          elsif instance_variable_defined?(:@first)
-            # ChainedAgent - use the first agent
-            component = @first
-          elsif instance_variable_defined?(:@agents)
-            # ParallelAgents - use the first agent in the array
-            component = @agents.first
-          else
-            # Fallback to wrapped_component if available
-            component = respond_to?(:wrapped_component) ? @wrapped_component : self
-          end
+          component = if instance_variable_defined?(:@agent_class)
+                        # RemappedAgent, ConfiguredAgent, IteratingAgent, BatchedAgent
+                        @agent_class
+                      elsif instance_variable_defined?(:@first)
+                        # ChainedAgent - use the first agent
+                        @first
+                      elsif instance_variable_defined?(:@agents)
+                        # ParallelAgents - use the first agent in the array
+                        @agents.first
+                      else
+                        # Fallback to wrapped_component if available
+                        respond_to?(:wrapped_component) ? @wrapped_component : self
+                      end
 
           # Recursively extract from nested wrappers
           if component.respond_to?(:extract_agent_class)

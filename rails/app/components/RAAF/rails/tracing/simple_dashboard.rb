@@ -47,7 +47,7 @@ module RAAF
                 plain "The RAAF Tracing feature requires database tables to be created. "
                 plain "Please run the following migrations in your main application:"
               end
-              
+
               div(class: "code-block") do
                 pre do
                   code do
@@ -107,7 +107,8 @@ module RAAF
             div(class: "features") do
               h3 { "Features" }
               div(class: "feature-grid") do
-                feature_card("Trace Management", "Track complete workflow executions with detailed timing and status information")
+                feature_card("Trace Management",
+                             "Track complete workflow executions with detailed timing and status information")
                 feature_card("Span Analysis", "Drill down into individual operations within traces")
                 feature_card("Cost Tracking", "Monitor LLM token usage and associated costs")
                 feature_card("Performance Metrics", "Analyze latency, throughput, and error rates")
@@ -128,8 +129,8 @@ module RAAF
         def css
           <<~CSS
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { 
-              font-family: system-ui, -apple-system, sans-serif; 
+            body {#{' '}
+              font-family: system-ui, -apple-system, sans-serif;#{' '}
               background: #f5f5f5;
               color: #333;
             }

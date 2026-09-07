@@ -9,7 +9,7 @@ RSpec.describe "Sensitive Data Redaction" do
     let(:pipeline_class) do
       Class.new(RAAF::Pipeline) do
         def initialize(**context)
-          super(**context)
+          super
         end
       end
     end
@@ -167,7 +167,7 @@ RSpec.describe "Sensitive Data Redaction" do
 
         it "preserves non-hash array elements" do
           data = {
-            tags: ["public", "private", "sensitive"],
+            tags: %w[public private sensitive],
             numbers: [1, 2, 3],
             mixed: [
               "string",
@@ -177,7 +177,7 @@ RSpec.describe "Sensitive Data Redaction" do
           }
           redacted = pipeline.send(:redact_sensitive_data, data)
 
-          expect(redacted[:tags]).to eq(["public", "private", "sensitive"])
+          expect(redacted[:tags]).to eq(%w[public private sensitive])
           expect(redacted[:numbers]).to eq([1, 2, 3])
           expect(redacted[:mixed][0]).to eq("string")
           expect(redacted[:mixed][1][:name]).to eq("test")
@@ -194,7 +194,7 @@ RSpec.describe "Sensitive Data Redaction" do
             analysis_depth: "comprehensive",
             market_count: 5,
             success: true,
-            markets: ["fintech", "healthtech"],
+            markets: %w[fintech healthtech],
             metadata: {
               version: "1.0",
               created_at: "2024-01-01"
@@ -223,7 +223,7 @@ RSpec.describe "Sensitive Data Redaction" do
 
         it "handles circular references safely" do
           data = { name: "test" }
-          data[:self] = data  # Circular reference
+          data[:self] = data # Circular reference
 
           # Should not cause infinite recursion or stack overflow
           expect { pipeline.send(:redact_sensitive_data, data) }.not_to raise_error
@@ -299,7 +299,7 @@ RSpec.describe "Sensitive Data Redaction" do
           ]
 
           false_positives.each do |key|
-            expect(pipeline.send(:sensitive_key?, key)).to be(true)  # Current implementation will flag these
+            expect(pipeline.send(:sensitive_key?, key)).to be(true) # Current implementation will flag these
           end
         end
       end
@@ -422,7 +422,7 @@ RSpec.describe "Sensitive Data Redaction" do
         end
 
         it "handles very long strings" do
-          long_content = "A" * 10000 + " sk-1234567890abcdefghijklmnopqrstuv " + "B" * 10000
+          long_content = ("A" * 10_000) + " sk-1234567890abcdefghijklmnopqrstuv " + ("B" * 10_000)
           redacted = agent.send(:redact_sensitive_content, long_content)
 
           expect(redacted).to include("[REDACTED_TOKEN]")
@@ -477,7 +477,7 @@ RSpec.describe "Sensitive Data Redaction" do
             port: 5432
           },
           analysis: {
-            markets: ["fintech", "healthtech", "edtech"],
+            markets: %w[fintech healthtech edtech],
             confidence_scores: [0.8, 0.9, 0.7],
             methodology: "ML-based scoring"
           },
@@ -502,11 +502,11 @@ RSpec.describe "Sensitive Data Redaction" do
         expect(redacted[:user][:email]).to eq("[REDACTED]")
         expect(redacted[:api_config][:openai_api_key]).to eq("[REDACTED]")
         expect(redacted[:api_config][:anthropic_key]).to eq("[REDACTED]")
-        expect(redacted[:api_config][:base_url]).to eq("https://api.openai.com/v1")  # Not sensitive
-        expect(redacted[:database][:username]).to eq("app_user")  # Not sensitive
+        expect(redacted[:api_config][:base_url]).to eq("https://api.openai.com/v1") # Not sensitive
+        expect(redacted[:database][:username]).to eq("app_user") # Not sensitive
         expect(redacted[:database][:password]).to eq("[REDACTED]")
-        expect(redacted[:database][:host]).to eq("db.example.com")  # Not sensitive
-        expect(redacted[:database][:port]).to eq(5432)  # Not sensitive
+        expect(redacted[:database][:host]).to eq("db.example.com") # Not sensitive
+        expect(redacted[:database][:port]).to eq(5432) # Not sensitive
       end
     end
   end

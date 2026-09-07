@@ -5,13 +5,13 @@ Rails.application.routes.draw do
   mount RAAF::Eval::UI::Engine, at: "/eval"
 
   # Authentication routes
-  get '/login', to: 'sessions#new'
-  post '/login', to: 'sessions#create'
-  delete '/logout', to: 'sessions#destroy'
+  get "/login", to: "sessions#new"
+  post "/login", to: "sessions#create"
+  delete "/logout", to: "sessions#destroy"
 
   # Root route
-  root to: redirect('/eval')
+  root to: redirect("/eval")
 
   # Health check
-  get '/health', to: proc { [200, {}, ['OK']] }
+  get "/health", to: proc { [200, {}, ["OK"]] }
 end

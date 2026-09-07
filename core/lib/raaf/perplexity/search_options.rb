@@ -3,7 +3,9 @@
 require_relative "common"
 
 module RAAF
+
   module Perplexity
+
     ##
     # Builder for Perplexity web search options
     #
@@ -26,6 +28,7 @@ module RAAF
     #   # => { search_domain_filter: ["ruby-lang.org"] }
     #
     class SearchOptions
+
       ##
       # Builds web search options hash for Perplexity API
       #
@@ -71,6 +74,9 @@ module RAAF
 
         value
       end
+
     end
+
   end
+
 end

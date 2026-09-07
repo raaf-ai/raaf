@@ -3,9 +3,13 @@
 require_relative "../logging"
 
 module RAAF
+
   module Tracing
+
     class AlertEngine
+
       include RAAF::Logger
+
       DEFAULT_RULES = [
         {
           name: "high_error_rate",
@@ -405,15 +409,18 @@ module RAAF
 
       # Alert Handler Classes
       class ConsoleAlertHandler
+
         def handle(alert)
           puts "\n🚨 ALERT: #{alert[:rule_name]} (#{alert[:severity]})"
           puts "   Message: #{alert[:message]}"
           puts "   Runbook: #{alert[:runbook_url]}"
           puts "   Time: #{alert[:checked_at]}"
         end
+
       end
 
       class RailsLoggerHandler
+
         def handle(alert)
           level = alert[:severity] == "critical" ? :error : :warn
           case level
@@ -427,9 +434,11 @@ module RAAF
             log_info("ALERT", rule_name: alert[:rule_name], message: alert[:message], runbook_url: alert[:runbook_url])
           end
         end
+
       end
 
       class ActionCableHandler
+
         def handle(alert)
           ActionCable.server.broadcast("traces_updates", {
                                          type: "alert",
@@ -442,10 +451,12 @@ module RAAF
                                          }
                                        })
         end
+
       end
 
       # Custom alert handlers can be added by implementing #handle(alert)
       class WebhookHandler
+
         def initialize(webhook_url, secret = nil)
           @webhook_url = webhook_url
           @secret = secret
@@ -476,9 +487,11 @@ module RAAF
         def generate_signature(payload)
           OpenSSL::HMAC.hexdigest("SHA256", @secret, payload)
         end
+
       end
 
       class SlackHandler
+
         def initialize(webhook_url, channel = nil)
           @webhook_url = webhook_url
           @channel = channel
@@ -508,9 +521,11 @@ module RAAF
             { "Content-Type" => "application/json" }
           )
         end
+
       end
 
       class EmailHandler
+
         def initialize(recipients, smtp_config = nil)
           @recipients = recipients
           @smtp_config = smtp_config || Rails.application.config.action_mailer.smtp_settings
@@ -545,7 +560,11 @@ module RAAF
             RAAF Tracing Alert System
           BODY
         end
+
       end
+
     end
+
   end
+
 end

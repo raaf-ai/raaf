@@ -140,7 +140,7 @@ RSpec.describe RAAF::DSL::DataMerger do
             {
               name: "TechCorp Enhanced", # Should be updated
               domain: "techcorp.com",    # Same key for merging
-              technologies: ["Python", "PostgreSQL"], # Should merge with existing
+              technologies: %w[Python PostgreSQL], # Should merge with existing
               contact_emails: ["support@techcorp.com"], # Should merge with existing
               employee_count: 120,       # Should use latest
               confidence_score: 85,      # Should sum
@@ -221,6 +221,7 @@ RSpec.describe RAAF::DSL::DataMerger do
           custom_merge(:average_score) do |base_value, new_value|
             return new_value unless base_value
             return base_value unless new_value
+
             ((base_value + new_value) / 2.0).round(1)
           end
           custom_merge(:max_value) do |base_value, new_value|
@@ -361,7 +362,7 @@ RSpec.describe RAAF::DSL::DataMerger do
         level1: {
           level2: {
             value1: "original",
-            array1: ["a", "b"]
+            array1: %w[a b]
           },
           other: "data"
         }
@@ -371,7 +372,7 @@ RSpec.describe RAAF::DSL::DataMerger do
         level1: {
           level2: {
             value2: "new",
-            array1: ["c", "d"]
+            array1: %w[c d]
           },
           another: "field"
         }
@@ -384,7 +385,7 @@ RSpec.describe RAAF::DSL::DataMerger do
           level2: {
             value1: "original",
             value2: "new",
-            array1: ["a", "b", "c", "d"]
+            array1: %w[a b c d]
           },
           other: "data",
           another: "field"
@@ -500,7 +501,7 @@ RSpec.describe RAAF::DSL::MergeStrategyConfig do
 
   describe "#custom_merge" do
     it "adds custom merge rules" do
-      rule = ->(base, new) { base }
+      rule = ->(base, _new) { base }
       config.custom_merge(:special_field, &rule)
       expect(config.custom_merge_rules[:special_field]).to eq(rule)
     end
@@ -600,7 +601,7 @@ RSpec.describe RAAF::DSL::MergeUtils do
         data: [
           {
             website_domain: "techco.com",
-            technologies: ["Python", "PostgreSQL"],
+            technologies: %w[Python PostgreSQL],
             employee_count: 120,
             tech_confidence: 85,
             contact_info: { phone: "555-TECH" }
@@ -695,6 +696,7 @@ RSpec.describe "DataMerger Integration" do
         custom_merge(:average_rating) do |base_value, new_value|
           return new_value unless base_value
           return base_value unless new_value
+
           ((base_value + new_value) / 2.0).round(1)
         end
       end
@@ -710,7 +712,7 @@ RSpec.describe "DataMerger Integration" do
             technologies: ["React", "Node.js", "MongoDB"],
             employee_count: 50,
             contact_emails: ["info@techstartup.com"],
-            total_funding: 1000000,
+            total_funding: 1_000_000,
             confidence_score: 75,
             average_rating: 4.2,
             last_updated: "2024-01-15",
@@ -726,11 +728,11 @@ RSpec.describe "DataMerger Integration" do
           {
             name: "TechStartup Inc (Verified)",
             domain: "techstartup.com",
-            technologies: ["TypeScript", "PostgreSQL", "AWS"],
+            technologies: %w[TypeScript PostgreSQL AWS],
             employee_count: 65,
             contact_emails: ["contact@techstartup.com", "support@techstartup.com"],
             funding_rounds: ["Seed", "Series A"],
-            total_funding: 500000,
+            total_funding: 500_000,
             confidence_score: 90,
             average_rating: 4.5,
             last_updated: "2024-02-01",
@@ -788,7 +790,7 @@ RSpec.describe "DataMerger Integration" do
       expect(merged_company[:last_updated]).to eq("2024-02-15") # Latest timestamp
 
       # Sum fields
-      expect(merged_company[:total_funding]).to eq(1500000) # 1000000 + 500000
+      expect(merged_company[:total_funding]).to eq(1_500_000) # 1000000 + 500000
       expect(merged_company[:confidence_score]).to eq(250) # 75 + 90 + 85
 
       # Custom merge (average)
@@ -810,7 +812,7 @@ RSpec.describe "DataMerger Integration" do
       )
 
       expect(merged_company[:financial_data]).to include(
-        revenue_range: "$1M-$10M", # Note: this is from enrichment, then overridden by scoring agent
+        revenue_range: "$1M-$10M", # NOTE: this is from enrichment, then overridden by scoring agent
         growth_rate: "150%"
       )
 
@@ -840,7 +842,7 @@ RSpec.describe "DataMerger Integration" do
             domain: "partial.com",
             technologies: ["Vue.js"],
             employee_count: 25,
-            total_funding: 100000,
+            total_funding: 100_000,
             social_data: { twitter: "@partial" }
           }
         ]
@@ -852,7 +854,7 @@ RSpec.describe "DataMerger Integration" do
       expect(merged_company[:name]).to eq("Partial Company") # Only in first result
       expect(merged_company[:technologies]).to contain_exactly("React", "Vue.js")
       expect(merged_company[:employee_count]).to eq(25) # nil overridden by actual value
-      expect(merged_company[:total_funding]).to eq(100000) # Only in second result
+      expect(merged_company[:total_funding]).to eq(100_000) # Only in second result
       expect(merged_company[:confidence_score]).to eq(50) # Only in first result
       expect(merged_company[:social_data][:twitter]).to eq("@partial")
     end

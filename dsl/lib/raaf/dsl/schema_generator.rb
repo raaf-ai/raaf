@@ -38,8 +38,6 @@ module RAAF
         schema
       end
 
-      private
-
       # Generate properties hash from model columns and associations
       #
       # @param model_class [Class] The Active Record model class
@@ -107,7 +105,7 @@ module RAAF
         when :has_many, :has_and_belongs_to_many
           {
             type: :array,
-            items: { type: :object },  # Required by OpenAI for all arrays
+            items: { type: :object }, # Required by OpenAI for all arrays
             description: "#{association.macro} association"
           }
         else
@@ -131,11 +129,12 @@ module RAAF
         model_class.columns.each do |column|
           # Skip JSON/JSONB columns since they're objects without defined properties
           # and OpenAI doesn't allow required fields that aren't in properties
-          next if [:json, :jsonb].include?(column.type)
+          next if %i[json jsonb].include?(column.type)
           # Skip id field as it's typically auto-generated
-          next if column.name == 'id'
+          next if column.name == "id"
           # Only include non-null columns as required
           next if column.null == true
+
           all_properties << column.name.to_sym
         end
 

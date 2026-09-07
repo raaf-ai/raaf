@@ -21,9 +21,9 @@ module RAAF
           @result = ensure_indifferent_access(result)
 
           # Validate field exists
-          unless field_exists?(@field_name)
-            raise FieldNotFoundError, "Field '#{@field_name}' not found in result"
-          end
+          return if field_exists?(@field_name)
+
+          raise FieldNotFoundError, "Field '#{@field_name}' not found in result"
         end
 
         # Get the value of the current field
@@ -37,6 +37,7 @@ module RAAF
         def baseline_value
           baseline_field = determine_baseline_field(@field_name)
           return nil unless baseline_field && field_exists?(baseline_field)
+
           extract_field_value(baseline_field)
         end
 
@@ -44,6 +45,7 @@ module RAAF
         # @return [Numeric, nil] The delta or nil if not applicable
         def delta
           return nil unless value.is_a?(Numeric) && baseline_value.is_a?(Numeric)
+
           value - baseline_value
         end
 
@@ -52,6 +54,7 @@ module RAAF
         def delta_percentage
           return nil unless value.is_a?(Numeric) && baseline_value.is_a?(Numeric)
           return nil if baseline_value.zero?
+
           ((value - baseline_value) / baseline_value.to_f) * 100
         end
 
@@ -126,6 +129,7 @@ module RAAF
         # Ensure hash uses indifferent access
         def ensure_indifferent_access(hash)
           return hash if hash.is_a?(ActiveSupport::HashWithIndifferentAccess)
+
           ActiveSupport::HashWithIndifferentAccess.new(hash)
         end
 

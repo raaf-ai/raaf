@@ -54,6 +54,7 @@ module RAAF
 
       def convert_string_keys_to_symbols(hash)
         return hash unless hash.is_a?(Hash)
+
         hash.transform_keys { |key| key.is_a?(String) ? key.to_sym : key }
       end
 
@@ -72,29 +73,19 @@ module RAAF
       end
 
       # Hash-like access methods
-      def [](key)
-        @data[key]
+      delegate :[], to: :@data
+
+      delegate :[]=, to: :@data
+
+      def fetch(key, ...)
+        @data.fetch(key, ...)
       end
 
-      def []=(key, value)
-        @data[key] = value
-      end
+      delegate :key?, to: :@data
 
-      def fetch(key, *args, &block)
-        @data.fetch(key, *args, &block)
-      end
+      delegate :keys, to: :@data
 
-      def key?(key)
-        @data.key?(key)
-      end
-
-      def keys
-        @data.keys
-      end
-
-      def values
-        @data.values
-      end
+      delegate :values, to: :@data
 
       def each(&block)
         if block_given?
@@ -104,13 +95,9 @@ module RAAF
         end
       end
 
-      def size
-        @data.size
-      end
+      delegate :size, to: :@data
 
-      def empty?
-        @data.empty?
-      end
+      delegate :empty?, to: :@data
 
       def to_h
         @data.dup
@@ -144,9 +131,9 @@ module RAAF
       end
 
       # Delegate missing methods to @data hash
-      def method_missing(method_name, *args, &block)
+      def method_missing(method_name, ...)
         if @data.respond_to?(method_name)
-          @data.send(method_name, *args, &block)
+          @data.send(method_name, ...)
         else
           super
         end
@@ -192,31 +179,31 @@ module RAAF
         else
           raw_data
         end
-      rescue JSON::ParserError => e
+      rescue JSON::ParserError
         # Not an error - just plain text response (no schema or CSV output)
         RAAF.logger.debug "[RAAF] String is not JSON, returning raw text: #{raw_data[0..100]}"
-        raw_data  # Return raw string instead of raising error
+        raw_data # Return raw string instead of raising error
       end
-      
+
       def extract_raw_data
         # Handle all current extraction patterns that agents use
-        
+
         # Pattern B: Message-based extraction (most common in Prospect Radar)
         if @data.is_a?(Hash) && @data[:messages]&.any?
           last_message = @data[:messages].last
           return last_message[:content] if last_message && last_message[:role] == "assistant"
         end
-        
+
         # Pattern C: Final output access
         if respond_to?(:final_output) && final_output
           return final_output
         elsif @data.is_a?(Hash) && @data[:final_output]
           return @data[:final_output]
         end
-        
+
         # Pattern A: Direct data access
         return @data if @data
-        
+
         # Fallback
         self
       end

@@ -253,14 +253,14 @@ module RAAF
               /(?:violat|fail).*#{name_str}/i
             ]
 
-            if violation_patterns.any? { |pattern| response_lower.match?(pattern) }
-              violations << Violation.new(
-                guideline_name: guideline.name,
-                guideline_action: guideline.action,
-                reason: "Detected violation in critique response (text-based parsing)",
-                severity: :medium
-              ).to_h
-            end
+            next unless violation_patterns.any? { |pattern| response_lower.match?(pattern) }
+
+            violations << Violation.new(
+              guideline_name: guideline.name,
+              guideline_action: guideline.action,
+              reason: "Detected violation in critique response (text-based parsing)",
+              severity: :medium
+            ).to_h
           end
 
           violations

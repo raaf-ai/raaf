@@ -4,8 +4,8 @@
 # Simple integration test for pipeline failure propagation
 # Run with: ruby test_pipeline_failure.rb
 
-$LOAD_PATH.unshift File.expand_path('lib', __dir__)
-require 'raaf-dsl'
+$LOAD_PATH.unshift File.expand_path("lib", __dir__)
+require "raaf-dsl"
 
 # Mock agents for testing
 class SuccessAgent < RAAF::DSL::Agent
@@ -52,7 +52,7 @@ class NeverReachedAgent < RAAF::DSL::Agent
 end
 
 # Test 1: Sequential pipeline with failure
-puts "\n" + "=" * 60
+puts "\n" + ("=" * 60)
 puts "TEST 1: Sequential pipeline with failure propagation"
 puts "=" * 60
 
@@ -85,7 +85,7 @@ else
 end
 
 # Test 2: All agents succeed
-puts "\n" + "=" * 60
+puts "\n" + ("=" * 60)
 puts "TEST 2: Pipeline with all successful agents"
 puts "=" * 60
 
@@ -110,7 +110,7 @@ else
   exit 1
 end
 
-puts "\n" + "=" * 60
+puts "\n" + ("=" * 60)
 puts "🎉 ALL TESTS PASSED!"
 puts "=" * 60
 puts "\nPipeline failure propagation is working correctly:"

@@ -192,7 +192,7 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
   # ============================================================================
   describe "large dataset performance" do
     it "handles 10,000 row CSV dataset with reasonable performance" do
-      rows = (1..10000).map { |i| "#{i},Item#{i},Active,#{Time.now.to_i}" }.join("\n")
+      rows = (1..10_000).map { |i| "#{i},Item#{i},Active,#{Time.now.to_i}" }.join("\n")
       content = "id,name,status,timestamp\n#{rows}\n"
 
       # Split into 5 chunks
@@ -227,7 +227,7 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
             {
               id: "dept_#{i}_#{j}",
               name: "Department#{j}",
-              employees: (1..10).map { |k| { id: k, name: "Employee#{k}", salary: rand(50000..150000) } }
+              employees: (1..10).map { |k| { id: k, name: "Employee#{k}", salary: rand(50_000..150_000) } }
             }
           end
         }
@@ -293,13 +293,13 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
       # Measure memory (this is a soft check, exact memory is hard to measure)
       initial_objects = ObjectSpace.each_object.count
 
-      result = csv_merger.merge([chunk1, chunk2])
+      csv_merger.merge([chunk1, chunk2])
 
       final_objects = ObjectSpace.each_object.count
 
       # Memory growth should be bounded (not exponential)
       object_growth = final_objects - initial_objects
-      expect(object_growth).to be < 100000 # Reasonable growth for merge operation
+      expect(object_growth).to be < 100_000 # Reasonable growth for merge operation
     end
 
     it "memory usage bounded for JSON merging" do
@@ -312,11 +312,11 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
       json_merger = RAAF::Continuation::Mergers::JSONMerger.new(config)
 
       initial_objects = ObjectSpace.each_object.count
-      result = json_merger.merge([chunk1, chunk2])
+      json_merger.merge([chunk1, chunk2])
       final_objects = ObjectSpace.each_object.count
 
       object_growth = final_objects - initial_objects
-      expect(object_growth).to be < 100000
+      expect(object_growth).to be < 100_000
     end
   end
 
@@ -415,7 +415,7 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
 
       format_detector = RAAF::Continuation::FormatDetector.new
 
-      contents.each do |expected_format, content|
+      contents.each do |_expected_format, content|
         time_taken = Benchmark.realtime do
           format_detector.detect(content)
         end
@@ -429,7 +429,7 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
       format_detector = RAAF::Continuation::FormatDetector.new
 
       # Test with increasing sizes
-      [100, 1000, 10000].each do |size|
+      [100, 1000, 10_000].each do |size|
         rows = (1..size).map { |i| "#{i},Item#{i},Active" }.join("\n")
         csv_content = "id,name,status\n#{rows}\n"
 
@@ -447,7 +447,7 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
       cost_calculator = RAAF::Continuation::CostCalculator.new
 
       # Create multiple chunks with token usage
-      chunks = (1..10).map do |i|
+      chunks = (1..10).map do |_i|
         {
           output_tokens: 500,
           model: "gpt-4o"
@@ -508,11 +508,11 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
     it "routes to correct merger quickly" do
       merger_factory = RAAF::Continuation::MergerFactory.new(config)
 
-      formats = [:csv, :markdown, :json, :auto]
+      formats = %i[csv markdown json auto]
 
       formats.each do |format|
         time_taken = Benchmark.realtime do
-          merger = merger_factory.create(format)
+          merger_factory.create(format)
         end
 
         # Merger creation should be fast
@@ -531,7 +531,7 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
 
       time_auto = Benchmark.realtime do
         contents.each do |content|
-          merger = merger_factory.create(:auto, content)
+          merger_factory.create(:auto, content)
         end
       end
 

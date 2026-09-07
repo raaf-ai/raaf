@@ -130,28 +130,28 @@ end
 
 RSpec.describe "Error inheritance chain" do
   it "allows catching all DSL errors with base class" do
-    expect {
+    expect do
       raise RAAF::DSL::ParseError.new("Parse failed")
-    }.to raise_error(RAAF::DSL::Error)
+    end.to raise_error(RAAF::DSL::Error)
 
-    expect {
+    expect do
       raise RAAF::DSL::ValidationError.new("Validation failed")
-    }.to raise_error(RAAF::DSL::Error)
+    end.to raise_error(RAAF::DSL::Error)
 
-    expect {
+    expect do
       raise RAAF::DSL::SchemaError.new("Schema failed")
-    }.to raise_error(RAAF::DSL::Error)
+    end.to raise_error(RAAF::DSL::Error)
   end
 
   it "allows catching validation errors with ValidationError" do
-    expect {
+    expect do
       raise RAAF::DSL::SchemaError.new("Schema failed")
-    }.to raise_error(RAAF::DSL::ValidationError)
+    end.to raise_error(RAAF::DSL::ValidationError)
   end
 
   it "allows catching all errors with StandardError" do
-    expect {
+    expect do
       raise RAAF::DSL::ParseError.new("Any error")
-    }.to raise_error(StandardError)
+    end.to raise_error(StandardError)
   end
 end

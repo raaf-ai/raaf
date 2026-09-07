@@ -63,9 +63,9 @@ RSpec.describe RAAF::Eval::RSpec::Helpers do
     end
 
     it "raises error if no span found" do
-      expect {
+      expect do
         evaluate_latest_span(agent: "NonexistentAgent")
-      }.to raise_error(RAAF::Eval::SpanNotFoundError)
+      end.to raise_error(RAAF::Eval::SpanNotFoundError)
     end
   end
 
@@ -141,7 +141,7 @@ RSpec.describe RAAF::Eval::RSpec::Helpers do
 
     it "supports method chaining" do
       evaluator = evaluate_run_result(run_result, agent: agent)
-        .with_configuration(temperature: 0.9)
+                  .with_configuration(temperature: 0.9)
 
       expect(evaluator.configurations).to have_key(:default)
       expect(evaluator.configurations[:default]).to include(temperature: 0.9)

@@ -110,7 +110,7 @@ module RAAF
           status_emoji = all_passed ? EMOJI[:success] : EMOJI[:failure]
 
           puts "=" * 80
-          puts "Overall: #{status_emoji} #{all_passed ? 'ALL RUNS PASSED' : 'SOME RUNS FAILED'}"
+          puts "Overall: #{status_emoji} #{all_passed ? "ALL RUNS PASSED" : "SOME RUNS FAILED"}"
           puts "=" * 80
         end
       end

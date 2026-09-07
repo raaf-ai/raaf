@@ -5,7 +5,9 @@ require "json"
 require "uri"
 
 module RAAF
+
   module Tools
+
     ##
     # Tavily Search Tool - Web search using Tavily's API
     #
@@ -25,6 +27,7 @@ module RAAF
     #   )
     #
     class TavilySearchTool
+
       ENDPOINT = "https://api.tavily.com/search"
       DEFAULT_TIMEOUT = 30
 
@@ -35,7 +38,7 @@ module RAAF
       # @param timeout [Integer] Request timeout in seconds
       #
       def initialize(api_key: nil, timeout: DEFAULT_TIMEOUT)
-        @api_key = api_key || ENV["TAVILY_API_KEY"]
+        @api_key = api_key || ENV.fetch("TAVILY_API_KEY", nil)
         @timeout = timeout
       end
 
@@ -52,7 +55,6 @@ module RAAF
       #
       def call(query:, search_depth: "basic", max_results: 5, include_answer: false,
                include_domains: [], exclude_domains: [])
-
         params = {
           api_key: @api_key,
           query: query,
@@ -102,7 +104,7 @@ module RAAF
       # @return [Boolean]
       #
       def enabled?
-        !@api_key.nil? && !@api_key.empty?
+        @api_key.present?
       end
 
       private
@@ -119,7 +121,7 @@ module RAAF
         http.use_ssl = true
         http.read_timeout = @timeout
 
-        request = Net::HTTP::Post.new(uri.path, {"Content-Type" => "application/json"})
+        request = Net::HTTP::Post.new(uri.path, { "Content-Type" => "application/json" })
         request.body = JSON.generate(params)
 
         response = http.request(request)
@@ -134,6 +136,9 @@ module RAAF
       rescue StandardError => e
         { error: "Request failed: #{e.message}" }
       end
+
     end
+
   end
+
 end

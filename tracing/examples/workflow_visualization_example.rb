@@ -50,8 +50,8 @@ puts "-" * 70
 puts "\n=== Example 1: Visualization Tool Configuration ==="
 
 # Create visualization tools using available classes
-trace_visualizer = nil  # Will be created with sample data
-workflow_visualizer = nil  # Will be created with agent data
+nil # Will be created with sample data
+nil # Will be created with agent data
 
 puts "✅ Visualizer components available:"
 puts "  - TraceVisualizer: ASCII and timeline traces"
@@ -69,7 +69,7 @@ sample_workflow = {
   start_time: Time.now - 300,  # 5 minutes ago
   end_time: Time.now,
   total_duration: 300_000,     # 5 minutes in milliseconds
-  
+
   agents: [
     {
       name: "DataIngester",
@@ -80,7 +80,7 @@ sample_workflow = {
       handoffs: 2
     },
     {
-      name: "DataAnalyzer", 
+      name: "DataAnalyzer",
       model: "gpt-4o",
       instructions: "Analyze data patterns and generate insights",
       total_runtime: 120_000,
@@ -96,12 +96,12 @@ sample_workflow = {
       handoffs: 0
     }
   ],
-  
+
   spans: [
     {
       span_id: "span_001",
       name: "workflow.start",
-      agent: "DataIngester", 
+      agent: "DataIngester",
       start_time: Time.now - 300,
       end_time: Time.now - 255,
       duration: 45_000,
@@ -129,7 +129,7 @@ sample_workflow = {
     },
     {
       span_id: "span_003",
-      parent_id: "span_001", 
+      parent_id: "span_001",
       name: "handoff.to_analyzer",
       agent: "DataIngester",
       start_time: Time.now - 260,
@@ -149,10 +149,10 @@ sample_workflow = {
       start_time: Time.now - 255,
       end_time: Time.now - 135,
       duration: 120_000,
-      type: "agent", 
+      type: "agent",
       metadata: {
         analysis_type: "pattern_detection",
-        algorithms_used: ["clustering", "regression", "anomaly_detection"]
+        algorithms_used: %w[clustering regression anomaly_detection]
       }
     },
     {
@@ -173,24 +173,24 @@ sample_workflow = {
     {
       span_id: "span_006",
       name: "workflow.report",
-      agent: "ReportGenerator", 
+      agent: "ReportGenerator",
       start_time: Time.now - 135,
       end_time: Time.now - 60,
       duration: 75_000,
       type: "agent",
       metadata: {
         report_format: "comprehensive",
-        sections: ["summary", "detailed_analysis", "recommendations"]
+        sections: %w[summary detailed_analysis recommendations]
       }
     }
   ],
-  
+
   performance_metrics: {
     total_tokens: 15_750,
     total_cost: 0.24,
     average_response_time: 2.3,
     error_rate: 0.02,
-    throughput: 52.5  # operations per minute
+    throughput: 52.5 # operations per minute
   }
 }
 
@@ -233,13 +233,13 @@ puts "   1. Copy the code above"
 puts "   2. Visit https://mermaid.live/"
 puts "   3. Paste and render the diagram"
 
-# Example 5: Performance Metrics Visualization  
+# Example 5: Performance Metrics Visualization
 puts "\n=== Example 5: Performance Metrics Visualization ==="
 
 # Generate performance charts using MetricsChart
 performance_chart_data = {}
 sample_workflow[:agents].each do |agent|
-  performance_chart_data[agent[:name]] = agent[:total_runtime] / 1000.0  # Convert to seconds
+  performance_chart_data[agent[:name]] = agent[:total_runtime] / 1000.0 # Convert to seconds
 end
 
 puts "⚡ Performance Analysis:"
@@ -293,7 +293,7 @@ most_active = sample_workflow[:agents].max_by { |a| a[:tool_calls] }
 puts "  Most Active Agent: #{most_active[:name]} (#{most_active[:tool_calls]} tool calls)"
 
 most_runtime = sample_workflow[:agents].max_by { |a| a[:total_runtime] }
-puts "  Longest Runtime Agent: #{most_runtime[:name]} (#{most_runtime[:total_runtime]/1000.0}s)"
+puts "  Longest Runtime Agent: #{most_runtime[:name]} (#{most_runtime[:total_runtime] / 1000.0}s)"
 
 puts "\n📊 Summary:"
 puts "  - HTML report generated: #{report_filename}"

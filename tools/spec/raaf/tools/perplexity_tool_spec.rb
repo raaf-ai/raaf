@@ -9,41 +9,41 @@ RSpec.describe RAAF::Tools::PerplexityTool do
   describe "#call" do
     context "query validation" do
       it "raises ArgumentError when query is nil" do
-        expect {
+        expect do
           tool.call(query: nil)
-        }.to raise_error(ArgumentError, "Query parameter is required")
+        end.to raise_error(ArgumentError, "Query parameter is required")
       end
 
       it "raises ArgumentError when query is not a String" do
-        expect {
+        expect do
           tool.call(query: 123)
-        }.to raise_error(ArgumentError, "Query must be a String, got Integer")
+        end.to raise_error(ArgumentError, "Query must be a String, got Integer")
       end
 
       it "raises ArgumentError when query is empty string" do
-        expect {
+        expect do
           tool.call(query: "")
-        }.to raise_error(ArgumentError, "Query cannot be empty")
+        end.to raise_error(ArgumentError, "Query cannot be empty")
       end
 
       it "raises ArgumentError when query is whitespace only" do
-        expect {
+        expect do
           tool.call(query: "   ")
-        }.to raise_error(ArgumentError, "Query cannot be empty")
+        end.to raise_error(ArgumentError, "Query cannot be empty")
       end
 
       it "raises ArgumentError when query exceeds 4000 characters" do
         long_query = "a" * 4001
-        expect {
+        expect do
           tool.call(query: long_query)
-        }.to raise_error(ArgumentError, "Query is too long (maximum 4000 characters)")
+        end.to raise_error(ArgumentError, "Query is too long (maximum 4000 characters)")
       end
 
       it "accepts valid query" do
         allow_any_instance_of(RAAF::Models::PerplexityProvider).to receive(:chat_completion).and_return({
-          "choices" => [{ "message" => { "content" => "test result" } }],
-          "model" => "sonar"
-        })
+                                                                                                          "choices" => [{ "message" => { "content" => "test result" } }],
+                                                                                                          "model" => "sonar"
+                                                                                                        })
 
         result = tool.call(query: "Valid query")
         expect(result[:success]).to be true
@@ -53,9 +53,9 @@ RSpec.describe RAAF::Tools::PerplexityTool do
     context "model configuration (at initialization)" do
       before do
         allow_any_instance_of(RAAF::Models::PerplexityProvider).to receive(:chat_completion).and_return({
-          "choices" => [{ "message" => { "content" => "test result" } }],
-          "model" => "sonar"
-        })
+                                                                                                          "choices" => [{ "message" => { "content" => "test result" } }],
+                                                                                                          "model" => "sonar"
+                                                                                                        })
       end
 
       it "uses default sonar model when not specified" do
@@ -92,9 +92,9 @@ RSpec.describe RAAF::Tools::PerplexityTool do
     context "max_tokens configuration (at initialization)" do
       before do
         allow_any_instance_of(RAAF::Models::PerplexityProvider).to receive(:chat_completion).and_return({
-          "choices" => [{ "message" => { "content" => "test result" } }],
-          "model" => "sonar"
-        })
+                                                                                                          "choices" => [{ "message" => { "content" => "test result" } }],
+                                                                                                          "model" => "sonar"
+                                                                                                        })
       end
 
       it "uses nil max_tokens when not specified (no limit)" do
@@ -125,15 +125,15 @@ RSpec.describe RAAF::Tools::PerplexityTool do
     context "domain_filter validation" do
       before do
         allow_any_instance_of(RAAF::Models::PerplexityProvider).to receive(:chat_completion).and_return({
-          "choices" => [{ "message" => { "content" => "test result" } }],
-          "model" => "sonar"
-        })
+                                                                                                          "choices" => [{ "message" => { "content" => "test result" } }],
+                                                                                                          "model" => "sonar"
+                                                                                                        })
       end
 
       it "raises ArgumentError when domain_filter is not String or Array" do
-        expect {
+        expect do
           tool.call(query: "test", search_domain_filter: 123)
-        }.to raise_error(ArgumentError, "search_domain_filter must be a String or Array, got Integer")
+        end.to raise_error(ArgumentError, "search_domain_filter must be a String or Array, got Integer")
       end
 
       it "accepts domain_filter as String" do
@@ -158,89 +158,90 @@ RSpec.describe RAAF::Tools::PerplexityTool do
 
       context "wildcard pattern validation" do
         it "rejects wildcard patterns with asterisk" do
-          expect {
+          expect do
             tool.call(query: "test", search_domain_filter: ["*.nl"])
-          }.to raise_error(ArgumentError, /Invalid domain pattern '\*\.nl': Wildcard patterns \(\*, \?\) are not supported/)
+          end.to raise_error(ArgumentError,
+                             /Invalid domain pattern '\*\.nl': Wildcard patterns \(\*, \?\) are not supported/)
         end
 
         it "rejects wildcard patterns with question mark" do
-          expect {
+          expect do
             tool.call(query: "test", search_domain_filter: ["ruby-?.org"])
-          }.to raise_error(ArgumentError, /Invalid domain pattern 'ruby-\?\.org': Wildcard patterns/)
+          end.to raise_error(ArgumentError, /Invalid domain pattern 'ruby-\?\.org': Wildcard patterns/)
         end
 
         it "rejects TLD wildcard patterns" do
-          expect {
+          expect do
             tool.call(query: "test", search_domain_filter: ["*.com"])
-          }.to raise_error(ArgumentError, /Invalid domain pattern '\*\.com': Wildcard patterns/)
+          end.to raise_error(ArgumentError, /Invalid domain pattern '\*\.com': Wildcard patterns/)
         end
 
         it "rejects prefix wildcard patterns" do
-          expect {
+          expect do
             tool.call(query: "test", search_domain_filter: ["ruby-*"])
-          }.to raise_error(ArgumentError, /Invalid domain pattern 'ruby-\*': Wildcard patterns/)
+          end.to raise_error(ArgumentError, /Invalid domain pattern 'ruby-\*': Wildcard patterns/)
         end
 
         it "rejects suffix wildcard patterns" do
-          expect {
+          expect do
             tool.call(query: "test", search_domain_filter: ["*github*"])
-          }.to raise_error(ArgumentError, /Invalid domain pattern '\*github\*': Wildcard patterns/)
+          end.to raise_error(ArgumentError, /Invalid domain pattern '\*github\*': Wildcard patterns/)
         end
 
         it "rejects multiple wildcard patterns in array" do
-          expect {
+          expect do
             tool.call(query: "test", search_domain_filter: ["ruby-lang.org", "*.nl", "github.com"])
-          }.to raise_error(ArgumentError, /Invalid domain pattern '\*\.nl': Wildcard patterns/)
+          end.to raise_error(ArgumentError, /Invalid domain pattern '\*\.nl': Wildcard patterns/)
         end
 
         it "provides helpful error message with examples" do
-          expect {
+          expect do
             tool.call(query: "test", search_domain_filter: ["*.nl"])
-          }.to raise_error(ArgumentError, /Use exact domain names like 'example\.com'/)
+          end.to raise_error(ArgumentError, /Use exact domain names like 'example\.com'/)
         end
       end
 
       context "TLD-only pattern validation" do
         it "rejects bare TLD patterns without dot" do
-          expect {
+          expect do
             tool.call(query: "test", search_domain_filter: ["nl"])
-          }.to raise_error(ArgumentError, /Invalid domain pattern 'nl': TLD-only patterns are not supported/)
+          end.to raise_error(ArgumentError, /Invalid domain pattern 'nl': TLD-only patterns are not supported/)
         end
 
         it "rejects bare 'com' TLD pattern" do
-          expect {
+          expect do
             tool.call(query: "test", search_domain_filter: ["com"])
-          }.to raise_error(ArgumentError, /Invalid domain pattern 'com': TLD-only patterns are not supported/)
+          end.to raise_error(ArgumentError, /Invalid domain pattern 'com': TLD-only patterns are not supported/)
         end
 
         it "rejects bare 'org' TLD pattern" do
-          expect {
+          expect do
             tool.call(query: "test", search_domain_filter: ["org"])
-          }.to raise_error(ArgumentError, /Invalid domain pattern 'org': TLD-only patterns are not supported/)
+          end.to raise_error(ArgumentError, /Invalid domain pattern 'org': TLD-only patterns are not supported/)
         end
 
         it "rejects TLD patterns with leading dot" do
-          expect {
+          expect do
             tool.call(query: "test", search_domain_filter: [".nl"])
-          }.to raise_error(ArgumentError, /Invalid domain pattern '\.nl': TLD-only patterns are not supported/)
+          end.to raise_error(ArgumentError, /Invalid domain pattern '\.nl': TLD-only patterns are not supported/)
         end
 
         it "rejects .com TLD pattern with leading dot" do
-          expect {
+          expect do
             tool.call(query: "test", search_domain_filter: [".com"])
-          }.to raise_error(ArgumentError, /Invalid domain pattern '\.com': TLD-only patterns are not supported/)
+          end.to raise_error(ArgumentError, /Invalid domain pattern '\.com': TLD-only patterns are not supported/)
         end
 
         it "provides helpful error message requiring complete domain names" do
-          expect {
+          expect do
             tool.call(query: "test", search_domain_filter: ["nl"])
-          }.to raise_error(ArgumentError, /Use complete domain names like 'example\.nl'/)
+          end.to raise_error(ArgumentError, /Use complete domain names like 'example\.nl'/)
         end
 
         it "mentions TLD filters not allowed in error message" do
-          expect {
+          expect do
             tool.call(query: "test", search_domain_filter: [".nl"])
-          }.to raise_error(ArgumentError, /TLD filters like '\.nl', 'nl', '\.com' are not allowed/)
+          end.to raise_error(ArgumentError, /TLD filters like '\.nl', 'nl', '\.com' are not allowed/)
         end
 
         it "accepts complete domain names" do
@@ -285,9 +286,9 @@ RSpec.describe RAAF::Tools::PerplexityTool do
     context "recency_filter validation (via SearchOptions)" do
       before do
         allow_any_instance_of(RAAF::Perplexity::HttpClient).to receive(:make_api_call).and_return({
-          "choices" => [{ "message" => { "content" => "test result" } }],
-          "model" => "sonar"
-        })
+                                                                                                    "choices" => [{ "message" => { "content" => "test result" } }],
+                                                                                                    "model" => "sonar"
+                                                                                                  })
       end
 
       it "accepts valid recency filters" do
@@ -311,9 +312,9 @@ RSpec.describe RAAF::Tools::PerplexityTool do
     context "default recency_filter fallback behavior" do
       before do
         allow_any_instance_of(RAAF::Perplexity::HttpClient).to receive(:make_api_call).and_return({
-          "choices" => [{ "message" => { "content" => "test result" } }],
-          "model" => "sonar"
-        })
+                                                                                                    "choices" => [{ "message" => { "content" => "test result" } }],
+                                                                                                    "model" => "sonar"
+                                                                                                  })
       end
 
       context "when default is nil (no recency filtering)" do
@@ -397,9 +398,9 @@ RSpec.describe RAAF::Tools::PerplexityTool do
         let(:tool_with_default) { described_class.new(api_key: "test-key", search_recency_filter: "week") }
 
         it "still raises ArgumentError for invalid domain_filter (not caught by fallback)" do
-          expect {
+          expect do
             tool_with_default.call(query: "test", search_domain_filter: 123)
-          }.to raise_error(ArgumentError, /search_domain_filter must be a String or Array/)
+          end.to raise_error(ArgumentError, /search_domain_filter must be a String or Array/)
         end
       end
     end
@@ -407,9 +408,9 @@ RSpec.describe RAAF::Tools::PerplexityTool do
     context "combined configuration and parameters" do
       before do
         allow_any_instance_of(RAAF::Models::PerplexityProvider).to receive(:chat_completion).and_return({
-          "choices" => [{ "message" => { "content" => "test result" } }],
-          "model" => "sonar-pro"
-        })
+                                                                                                          "choices" => [{ "message" => { "content" => "test result" } }],
+                                                                                                          "model" => "sonar-pro"
+                                                                                                        })
       end
 
       it "accepts query with filters when model and max_tokens configured at initialization" do
@@ -429,9 +430,9 @@ RSpec.describe RAAF::Tools::PerplexityTool do
       end
 
       it "stops on first validation error" do
-        expect {
+        expect do
           tool.call(query: nil)
-        }.to raise_error(ArgumentError, "Query parameter is required")
+        end.to raise_error(ArgumentError, "Query parameter is required")
       end
     end
 

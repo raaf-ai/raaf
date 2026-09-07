@@ -7,7 +7,9 @@ require_relative "protocol"
 require_relative "types"
 
 module RAAF
+
   module MCP
+
     # MCP Client for connecting to Model Context Protocol servers
     #
     # This client implements the Model Context Protocol specification,
@@ -23,6 +25,7 @@ module RAAF
     #   client = MCPClient.new(transport: :sse)
     #   client.connect("http://localhost:3000/mcp")
     class MCPClient
+
       include Protocol
 
       attr_reader :server_info, :capabilities, :connected
@@ -351,18 +354,23 @@ module RAAF
                                                                            method: message["method"])
         end
       end
+
     end
 
     # Errors
     class MCPError < StandardError
+
       attr_reader :code
 
       def initialize(message, code = nil)
         super(message)
         @code = code
       end
+
     end
 
     class NotConnectedError < MCPError; end
+
   end
+
 end

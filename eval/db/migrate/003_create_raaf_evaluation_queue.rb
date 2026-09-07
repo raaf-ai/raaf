@@ -10,7 +10,7 @@ class CreateRAAFEvaluationQueue < ActiveRecord::Migration[7.0]
 
       # Status tracking
       # 'pending', 'running', 'completed', 'failed', 'cancelled'
-      t.string :status, null: false, default: 'pending'
+      t.string :status, null: false, default: "pending"
 
       # Queue management
       t.integer :priority, default: 50
@@ -34,9 +34,9 @@ class CreateRAAFEvaluationQueue < ActiveRecord::Migration[7.0]
 
     add_index :raaf_evaluation_queue, :span_id
     add_index :raaf_evaluation_queue, :status
-    add_index :raaf_evaluation_queue, [:status, :priority, :scheduled_at],
-              name: 'idx_eval_queue_processing'
-    add_index :raaf_evaluation_queue, [:status, :created_at],
-              name: 'idx_eval_queue_status_time'
+    add_index :raaf_evaluation_queue, %i[status priority scheduled_at],
+              name: "idx_eval_queue_processing"
+    add_index :raaf_evaluation_queue, %i[status created_at],
+              name: "idx_eval_queue_status_time"
   end
 end

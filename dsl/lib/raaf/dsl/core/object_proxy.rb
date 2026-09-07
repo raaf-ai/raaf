@@ -57,7 +57,7 @@ module RAAF
       # Override method_missing to add access control and caching
       def method_missing(method_name, *args, &block)
         # Check if method is allowed
-        if !method_allowed?(method_name)
+        unless method_allowed?(method_name)
           raise NoMethodError, "Method '#{method_name}' is not allowed on proxied object"
         end
 
@@ -65,17 +65,13 @@ module RAAF
         @__accessed__ << method_name
 
         # Check cache first if enabled
-        if @__cache__ && args.empty? && !block
-          return @__cache__[method_name] if @__cache__.key?(method_name)
-        end
+        return @__cache__[method_name] if @__cache__ && args.empty? && !block && @__cache__.key?(method_name)
 
         # Call the method on the target
         result = @__target__.send(method_name, *args, &block)
 
         # Cache the result if caching is enabled and it's a simple call
-        if @__cache__ && args.empty? && !block && cacheable_result?(result)
-          @__cache__[method_name] = result
-        end
+        @__cache__[method_name] = result if @__cache__ && args.empty? && !block && cacheable_result?(result)
 
         # Wrap nested objects if configured
         if should_wrap_result?(result)
@@ -118,9 +114,7 @@ module RAAF
       end
 
       # Get the class of the proxied object
-      def class
-        @__target__.class
-      end
+      delegate :class, to: :@__target__
 
       # Check if this is a proxy
       def proxy?
@@ -140,22 +134,16 @@ module RAAF
         method_sym = method_name.to_sym
 
         # Never allow private methods starting with _
-        return false if method_str.start_with?('_')
+        return false if method_str.start_with?("_")
 
         # Check whitelist (only)
-        if @__options__[:only]
-          return @__options__[:only].include?(method_sym)
-        end
+        return @__options__[:only].include?(method_sym) if @__options__[:only]
 
         # Check blacklist (except)
-        if @__options__[:except]
-          return !@__options__[:except].include?(method_sym)
-        end
+        return !@__options__[:except].include?(method_sym) if @__options__[:except]
 
         # Check if it's in additional methods
-        if @__options__[:methods]
-          return true if @__options__[:methods].include?(method_sym)
-        end
+        return true if @__options__[:methods] && @__options__[:methods].include?(method_sym)
 
         # Default: allow public methods
         @__target__.respond_to?(method_name)

@@ -37,18 +37,17 @@ module RAAF
 
         let(:mock_span) do
           double("Span",
-            span_id: "tool_span_123",
-            trace_id: "trace_456", 
-            parent_id: "parent_789",
-            name: "search_web",
-            kind: "tool",
-            status: "success",
-            start_time: Time.parse("2025-09-25 10:00:00 UTC"),
-            end_time: Time.parse("2025-09-25 10:00:00.250 UTC"),
-            duration_ms: 250,
-            span_attributes: base_span_attributes,
-            depth: 2
-          )
+                 span_id: "tool_span_123",
+                 trace_id: "trace_456",
+                 parent_id: "parent_789",
+                 name: "search_web",
+                 kind: "tool",
+                 status: "success",
+                 start_time: Time.parse("2025-09-25 10:00:00 UTC"),
+                 end_time: Time.parse("2025-09-25 10:00:00.250 UTC"),
+                 duration_ms: 250,
+                 span_attributes: base_span_attributes,
+                 depth: 2)
         end
 
         let(:component) { described_class.new(span: mock_span) }
@@ -207,9 +206,9 @@ module RAAF
             before do
               allow(mock_span).to receive(:status).and_return("error")
               allow(mock_span).to receive(:span_attributes).and_return({
-                "function" => { "name" => "failing_tool" },
-                "error" => "Tool execution failed"
-              })
+                                                                         "function" => { "name" => "failing_tool" },
+                                                                         "error" => "Tool execution failed"
+                                                                       })
             end
 
             it "renders error details section" do

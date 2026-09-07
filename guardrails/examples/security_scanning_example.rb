@@ -55,46 +55,46 @@ else
     issues << { severity: :critical, message: "Command injection vulnerability" } if text.match?(/system\s*\([^)]*\#\{/)
     { issues: issues }
   end
-  
+
   def scanner.scan_agent(agent)
     risk_level = :low
     recommendations = []
-    
+
     if agent.instructions.match?(/eval|execute.*code|run.*command/i)
       risk_level = :critical
       recommendations << "Remove instructions that encourage code execution"
     end
-    
+
     if agent.instance_variable_get(:@temperature).to_f > 1.0
       risk_level = :high if risk_level == :low
       recommendations << "Reduce temperature to 1.0 or below for more predictable behavior"
     end
-    
+
     if agent.tools.any? { |t| t.name == "execute_code" }
       risk_level = :critical
       recommendations << "Remove or restrict code execution tools"
     end
-    
+
     recommendations << "Add security guardrails" if recommendations.any?
-    
+
     { risk_level: risk_level, recommendations: recommendations }
   end
-  
-  def scanner.scan_dependencies(path)
+
+  def scanner.scan_dependencies(_path)
     # Mock dependency scanning
     vulnerabilities = [
       { package: "rack", version: "2.0.1", severity: :high, cve: "CVE-2018-16471" },
       { package: "nokogiri", version: "1.8.0", severity: :high, cve: "CVE-2018-14404" }
     ]
-    
+
     {
       total_dependencies: 4,
       vulnerabilities: vulnerabilities,
       severity_summary: { critical: 0, high: 2, medium: 0, low: 0 }
     }
   end
-  
-  def scanner.scan_code(path)
+
+  def scanner.scan_code(_path)
     # Mock code scanning
     issues = [
       { line: 4, severity: :critical, message: "SQL injection vulnerability" },
@@ -103,46 +103,46 @@ else
       { line: 15, severity: :critical, message: "Dangerous eval() usage" },
       { line: 21, severity: :high, message: "Hardcoded secret detected" }
     ]
-    
+
     { files_scanned: 1, issues: issues }
   end
-  
-  def scanner.generate_report(results, format)
-    report = <<~REPORT
-# Security Scan Report
 
-Generated: #{Time.now}
+  def scanner.generate_report(results, _format)
+    <<~REPORT
+      # Security Scan Report
 
-## Summary
+      Generated: #{Time.now}
 
-Total scans performed: #{results.length}
-Critical issues found: Multiple
+      ## Summary
 
-## Detailed Findings
+      Total scans performed: #{results.length}
+      Critical issues found: Multiple
 
-### Text Scan
-- Exposed credentials detected
-- Dangerous code patterns found
+      ## Detailed Findings
 
-### Agent Security
-- Critical risk agent configuration
-- Multiple security recommendations
+      ### Text Scan
+      - Exposed credentials detected
+      - Dangerous code patterns found
 
-### Dependencies
-- 2 high severity vulnerabilities
-- Updates required for rack and nokogiri
+      ### Agent Security
+      - Critical risk agent configuration
+      - Multiple security recommendations
 
-### Static Analysis  
-- 5 security issues in code
-- SQL injection, command injection, and eval usage
+      ### Dependencies
+      - 2 high severity vulnerabilities
+      - Updates required for rack and nokogiri
 
-## Recommendations
+      ### Static Analysis#{"  "}
+      - 5 security issues in code
+      - SQL injection, command injection, and eval usage
 
-1. Implement security guardrails on all agents
-2. Update vulnerable dependencies immediately  
-3. Remove hardcoded secrets
-4. Sanitize all user inputs
-5. Avoid eval() and system() with user data
+      ## Recommendations
+
+      1. Implement security guardrails on all agents
+      2. Update vulnerable dependencies immediately#{"  "}
+      3. Remove hardcoded secrets
+      4. Sanitize all user inputs
+      5. Avoid eval() and system() with user data
     REPORT
   end
 end
@@ -154,7 +154,7 @@ suspicious_content = <<~CONTENT
   Here's my API configuration:
   api_key = "sk-1234567890abcdef1234567890abcdef12345678"  # Exposed API key
   password = "super_secret_password_123"                     # Hardcoded password
-  
+
   def process_input(user_input)
     eval(user_input)  # DANGEROUS: Direct eval of user input
     system("rm -rf \#{user_input}")  # DANGEROUS: Command injection vulnerability
@@ -209,7 +209,7 @@ risky_agent.add_tool(
       eval(command) # CRITICAL SECURITY RISK: Direct eval of user input
     end,
     name: "execute_code",
-    description: "Execute any Ruby code"  # Too permissive description
+    description: "Execute any Ruby code" # Too permissive description
   )
 )
 
@@ -247,10 +247,10 @@ if defined?(RAAF::Guardrails::SecurityGuardrail)
     policies: {
       # Commands that should never be executed
       forbidden_commands: %w[rm delete format kill sudo],
-      
+
       # Only allow connections to trusted domains
       allowed_domains: ["api.openai.com", "github.com"],
-      
+
       # Prevent prompt injection through length limits
       max_prompt_length: 1000
     }
@@ -261,28 +261,28 @@ else
   def security_guard.check(content, context)
     violations = []
     allowed = true
-    
+
     # Check for prompt injection
     if content.match?(/ignore.*previous.*instructions/i)
       violations << { type: :prompt_injection, message: "Potential prompt injection detected" }
       allowed = false
     end
-    
+
     # Check for forbidden commands
     if context[:command] && context[:command].match?(/rm|delete|format|kill|sudo/)
       violations << { type: :forbidden_command, message: "Forbidden command detected" }
       allowed = false
     end
-    
+
     # Check for unauthorized domains
     if context[:url] && context[:url].match?(/localhost|127\.0\.0\.1/)
       violations << { type: :unauthorized_domain, message: "Local network access forbidden" }
       allowed = false
     end
-    
+
     { allowed: allowed, violations: violations }
   end
-  
+
   def security_guard.monitor_execution(&block)
     # In real implementation, this would monitor the execution
     # and halt if security violations are detected
@@ -328,11 +328,11 @@ test_inputs = [
 test_inputs.each_with_index do |test, idx|
   puts "\nTest #{idx + 1}: #{test[:expected].capitalize}"
   result = security_guard.check(test[:content], test[:context])
-  
+
   puts "  Content: \"#{test[:content]}\""
   puts "  Context: #{test[:context]}"
-  puts "  Result: #{result[:allowed] ? 'ALLOWED' : 'BLOCKED'}"
-  
+  puts "  Result: #{result[:allowed] ? "ALLOWED" : "BLOCKED"}"
+
   next if result[:violations].empty?
 
   puts "  Violations:"
@@ -364,10 +364,10 @@ gemfile_lock.write(<<~GEMFILE)
       nokogiri (1.8.0)     # Multiple XML parsing vulnerabilities
       rails (5.0.0)        # Several security patches missing
       openai-ruby (4.0.0)  # Current version (for comparison)
-    
+  #{"  "}
   PLATFORMS
     ruby
-    
+  #{"  "}
   DEPENDENCIES
     rack (~> 2.0.0)
     nokogiri (~> 1.8.0)
@@ -414,24 +414,24 @@ code_file.write(<<~RUBY)
       # SQL injection vulnerability - user input directly concatenated
       # OWASP Top 10: A03:2021 – Injection
       User.where("name = '" + params[:name] + "'")
-      
+  #{"    "}
       # Command injection - unsanitized input to system command
       # Can lead to arbitrary command execution
       system("echo " + params[:message])
-      
+  #{"    "}
       # Path traversal vulnerability - user controls file path
       # Attacker could read/write arbitrary files
       File.open(params[:file], 'w') do |f|
         f.write(params[:content])
       end
-      
+  #{"    "}
       # Code injection through eval - extremely dangerous
       # Never use eval with user input
       eval(params[:code]) if params[:admin]
     end
-    
+  #{"  "}
     private
-    
+  #{"  "}
     def api_key
       "sk-prod-1234567890abcdef"  # Hardcoded secret - should use env vars
     end
@@ -495,7 +495,7 @@ begin
       runner = RAAF::Runner.new(agent: safe_agent)
       runner.run("What is the weather today?")
     end
-    
+
     puts "✅ Execution completed safely"
     puts "   Response: #{result.messages.last[:content][0..100]}..."
   else
@@ -524,20 +524,20 @@ puts "-" * 50
 dockerfile = Tempfile.new(["Dockerfile", ""])
 dockerfile.write(<<~DOCKER)
   FROM ruby:3.0  # Should specify exact version for reproducibility
-  
+
   USER root  # SECURITY ISSUE: Container runs with root privileges
-  
+
   RUN apt-get update && apt-get install -y curl
-  
+
   # SECURITY ISSUE: Downloading and piping to shell is dangerous
   # Attacker could compromise install.sh to execute malicious code
   RUN curl -sSL https://example.com/install.sh | sh
-  
+
   WORKDIR /app
   COPY . .  # May copy sensitive files like .env or .git
-  
+
   RUN bundle install --without development test
-  
+
   EXPOSE 3000
   CMD ["ruby", "app.rb"]  # No health checks or security constraints
 DOCKER
@@ -556,7 +556,7 @@ container_result = {
 
 puts "\nContainer Scan Results:"
 puts "  Image: #{container_result[:image]}"
-puts "  Clean: #{container_result[:clean] ? 'Yes' : 'No'}"
+puts "  Clean: #{container_result[:clean] ? "Yes" : "No"}"
 
 if container_result[:vulnerabilities].any?
   puts "  Vulnerabilities:"
@@ -612,49 +612,49 @@ puts "-" * 50
 # actionable implementation guidance
 best_practices = <<~PRACTICES
   Agent Security Best Practices:
-  
+
   1. Input Validation:
      - Always validate and sanitize user inputs
      - Use security guardrails for all agents
      - Implement rate limiting
      - Check for injection attempts
-  
+
   2. Secret Management:
      - Never hardcode API keys or passwords
      - Use environment variables
      - Rotate secrets regularly
      - Scan for exposed secrets
-  
+
   3. Tool Security:
      - Review all tool implementations
      - Limit tool permissions
      - Use allowlists for commands
      - Monitor tool execution
-  
+
   4. Code Security:
      - Regular security scans
      - Keep dependencies updated
      - Follow secure coding practices
      - Use static analysis tools
-  
+
   5. Runtime Security:
      - Monitor agent behavior
      - Set resource limits
      - Log security events
      - Implement anomaly detection
-  
+
   6. Network Security:
      - Use HTTPS for all API calls
      - Validate SSL certificates
      - Restrict network access
      - Monitor outbound connections
-  
+
   7. Container Security:
      - Don't run as root
      - Scan images for vulnerabilities
      - Use minimal base images
      - Keep containers updated
-  
+
   8. Compliance:
      - Regular security audits
      - Document security policies
@@ -682,7 +682,7 @@ security_config = <<~CONFIG
           - 'password\\s*[:=]'    # Exposed passwords
           - 'api[_-]?key\\s*[:=]'  # API keys
           - '-----BEGIN.*KEY-----'  # Private keys
-        
+  #{"      "}
     scanning:
       enabled: true
       schedule: "0 2 * * *"  # Daily at 2 AM
@@ -691,7 +691,7 @@ security_config = <<~CONFIG
         static_analysis: true
         secret: true
         container: true
-      
+  #{"    "}
     monitoring:
       enabled: true
       alerts:
@@ -699,18 +699,18 @@ security_config = <<~CONFIG
           webhook: "${SLACK_WEBHOOK_URL}"
         - type: email
           to: "security@example.com"
-      
+  #{"    "}
     policies:
       password_policy:
         min_length: 12
         require_uppercase: true
         require_numbers: true
         require_special: true
-      
+  #{"    "}
       api_keys:
         rotation_days: 90
         allowed_ips: []
-      
+  #{"    "}
       network:
         allowed_domains:
           - "api.openai.com"

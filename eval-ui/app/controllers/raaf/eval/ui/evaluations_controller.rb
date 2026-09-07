@@ -13,7 +13,15 @@ module RAAF
       # - Viewing evaluation results
       #
       class EvaluationsController < ApplicationController
-        before_action :set_session, only: [:show, :execute, :status, :results, :destroy]
+        before_action :set_session, only: %i[show execute status results destroy]
+
+        # GET /evaluations/:id
+        def show
+          respond_to do |format|
+            format.html
+            format.json { render json: @session }
+          end
+        end
 
         # GET /evaluations/new?span_id=123
         def new
@@ -46,24 +54,16 @@ module RAAF
             end
           else
             respond_to do |format|
-              format.html { render :new, status: :unprocessable_entity }
-              format.json { render json: { errors: @session.errors }, status: :unprocessable_entity }
+              format.html { render :new, status: :unprocessable_content }
+              format.json { render json: { errors: @session.errors }, status: :unprocessable_content }
             end
-          end
-        end
-
-        # GET /evaluations/:id
-        def show
-          respond_to do |format|
-            format.html
-            format.json { render json: @session }
           end
         end
 
         # POST /evaluations/:id/execute
         def execute
           if @session.running?
-            render json: { error: "Evaluation already running" }, status: :unprocessable_entity
+            render json: { error: "Evaluation already running" }, status: :unprocessable_content
             return
           end
 

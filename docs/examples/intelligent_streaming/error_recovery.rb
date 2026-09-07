@@ -5,9 +5,9 @@
 # This example demonstrates how intelligent streaming handles errors
 # gracefully, allowing partial results and recovery strategies.
 
-require 'raaf'
-require 'raaf-dsl'
-require 'json'
+require "raaf"
+require "raaf-dsl"
+require "json"
 
 # Error types for simulation
 class NetworkError < StandardError; end
@@ -61,7 +61,7 @@ class FailedItemsTracker
     {
       total_failures: @items.count,
       by_error_type: @items.group_by { |i| i[:error_type] }
-                            .transform_values(&:count),
+                           .transform_values(&:count),
       total_items_affected: @items.sum { |i| i[:item_count] }
     }
   end
@@ -83,10 +83,10 @@ class DataLoaderWithErrors < RAAF::DSL::Agent
     transactions = (1..200).map do |i|
       {
         id: i,
-        amount: rand(10..10000),
-        currency: ["USD", "EUR", "GBP", "INVALID"].sample,
+        amount: rand(10..10_000),
+        currency: %w[USD EUR GBP INVALID].sample,
         merchant: "Merchant #{i}",
-        status: ["pending", "processing", "completed", "failed"].sample,
+        status: %w[pending processing completed failed].sample,
         risk_score: rand(0..100),
         # Stream 3 will have network issues (IDs 51-75)
         will_fail_network: (51..75).include?(i),
@@ -125,19 +125,17 @@ class TransactionProcessor < RAAF::DSL::Agent
       puts "  Transaction IDs: #{stream_data.first[:id]}-#{stream_data.last[:id]}"
     end
 
-    on_stream_complete do |stream_num, total, stream_data, stream_results|
+    on_stream_complete do |_stream_num, _total, stream_data, stream_results|
       processed = stream_results[:processed_transactions] || []
 
       puts "  ✅ Successfully processed #{processed.count}/#{stream_data.count} transactions"
 
       # Check for partial failures within results
       failed = stream_data.count - processed.count
-      if failed > 0
-        puts "  ⚠️  #{failed} transactions failed within stream"
-      end
+      puts "  ⚠️  #{failed} transactions failed within stream" if failed > 0
     end
 
-    on_stream_error do |stream_num, total, stream_data, error|
+    on_stream_error do |stream_num, _total, stream_data, error|
       puts "\n❌ Stream #{stream_num} encountered error: #{error.class.name}"
       puts "  Message: #{error.message}"
 
@@ -208,7 +206,7 @@ class TransactionProcessor < RAAF::DSL::Agent
     puts "  🔄 Network error - will retry with exponential backoff"
 
     # Exponential backoff calculation
-    retry_delay = 2 ** [stream_num, 5].min  # Max 32 seconds
+    retry_delay = 2**[stream_num, 5].min # Max 32 seconds
     puts "  ⏰ Retry scheduled in #{retry_delay} seconds"
 
     # Add to retry queue
@@ -227,7 +225,7 @@ class TransactionProcessor < RAAF::DSL::Agent
     # Fix known validation issues
     fixed_data = data.map do |transaction|
       if transaction[:currency] == "INVALID"
-        transaction.merge(currency: "USD")  # Default to USD
+        transaction.merge(currency: "USD") # Default to USD
       else
         transaction
       end
@@ -244,7 +242,7 @@ class TransactionProcessor < RAAF::DSL::Agent
     puts "  ⏳ Rate limit hit - implementing backpressure"
 
     # Calculate wait time based on rate limit headers
-    wait_time = 60  # Default 60 seconds
+    wait_time = 60 # Default 60 seconds
     puts "  ⏰ Waiting #{wait_time} seconds before retry"
 
     # In production, you might sleep or schedule for later
@@ -259,15 +257,15 @@ class TransactionProcessor < RAAF::DSL::Agent
 
   def salvage_partial_results(stream_num, data)
     # Attempt to process what we can
-    salvageable = data.select { |t| t[:risk_score] < 50 }  # Low risk only
+    salvageable = data.select { |t| t[:risk_score] < 50 } # Low risk only
 
-    if salvageable.any?
-      puts "  ✅ Salvaged #{salvageable.count} low-risk transactions"
-      # Process salvageable transactions with safe defaults
-      salvageable.each do |transaction|
-        # Save with degraded service marker
-        transaction[:status] = "processed_with_errors"
-      end
+    return unless salvageable.any?
+
+    puts "  ✅ Salvaged #{salvageable.count} low-risk transactions"
+    # Process salvageable transactions with safe defaults
+    salvageable.each do |transaction|
+      # Save with degraded service marker
+      transaction[:status] = "processed_with_errors"
     end
   end
 end
@@ -328,7 +326,7 @@ if __FILE__ == $0
   if result[:error_report]
     report = result[:error_report]
 
-    puts "\n" + "=" * 50
+    puts "\n" + ("=" * 50)
     puts "📊 Error Recovery Report"
     puts "=" * 50
     puts "Total Transactions: 200"
@@ -347,7 +345,7 @@ if __FILE__ == $0
   end
 
   # Show retry queues
-  puts "\n" + "=" * 50
+  puts "\n" + ("=" * 50)
   puts "📝 Retry Queue Status"
   puts "=" * 50
   RetryQueue.all.each do |queue_name, items|
@@ -356,7 +354,7 @@ if __FILE__ == $0
 
   # Show failure tracking
   failure_summary = FailedItemsTracker.summary
-  puts "\n" + "=" * 50
+  puts "\n" + ("=" * 50)
   puts "⚠️  Failure Tracking Summary"
   puts "=" * 50
   puts "Total Stream Failures: #{failure_summary[:total_failures]}"
@@ -366,7 +364,7 @@ if __FILE__ == $0
     puts "  #{type}: #{count} streams"
   end
 
-  puts "\n" + "=" * 50
+  puts "\n" + ("=" * 50)
   puts "💡 Key Insights"
   puts "=" * 50
   puts "✅ Pipeline continued despite multiple errors"

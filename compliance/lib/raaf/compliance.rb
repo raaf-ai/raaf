@@ -7,6 +7,7 @@ require "fileutils"
 require "logger"
 
 module RAAF
+
   ##
   # Compliance and audit logging system
   #
@@ -41,7 +42,7 @@ module RAAF
   #     retention_days: 2555,  # 7 years
   #     encryption: true
   #   )
-  #   
+  #
   #   audit_logger.log_agent_execution(agent, messages, result)
   #   audit_logger.log_tool_usage("search", { query: "[REDACTED]" }, result)
   #
@@ -49,7 +50,7 @@ module RAAF
   #   policy_manager = Compliance::PolicyManager.new
   #   policy_manager.add_policy(Compliance::PIIHandlingPolicy.new)
   #   policy_manager.add_policy(Compliance::DataRetentionPolicy.new(retention_days: 90))
-  #   
+  #
   #   result = policy_manager.enforce_policies(context, data)
   #
   # @example Compliance monitoring
@@ -57,7 +58,7 @@ module RAAF
   #     policies: [data_retention_policy, pii_policy],
   #     audit_logger: audit_logger
   #   )
-  #   
+  #
   #   monitor.start_monitoring
   #   compliance_status = monitor.check_compliance
   #
@@ -67,6 +68,7 @@ module RAAF
   # @see PolicyManager For policy enforcement
   # @see ComplianceMonitor For real-time monitoring
   module Compliance
+
     ##
     # Audit logger for compliance tracking
     #
@@ -124,9 +126,10 @@ module RAAF
     # @since 0.1.0
     # @see PolicyManager For policy-based audit configuration
     class AuditLogger
+
       # @return [Hash] audit logger configuration
       attr_reader :config
-      
+
       # @return [Logger] underlying logger instance
       attr_reader :logger
 
@@ -908,10 +911,12 @@ module RAAF
             "suser=#{event[:user_id]}"
         end.join("\n")
       end
+
     end
 
     # Compliance policy manager
     class PolicyManager
+
       def initialize
         @policies = {}
         load_default_policies
@@ -940,16 +945,20 @@ module RAAF
         @policies[:pii_handling] = PIIHandlingPolicy.new
         @policies[:audit_requirements] = AuditRequirementsPolicy.new
       end
+
     end
 
     # Compliance policies
     class CompliancePolicy
+
       def check(context)
         raise NotImplementedError
       end
+
     end
 
     class DataRetentionPolicy < CompliancePolicy
+
       def check(context)
         violations = []
 
@@ -958,9 +967,11 @@ module RAAF
 
         ComplianceResult.new(violations.empty?, violations)
       end
+
     end
 
     class AccessControlPolicy < CompliancePolicy
+
       def check(context)
         violations = []
 
@@ -972,9 +983,11 @@ module RAAF
 
         ComplianceResult.new(violations.empty?, violations)
       end
+
     end
 
     class PIIHandlingPolicy < CompliancePolicy
+
       def check(context)
         violations = []
 
@@ -986,9 +999,11 @@ module RAAF
 
         ComplianceResult.new(violations.empty?, violations)
       end
+
     end
 
     class AuditRequirementsPolicy < CompliancePolicy
+
       def check(context)
         violations = []
 
@@ -1000,10 +1015,12 @@ module RAAF
 
         ComplianceResult.new(violations.empty?, violations)
       end
+
     end
 
     # Compliance result
     class ComplianceResult
+
       attr_reader :violations
 
       def initialize(compliant, violations = [])
@@ -1021,10 +1038,12 @@ module RAAF
           violations: @violations
         }
       end
+
     end
 
     # Real-time compliance monitor
     class ComplianceMonitor
+
       def initialize(audit_logger, policy_manager)
         @audit_logger = audit_logger
         @policy_manager = policy_manager
@@ -1070,6 +1089,9 @@ module RAAF
           end
         end
       end
+
     end
+
   end
+
 end

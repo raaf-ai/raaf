@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class SessionsController < ApplicationController
-  skip_before_action :authenticate_user!, only: [:new, :create]
+  skip_before_action :authenticate_user!, only: %i[new create]
 
   def new
     # Render login form
@@ -9,7 +9,7 @@ class SessionsController < ApplicationController
 
   def create
     # Simple authentication for demo
-    if params[:email] == 'demo@example.com' && params[:password] == 'password'
+    if params[:email] == "demo@example.com" && params[:password] == "password"
       session[:user_id] = 1
       redirect_to root_path, notice: "Logged in successfully"
     else

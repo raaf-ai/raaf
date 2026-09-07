@@ -8,12 +8,12 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
     double("Market").tap do |model|
       allow(model).to receive(:name).and_return("Market")
       allow(model).to receive(:columns).and_return([
-        double("Column", name: "id", type: :integer, null: false, limit: nil),
-        double("Column", name: "market_name", type: :string, null: false, limit: 255),
-        double("Column", name: "overall_score", type: :integer, null: true, limit: nil),
-        double("Column", name: "market_description", type: :text, null: true, limit: nil),
-        double("Column", name: "created_at", type: :datetime, null: false, limit: nil)
-      ])
+                                                     double("Column", name: "id", type: :integer, null: false, limit: nil),
+                                                     double("Column", name: "market_name", type: :string, null: false, limit: 255),
+                                                     double("Column", name: "overall_score", type: :integer, null: true, limit: nil),
+                                                     double("Column", name: "market_description", type: :text, null: true, limit: nil),
+                                                     double("Column", name: "created_at", type: :datetime, null: false, limit: nil)
+                                                   ])
       allow(model).to receive(:reflect_on_all_associations).and_return([])
       allow(model).to receive(:validators).and_return([])
     end
@@ -22,15 +22,15 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
   before do
     # Mock the schema cache to return a basic schema
     allow(RAAF::DSL::SchemaCache).to receive(:get_schema).with(market_model).and_return({
-      properties: {
-        id: { type: :integer },
-        market_name: { type: :string, maxLength: 255 },
-        overall_score: { type: :integer },
-        market_description: { type: :string },
-        created_at: { type: :string, format: :datetime }
-      },
-      required: [:id, :market_name, :created_at]
-    })
+                                                                                          properties: {
+                                                                                            id: { type: :integer },
+                                                                                            market_name: { type: :string, maxLength: 255 },
+                                                                                            overall_score: { type: :integer },
+                                                                                            market_description: { type: :string },
+                                                                                            created_at: { type: :string, format: :datetime }
+                                                                                          },
+                                                                                          required: %i[id market_name created_at]
+                                                                                        })
   end
 
   describe "#initialize" do
@@ -91,9 +91,9 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
 
       it "supports method chaining" do
         result = builder
-          .field(:name, :string)
-          .field(:email, :email)
-          .field(:score, :score)
+                 .field(:name, :string)
+                 .field(:email, :email)
+                 .field(:score, :score)
 
         expect(result).to eq(builder)
         expect(builder.instance_variable_get(:@properties).keys).to include(:name, :email, :score)
@@ -129,9 +129,9 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
 
         properties = builder.instance_variable_get(:@properties)
         expect(properties[:tags]).to eq({
-          type: :array,
-          items: { type: :string }
-        })
+                                          type: :array,
+                                          items: { type: :string }
+                                        })
       end
 
       it "creates array field with semantic item type" do
@@ -139,13 +139,13 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
 
         properties = builder.instance_variable_get(:@properties)
         expect(properties[:emails]).to eq({
-          type: :array,
-          items: {
-            type: :string,
-            format: :email,
-            pattern: RAAF::DSL::Types::SEMANTIC_TYPES[:email][:pattern]
-          }
-        })
+                                            type: :array,
+                                            items: {
+                                              type: :string,
+                                              format: :email,
+                                              pattern: RAAF::DSL::Types::SEMANTIC_TYPES[:email][:pattern]
+                                            }
+                                          })
       end
 
       it "supports custom options for items" do
@@ -252,33 +252,33 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
     context "without model" do
       it "generates basic schema structure" do
         builder = described_class.new
-          .field(:name, :string)
-          .field(:email, :email)
-          .required(:name, :email)
+                                 .field(:name, :string)
+                                 .field(:email, :email)
+                                 .required(:name, :email)
 
         schema = builder.to_schema
 
         expect(schema).to eq({
-          type: :object,
-          properties: {
-            name: { type: :string },
-            email: {
-              type: :string,
-              format: :email,
-              pattern: RAAF::DSL::Types::SEMANTIC_TYPES[:email][:pattern]
-            }
-          },
-          required: [:name, :email]
-        })
+                               type: :object,
+                               properties: {
+                                 name: { type: :string },
+                                 email: {
+                                   type: :string,
+                                   format: :email,
+                                   pattern: RAAF::DSL::Types::SEMANTIC_TYPES[:email][:pattern]
+                                 }
+                               },
+                               required: %i[name email]
+                             })
       end
     end
 
     context "with model" do
       it "generates schema combining model and custom fields" do
         builder = described_class.new(model: market_model)
-          .field(:insights, :text)
-          .override(:overall_score, type: :score)
-          .required(:insights)
+                                 .field(:insights, :text)
+                                 .override(:overall_score, type: :score)
+                                 .required(:insights)
 
         schema = builder.to_schema
 
@@ -291,7 +291,7 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
 
       it "removes duplicate required fields" do
         builder = described_class.new(model: market_model)
-          .required(:market_name) # Already required from model
+                                 .required(:market_name) # Already required from model
 
         schema = builder.to_schema
         required_count = schema[:required].count(:market_name)
@@ -302,13 +302,13 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
     context "with complex nested structures" do
       it "generates nested schema correctly" do
         builder = described_class.new
-          .field(:id, :integer)
-          .nested(:contact) do
-            field :name, :string
-            field :email, :email
-            array_of :phones, :phone
-            required :name, :email
-          end
+                                 .field(:id, :integer)
+                                 .nested(:contact) do
+                                   field :name, :string
+                                   field :email, :email
+                                   array_of :phones, :phone
+                                   required :name, :email
+                                 end
           .array_of(:tags, :string)
           .required(:id)
 
@@ -330,8 +330,8 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
       it "demonstrates the primary use case" do
         # This is the main pattern we want to enable
         builder = described_class.new(model: market_model)
-          .override(:overall_score, type: :score)  # Use semantic type
-          .field(:insights, :text)                 # Add agent-specific field
+                                 .override(:overall_score, type: :score)  # Use semantic type
+                                 .field(:insights, :text)                 # Add agent-specific field
 
         schema = builder.to_schema
 
@@ -350,10 +350,10 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
     context "concise field definition pattern" do
       it "supports minimal schema definition" do
         builder = described_class.new
-          .field(:email, :email)
-          .field(:score, :score)
-          .field(:website, :url)
-          .required(:email)
+                                 .field(:email, :email)
+                                 .field(:score, :score)
+                                 .field(:website, :url)
+                                 .required(:email)
 
         schema = builder.to_schema
 
@@ -368,13 +368,13 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
       it "supports building complex schemas through composition" do
         # Simulate building a complex Market schema
         builder = described_class.new(model: market_model)
-          .override(:overall_score, type: :score)
-          .nested(:scoring_dimensions) do
-            field :product_market_fit, :score
-            field :market_size_potential, :score
-            field :competition_level, :score
-            required :product_market_fit, :market_size_potential
-          end
+                                 .override(:overall_score, type: :score)
+                                 .nested(:scoring_dimensions) do
+                                   field :product_market_fit, :score
+                                   field :market_size_potential, :score
+                                   field :competition_level, :score
+                                   required :product_market_fit, :market_size_potential
+                                 end
           .array_of(:search_terms, :string)
           .field(:confidence_level, :percentage)
 
@@ -401,12 +401,12 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
 
       10.times do
         described_class.new(model: market_model)
-          .field(:insights, :text)
-          .override(:overall_score, type: :score)
-          .nested(:metadata) do
-            field :created_by, :string
-            field :confidence, :percentage
-          end
+                       .field(:insights, :text)
+                       .override(:overall_score, type: :score)
+                       .nested(:metadata) do
+                         field :created_by, :string
+                         field :confidence, :percentage
+                       end
           .to_schema
       end
 

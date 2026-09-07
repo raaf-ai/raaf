@@ -79,27 +79,27 @@ RSpec.describe RAAF::DSL::Agents::ContextValidation do
         end
 
         it "passes when all required keys are present" do
-          expect {
+          expect do
             test_class.new(user_id: 123, api_key: "secret")
-          }.not_to raise_error
+          end.not_to raise_error
         end
 
         it "raises error when required keys are missing" do
-          expect {
+          expect do
             test_class.new(user_id: 123)
-          }.to raise_error(ArgumentError, /Required context keys missing: api_key/)
+          end.to raise_error(ArgumentError, /Required context keys missing: api_key/)
         end
 
         it "raises error with multiple missing keys" do
-          expect {
+          expect do
             test_class.new({})
-          }.to raise_error(ArgumentError, /Required context keys missing: user_id, api_key/)
+          end.to raise_error(ArgumentError, /Required context keys missing: user_id, api_key/)
         end
 
         it "handles symbol and string keys equivalently" do
-          expect {
+          expect do
             test_class.new("user_id" => 123, "api_key" => "secret")
-          }.not_to raise_error
+          end.not_to raise_error
         end
       end
 
@@ -111,31 +111,31 @@ RSpec.describe RAAF::DSL::Agents::ContextValidation do
         end
 
         it "passes when types match" do
-          expect {
+          expect do
             test_class.new(count: 42, name: "John", active: true)
-          }.not_to raise_error
+          end.not_to raise_error
         end
 
         it "raises error for incorrect type" do
-          expect {
+          expect do
             test_class.new(count: "not a number")
-          }.to raise_error(ArgumentError, /Context key 'count' must be Integer/)
+          end.to raise_error(ArgumentError, /Context key 'count' must be Integer/)
         end
 
         it "accepts any of multiple allowed types" do
-          expect {
+          expect do
             test_class.new(active: false)
-          }.not_to raise_error
+          end.not_to raise_error
 
-          expect {
+          expect do
             test_class.new(active: true)
-          }.not_to raise_error
+          end.not_to raise_error
         end
 
         it "raises error when none of multiple types match" do
-          expect {
+          expect do
             test_class.new(active: "yes")
-          }.to raise_error(ArgumentError, /Context key 'active' must be TrueClass or FalseClass/)
+          end.to raise_error(ArgumentError, /Context key 'active' must be TrueClass or FalseClass/)
         end
       end
 
@@ -146,33 +146,33 @@ RSpec.describe RAAF::DSL::Agents::ContextValidation do
         end
 
         it "passes when required field has value" do
-          expect {
+          expect do
             test_class.new(description: "A description")
-          }.not_to raise_error
+          end.not_to raise_error
         end
 
         it "raises error when required field is nil" do
-          expect {
+          expect do
             test_class.new(description: nil)
-          }.to raise_error(ArgumentError, /Context key 'description' cannot be nil or empty/)
+          end.to raise_error(ArgumentError, /Context key 'description' cannot be nil or empty/)
         end
 
         it "raises error when required field is empty string" do
-          expect {
+          expect do
             test_class.new(description: "")
-          }.to raise_error(ArgumentError, /Context key 'description' cannot be nil or empty/)
+          end.to raise_error(ArgumentError, /Context key 'description' cannot be nil or empty/)
         end
 
         it "raises error when required field is empty array" do
-          expect {
+          expect do
             test_class.new(description: [])
-          }.to raise_error(ArgumentError, /Context key 'description' cannot be nil or empty/)
+          end.to raise_error(ArgumentError, /Context key 'description' cannot be nil or empty/)
         end
 
         it "allows nil values when presence is false" do
-          expect {
+          expect do
             test_class.new(optional_field: nil)
-          }.not_to raise_error
+          end.not_to raise_error
         end
       end
 
@@ -183,21 +183,21 @@ RSpec.describe RAAF::DSL::Agents::ContextValidation do
         end
 
         it "passes when format matches" do
-          expect {
+          expect do
             test_class.new(email: "user@example.com", phone: "1234567890")
-          }.not_to raise_error
+          end.not_to raise_error
         end
 
         it "raises error when format doesn't match" do
-          expect {
+          expect do
             test_class.new(email: "invalid-email")
-          }.to raise_error(ArgumentError, /Context key 'email' format is invalid/)
+          end.to raise_error(ArgumentError, /Context key 'email' format is invalid/)
         end
 
         it "skips format validation for nil values" do
-          expect {
+          expect do
             test_class.new(email: nil)
-          }.not_to raise_error
+          end.not_to raise_error
         end
       end
 
@@ -208,33 +208,33 @@ RSpec.describe RAAF::DSL::Agents::ContextValidation do
         end
 
         it "passes when value is in range" do
-          expect {
+          expect do
             test_class.new(age: 25, score: 0.85)
-          }.not_to raise_error
+          end.not_to raise_error
         end
 
         it "raises error when value is below range" do
-          expect {
+          expect do
             test_class.new(age: 17)
-          }.to raise_error(ArgumentError, /Context key 'age' must be in range 18\.\.100/)
+          end.to raise_error(ArgumentError, /Context key 'age' must be in range 18\.\.100/)
         end
 
         it "raises error when value is above range" do
-          expect {
+          expect do
             test_class.new(age: 101)
-          }.to raise_error(ArgumentError, /Context key 'age' must be in range 18\.\.100/)
+          end.to raise_error(ArgumentError, /Context key 'age' must be in range 18\.\.100/)
         end
 
         it "handles exclusive ranges" do
-          expect {
+          expect do
             test_class.new(score: 1.0)
-          }.to raise_error(ArgumentError, /Context key 'score' must be in range 0\.\.\.1/)
+          end.to raise_error(ArgumentError, /Context key 'score' must be in range 0\.\.\.1/)
         end
 
         it "skips range validation for nil values" do
-          expect {
+          expect do
             test_class.new(age: nil)
-          }.not_to raise_error
+          end.not_to raise_error
         end
       end
 
@@ -246,15 +246,15 @@ RSpec.describe RAAF::DSL::Agents::ContextValidation do
         end
 
         it "applies all validations" do
-          expect {
+          expect do
             test_class.new(user_id: 123, email: "user@example.com")
-          }.not_to raise_error
+          end.not_to raise_error
         end
 
         it "fails if any validation fails" do
-          expect {
+          expect do
             test_class.new(user_id: 0, email: "user@example.com")
-          }.to raise_error(ArgumentError, /Context key 'user_id' must be in range/)
+          end.to raise_error(ArgumentError, /Context key 'user_id' must be in range/)
         end
       end
 
@@ -262,14 +262,13 @@ RSpec.describe RAAF::DSL::Agents::ContextValidation do
         before do
           test_class.class_eval do
             def self.validates_custom(key, **options)
-              validates(key, **options.merge(custom: true))
+              validates(key, **options, custom: true)
             end
 
             def validate_context_value(key, value, options)
-              if options[:custom] && value == "forbidden"
-                raise ArgumentError, "Custom validation failed for #{key}"
-              end
-              super(key, value, options) if defined?(super)
+              raise ArgumentError, "Custom validation failed for #{key}" if options[:custom] && value == "forbidden"
+
+              super if defined?(super)
             end
           end
 
@@ -277,15 +276,15 @@ RSpec.describe RAAF::DSL::Agents::ContextValidation do
         end
 
         it "allows custom validation logic" do
-          expect {
+          expect do
             test_class.new(status: "allowed")
-          }.not_to raise_error
+          end.not_to raise_error
         end
 
         it "raises error for custom validation failure" do
-          expect {
+          expect do
             test_class.new(status: "forbidden")
-          }.to raise_error(ArgumentError, /Custom validation failed for status/)
+          end.to raise_error(ArgumentError, /Custom validation failed for status/)
         end
       end
     end
@@ -302,7 +301,7 @@ RSpec.describe RAAF::DSL::Agents::ContextValidation do
       end
 
       it "returns false for invalid context (this would be called before validation)" do
-        # Note: This test assumes context_valid? can be called independently
+        # NOTE: This test assumes context_valid? can be called independently
         # In practice, initialize would fail first with invalid context
         test_instance = test_class.allocate # Create without calling initialize
         test_instance.instance_variable_set(:@context, {})
@@ -353,31 +352,31 @@ RSpec.describe RAAF::DSL::Agents::ContextValidation do
 
     it "inherits parent validation rules" do
       # Child class should require both base_id and child_id
-      expect {
+      expect do
         child_class.new(child_id: 456, child_field: 789)
-      }.to raise_error(ArgumentError, /Required context keys missing: base_id/)
+      end.to raise_error(ArgumentError, /Required context keys missing: base_id/)
     end
 
     it "combines parent and child validation rules" do
-      expect {
+      expect do
         child_class.new(
           base_id: 123,
           child_id: 456,
           base_field: "string",
           child_field: 789
         )
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "validates both parent and child field types" do
-      expect {
+      expect do
         child_class.new(
           base_id: 123,
           child_id: 456,
           base_field: 123, # Should be string
           child_field: 789
         )
-      }.to raise_error(ArgumentError, /Context key 'base_field' must be String/)
+      end.to raise_error(ArgumentError, /Context key 'base_field' must be String/)
     end
   end
 end

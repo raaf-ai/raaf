@@ -57,18 +57,17 @@ module RAAF
 
         let(:mock_span) do
           double("Span",
-            span_id: "llm_span_123",
-            trace_id: "trace_456", 
-            parent_id: "parent_789",
-            name: "LLM.completion",
-            kind: "llm",
-            status: "success",
-            start_time: Time.parse("2025-09-25 10:00:00 UTC"),
-            end_time: Time.parse("2025-09-25 10:00:03.200 UTC"),
-            duration_ms: 3200,
-            span_attributes: base_span_attributes,
-            depth: 2
-          )
+                 span_id: "llm_span_123",
+                 trace_id: "trace_456",
+                 parent_id: "parent_789",
+                 name: "LLM.completion",
+                 kind: "llm",
+                 status: "success",
+                 start_time: Time.parse("2025-09-25 10:00:00 UTC"),
+                 end_time: Time.parse("2025-09-25 10:00:03.200 UTC"),
+                 duration_ms: 3200,
+                 span_attributes: base_span_attributes,
+                 depth: 2)
         end
 
         let(:component) { described_class.new(span: mock_span) }
@@ -407,7 +406,7 @@ module RAAF
               "llm.cost" => 0.005
             )
             allow(mock_span).to receive(:span_attributes).and_return(small_cost_attributes)
-            
+
             output = render(component)
             expect(output).to include("5.0¢")
           end
@@ -417,7 +416,7 @@ module RAAF
               "llm.cost" => 0.125
             )
             allow(mock_span).to receive(:span_attributes).and_return(large_cost_attributes)
-            
+
             output = render(component)
             expect(output).to include("$0.125")
           end
@@ -428,9 +427,9 @@ module RAAF
             before do
               allow(mock_span).to receive(:status).and_return("error")
               allow(mock_span).to receive(:span_attributes).and_return({
-                "llm.model" => "gpt-4o",
-                "error" => "API rate limit exceeded"
-              })
+                                                                         "llm.model" => "gpt-4o",
+                                                                         "error" => "API rate limit exceeded"
+                                                                       })
             end
 
             it "renders error details section" do

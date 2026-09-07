@@ -14,7 +14,7 @@ puts "-" * 60
 
 # Setup Anomaly Detector
 anomaly_detector = RAAF::Tracing::AnomalyDetector.new(
-  algorithms: [:z_score, :iqr, :isolation_forest],
+  algorithms: %i[z_score iqr isolation_forest],
   sensitivity: 0.95,
   min_data_points: 10
 )
@@ -25,7 +25,7 @@ puts "✅ Anomaly Detector configured with #{anomaly_detector.algorithms.length}
 performance_data = [
   { timestamp: Time.now - 3600, response_time: 1200, cost: 0.05 },
   { timestamp: Time.now - 1800, response_time: 1100, cost: 0.04 },
-  { timestamp: Time.now - 900, response_time: 5500, cost: 0.15 },  # Anomaly
+  { timestamp: Time.now - 900, response_time: 5500, cost: 0.15 }, # Anomaly
   { timestamp: Time.now, response_time: 1150, cost: 0.05 }
 ]
 

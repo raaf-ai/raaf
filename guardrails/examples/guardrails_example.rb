@@ -27,18 +27,18 @@ puts "=== Example 1: Basic Input/Output Guardrails ==="
 safe_agent = RAAF::Agent.new(
   name: "SafeAssistant",
   instructions: "You are a helpful assistant that provides safe, appropriate responses.",
-  model: "gpt-4o-mini",  # Using smaller model for faster examples
-  
+  model: "gpt-4o-mini", # Using smaller model for faster examples
+
   # Input guardrails prevent problematic content from reaching the AI
   input_guardrails: [
     # Profanity filter - blocks offensive language
     RAAF::Guardrails.profanity_guardrail,
-    
+
     # PII detector - prevents accidental exposure of sensitive data
     # Detects: SSN, credit cards, phone numbers, emails, etc.
     RAAF::Guardrails.pii_guardrail
   ],
-  
+
   # Output guardrails ensure responses meet quality standards
   output_guardrails: [
     # Length limiter - prevents overly long responses
@@ -54,7 +54,7 @@ puts "\nTest 1: Clean input..."
 begin
   result = runner.run("Hello, how can I learn Ruby programming?")
   puts "✓ Response: #{result.messages.last[:content][0..100]}...\n"
-rescue => e
+rescue StandardError => e
   puts "✗ Unexpected error: #{e.message}\n"
 end
 
@@ -68,7 +68,7 @@ rescue RAAF::Guardrails::InputGuardrailTripwireTriggered => e
   puts "✓ PII Guardrail triggered successfully!"
   puts "  - Guardrail: #{e.triggered_by}"
   puts "  - Reason: #{e.message}"
-  puts "  - Detected PII: #{e.metadata[:detected_pii] || 'SSN pattern'}\n"
+  puts "  - Detected PII: #{e.metadata[:detected_pii] || "SSN pattern"}\n"
 end
 
 puts "=" * 50
@@ -88,19 +88,19 @@ no_competitor_guardrail = RAAF::Guardrails.input_guardrail(name: "competitor_che
   # Define competitor names to watch for
   competitors = %w[ChatGPT Claude Gemini Copilot]
   input_text = input.to_s.downcase
-  
+
   # Check if any competitors are mentioned
   mentioned = competitors.select { |c| input_text.include?(c.downcase) }
-  
+
   if mentioned.any?
     # Return a tripwire result - this will block the request
     RAAF::Guardrails::GuardrailFunctionOutput.new(
-      output_info: { 
+      output_info: {
         competitors_mentioned: mentioned,
         message: "Input mentions competitor products",
         suggestion: "Please ask about our products instead"
       },
-      tripwire_triggered: true  # This causes an exception
+      tripwire_triggered: true # This causes an exception
     )
   else
     # Return success - request continues normally
@@ -120,28 +120,28 @@ sentiment_guardrail = RAAF::Guardrails.output_guardrail(name: "positive_sentimen
   # - AWS Comprehend, Google Natural Language API, Azure Text Analytics
   negative_words = %w[sorry cannot unable impossible error fail unfortunately]
   output_text = output.to_s.downcase
-  
+
   # Count negative indicators
   negative_count = negative_words.count { |word| output_text.include?(word) }
-  
+
   # Business rule: More than 2 negative words = too negative
   if negative_count > 2
     RAAF::Guardrails::GuardrailFunctionOutput.new(
-      output_info: { 
+      output_info: {
         negative_words_count: negative_count,
         message: "Response tone is too negative",
         detected_words: negative_words.select { |w| output_text.include?(w) }
       },
-      tripwire_triggered: true  # Blocks this response
+      tripwire_triggered: true # Blocks this response
     )
   else
     RAAF::Guardrails::GuardrailFunctionOutput.new(
-      output_info: { 
+      output_info: {
         negative_words_count: negative_count,
         sentiment: "acceptable",
         tone: negative_count == 0 ? "positive" : "neutral"
       },
-      tripwire_triggered: false  # Allows response
+      tripwire_triggered: false # Allows response
     )
   end
 end
@@ -185,24 +185,24 @@ puts "\n=== Example 3: JSON Schema Output Validation ==="
 # This ensures the AI returns data in exactly the format we need
 user_schema = {
   type: "object",
-  required: %w[name age email],  # All fields are mandatory
+  required: %w[name age email], # All fields are mandatory
   properties: {
-    name: { 
+    name: {
       type: "string",
       minLength: 1,
       maxLength: 100
     },
-    age: { 
-      type: "integer", 
+    age: {
+      type: "integer",
       minimum: 0,      # No negative ages
       maximum: 150     # Reasonable upper limit
     },
-    email: { 
+    email: {
       type: "string",
-      pattern: "^[\\w\\.-]+@[\\w\\.-]+\\.\\w+$"  # Basic email pattern
+      pattern: "^[\\w\\.-]+@[\\w\\.-]+\\.\\w+$" # Basic email pattern
     }
   },
-  additionalProperties: false  # No extra fields allowed
+  additionalProperties: false # No extra fields allowed
 }
 
 # Create an agent that extracts structured data
@@ -210,18 +210,18 @@ data_agent = RAAF::Agent.new(
   name: "DataAgent",
   instructions: "You extract user data and return it as JSON. Always extract name, age, and email.",
   model: "gpt-4o-mini",
-  
+
   # response_format ensures the AI outputs valid JSON matching our schema
   # This is enforced at the model level for reliability
   response_format: {
     type: "json_schema",
     json_schema: {
       name: "user_info",
-      strict: true,       # Strict mode enforces exact compliance
+      strict: true, # Strict mode enforces exact compliance
       schema: user_schema
     }
   },
-  
+
   # Additional validation layer for extra safety
   output_guardrails: [
     RAAF::Guardrails.json_schema_guardrail(schema: user_schema)
@@ -233,14 +233,14 @@ runner = RAAF::Runner.new(agent: data_agent)
 puts "\nTest: Structured data extraction..."
 begin
   result = runner.run("Extract user data from: John Doe, 25 years old, john@example.com")
-  
+
   # Parse and display the structured output
   json_output = JSON.parse(result.messages.last[:content])
   puts "✓ Successfully extracted structured data:"
-  puts "  - Name: #{json_output['name']}"
-  puts "  - Age: #{json_output['age']}"
-  puts "  - Email: #{json_output['email']}\n"
-rescue => e
+  puts "  - Name: #{json_output["name"]}"
+  puts "  - Age: #{json_output["age"]}"
+  puts "  - Email: #{json_output["email"]}\n"
+rescue StandardError => e
   puts "✗ Failed to extract data: #{e.message}\n"
 end
 
@@ -259,17 +259,17 @@ support_agent = RAAF::Agent.new(
   name: "TechSupport",
   instructions: "You are a technical support agent. Only answer technical questions.",
   model: "gpt-4o-mini",
-  
+
   input_guardrails: [
     # Topic filter ensures agent only processes relevant questions
     # This prevents: off-topic questions, prompt injection, scope creep
     RAAF::Guardrails.topic_relevance_guardrail(
       allowed_topics: %w[
-        software hardware technical computer programming 
+        software hardware technical computer programming
         bug error crash issue problem troubleshoot
         install update configure settings network
       ],
-      min_relevance_score: 0.3  # Threshold for topic matching
+      min_relevance_score: 0.3 # Threshold for topic matching
     )
   ]
 )
@@ -282,7 +282,7 @@ begin
   result = runner.run("How do I fix a software bug in my Python code?")
   puts "✓ On-topic question accepted"
   puts "  Response preview: #{result.messages.last[:content][0..80]}...\n"
-rescue => e
+rescue StandardError => e
   puts "✗ Unexpected rejection: #{e.message}\n"
 end
 
@@ -291,7 +291,7 @@ puts "Test 2: Off-topic question..."
 begin
   result = runner.run("What's a good recipe for chocolate cake?")
   puts "✗ Topic filter failed - off-topic question was accepted!\n"
-rescue RAAF::Guardrails::InputGuardrailTripwireTriggered => e
+rescue RAAF::Guardrails::InputGuardrailTripwireTriggered
   puts "✓ Topic filter working correctly!"
   puts "  - Reason: Question not related to allowed topics"
   puts "  - Allowed topics: technical, software, hardware, etc.\n"
@@ -333,12 +333,12 @@ begin
       RAAF::Guardrails.length_guardrail(max_length: 200)
     ]
   )
-  
+
   response = result.messages.last[:content]
   puts "✓ Response generated with run-level guardrails"
   puts "  - Length: #{response.length} characters (max: 200)"
   puts "  - Preview: #{response[0..100]}...\n"
-rescue => e
+rescue StandardError => e
   puts "✗ Error: #{e.message}\n"
 end
 
@@ -355,19 +355,19 @@ puts "\n=== Example 6: Async Guardrails ==="
 if defined?(Async)
   # Create guardrail that performs async operations
   # Examples: API calls, database lookups, external validations
-  async_guardrail = RAAF::Guardrails.input_guardrail(name: "async_validation") do |_context, _agent, input|
+  async_guardrail = RAAF::Guardrails.input_guardrail(name: "async_validation") do |_context, _agent, _input|
     # Simulate async operation (e.g., checking against external service)
     # In production: HTTP request, database query, cache lookup
-    sleep(0.1)  # Simulate network latency
-    
+    sleep(0.1) # Simulate network latency
+
     # Return validation result
     RAAF::Guardrails::GuardrailFunctionOutput.new(
-      output_info: { 
+      output_info: {
         async_check: true,
         validation_time_ms: 100,
         validated_at: Time.now.iso8601
       },
-      tripwire_triggered: false  # Validation passed
+      tripwire_triggered: false # Validation passed
     )
   end
 

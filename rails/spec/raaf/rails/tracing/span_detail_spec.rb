@@ -73,7 +73,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::Component do
     end
   end
 
-  describe "universal span overview rendering", :focus do
+  describe "universal span overview rendering" do
     let(:rendered_output) do
       # Simple string capture of component output
       component.call.to_s
@@ -249,7 +249,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::Component do
 
       it "formats long durations in minutes and seconds" do
         span = basic_span.dup
-        span.duration_ms = 125000 # 2 minutes 5 seconds
+        span.duration_ms = 125_000 # 2 minutes 5 seconds
         component = described_class.new(span: span)
         output = component.call.to_s
         expect(output).to include("2m 5.0s")

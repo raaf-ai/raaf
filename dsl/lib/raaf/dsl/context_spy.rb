@@ -50,9 +50,7 @@ module RAAF
         get(key)
       end
 
-      def keys
-        @real_context.keys
-      end
+      delegate :keys, to: :@real_context
 
       def to_h
         @real_context
@@ -68,7 +66,7 @@ module RAAF
       end
 
       def to_hash
-        nil  # Don't treat as implicitly hashable
+        nil # Don't treat as implicitly hashable
       end
 
       def to_s
@@ -86,7 +84,7 @@ module RAAF
         method_str = method_name.to_s
 
         # Handle both getter and setter patterns
-        if method_str.end_with?('=')
+        if method_str.end_with?("=")
           # Setter - just return the value
           args.first
         else
@@ -98,10 +96,11 @@ module RAAF
       def respond_to_missing?(method_name, include_private = false)
         # Never claim to respond to serialization methods
         return false if EXCLUDED_METHODS.include?(method_name.to_sym)
-        true  # Respond to everything else during dry run
+
+        true # Respond to everything else during dry run
       end
     end
-    
+
     # SafeDummy returns itself for any method call to allow chaining
     class SafeDummy
       # Methods that should NOT be claimed via respond_to_missing?
@@ -122,13 +121,15 @@ module RAAF
       def method_missing(method_name, *args, &block)
         # Don't handle excluded methods - delegate to super
         return super if EXCLUDED_METHODS.include?(method_name.to_sym)
-        self  # Always return self to allow chaining
+
+        self # Always return self to allow chaining
       end
 
       def respond_to_missing?(method_name, include_private = false)
         # Never claim to respond to serialization methods
         return false if EXCLUDED_METHODS.include?(method_name.to_sym)
-        true  # Respond to everything else during dry run
+
+        true # Respond to everything else during dry run
       end
 
       # Explicit serialization implementations to prevent recursion
@@ -141,11 +142,11 @@ module RAAF
       end
 
       def to_hash
-        nil  # Don't treat as hashable
+        nil # Don't treat as hashable
       end
 
       def to_h
-        {}  # Empty hash
+        {} # Empty hash
       end
 
       def to_s
@@ -155,36 +156,36 @@ module RAAF
       def to_str
         "DUMMY"
       end
-      
+
       def nil?
         false
       end
-      
+
       def present?
         true
       end
-      
+
       def blank?
         false
       end
-      
+
       def empty?
         false
       end
-      
+
       # Support array operations
       def each(&block)
         []
       end
-      
+
       def map(&block)
         []
       end
-      
+
       def length
         0
       end
-      
+
       alias size length
       alias count length
     end

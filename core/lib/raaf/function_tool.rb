@@ -65,6 +65,7 @@ module RAAF
     include Logger
     include Throttler
     include RAAF::Tracing::Traceable
+
     trace_as :tool
 
     # @!attribute [r] name

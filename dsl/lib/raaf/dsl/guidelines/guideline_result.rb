@@ -206,9 +206,7 @@ module RAAF
             "  Duration: #{duration_ms}ms"
           ]
 
-          if @critique_result&.failed?
-            lines << "  Violations: #{@critique_result.violated_guideline_names.join(', ')}"
-          end
+          lines << "  Violations: #{@critique_result.violated_guideline_names.join(', ')}" if @critique_result&.failed?
 
           lines.join("\n")
         end

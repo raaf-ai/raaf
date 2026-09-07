@@ -17,9 +17,7 @@ module RAAF
       # @return [RAAF::Eval::Models::EvaluationRun]
       def create_run(name:, baseline_span:, configurations:, description: nil, initiated_by: nil, agent: nil)
         # Convert RunResult to span format if needed
-        if baseline_span.is_a?(RAAF::RunResult)
-          baseline_span = RunResultAdapter.to_span(baseline_span, agent: agent)
-        end
+        baseline_span = RunResultAdapter.to_span(baseline_span, agent: agent) if baseline_span.is_a?(RAAF::RunResult)
 
         # Serialize baseline span if needed
         span_data = baseline_span.is_a?(Hash) ? baseline_span : SpanSerializer.serialize(baseline_span)
@@ -72,14 +70,12 @@ module RAAF
         results = []
 
         run.evaluation_configurations.ordered.each do |config|
-          begin
-            result = execute_configuration(run, config, baseline_config, baseline_span)
-            results << result
-          rescue StandardError => e
-            RAAF::Eval.logger.error("Configuration execution failed: #{e.message}")
-            result = create_failed_result(run, config, e)
-            results << result
-          end
+          result = execute_configuration(run, config, baseline_config, baseline_span)
+          results << result
+        rescue StandardError => e
+          RAAF::Eval.logger.error("Configuration execution failed: #{e.message}")
+          result = create_failed_result(run, config, e)
+          results << result
         end
 
         run.complete!
@@ -100,6 +96,7 @@ module RAAF
 
         return "combined" if types.size > 1
         return "#{types.first}_change" if types.size == 1
+
         "combined"
       end
 
@@ -141,7 +138,10 @@ module RAAF
         config = baseline_config.dup
         config[:model] = changes[:model] || changes["model"] if changes[:model] || changes["model"]
         config[:provider] = changes[:provider] || changes["provider"] if changes[:provider] || changes["provider"]
-        config[:instructions] = changes[:instructions] || changes["instructions"] if changes[:instructions] || changes["instructions"]
+        if changes[:instructions] || changes["instructions"]
+          config[:instructions] =
+            changes[:instructions] || changes["instructions"]
+        end
 
         if changes[:parameters] || changes["parameters"]
           params = changes[:parameters] || changes["parameters"]

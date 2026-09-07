@@ -54,7 +54,6 @@ RAAF::DSL::Debugging::PromptInspector.new
 
 # Create a test prompt for inspection
 class DebugPrompt < RAAF::DSL::Prompts::Base
-
   def system
     "You are managing task: #{task_name} with #{priority} priority."
   end

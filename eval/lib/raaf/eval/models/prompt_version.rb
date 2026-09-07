@@ -77,7 +77,7 @@ module RAAF
         # Get a summary for display
         # @return [String]
         def summary
-          "v#{version_number} (#{status}) - #{commit_message || 'No message'}"
+          "v#{version_number} (#{status}) - #{commit_message || "No message"}"
         end
       end
     end

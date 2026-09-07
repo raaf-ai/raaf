@@ -48,7 +48,7 @@ module RAAF
         scope :active, -> { where(status: "active") }
         scope :archived, -> { where(status: "archived") }
         scope :by_name, ->(name) { where(name: name) }
-        scope :latest_versions, -> {
+        scope :latest_versions, lambda {
           where("version = (SELECT MAX(d2.version) FROM raaf_datasets d2 WHERE d2.name = raaf_datasets.name)")
         }
         scope :recent, -> { order(created_at: :desc) }

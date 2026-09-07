@@ -47,7 +47,7 @@ FactoryBot.define do
         [
           { "type" => "llm_judge", "name" => "quality_check", "config" => {
             "model" => "gpt-4o-mini",
-            "criteria" => ["accuracy", "completeness"]
+            "criteria" => %w[accuracy completeness]
           } }
         ]
       end

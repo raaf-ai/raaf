@@ -13,7 +13,7 @@ puts "=== Span Serialization Benchmark ===\n\n"
 # Helper to create test spans of different sizes
 def create_small_span
   {
-    span_id: "span_small_#{rand(10000)}",
+    span_id: "span_small_#{rand(10_000)}",
     trace_id: "trace_#{rand(1000)}",
     parent_span_id: nil,
     span_type: "agent",
@@ -37,7 +37,7 @@ end
 
 def create_medium_span
   {
-    span_id: "span_medium_#{rand(10000)}",
+    span_id: "span_medium_#{rand(10_000)}",
     trace_id: "trace_#{rand(1000)}",
     parent_span_id: nil,
     span_type: "agent",
@@ -49,7 +49,7 @@ def create_medium_span
         { role: "user", content: "What's the weather in Tokyo?" },
         { role: "assistant", content: "Let me check that for you.", tool_calls: [
           { id: "call_1", type: "function", function: { name: "get_weather", arguments: '{"location":"Tokyo"}' } }
-        ]},
+        ] },
         { role: "tool", content: '{"temperature": 22, "condition": "sunny"}', tool_call_id: "call_1" },
         { role: "assistant", content: "The weather in Tokyo is currently sunny with a temperature of 22°C." }
       ],
@@ -79,7 +79,7 @@ def create_large_span
   end
 
   {
-    span_id: "span_large_#{rand(10000)}",
+    span_id: "span_large_#{rand(10_000)}",
     trace_id: "trace_#{rand(1000)}",
     parent_span_id: nil,
     span_type: "agent",
@@ -138,7 +138,7 @@ end
 small_avg_ms = (small_time.real * 1000) / iterations
 puts "  Total time: #{(small_time.real * 1000).round(2)}ms"
 puts "  Average per span: #{small_avg_ms.round(3)}ms"
-puts "  Status: #{small_avg_ms < 10 ? '✓ PASS' : '✗ FAIL'} (target: <10ms)"
+puts "  Status: #{small_avg_ms < 10 ? "✓ PASS" : "✗ FAIL"} (target: <10ms)"
 
 # Medium span serialization
 puts "\n2. Medium Span (agent with tools, ~20KB)"
@@ -152,7 +152,7 @@ end
 medium_avg_ms = (medium_time.real * 1000) / iterations
 puts "  Total time: #{(medium_time.real * 1000).round(2)}ms"
 puts "  Average per span: #{medium_avg_ms.round(3)}ms"
-puts "  Status: #{medium_avg_ms < 50 ? '✓ PASS' : '✗ FAIL'} (target: <50ms)"
+puts "  Status: #{medium_avg_ms < 50 ? "✓ PASS" : "✗ FAIL"} (target: <50ms)"
 
 # Large span serialization
 puts "\n3. Large Span (multi-turn with handoffs, ~100KB)"
@@ -167,7 +167,7 @@ end
 large_avg_ms = (large_time.real * 1000) / large_iterations
 puts "  Total time: #{(large_time.real * 1000).round(2)}ms"
 puts "  Average per span: #{large_avg_ms.round(3)}ms"
-puts "  Status: #{large_avg_ms < 100 ? '✓ PASS' : '✗ FAIL'} (target: <100ms)"
+puts "  Status: #{large_avg_ms < 100 ? "✓ PASS" : "✗ FAIL"} (target: <100ms)"
 
 # Benchmark deserialization
 puts "\n\nBenchmarking Span Deserialization"
@@ -188,7 +188,7 @@ end
 small_deser_avg_ms = (small_deser_time.real * 1000) / iterations
 puts "  Total time: #{(small_deser_time.real * 1000).round(2)}ms"
 puts "  Average per span: #{small_deser_avg_ms.round(3)}ms"
-puts "  Status: #{small_deser_avg_ms < 5 ? '✓ PASS' : '✗ FAIL'} (target: <5ms)"
+puts "  Status: #{small_deser_avg_ms < 5 ? "✓ PASS" : "✗ FAIL"} (target: <5ms)"
 
 # Medium span deserialization
 puts "\n2. Medium Span Deserialization"
@@ -201,7 +201,7 @@ end
 medium_deser_avg_ms = (medium_deser_time.real * 1000) / iterations
 puts "  Total time: #{(medium_deser_time.real * 1000).round(2)}ms"
 puts "  Average per span: #{medium_deser_avg_ms.round(3)}ms"
-puts "  Status: #{medium_deser_avg_ms < 20 ? '✓ PASS' : '✗ FAIL'} (target: <20ms)"
+puts "  Status: #{medium_deser_avg_ms < 20 ? "✓ PASS" : "✗ FAIL"} (target: <20ms)"
 
 # Large span deserialization
 puts "\n3. Large Span Deserialization"
@@ -214,7 +214,7 @@ end
 large_deser_avg_ms = (large_deser_time.real * 1000) / large_iterations
 puts "  Total time: #{(large_deser_time.real * 1000).round(2)}ms"
 puts "  Average per span: #{large_deser_avg_ms.round(3)}ms"
-puts "  Status: #{large_deser_avg_ms < 50 ? '✓ PASS' : '✗ FAIL'} (target: <50ms)"
+puts "  Status: #{large_deser_avg_ms < 50 ? "✓ PASS" : "✗ FAIL"} (target: <50ms)"
 
 # Memory usage estimation
 puts "\n\nMemory Usage Estimation"

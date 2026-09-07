@@ -5,10 +5,15 @@ require_relative "../../../../../lib/raaf/eval/rspec/matchers/rag_matchers"
 
 RSpec.describe "RAG Matchers" do
   include RAAF::Eval::RSpec::Matchers::RAGMatchers
+
   # Helper to create mock evaluation results
   def mock_relevancy_result(score:, query: "What is AI?")
     {
-      label: score >= 0.75 ? "good" : (score >= 0.50 ? "average" : "bad"),
+      label: if score >= 0.75
+               "good"
+             else
+               (score >= 0.50 ? "average" : "bad")
+             end,
       score: score,
       message: "Contextual relevancy: #{(score * 100).round}%",
       details: {
@@ -25,7 +30,11 @@ RSpec.describe "RAG Matchers" do
   def mock_precision_result(score:, relevant_count:, irrelevant_count:, query: "What is ML?")
     total = relevant_count + irrelevant_count
     {
-      label: score >= 0.75 ? "good" : (score >= 0.50 ? "average" : "bad"),
+      label: if score >= 0.75
+               "good"
+             else
+               (score >= 0.50 ? "average" : "bad")
+             end,
       score: score,
       message: "Contextual precision: #{(score * 100).round}%",
       details: {
@@ -35,9 +44,9 @@ RSpec.describe "RAG Matchers" do
         document_count: total,
         relevant_count: relevant_count,
         irrelevant_count: irrelevant_count,
-        document_relevance: Array.new(total) { |i|
+        document_relevance: Array.new(total) do |i|
           { index: i, relevant: i < relevant_count }
-        },
+        end,
         precision_reasoning: "Precision analysis complete."
       }
     }
@@ -45,15 +54,19 @@ RSpec.describe "RAG Matchers" do
 
   def mock_recall_result(score:, retrieved_relevant:, missed_relevant:, query: "What is DL?")
     {
-      label: score >= 0.75 ? "good" : (score >= 0.50 ? "average" : "bad"),
+      label: if score >= 0.75
+               "good"
+             else
+               (score >= 0.50 ? "average" : "bad")
+             end,
       score: score,
       message: "Contextual recall: #{(score * 100).round}%",
       details: {
         evaluated_field: :context,
         method: "contextual_recall",
         query: query,
-        retrieved_count: retrieved_relevant + 2,  # Add some irrelevant
-        available_count: retrieved_relevant + missed_relevant + 3,  # Add some irrelevant
+        retrieved_count: retrieved_relevant + 2, # Add some irrelevant
+        available_count: retrieved_relevant + missed_relevant + 3, # Add some irrelevant
         relevant_count: retrieved_relevant + missed_relevant,
         retrieved_relevant_count: retrieved_relevant,
         missed_relevant_count: missed_relevant,
@@ -91,9 +104,10 @@ RSpec.describe "RAG Matchers" do
 
     it "provides helpful failure message" do
       result = mock_relevancy_result(score: 0.60)
-      expect {
+      expect do
         expect(result).to have_high_contextual_relevancy
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected contextual relevancy score to be at least 75%, but got 60%/)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                         /Expected contextual relevancy score to be at least 75%, but got 60%/)
     end
   end
 
@@ -120,9 +134,10 @@ RSpec.describe "RAG Matchers" do
 
     it "provides helpful failure message" do
       result = mock_precision_result(score: 0.60, relevant_count: 6, irrelevant_count: 4)
-      expect {
+      expect do
         expect(result).to have_high_precision
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected contextual precision score to be at least 75%, but got 60%/)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                         /Expected contextual precision score to be at least 75%, but got 60%/)
     end
   end
 
@@ -149,9 +164,10 @@ RSpec.describe "RAG Matchers" do
 
     it "provides helpful failure message" do
       result = mock_recall_result(score: 0.60, retrieved_relevant: 6, missed_relevant: 4)
-      expect {
+      expect do
         expect(result).to have_high_recall
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected contextual recall score to be at least 75%, but got 60%/)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                         /Expected contextual recall score to be at least 75%, but got 60%/)
     end
   end
 
@@ -188,9 +204,10 @@ RSpec.describe "RAG Matchers" do
 
     it "provides helpful failure message" do
       result = mock_precision_result(score: 0.70, relevant_count: 7, irrelevant_count: 3)
-      expect {
+      expect do
         expect(result).to have_minimal_irrelevant_documents
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected at most 2 irrelevant documents, but got 3/)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                         /Expected at most 2 irrelevant documents, but got 3/)
     end
   end
 
@@ -227,9 +244,10 @@ RSpec.describe "RAG Matchers" do
 
     it "provides helpful failure message" do
       result = mock_recall_result(score: 0.80, retrieved_relevant: 8, missed_relevant: 2)
-      expect {
+      expect do
         expect(result).to have_minimal_missed_documents
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected at most 1 missed relevant documents, but got 2/)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                         /Expected at most 1 missed relevant documents, but got 2/)
     end
   end
 
@@ -307,9 +325,9 @@ RSpec.describe "RAG Matchers" do
         }
       }
 
-      expect {
+      expect do
         expect(result).to be_valid_rag_result
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Missing label.*Missing or invalid query/m)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Missing label.*Missing or invalid query/m)
     end
   end
 
@@ -361,9 +379,10 @@ RSpec.describe "RAG Matchers" do
       precision_result = mock_precision_result(score: 0.60, relevant_count: 6, irrelevant_count: 4)
       recall_result = mock_recall_result(score: 0.60, retrieved_relevant: 6, missed_relevant: 4)
 
-      expect {
+      expect do
         expect([precision_result, recall_result]).to have_high_f1_score
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected F1 score to be at least 75%, but got 60% \(precision: 60%, recall: 60%\)/)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                         /Expected F1 score to be at least 75%, but got 60% \(precision: 60%, recall: 60%\)/)
     end
   end
 
@@ -435,9 +454,9 @@ RSpec.describe "RAG Matchers" do
         recall: mock_recall_result(score: 0.70, retrieved_relevant: 7, missed_relevant: 3)
       }
 
-      expect {
+      expect do
         expect(results).to meet_all_rag_thresholds
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Relevancy: 60% < 75%.*Precision: 65% < 75%/m)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Relevancy: 60% < 75%.*Precision: 65% < 75%/m)
     end
 
     it "handles missing metrics gracefully" do
@@ -505,9 +524,10 @@ RSpec.describe "RAG Matchers" do
       precision_result = mock_precision_result(score: 0.90, relevant_count: 9, irrelevant_count: 1)
       recall_result = mock_recall_result(score: 0.60, retrieved_relevant: 6, missed_relevant: 4)
 
-      expect {
+      expect do
         expect([precision_result, recall_result]).to have_balanced_retrieval
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected precision and recall to be balanced \(within 15%\), but difference was 30% \(precision: 90%, recall: 60%\)/)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError,
+                         /Expected precision and recall to be balanced \(within 15%\), but difference was 30% \(precision: 90%, recall: 60%\)/)
     end
   end
 end

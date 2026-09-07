@@ -61,6 +61,7 @@ namespace :raaf do
         # Drop tables
         ActiveRecord::Base.connection.tables.each do |table|
           next if table == "schema_migrations"
+
           ActiveRecord::Base.connection.drop_table(table)
         end
 

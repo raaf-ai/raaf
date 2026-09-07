@@ -62,7 +62,7 @@ RSpec.configure do |config|
     def with_env(vars)
       original_values = {}
       vars.each do |key, value|
-        original_values[key] = ENV[key]
+        original_values[key] = ENV.fetch(key, nil)
         ENV[key] = value
       end
       yield

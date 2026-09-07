@@ -151,10 +151,10 @@ module RAAF
           # Generic API request logging
           logger.debug "Making request to OpenAI API with model: #{parameters[:model]}"
           response = @client.chat.completions.create(**parameters)
-          
+
           # Generic API response logging
           logger.debug "Received response from OpenAI API: #{response.id}, finish reason: #{response.choices.first&.finish_reason}"
-          
+
           normalize_response_format(response)
         rescue HTTPClient::Error => e
           handle_openai_error(e)

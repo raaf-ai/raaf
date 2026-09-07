@@ -24,10 +24,10 @@ module RAAF
         def passed?
           return true if @field_results.empty?
 
-          @field_results.values.all? { |result|
+          @field_results.values.all? do |result|
             label = result[:label]
-            label == "good" || label == "average"
-          }
+            %w[good average].include?(label)
+          end
         end
 
         # Get result for a specific field
@@ -40,10 +40,10 @@ module RAAF
         # Get list of fields that passed (good or average labels)
         # @return [Array<String>] Field names that passed
         def passed_fields
-          @field_results.select { |_field, result|
+          @field_results.select do |_field, result|
             label = result[:label]
-            label == "good" || label == "average"
-          }.keys
+            %w[good average].include?(label)
+          end.keys
         end
 
         # Get list of fields that failed (bad label)

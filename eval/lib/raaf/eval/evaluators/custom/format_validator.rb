@@ -17,7 +17,7 @@ module RAAF
         #
         # @example Register and use
         #   RAAF::Eval.register_evaluator(:format_validator, FormatValidatorEvaluator)
-        #   
+        #
         #   evaluator = RAAF::Eval.define do
         #     evaluate_field :output do
         #       evaluate_with :format_validator, expected_format: /^\d{3}-\d{3}$/
@@ -69,9 +69,11 @@ module RAAF
                 threshold_good: good_threshold,
                 threshold_average: average_threshold
               },
-              message: matches ?
-                "[#{label.upcase}] Output matches expected format" :
-                "[#{label.upcase}] Output does not match expected format #{format_description(expected_format)}"
+              message: if matches
+                         "[#{label.upcase}] Output matches expected format"
+                       else
+                         "[#{label.upcase}] Output does not match expected format #{format_description(expected_format)}"
+                       end
             }
           end
 

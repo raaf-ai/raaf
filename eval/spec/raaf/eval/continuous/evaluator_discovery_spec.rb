@@ -45,7 +45,8 @@ RSpec.describe RAAF::Eval::Continuous::EvaluatorDiscovery do
 
   before do
     # Also register in the registry for .build and .available_evaluators tests
-    allow(RAAF::Eval::DSL::EvaluatorRegistry.instance).to receive(:all_names).and_return([:test_evaluator, :token_limit])
+    allow(RAAF::Eval::DSL::EvaluatorRegistry.instance).to receive(:all_names).and_return(%i[test_evaluator
+                                                                                            token_limit])
     allow(RAAF::Eval::DSL::EvaluatorRegistry.instance).to receive(:get).with(:test_evaluator).and_return(test_evaluator_class)
     allow(RAAF::Eval::DSL::EvaluatorRegistry.instance).to receive(:get).with(:token_limit).and_return(test_evaluator_class)
   end

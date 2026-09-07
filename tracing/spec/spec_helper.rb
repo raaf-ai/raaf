@@ -12,7 +12,7 @@ ENV["RAAF_DISABLE_TRACING"] = "true"
 ENV["RAAF_LOG_LEVEL"] = "fatal"
 
 # Set dummy API key for tests to allow provider initialization
-ENV["OPENAI_API_KEY"] = "test-api-key" unless ENV["OPENAI_API_KEY"] && !ENV["OPENAI_API_KEY"].empty?
+ENV["OPENAI_API_KEY"] = "test-api-key" if ENV["OPENAI_API_KEY"].to_s.empty?
 
 require "raaf-tracing"
 

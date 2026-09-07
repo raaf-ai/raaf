@@ -63,7 +63,9 @@ require_relative "raaf/tools/basic/text_tools"
 # @author Ruby AI Agents Factory Team
 # @since 1.0.0
 module RAAF
+
   module Tools
     # Version is defined in raaf/tools/version.rb
   end
+
 end

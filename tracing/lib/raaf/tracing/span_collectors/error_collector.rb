@@ -3,8 +3,11 @@
 require_relative "base_collector"
 
 module RAAF
+
   module Tracing
+
     module SpanCollectors
+
       # Specialized collector for error tracking and recovery metrics that captures
       # error information, retry patterns, and recovery status. This collector provides
       # comprehensive visibility into error handling and resilience patterns.
@@ -42,38 +45,37 @@ module RAAF
       # @since 1.0.0
       # @author RAAF Team
       class ErrorCollector < BaseCollector
+
         # ============================================================================
         # ERROR STATE TRACKING
         # These attributes capture whether errors exist before execution
         # ============================================================================
 
         # Flag indicating if component has tracked errors
-        span has_errors: ->(comp) do
+        span has_errors: lambda { |comp|
           if comp.respond_to?(:get_error_count)
             (comp.get_error_count.to_i > 0).to_s
           else
             "false"
           end
-        end
+        }
 
         # Count of errors tracked in component
-        span error_count: ->(comp) do
+        span error_count: lambda { |comp|
           if comp.respond_to?(:get_error_count)
             comp.get_error_count.to_s
           else
             "0"
           end
-        end
+        }
 
         # Type of the first error encountered
-        span first_error_type: ->(comp) do
+        span first_error_type: lambda { |comp|
           if comp.respond_to?(:get_errors)
             errors = comp.get_errors
-            if errors && errors.any?
-              errors.first[:type] || errors.first["type"] || "Unknown"
-            end
+            errors.first[:type] || errors.first["type"] || "Unknown" if errors && errors.any?
           end
-        end
+        }
 
         # ============================================================================
         # ERROR RECOVERY TRACKING
@@ -81,7 +83,7 @@ module RAAF
         # ============================================================================
 
         # Overall recovery status from execution result
-        result recovery_status: ->(result, comp) do
+        result recovery_status: lambda { |result, _comp|
           case result
           when Exception
             "failed"
@@ -100,10 +102,10 @@ module RAAF
           else
             "unknown"
           end
-        end
+        }
 
         # Detailed error information and recovery context
-        result error_details: ->(result, comp) do
+        result error_details: lambda { |result, _comp|
           error_info = {}
 
           case result
@@ -131,7 +133,8 @@ module RAAF
             end
 
             if result[:recovered_after_attempt] || result["recovered_after_attempt"]
-              error_info["successful_on_attempt"] = result[:recovered_after_attempt] || result["recovered_after_attempt"]
+              error_info["successful_on_attempt"] =
+                result[:recovered_after_attempt] || result["recovered_after_attempt"]
             end
 
             if result[:total_retry_delay_ms] || result["total_retry_delay_ms"]
@@ -140,9 +143,7 @@ module RAAF
 
             # Retry events array
             retry_events = result[:retry_events] || result["retry_events"]
-            if retry_events && retry_events.any?
-              error_info["retry_events"] = retry_events
-            end
+            error_info["retry_events"] = retry_events if retry_events && retry_events.any?
 
             # Status code for API errors
             status_code = result[:status_code] || result["status_code"]
@@ -164,13 +165,11 @@ module RAAF
 
           # Ensure empty hash if no error info collected
           error_info
-        end
+        }
 
         # ============================================================================
         # PRIVATE HELPER METHODS
         # ============================================================================
-
-        private
 
         # Format stack trace for safe storage, removing sensitive lines
         def self.format_stack_trace(backtrace)
@@ -225,7 +224,11 @@ module RAAF
             "unknown"
           end
         end
+
       end
+
     end
+
   end
+
 end

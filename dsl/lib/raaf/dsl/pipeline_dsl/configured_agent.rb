@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'timeout'
-require_relative 'wrapper_dsl'
+require "timeout"
+require_relative "wrapper_dsl"
 
 module RAAF
   module DSL
@@ -21,20 +21,20 @@ module RAAF
         def create_wrapper(**new_options)
           ConfiguredAgent.new(@agent_class, @options.merge(new_options))
         end
-        
+
         # Delegate metadata methods
         def required_fields
           @agent_class.respond_to?(:required_fields) ? @agent_class.required_fields : []
         end
-        
+
         def provided_fields
           @agent_class.respond_to?(:provided_fields) ? @agent_class.provided_fields : []
         end
-        
+
         def requirements_met?(context)
           @agent_class.respond_to?(:requirements_met?) ? @agent_class.requirements_met?(context) : true
         end
-        
+
         # Execute with configuration
         #
         # This method delegates to the agent's built-in retry and timeout mechanisms
@@ -49,16 +49,12 @@ module RAAF
 
           execute_with_hooks(context, :configured, agent_name: agent_name, options: @options) do
             # Ensure context is ContextVariables if it's a plain Hash
-            unless context.respond_to?(:set)
-              context = RAAF::DSL::ContextVariables.new(context)
-            end
+            context = RAAF::DSL::ContextVariables.new(context) unless context.respond_to?(:set)
 
             # Merge non-control options into context for agent to use
             enhanced_context = context.dup
             @options.each do |key, value|
-              unless [:timeout, :retry].include?(key)
-                enhanced_context[key] = value
-              end
+              enhanced_context[key] = value unless %i[timeout retry].include?(key)
             end
 
             # Execute agent - convert context to keyword arguments to trigger context DSL processing

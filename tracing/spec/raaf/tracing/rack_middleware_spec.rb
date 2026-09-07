@@ -92,13 +92,13 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
     context "normal request processing" do
       it "sets up tracing context using TracingRegistry" do
         expect(RAAF::Tracing::TracingRegistry).to receive(:with_tracer).with(tracer).and_yield
-        
+
         middleware.call(env)
       end
 
       it "creates request span with HTTP metadata" do
         allow(RAAF::Tracing::TracingRegistry).to receive(:with_tracer).and_yield
-        
+
         expect(tracer).to receive(:agent_span).with(
           "http.request",
           hash_including(
@@ -106,13 +106,13 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
             parent_id: nil
           )
         ).and_return(span)
-        
+
         middleware.call(env)
       end
 
       it "adds HTTP attributes to span" do
         allow(RAAF::Tracing::TracingRegistry).to receive(:with_tracer).and_yield
-        
+
         expect(span).to receive(:set_attribute).with("http.method", "POST")
         expect(span).to receive(:set_attribute).with("http.url", "https://api.example.com/api/chat?format=json")
         expect(span).to receive(:set_attribute).with("http.path", "/api/chat")
@@ -120,68 +120,68 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
         expect(span).to receive(:set_attribute).with("http.content_type", "application/json")
         expect(span).to receive(:set_attribute).with("http.content_length", 256)
         expect(span).to receive(:set_attribute).with("http.accept", "application/json")
-        
+
         middleware.call(env)
       end
 
       it "adds request metadata" do
         allow(RAAF::Tracing::TracingRegistry).to receive(:with_tracer).and_yield
-        
+
         expect(span).to receive(:set_attribute).with("http.remote_addr", "203.0.113.1")
         expect(span).to receive(:set_attribute).with("http.server_name", "api.example.com")
         expect(span).to receive(:set_attribute).with("http.server_port", 443)
         expect(span).to receive(:set_attribute).with("http.version", "HTTP/1.1")
         expect(span).to receive(:set_attribute).with("http.scheme", "https")
-        
+
         middleware.call(env)
       end
 
       it "adds request start event" do
         allow(RAAF::Tracing::TracingRegistry).to receive(:with_tracer).and_yield
-        
+
         expect(span).to receive(:add_event).with("request.start", {
-          "request.path" => "/api/chat",
-          "request.query" => "format=json"
-        })
-        
+                                                   "request.path" => "/api/chat",
+                                                   "request.query" => "format=json"
+                                                 })
+
         middleware.call(env)
       end
 
       it "processes the request through the app" do
         allow(RAAF::Tracing::TracingRegistry).to receive(:with_tracer).and_yield
-        
+
         expect(app).to receive(:call).with(env).and_return(response)
-        
+
         result = middleware.call(env)
         expect(result).to eq(response)
       end
 
       it "updates span with response information" do
         allow(RAAF::Tracing::TracingRegistry).to receive(:with_tracer).and_yield
-        
+
         expect(span).to receive(:set_attribute).with("http.status_code", 201)
         expect(span).to receive(:set_attribute).with("http.response_content_type", "application/json")
         expect(span).to receive(:set_attribute).with("http.response_content_length", 123)
         expect(span).to receive(:set_status).with(:ok)
-        
+
         middleware.call(env)
       end
 
       it "adds request complete event" do
         allow(RAAF::Tracing::TracingRegistry).to receive(:with_tracer).and_yield
-        
+
         expect(span).to receive(:add_event).with("request.complete", {
-          "response.status" => 201
-        })
-        
+                                                   "response.status" => 201
+                                                 })
+
         middleware.call(env)
       end
 
       it "finishes the span" do
         allow(RAAF::Tracing::TracingRegistry).to receive(:with_tracer).and_yield
-        
+
         expect(span).to receive(:finish)
-        
+
         middleware.call(env)
       end
     end
@@ -191,23 +191,25 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
 
       it "uses custom span name" do
         allow(RAAF::Tracing::TracingRegistry).to receive(:with_tracer).and_yield
-        
+
         expect(tracer).to receive(:agent_span).with(
           "api.request",
           hash_including(trace_id: match(/\Atrace_[a-f0-9]+\z/))
         )
-        
+
         middleware.call(env)
       end
     end
 
     context "error handling" do
       let(:error) { RuntimeError.new("API Error") }
-      let(:backtrace) { [
-        "/app/controllers/api_controller.rb:42:in `create'",
-        "/app/middleware/auth.rb:15:in `call'",
-        "/app/config/application.rb:120:in `run'"
-      ] }
+      let(:backtrace) do
+        [
+          "/app/controllers/api_controller.rb:42:in `create'",
+          "/app/middleware/auth.rb:15:in `call'",
+          "/app/config/application.rb:120:in `run'"
+        ]
+      end
 
       before do
         allow(error).to receive(:backtrace).and_return(backtrace)
@@ -218,12 +220,12 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
       it "marks span as error with details and re-raises exception" do
         expect(span).to receive(:set_status).with(:error, description: "API Error")
         expect(span).to receive(:add_event).with("request.error", {
-          "error.type" => "RuntimeError",
-          "error.message" => "API Error",
-          "error.backtrace" => backtrace.first(5)
-        })
+                                                   "error.type" => "RuntimeError",
+                                                   "error.message" => "API Error",
+                                                   "error.backtrace" => backtrace.first(5)
+                                                 })
         expect(span).to receive(:finish)
-        
+
         expect { middleware.call(env) }.to raise_error(RuntimeError, "API Error")
       end
     end
@@ -249,7 +251,7 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
           it "marks span as error" do
             expect(span).to receive(:set_attribute).with("http.status_code", status_code)
             expect(span).to receive(:set_status).with(:error, description: expected_description)
-            
+
             middleware.call(env)
           end
         end
@@ -268,7 +270,7 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
             it "marks span as ok" do
               expect(span).to receive(:set_attribute).with("http.status_code", status_code)
               expect(span).to receive(:set_status).with(:ok)
-              
+
               middleware.call(env)
             end
           end
@@ -286,7 +288,7 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
         it "defaults to ok status" do
           expect(span).to receive(:set_attribute).with("http.status_code", 999)
           expect(span).to receive(:set_status).with(:ok)
-          
+
           middleware.call(env)
         end
       end
@@ -296,10 +298,10 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
       described_class::DEFAULT_SKIP_PATHS.each do |path|
         it "skips tracing for #{path}" do
           env["PATH_INFO"] = path
-          
+
           expect(RAAF::Tracing::TracingRegistry).not_to receive(:with_tracer)
           expect(tracer).not_to receive(:agent_span)
-          
+
           middleware.call(env)
         end
       end
@@ -311,25 +313,25 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
 
       it "skips exact path matches" do
         env["PATH_INFO"] = "/status"
-        
+
         expect(RAAF::Tracing::TracingRegistry).not_to receive(:with_tracer)
-        
+
         middleware.call(env)
       end
 
       it "skips wildcard path matches" do
         env["PATH_INFO"] = "/admin/users"
-        
+
         expect(RAAF::Tracing::TracingRegistry).not_to receive(:with_tracer)
-        
+
         middleware.call(env)
       end
 
       it "processes non-matching paths" do
         env["PATH_INFO"] = "/api/agents"
-        
+
         expect(RAAF::Tracing::TracingRegistry).to receive(:with_tracer)
-        
+
         middleware.call(env)
       end
     end
@@ -345,16 +347,16 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
 
       it "uses global tracer from TraceProvider" do
         allow(RAAF::Tracing::TracingRegistry).to receive(:with_tracer).and_yield
-        
+
         expect(RAAF::Tracing::TracingRegistry).to receive(:with_tracer).with(global_tracer)
-        
+
         middleware.call(env)
       end
     end
   end
 
   describe "URL building" do
-    let(:response) { [200, { "Content-Type" => "application/json" }, ["{}"]]}
+    let(:response) { [200, { "Content-Type" => "application/json" }, ["{}"]] }
 
     before do
       allow(app).to receive(:call).and_return(response)
@@ -364,17 +366,17 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
     context "with standard ports" do
       it "omits port for HTTP on 80" do
         env.merge!("rack.url_scheme" => "http", "HTTP_HOST" => "example.com", "SERVER_PORT" => "80")
-        
+
         expect(span).to receive(:set_attribute).with("http.url", "http://example.com/api/chat?format=json")
-        
+
         middleware.call(env)
       end
 
       it "omits port for HTTPS on 443" do
         env.merge!("rack.url_scheme" => "https", "HTTP_HOST" => "example.com", "SERVER_PORT" => "443")
-        
+
         expect(span).to receive(:set_attribute).with("http.url", "https://example.com/api/chat?format=json")
-        
+
         middleware.call(env)
       end
     end
@@ -382,17 +384,17 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
     context "with non-standard ports" do
       it "includes port for HTTP on non-80" do
         env.merge!("rack.url_scheme" => "http", "HTTP_HOST" => "example.com", "SERVER_PORT" => "8080")
-        
+
         expect(span).to receive(:set_attribute).with("http.url", "http://example.com:8080/api/chat?format=json")
-        
+
         middleware.call(env)
       end
 
       it "includes port for HTTPS on non-443" do
         env.merge!("rack.url_scheme" => "https", "HTTP_HOST" => "example.com", "SERVER_PORT" => "8443")
-        
+
         expect(span).to receive(:set_attribute).with("http.url", "https://example.com:8443/api/chat?format=json")
-        
+
         middleware.call(env)
       end
     end
@@ -404,9 +406,9 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
           "HTTP_X_FORWARDED_PROTO" => "https",
           "HTTP_HOST" => "example.com"
         )
-        
+
         expect(span).to receive(:set_attribute).with("http.url", "https://example.com/api/chat?format=json")
-        
+
         middleware.call(env)
       end
     end
@@ -416,14 +418,14 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
 
       it "builds URL without query parameter" do
         expect(span).to receive(:set_attribute).with("http.url", "https://api.example.com/api/chat")
-        
+
         middleware.call(env)
       end
     end
   end
 
   describe "IP address extraction" do
-    let(:response) { [200, { "Content-Type" => "application/json" }, ["{}"]]}
+    let(:response) { [200, { "Content-Type" => "application/json" }, ["{}"]] }
 
     before do
       allow(app).to receive(:call).and_return(response)
@@ -433,17 +435,17 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
     context "with X-Forwarded-For header" do
       it "extracts first IP from forwarded chain" do
         env["HTTP_X_FORWARDED_FOR"] = "203.0.113.1, 192.168.1.100, 10.0.0.1"
-        
+
         expect(span).to receive(:set_attribute).with("http.remote_addr", "203.0.113.1")
-        
+
         middleware.call(env)
       end
 
       it "handles whitespace in forwarded chain" do
         env["HTTP_X_FORWARDED_FOR"] = " 203.0.113.1 , 192.168.1.100 "
-        
+
         expect(span).to receive(:set_attribute).with("http.remote_addr", "203.0.113.1")
-        
+
         middleware.call(env)
       end
     end
@@ -456,7 +458,7 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
 
       it "uses X-Real-IP when no X-Forwarded-For" do
         expect(span).to receive(:set_attribute).with("http.remote_addr", "203.0.113.2")
-        
+
         middleware.call(env)
       end
     end
@@ -470,7 +472,7 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
 
       it "falls back to REMOTE_ADDR" do
         expect(span).to receive(:set_attribute).with("http.remote_addr", "192.168.1.50")
-        
+
         middleware.call(env)
       end
     end
@@ -484,14 +486,14 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
 
       it "does not set remote address attribute" do
         expect(span).not_to receive(:set_attribute).with("http.remote_addr", anything)
-        
+
         middleware.call(env)
       end
     end
   end
 
   describe "trace ID generation" do
-    let(:response) { [200, { "Content-Type" => "application/json" }, ["{}"]]}
+    let(:response) { [200, { "Content-Type" => "application/json" }, ["{}"]] }
 
     before do
       allow(app).to receive(:call).and_return(response)
@@ -501,12 +503,12 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
     context "with trace ID in X-Trace-ID header" do
       it "uses provided trace ID" do
         env["HTTP_X_TRACE_ID"] = "abc123def456"
-        
+
         expect(tracer).to receive(:agent_span).with(
           "http.request",
           hash_including(trace_id: "trace_abc123def456")
         )
-        
+
         middleware.call(env)
       end
     end
@@ -514,12 +516,12 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
     context "with trace ID in Traceparent header" do
       it "uses traceparent trace ID" do
         env["HTTP_TRACEPARENT"] = "00-abc123def456789-def456-01"
-        
+
         expect(tracer).to receive(:agent_span).with(
           "http.request",
           hash_including(trace_id: "trace_abc123def456789")
         )
-        
+
         middleware.call(env)
       end
     end
@@ -530,7 +532,7 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
           "http.request",
           hash_including(trace_id: match(/\Atrace_[a-f0-9]{32}\z/))
         )
-        
+
         middleware.call(env)
       end
     end
@@ -538,12 +540,12 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
     context "with invalid trace header" do
       it "generates new trace ID for invalid format" do
         env["HTTP_X_TRACE_ID"] = "invalid@#$%"
-        
+
         expect(tracer).to receive(:agent_span).with(
           "http.request",
           hash_including(trace_id: match(/\Atrace_[a-f0-9]{32}\z/))
         )
-        
+
         middleware.call(env)
       end
     end
@@ -575,27 +577,27 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
         sleep(0.01)
         [200, {}, [request_env["PATH_INFO"]]]
       end
-      
+
       env1 = env.merge("PATH_INFO" => "/request1")
       env2 = env.merge("PATH_INFO" => "/request2")
-      
+
       threads = []
       results = []
-      
+
       threads << Thread.new do
         results << middleware1.call(env1)
       end
-      
+
       threads << Thread.new do
         results << middleware2.call(env2)
       end
-      
+
       threads.each(&:join)
-      
+
       expect(results.size).to eq(2)
       expect(results[0][2]).to eq(["/request1"])
       expect(results[1][2]).to eq(["/request2"])
-      
+
       # Verify each middleware used its own tracer
       expect(tracer1).to have_received(:agent_span).once
       expect(tracer2).to have_received(:agent_span).once
@@ -611,7 +613,7 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
           "Content-Length" => "456",
           "Cache-Control" => "no-cache, private"
         },
-        ['{\'data\': \'test\'}']
+        ["{'data': 'test'}"]
       ]
     end
 
@@ -622,19 +624,19 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
 
     it "adds response content type" do
       expect(span).to receive(:set_attribute).with("http.response_content_type", "application/json; charset=utf-8")
-      
+
       middleware.call(env)
     end
 
     it "adds response content length" do
       expect(span).to receive(:set_attribute).with("http.response_content_length", 456)
-      
+
       middleware.call(env)
     end
 
     it "adds cache control header" do
       expect(span).to receive(:set_attribute).with("http.response_cache_control", "no-cache, private")
-      
+
       middleware.call(env)
     end
   end
@@ -646,17 +648,17 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
 
     before do
       # Mock RAAF components that would be called within the app
-      allow(app).to receive(:call) do |env|
+      allow(app).to receive(:call) do |_env|
         # Simulate using RAAF::Runner within the request
         # It should automatically pick up the tracer from TracingRegistry
         current_tracer = RAAF::Tracing::TracingRegistry.current_tracer
-        
+
         # Verify the tracer is available
         expect(current_tracer).to eq(tracer)
-        
+
         response
       end
-      
+
       allow(RAAF::Tracing::TracingRegistry).to receive(:with_tracer).and_call_original
     end
 

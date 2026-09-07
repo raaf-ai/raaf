@@ -37,7 +37,7 @@ module RAAF
           @mutex.synchronize do
             # Check for duplicate registration
             if @evaluators.key?(name_sym)
-              raise DuplicateEvaluatorError, 
+              raise DuplicateEvaluatorError,
                     "Evaluator '#{name_sym}' is already registered. Use a different name or unregister first."
             end
 
@@ -64,8 +64,8 @@ module RAAF
             # Provide helpful suggestions
             suggestions = find_similar_names(name_sym)
             error_message = "Evaluator '#{name_sym}' not found in registry. "
-            error_message += "Registered evaluators: #{all_names.join(', ')}" if all_names.any?
-            error_message += "\nDid you mean: #{suggestions.join(', ')}" if suggestions.any?
+            error_message += "Registered evaluators: #{all_names.join(", ")}" if all_names.any?
+            error_message += "\nDid you mean: #{suggestions.join(", ")}" if suggestions.any?
 
             raise UnregisteredEvaluatorError, error_message
           end
@@ -131,11 +131,11 @@ module RAAF
           end
 
           # Verify evaluate method exists
-          unless evaluator_class.instance_methods.include?(:evaluate)
-            raise InvalidEvaluatorError,
-                  "Evaluator class must implement evaluate(field_context, **options) method. " \
-                  "Class #{evaluator_class} does not have an evaluate method."
-          end
+          return if evaluator_class.method_defined?(:evaluate)
+
+          raise InvalidEvaluatorError,
+                "Evaluator class must implement evaluate(field_context, **options) method. " \
+                "Class #{evaluator_class} does not have an evaluate method."
         end
 
         # Find similar evaluator names using Levenshtein distance
@@ -143,7 +143,7 @@ module RAAF
         # @return [Array<Symbol>] Similar evaluator names
         def find_similar_names(name)
           name_str = name.to_s
-          
+
           all_names.select do |registered_name|
             levenshtein_distance(name_str, registered_name.to_s) <= 2
           end.sort_by do |registered_name|
@@ -175,7 +175,7 @@ module RAAF
               d[i][j] = [
                 d[i - 1][j] + 1,     # deletion
                 d[i][j - 1] + 1,     # insertion
-                d[i - 1][j - 1] + cost  # substitution
+                d[i - 1][j - 1] + cost # substitution
               ].min
             end
           end
@@ -189,7 +189,7 @@ module RAAF
           [
             # Quality evaluators (1 - only SemanticSimilarity implemented)
             RAAF::Eval::Evaluators::Quality::SemanticSimilarity,
-            # Note: Coherence, HallucinationDetection, Relevance are stubs (not yet implemented)
+            # NOTE: Coherence, HallucinationDetection, Relevance are stubs (not yet implemented)
 
             # Performance evaluators (3)
             RAAF::Eval::Evaluators::Performance::TokenEfficiency,

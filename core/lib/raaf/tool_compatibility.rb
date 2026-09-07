@@ -4,6 +4,7 @@ require "raaf-core"
 require_relative "tool"
 
 module RAAF
+
   # Compatibility layer for existing FunctionTool usage
   #
   # This module ensures that existing code using FunctionTool
@@ -11,14 +12,16 @@ module RAAF
   # Tool architecture.
   #
   module ToolCompatibility
+
     # Enhance FunctionTool to work with new Tool system
     module FunctionToolExtensions
+
       def self.included(base)
         base.class_eval do
           # Make FunctionTool compatible with Tool registry
           def self.from_tool(tool_instance)
             return tool_instance if tool_instance.is_a?(FunctionTool)
-            
+
             if tool_instance.respond_to?(:to_function_tool)
               tool_instance.to_function_tool
             else
@@ -34,10 +37,12 @@ module RAAF
           end
         end
       end
+
     end
 
     # Extensions for Tool class to ensure compatibility
     module ToolExtensions
+
       # Check if this tool can be used as a FunctionTool
       def function_tool_compatible?
         respond_to?(:call) && !native?
@@ -47,15 +52,17 @@ module RAAF
       def to_h
         to_tool_definition
       end
+
     end
 
     # Agent extensions for backward compatibility
     module AgentExtensions
+
       def self.included(base)
         base.class_eval do
           # Original add_tool method compatibility
           alias_method :add_tool_original, :add_tool if method_defined?(:add_tool)
-          
+
           def add_tool(tool)
             case tool
             when RAAF::Tool
@@ -69,38 +76,37 @@ module RAAF
               add_tool_original(FunctionTool.new(tool))
             else
               # Try to convert to FunctionTool
-              if tool.respond_to?(:to_function_tool)
-                add_tool_original(tool.to_function_tool)
-              else
-                raise ArgumentError, "Invalid tool type: #{tool.class}"
-              end
+              raise ArgumentError, "Invalid tool type: #{tool.class}" unless tool.respond_to?(:to_function_tool)
+
+              add_tool_original(tool.to_function_tool)
+
             end
           end
         end
       end
+
     end
 
     # Apply compatibility patches
     def self.apply!
       # Extend FunctionTool with compatibility methods
       RAAF::FunctionTool.include(FunctionToolExtensions) if defined?(RAAF::FunctionTool)
-      
+
       # Extend Tool with compatibility methods
       RAAF::Tool.include(ToolExtensions) if defined?(RAAF::Tool)
-      
+
       # Extend Agent if it exists
-      if defined?(RAAF::Agent)
-        RAAF::Agent.include(AgentExtensions)
-      end
-      
+      RAAF::Agent.include(AgentExtensions) if defined?(RAAF::Agent)
+
       # Log that compatibility layer is active
-      if defined?(RAAF::Logging)
-        RAAF.logger.info("Tool compatibility layer activated")
-      end
+      return unless defined?(RAAF::Logging)
+
+      RAAF.logger.info("Tool compatibility layer activated")
     end
 
     # Migration helper to convert old-style tools to new format
     class Migrator
+
       def self.migrate_tool(old_tool)
         case old_tool
         when Hash
@@ -116,23 +122,20 @@ module RAAF
           end
         else
           # Instance - try to convert
-          if old_tool.respond_to?(:to_function_tool)
-            old_tool
-          else
-            raise "Cannot migrate tool: #{old_tool.inspect}"
-          end
+          raise "Cannot migrate tool: #{old_tool.inspect}" unless old_tool.respond_to?(:to_function_tool)
+
+          old_tool
+
         end
       end
-
-      private
 
       def self.migrate_hash_tool(hash_tool)
         # Create a new Tool class from hash definition
         Class.new(RAAF::Tool) do
           configure name: hash_tool[:name],
-                   description: hash_tool[:description]
+                    description: hash_tool[:description]
 
-          define_method :call do |**params|
+          define_method :call do |**_params|
             # Implement based on hash tool definition
             raise NotImplementedError, "Hash tool migration not fully implemented"
           end
@@ -151,8 +154,11 @@ module RAAF
           end
         end
       end
+
     end
+
   end
+
 end
 
 # Auto-apply compatibility layer when this file is required

@@ -3,7 +3,9 @@
 require "raaf/logging"
 
 module RAAF
+
   module Tracing
+
     # Base class for all trace processors
     #
     # BaseProcessor provides common functionality for all trace processors,
@@ -46,6 +48,7 @@ module RAAF
     #   processor = MyProcessor.new(batch_size: 100)
     #   tracer.add_processor(processor)
     class BaseProcessor
+
       include Logger
 
       # @return [Integer] Number of spans to batch before automatic export
@@ -65,7 +68,7 @@ module RAAF
         post_initialize(options)
 
         log_debug("#{self.class.name} initialized",
-                 processor: self.class.name, batch_size: @batch_size)
+                  processor: self.class.name, batch_size: @batch_size)
       end
 
       # Hook for subclass initialization
@@ -231,7 +234,7 @@ module RAAF
         @span_buffer.clear
 
         log_debug("Flushing #{spans_to_export.size} spans",
-                 processor: self.class.name, span_count: spans_to_export.size)
+                  processor: self.class.name, span_count: spans_to_export.size)
 
         export_batch(spans_to_export)
       rescue StandardError => e
@@ -248,10 +251,13 @@ module RAAF
       # @return [void]
       def handle_export_error(error, spans)
         log_error("Failed to export #{spans&.size || 0} spans: #{error.message}",
-                 processor: self.class.name, error_class: error.class.name)
+                  processor: self.class.name, error_class: error.class.name)
         log_debug("Export error backtrace: #{error.backtrace&.first(5)&.join("\n")}",
-                 processor: self.class.name)
+                  processor: self.class.name)
       end
+
     end
+
   end
+
 end

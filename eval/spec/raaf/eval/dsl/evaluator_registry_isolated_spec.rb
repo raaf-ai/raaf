@@ -24,6 +24,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
     let(:test_evaluator) do
       Class.new do
         include RAAF::Eval::DSL::Evaluator
+
         evaluator_name :test_evaluator
 
         def evaluate(field_context, **options)
@@ -35,14 +36,14 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
     it "registers an evaluator by name" do
       registry = described_class.instance
       registry.register(:test_evaluator, test_evaluator)
-      
+
       expect(registry.get(:test_evaluator)).to eq(test_evaluator)
     end
 
     it "accepts string names and converts to symbols" do
       registry = described_class.instance
       registry.register("test_evaluator", test_evaluator)
-      
+
       expect(registry.get(:test_evaluator)).to eq(test_evaluator)
       expect(registry.get("test_evaluator")).to eq(test_evaluator)
     end
@@ -50,26 +51,27 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
     it "raises error for duplicate registration" do
       registry = described_class.instance
       registry.register(:test_evaluator, test_evaluator)
-      
-      expect {
+
+      expect do
         registry.register(:test_evaluator, test_evaluator)
-      }.to raise_error(RAAF::Eval::DSL::EvaluatorRegistry::DuplicateEvaluatorError, 
-                       /Evaluator 'test_evaluator' is already registered/)
+      end.to raise_error(RAAF::Eval::DSL::EvaluatorRegistry::DuplicateEvaluatorError,
+                         /Evaluator 'test_evaluator' is already registered/)
     end
 
     it "validates that evaluator includes Evaluator module" do
       invalid_evaluator = Class.new
       registry = described_class.instance
-      
-      expect {
+
+      expect do
         registry.register(:invalid, invalid_evaluator)
-      }.to raise_error(RAAF::Eval::DSL::EvaluatorRegistry::InvalidEvaluatorError,
-                       /must include RAAF::Eval::DSL::Evaluator/)
+      end.to raise_error(RAAF::Eval::DSL::EvaluatorRegistry::InvalidEvaluatorError,
+                         /must include RAAF::Eval::DSL::Evaluator/)
     end
 
     it "validates that evaluator_name matches registration name" do
       mismatched_evaluator = Class.new do
         include RAAF::Eval::DSL::Evaluator
+
         evaluator_name :wrong_name
 
         def evaluate(field_context, **options)
@@ -78,11 +80,11 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
       end
 
       registry = described_class.instance
-      
-      expect {
+
+      expect do
         registry.register(:test_evaluator, mismatched_evaluator)
-      }.to raise_error(RAAF::Eval::DSL::EvaluatorRegistry::InvalidEvaluatorError,
-                       /must match/)
+      end.to raise_error(RAAF::Eval::DSL::EvaluatorRegistry::InvalidEvaluatorError,
+                         /must match/)
     end
   end
 
@@ -90,6 +92,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
     let(:test_evaluator) do
       Class.new do
         include RAAF::Eval::DSL::Evaluator
+
         evaluator_name :test_evaluator
 
         def evaluate(field_context, **options)
@@ -101,6 +104,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
     let(:semantic_sim_evaluator) do
       Class.new do
         include RAAF::Eval::DSL::Evaluator
+
         evaluator_name :semantic_similarity
 
         def evaluate(field_context, **options)
@@ -124,19 +128,19 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
     end
 
     it "raises error for unregistered evaluator" do
-      expect {
+      expect do
         described_class.instance.get(:nonexistent)
-      }.to raise_error(RAAF::Eval::DSL::EvaluatorRegistry::UnregisteredEvaluatorError,
-                       /Evaluator 'nonexistent' not found/)
+      end.to raise_error(RAAF::Eval::DSL::EvaluatorRegistry::UnregisteredEvaluatorError,
+                         /Evaluator 'nonexistent' not found/)
     end
 
     it "provides suggestions for similar evaluator names" do
       described_class.instance.register(:semantic_similarity, semantic_sim_evaluator)
-      
-      expect {
+
+      expect do
         described_class.instance.get(:semantic_similary) # typo
-      }.to raise_error(RAAF::Eval::DSL::EvaluatorRegistry::UnregisteredEvaluatorError,
-                       /Did you mean: semantic_similarity/)
+      end.to raise_error(RAAF::Eval::DSL::EvaluatorRegistry::UnregisteredEvaluatorError,
+                         /Did you mean: semantic_similarity/)
     end
   end
 
@@ -144,6 +148,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
     let(:test_evaluator) do
       Class.new do
         include RAAF::Eval::DSL::Evaluator
+
         evaluator_name :test_evaluator
 
         def evaluate(field_context, **options)
@@ -171,6 +176,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
     let(:evaluator1) do
       Class.new do
         include RAAF::Eval::DSL::Evaluator
+
         evaluator_name :evaluator1
 
         def evaluate(field_context, **options)
@@ -182,6 +188,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
     let(:evaluator2) do
       Class.new do
         include RAAF::Eval::DSL::Evaluator
+
         evaluator_name :evaluator2
 
         def evaluate(field_context, **options)
@@ -194,7 +201,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
       registry = described_class.instance
       registry.register(:evaluator1, evaluator1)
       registry.register(:evaluator2, evaluator2)
-      
+
       names = registry.all_names
       expect(names).to contain_exactly(:evaluator1, :evaluator2)
     end
@@ -208,10 +215,10 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
     it "registers all built-in evaluators" do
       registry = described_class.instance
       registry.auto_register_built_ins
-      
+
       # Should have 22 built-in evaluators
       expect(registry.all_names.size).to eq(22)
-      
+
       # Verify some key evaluators are registered
       expect(registry.registered?(:semantic_similarity)).to be true
       expect(registry.registered?(:token_efficiency)).to be true
@@ -222,10 +229,10 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
       registry = described_class.instance
       registry.auto_register_built_ins
       count1 = registry.all_names.size
-      
+
       registry.auto_register_built_ins
       count2 = registry.all_names.size
-      
+
       expect(count1).to eq(count2)
       expect(count1).to eq(22)
     end

@@ -4,7 +4,9 @@ require "time"
 require "securerandom"
 
 module RAAF
+
   module Memory
+
     ##
     # Represents a single memory entry
     #
@@ -30,6 +32,7 @@ module RAAF
     #   end
     #
     class Memory
+
       # @!attribute [rw] id
       #   @return [String] Unique identifier for the memory
       # @!attribute [rw] content
@@ -252,6 +255,9 @@ module RAAF
 
         false
       end
+
     end
+
   end
+
 end

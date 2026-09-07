@@ -4,7 +4,9 @@ require_relative "base_guardrail"
 require_relative "../logging"
 
 module RAAF
+
   module Guardrails
+
     # Tripwire Guardrail - Immediately stops execution when triggered
     #
     # This guardrail can immediately halt agent execution when it detects
@@ -24,8 +26,11 @@ module RAAF
     #     content.include?("URGENT") && content.include?("wire transfer")
     #   end
     class TripwireGuardrail < BaseGuardrail
+
       include Logger
+
       class TripwireException < StandardError
+
         attr_reader :triggered_by, :content, :metadata
 
         def initialize(message, triggered_by:, content:, metadata: {})
@@ -34,6 +39,7 @@ module RAAF
           @content = content
           @metadata = metadata
         end
+
       end
 
       def initialize(patterns: [], keywords: [], custom_detector: nil, &block)
@@ -250,10 +256,12 @@ module RAAF
           )
         end
       end
+
     end
 
     # Composite tripwire that combines multiple tripwires
     class CompositeTripwire < TripwireGuardrail
+
       def initialize
         super(patterns: [], keywords: [])
         @tripwires = []
@@ -278,10 +286,12 @@ module RAAF
         @tripwires.each { |t| t.check_tool_call(tool_name, arguments) }
         super
       end
+
     end
 
     # Pre-configured tripwires for common security concerns
     module CommonTripwires
+
       # SQL injection prevention
       def self.sql_injection
         TripwireGuardrail.new(
@@ -358,6 +368,9 @@ module RAAF
           composite.add_tripwire(sensitive_data)
         end
       end
+
     end
+
   end
+
 end

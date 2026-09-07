@@ -17,10 +17,10 @@ if defined?(Rails::Generators)
         run_generator
 
         assert_file "config/ai_agents.yml" do |content|
-          expect(content).to match(/defaults: &defaults/)
-          expect(content).to match(/development:/)
-          expect(content).to match(/test:/)
-          expect(content).to match(/production:/)
+          expect(content).to include("defaults: &defaults")
+          expect(content).to include("development:")
+          expect(content).to include("test:")
+          expect(content).to include("production:")
         end
       end
 
@@ -28,7 +28,7 @@ if defined?(Rails::Generators)
         run_generator
 
         assert_file "config/initializers/ai_config.rb" do |content|
-          expect(content).to match(/RAAF::DSL\.configure do \|config\|/)
+          expect(content).to include("RAAF::DSL.configure do |config|")
         end
       end
     end

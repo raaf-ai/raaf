@@ -88,14 +88,14 @@ RSpec.describe RAAF::DSL::Agent, "smart features" do
     before do
       # Mock the direct_run method to simulate execution
       allow(agent).to receive(:direct_run).and_return({
-        success: true,
-        results: double(
-          messages: [
-            { role: "assistant", content: '{"status": "success", "data": []}' }
-          ],
-          final_output: '{"status": "success", "data": []}'
-        )
-      })
+                                                        success: true,
+                                                        results: double(
+                                                          messages: [
+                                                            { role: "assistant", content: '{"status": "success", "data": []}' }
+                                                          ],
+                                                          final_output: '{"status": "success", "data": []}'
+                                                        )
+                                                      })
     end
 
     it "executes with retry and error handling when smart features configured" do

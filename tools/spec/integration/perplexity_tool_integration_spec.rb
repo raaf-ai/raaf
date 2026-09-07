@@ -173,7 +173,8 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
 
       # Mock Perplexity search
       security_response = standard_perplexity_response.dup
-      security_response["choices"][0]["message"]["content"] = "Ruby security updates include patches for CVE-2024-XXXX..."
+      security_response["choices"][0]["message"]["content"] =
+        "Ruby security updates include patches for CVE-2024-XXXX..."
       mock_perplexity_provider_instance.add_response(security_response)
 
       # Run conversation

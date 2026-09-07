@@ -36,8 +36,10 @@ module RAAF
         # @return [Float, nil]
         def overall_score
           return nil if scores.blank? || scores.empty?
+
           values = scores.values.select { |v| v.is_a?(Numeric) }
           return nil if values.empty?
+
           values.sum / values.size.to_f
         end
 
@@ -68,6 +70,7 @@ module RAAF
         def duration
           return duration_seconds if duration_seconds
           return nil unless started_at && completed_at
+
           completed_at - started_at
         end
 

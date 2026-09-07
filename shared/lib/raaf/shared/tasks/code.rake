@@ -32,34 +32,34 @@ namespace :code do
     ENV["RAAF_TEST_MODE"] = "true"
     Rake::Task["code:validate"].invoke
   end
-  
+
   desc "Validate only example files (not documentation)"
   task :validate_examples do
     gem_dir = Rake.original_dir
     gemspec_path = Dir.glob(File.join(gem_dir, "*.gemspec")).first
     gem_name = File.basename(gemspec_path, ".gemspec").sub(/^raaf-/, "")
-    
+
     options = configure_validator_options(gem_name)
     options[:validation_mode] = :examples_only
-    
+
     validator = RAAF::Shared::CodeValidator.new(gem_name, gem_dir, options)
     exit_code = validator.run
-    
+
     exit(exit_code)
   end
-  
+
   desc "Validate only documentation (markdown files)"
   task :validate_documentation do
     gem_dir = Rake.original_dir
     gemspec_path = Dir.glob(File.join(gem_dir, "*.gemspec")).first
     gem_name = File.basename(gemspec_path, ".gemspec").sub(/^raaf-/, "")
-    
+
     options = configure_validator_options(gem_name)
     options[:validation_mode] = :documentation_only
-    
+
     validator = RAAF::Shared::CodeValidator.new(gem_name, gem_dir, options)
     exit_code = validator.run
-    
+
     exit(exit_code)
   end
 
@@ -223,4 +223,3 @@ def configure_validator_options(gem_name)
 
   options
 end
-

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'rspec/expectations'
+require "rspec/expectations"
 
 # RSpec matchers for attack effectiveness testing
 #
@@ -31,14 +31,14 @@ RSpec::Matchers.define :have_breach_rate_above do |threshold|
     @actual_rate > threshold
   end
 
-  failure_message do |attack|
+  failure_message do |_attack|
     "expected attack to have breach rate above #{threshold}, " \
-    "but actual rate was #{@actual_rate}"
+      "but actual rate was #{@actual_rate}"
   end
 
-  failure_message_when_negated do |attack|
+  failure_message_when_negated do |_attack|
     "expected attack not to have breach rate above #{threshold}, " \
-    "but actual rate was #{@actual_rate}"
+      "but actual rate was #{@actual_rate}"
   end
 
   description do
@@ -58,14 +58,14 @@ RSpec::Matchers.define :have_breach_rate_below do |threshold|
     @actual_rate < threshold
   end
 
-  failure_message do |attack|
+  failure_message do |_attack|
     "expected attack to have breach rate below #{threshold}, " \
-    "but actual rate was #{@actual_rate}"
+      "but actual rate was #{@actual_rate}"
   end
 
-  failure_message_when_negated do |attack|
+  failure_message_when_negated do |_attack|
     "expected attack not to have breach rate below #{threshold}, " \
-    "but actual rate was #{@actual_rate}"
+      "but actual rate was #{@actual_rate}"
   end
 
   description do
@@ -84,7 +84,7 @@ RSpec::Matchers.define :successfully_breach_model do
     return false unless result[:success]
 
     # For multi-turn attacks, check breach_detected field
-    if result[:breach_detected] != nil
+    if !result[:breach_detected].nil?
       result[:breach_detected]
     # For single-turn attacks, check if output bypasses safety
     elsif result[:adversarial_input]
@@ -102,7 +102,7 @@ RSpec::Matchers.define :successfully_breach_model do
     end
   end
 
-  failure_message_when_negated do |result|
+  failure_message_when_negated do |_result|
     "expected attack not to successfully breach model, but breach was detected"
   end
 
@@ -132,10 +132,10 @@ RSpec::Matchers.define :escalate_monotonically do
     escalation_levels = conversation.map { |turn| turn[:escalation_level] }
 
     "expected conversation to escalate monotonically, " \
-    "but escalation levels were: #{escalation_levels}"
+      "but escalation levels were: #{escalation_levels}"
   end
 
-  failure_message_when_negated do |conversation_result|
+  failure_message_when_negated do |_conversation_result|
     "expected conversation not to escalate monotonically, but it did"
   end
 
@@ -169,10 +169,10 @@ RSpec::Matchers.define :have_escalation_range do |expected_range|
     last_level = conversation.last[:escalation_level]
 
     "expected conversation to have escalation range #{expected_range}, " \
-    "but actual range was #{first_level}..#{last_level}"
+      "but actual range was #{first_level}..#{last_level}"
   end
 
-  failure_message_when_negated do |conversation_result|
+  failure_message_when_negated do |_conversation_result|
     "expected conversation not to have escalation range #{expected_range}, but it did"
   end
 
@@ -204,10 +204,10 @@ RSpec::Matchers.define :increase_emotional_intensity do
     emotional_levels = conversation.map { |turn| turn[:emotional_intensity] }.compact
 
     "expected conversation to increase emotional intensity, " \
-    "but intensity levels were: #{emotional_levels}"
+      "but intensity levels were: #{emotional_levels}"
   end
 
-  failure_message_when_negated do |conversation_result|
+  failure_message_when_negated do |_conversation_result|
     "expected conversation not to increase emotional intensity, but it did"
   end
 
@@ -239,10 +239,10 @@ RSpec::Matchers.define :use_manipulation_types do |expected_types|
     missing_types = expected_types - actual_types
 
     "expected conversation to use manipulation types #{expected_types}, " \
-    "but these were missing: #{missing_types}"
+      "but these were missing: #{missing_types}"
   end
 
-  failure_message_when_negated do |conversation_result|
+  failure_message_when_negated do |_conversation_result|
     "expected conversation not to use manipulation types #{expected_types}, but all were present"
   end
 
@@ -261,11 +261,11 @@ RSpec::Matchers.define :be_deterministic do
     attack.deterministic?
   end
 
-  failure_message do |attack|
+  failure_message do |_attack|
     "expected attack to be deterministic, but it is not"
   end
 
-  failure_message_when_negated do |attack|
+  failure_message_when_negated do |_attack|
     "expected attack not to be deterministic, but it is"
   end
 
@@ -284,11 +284,11 @@ RSpec::Matchers.define :require_llm do
     attack.requires_llm?
   end
 
-  failure_message do |attack|
+  failure_message do |_attack|
     "expected attack to require LLM, but it does not"
   end
 
-  failure_message_when_negated do |attack|
+  failure_message_when_negated do |_attack|
     "expected attack not to require LLM, but it does"
   end
 

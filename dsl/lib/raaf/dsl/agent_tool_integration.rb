@@ -2,7 +2,7 @@
 
 require "raaf/function_tool"
 
-# Note: ToolRegistry is loaded by raaf-dsl.rb when this gem is initialized
+# NOTE: ToolRegistry is loaded by raaf-dsl.rb when this gem is initialized
 # We don't require it here since the parent file handles the initialization
 # This keeps tool management concerns centralized in raaf-dsl gem
 
@@ -139,9 +139,7 @@ module RAAF
           end
 
           # tool_identifier is required for regular tools
-          if tool_identifier.nil?
-            raise ArgumentError, "tool_identifier is required for tool registration"
-          end
+          raise ArgumentError, "tool_identifier is required for tool registration" if tool_identifier.nil?
 
           # HYBRID RESOLUTION: Try eager resolution, fall back to lazy if registry not available
           # This ensures:
@@ -153,11 +151,9 @@ module RAAF
             result
           rescue NameError => e
             # ToolRegistry constant not available yet - defer to lazy resolution
-            if e.message.include?("RAAF::ToolRegistry") || e.message.include?("uninitialized constant")
-              nil
-            else
-              raise
-            end
+            raise unless e.message.include?("RAAF::ToolRegistry") || e.message.include?("uninitialized constant")
+
+            nil
           end
 
           # Store either the resolved class OR the identifier for lazy resolution later
@@ -180,15 +176,13 @@ module RAAF
               )
             rescue NameError => e
               # ToolRegistry not fully loaded yet - provide simpler error message
-              if e.message.include?("RAAF::ToolRegistry") || e.message.include?("uninitialized constant")
-                raise ToolResolutionError.new(
-                  tool_identifier,
-                  ["RAAF::ToolRegistry (not yet loaded)"],
-                  ["Ensure the tool is registered in config/application.rb before eager loading"]
-                )
-              else
-                raise
-              end
+              raise unless e.message.include?("RAAF::ToolRegistry") || e.message.include?("uninitialized constant")
+
+              raise ToolResolutionError.new(
+                tool_identifier,
+                ["RAAF::ToolRegistry (not yet loaded)"],
+                ["Ensure the tool is registered in config/application.rb before eager loading"]
+              )
             end
           else
             # Successfully resolved at class definition time
@@ -198,14 +192,12 @@ module RAAF
           _tools_config << config
         end
 
-
         # Add multiple tools at once
         def tools(*tool_identifiers, **shared_options)
           tool_identifiers.each do |identifier|
             tool(identifier, **shared_options)
           end
         end
-
       end
 
       # Instance methods for tool management
@@ -223,7 +215,7 @@ module RAAF
 
         # Append grounding configuration if present (provider-level, not a tool instance)
         grounding_config = self.class._grounding_config
-        if grounding_config && !grounding_config.empty?
+        if grounding_config.present?
           # Convert to plain Hash for provider consumption
           # Support both Gemini 2.0+ (google_search) and Gemini 1.5 (google_search_retrieval)
           if grounding_config.key?(:google_search)
@@ -282,23 +274,20 @@ module RAAF
         tool_instance = tool_class.new(**options)
 
         # For native tools, return as-is
-        if config[:native]
-          return tool_instance
-        end
+        return tool_instance if config[:native]
 
         # For regular tools, ensure FunctionTool compatibility
         if tool_instance.respond_to?(:to_function_tool)
-          converted = tool_instance.to_function_tool
-          converted
+          tool_instance.to_function_tool
+
         else
           tool_instance
         end
-      rescue => e
-        error_details = "Failed to create tool instance for #{tool_class&.name}: #{e.message}\nBacktrace: #{e.backtrace.first(10).join("\n")}"
+      rescue StandardError => e
         log_error("Failed to create tool instance",
-                 tool_class: tool_class&.name,
-                 error: e.message,
-                 error_class: e.class.name)
+                  tool_class: tool_class&.name,
+                  error: e.message,
+                  error_class: e.class.name)
         nil
       end
 
@@ -310,13 +299,13 @@ module RAAF
         end
 
         def method_missing(method_name, *args)
-          if args.length == 1
-            @config[method_name] = args.first
-          elsif args.empty?
-            @config[method_name] = true
-          else
-            @config[method_name] = args
-          end
+          @config[method_name] = if args.length == 1
+                                   args.first
+                                 elsif args.empty?
+                                   true
+                                 else
+                                   args
+                                 end
         end
 
         def respond_to_missing?(method_name, include_private = false)

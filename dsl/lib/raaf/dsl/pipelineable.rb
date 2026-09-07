@@ -1,13 +1,13 @@
 # frozen_string_literal: true
 
-require_relative 'pipeline_dsl/wrapper_dsl'
-require_relative 'pipeline_dsl/chained_agent'
-require_relative 'pipeline_dsl/parallel_agents'
-require_relative 'pipeline_dsl/configured_agent'
-require_relative 'pipeline_dsl/iterating_agent'
-require_relative 'pipeline_dsl/remapped_agent'
-require_relative 'pipeline_dsl/batched_agent'
-require_relative 'errors'
+require_relative "pipeline_dsl/wrapper_dsl"
+require_relative "pipeline_dsl/chained_agent"
+require_relative "pipeline_dsl/parallel_agents"
+require_relative "pipeline_dsl/configured_agent"
+require_relative "pipeline_dsl/iterating_agent"
+require_relative "pipeline_dsl/remapped_agent"
+require_relative "pipeline_dsl/batched_agent"
+require_relative "errors"
 
 module RAAF
   module DSL
@@ -15,11 +15,11 @@ module RAAF
     #
     # This module provides unified pipeline functionality for any class that needs to
     # work in RAAF pipelines. It includes DSL operators, validation interfaces, and
-    # field tracking functionality that can be shared between AI agents, services, 
+    # field tracking functionality that can be shared between AI agents, services,
     # and any other pipeline-compatible components.
     #
     # Features:
-    # - DSL operators for chaining (>>) and parallel (|) execution  
+    # - DSL operators for chaining (>>) and parallel (|) execution
     # - Configuration methods for timeout, retry, and limit settings
     # - Iterator support via each_over() for processing multiple data entries
     # - Unified validation interface for pipeline compatibility
@@ -37,7 +37,7 @@ module RAAF
     #
     # @example Usage with iteration
     #   class MyPipeline < RAAF::Pipeline
-    #     flow DataLoader >> 
+    #     flow DataLoader >>
     #          ProcessorService.each_over(:items).parallel.timeout(60) >>
     #          ResultCollector
     #   end
@@ -95,10 +95,10 @@ module RAAF
         #
         # @param next_agent [Class] The next agent or service in the chain
         # @return [ChainedAgent] Chained execution wrapper
-        def >>(next_agent)
+        def >>(other)
           # Get pipeline context fields if available (set by pipeline during flow creation)
           pipeline_context_fields = Thread.current[:raaf_pipeline_context_fields] || []
-          PipelineDSL::ChainedAgent.new(self, next_agent, pipeline_context_fields: pipeline_context_fields)
+          PipelineDSL::ChainedAgent.new(self, other, pipeline_context_fields: pipeline_context_fields)
         end
 
         # DSL operator: Run this agent/service in parallel with another
@@ -108,8 +108,8 @@ module RAAF
         #
         # @param parallel_agent [Class] The agent/service to run in parallel
         # @return [ParallelAgents] Parallel execution wrapper
-        def |(parallel_agent)
-          PipelineDSL::ParallelAgents.new([self, parallel_agent])
+        def |(other)
+          PipelineDSL::ParallelAgents.new([self, other])
         end
 
         # DSL method: Configure timeout for execution
@@ -187,22 +187,23 @@ module RAAF
               # Assume old-style positional arguments for backward compatibility
               field = args[0]
               # If second arg is a Hash, merge it with options; if Symbol, treat as error
-              if args[1].is_a?(Hash)
-                options = args[1].merge(options)
-              else
+              unless args[1].is_a?(Hash)
                 raise ArgumentError, "Invalid syntax. Use: each_over(:field, to: :output) or each_over(:from, :field, to: :output)"
               end
+
+              options = args[1].merge(options)
+
             end
           elsif args.length == 3 && args[0] == :from
             # Unsupported - should use keyword args
             raise ArgumentError, "Invalid syntax: too many arguments. Use: each_over(:from, :field, to: :output) with keyword argument"
           else
-            raise ArgumentError, "Invalid each_over syntax. Supported patterns:\n" \
-                                 "  each_over(:field)\n" \
-                                 "  each_over(:field, to: :output)\n" \
-                                 "  each_over(:from, :field, to: :output)"
+            raise ArgumentError, "Invalid each_over syntax. Supported patterns:\n  " \
+                                 "each_over(:field)\n  " \
+                                 "each_over(:field, to: :output)\n  " \
+                                 "each_over(:from, :field, to: :output)"
           end
-          
+
           PipelineDSL::IteratingAgent.new(self, field, options)
         end
 
@@ -315,17 +316,11 @@ module RAAF
           config = {}
 
           # Extract common DSL configurations
-          if _context_config[:timeout]
-            config[:timeout] = _context_config[:timeout]
-          end
+          config[:timeout] = _context_config[:timeout] if _context_config[:timeout]
 
-          if _context_config[:retry]
-            config[:retry] = _context_config[:retry]
-          end
+          config[:retry] = _context_config[:retry] if _context_config[:retry]
 
-          if _context_config[:max_turns]
-            config[:max_turns] = _context_config[:max_turns]
-          end
+          config[:max_turns] = _context_config[:max_turns] if _context_config[:max_turns]
 
           config
         end
@@ -359,26 +354,22 @@ module RAAF
           if respond_to?(:_context_config) && _context_config[:context_rules] && _context_config[:context_rules][:output]
             return _context_config[:context_rules][:output]
           end
-          
+
           # Check if service has been instantiated and run to analyze result
-          if respond_to?(:last_result_fields) && last_result_fields
-            return last_result_fields
-          end
-          
+          return last_result_fields if respond_to?(:last_result_fields) && last_result_fields
+
           # Fallback to manual declaration if available (backward compatibility)
-          if respond_to?(:declared_provided_fields)
-            return declared_provided_fields
-          end
-          
+          return declared_provided_fields if respond_to?(:declared_provided_fields)
+
           # Default implementation - must be overridden by subclasses
           []
         end
       end
-      
+
       # Instance methods for pipeline compatibility
-      
+
       # Check if this component can be validated for pipeline use
-      # 
+      #
       # This provides a safe way to check validation capability without triggering
       # method_missing issues from ContextAccess module.
       #
@@ -386,7 +377,7 @@ module RAAF
       def can_validate_for_pipeline?
         respond_to?(:validate_for_pipeline, true)
       end
-      
+
       # Validate this component for pipeline use
       #
       # This method provides a unified validation interface that works for both
@@ -402,22 +393,22 @@ module RAAF
         validate_required_context_fields(context)
         true
       end
-      
+
       # Get the type of pipeline component this is
       #
       # @return [Symbol] :agent, :service, or :other
       def pipeline_component_type
-        if self.class.ancestors.any? { |a| a.name == 'RAAF::DSL::Agent' }
+        if self.class.ancestors.any? { |a| a.name == "RAAF::DSL::Agent" }
           :agent
-        elsif self.class.ancestors.any? { |a| a.name == 'RAAF::DSL::Service' }
+        elsif self.class.ancestors.any? { |a| a.name == "RAAF::DSL::Service" }
           :service
         else
           :other
         end
       end
-      
+
       private
-      
+
       # Validate required context fields for this component
       #
       # Checks that all fields required by this component are present
@@ -428,40 +419,40 @@ module RAAF
       def validate_required_context_fields(context)
         required = self.class.required_fields
         return true if required.empty?
-        
+
         # Check which fields are missing using hash key checking to respect indifferent access
         # HashWithIndifferentAccess handles both string and symbol keys automatically
-        missing_fields = required.reject { |field| 
+        missing_fields = required.reject do |field|
           if context.is_a?(Hash)
             context.key?(field)
           else
             false
           end
-        }
-        
+        end
+
         return true if missing_fields.empty?
-        
+
         # Check if missing fields have defaults (from class configuration)
         defaults = []
-        if self.class.respond_to?(:_context_config) && 
+        if self.class.respond_to?(:_context_config) &&
            self.class._context_config &&
            self.class._context_config[:context_rules] &&
            self.class._context_config[:context_rules][:defaults]
           defaults = self.class._context_config[:context_rules][:defaults].keys
         end
-        
+
         # Remove fields that have defaults from missing list
         missing_fields -= defaults
-        
+
         if missing_fields.any?
           # Extract context keys for debugging (preserving original functionality)
           available_keys = context.is_a?(Hash) ? context.keys : []
-          raise RAAF::DSL::Error, 
+          raise RAAF::DSL::Error,
                 "Pipeline validation failed for #{self.class.name}: " \
                 "missing required context fields: #{missing_fields.inspect}. " \
                 "Available context: #{available_keys.inspect}"
         end
-        
+
         true
       end
     end

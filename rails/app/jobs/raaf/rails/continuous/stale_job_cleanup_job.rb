@@ -58,7 +58,7 @@ module RAAF
             )
             RAAF.logger.error "[ContinuousEval] Marked stale job #{item.id} as failed (max retries exceeded)"
           end
-        rescue => e
+        rescue StandardError => e
           RAAF.logger.error "[ContinuousEval] Error processing stale item #{item.id}: #{e.message}"
         end
       end

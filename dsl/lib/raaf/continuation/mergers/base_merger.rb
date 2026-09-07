@@ -102,24 +102,24 @@ module RAAF
             if content.nil?
               # Check for message with string key
               if chunk["message"]
-                if chunk["message"].is_a?(Hash)
-                  # Try to extract content from nested message
-                  content = chunk["message"]["content"] || chunk["message"][:content] || chunk["message"]
-                else
-                  # Direct message value
-                  content = chunk["message"]
-                end
+                content = if chunk["message"].is_a?(Hash)
+                            # Try to extract content from nested message
+                            chunk["message"]["content"] || chunk["message"][:content] || chunk["message"]
+                          else
+                            # Direct message value
+                            chunk["message"]
+                          end
               end
 
               # Check for message with symbol key if string didn't work
               if content.nil? && chunk[:message]
-                if chunk[:message].is_a?(Hash)
-                  # Try to extract content from nested message
-                  content = chunk[:message][:content] || chunk[:message]["content"] || chunk[:message]
-                else
-                  # Direct message value
-                  content = chunk[:message]
-                end
+                content = if chunk[:message].is_a?(Hash)
+                            # Try to extract content from nested message
+                            chunk[:message][:content] || chunk[:message]["content"] || chunk[:message]
+                          else
+                            # Direct message value
+                            chunk[:message]
+                          end
               end
             end
 

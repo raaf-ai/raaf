@@ -31,23 +31,22 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Dependencies
+  spec.add_dependency "kaminari", "~> 1.2"
   spec.add_dependency "ostruct", "~> 0.5" # Required for Ruby 3.5+ compatibility
+  spec.add_dependency "phlex", "~> 2.0"
+  spec.add_dependency "phlex-preline", "~> 0.1"
+  spec.add_dependency "phlex-rails", "~> 2.0"
   spec.add_dependency "raaf-core", "~> 0.1"
   spec.add_dependency "raaf-eval", "~> 0.1"
   spec.add_dependency "raaf-memory", "~> 0.1"
   spec.add_dependency "raaf-tracing", "~> 0.1"
   spec.add_dependency "rails", ">= 7.0"
+  spec.add_dependency "redcarpet", "~> 3.6"
+  spec.add_dependency "solid_queue", "~> 1.0"
   spec.add_dependency "stimulus-rails", "~> 1.0"
   spec.add_dependency "turbo-rails", ">= 1.0"
-  spec.add_dependency "phlex", "~> 2.0"
-  spec.add_dependency "phlex-rails", "~> 2.0"
-  spec.add_dependency "phlex-preline", "~> 0.1"
-  spec.add_dependency "redcarpet", "~> 3.6"
-  spec.add_dependency "kaminari", "~> 1.2"
-  spec.add_dependency "solid_queue", "~> 1.0"
 
   # Development dependencies
-  spec.add_development_dependency "bundler"
   spec.add_development_dependency "capybara"
   spec.add_development_dependency "rake"
   spec.add_development_dependency "rspec"

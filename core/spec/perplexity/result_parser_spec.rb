@@ -68,9 +68,9 @@ RSpec.describe RAAF::Perplexity::ResultParser do
       citations = described_class.extract_citations(sample_result)
 
       expect(citations).to eq([
-        "https://ruby-lang.org/news/2024/ruby-3-4-released",
-        "https://github.com/ruby/ruby"
-      ])
+                                "https://ruby-lang.org/news/2024/ruby-3-4-released",
+                                "https://github.com/ruby/ruby"
+                              ])
     end
 
     it "returns empty array when citations missing" do
@@ -140,9 +140,9 @@ RSpec.describe RAAF::Perplexity::ResultParser do
       expect(formatted[:success]).to be true
       expect(formatted[:content]).to eq("Ruby 3.4 includes significant performance improvements...")
       expect(formatted[:citations]).to eq([
-        "https://ruby-lang.org/news/2024/ruby-3-4-released",
-        "https://github.com/ruby/ruby"
-      ])
+                                            "https://ruby-lang.org/news/2024/ruby-3-4-released",
+                                            "https://github.com/ruby/ruby"
+                                          ])
       expect(formatted[:web_results].length).to eq(2)
       expect(formatted[:model]).to eq("sonar-pro")
     end

@@ -33,6 +33,7 @@ module RAAF
 
           def calculate_percentage_change(baseline, result)
             return 0 if baseline.zero?
+
             ((result - baseline).to_f / baseline * 100).round(2)
           end
         end

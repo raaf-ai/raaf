@@ -212,13 +212,12 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
   describe "Agent Configuration Checks" do
     let(:agent_with_continuation) do
       double("Agent",
-        continuation_enabled?: true,
-        continuation_config: {
-          max_attempts: 5,
-          output_format: "json",
-          on_failure: "return_partial"
-        }
-      )
+             continuation_enabled?: true,
+             continuation_config: {
+               max_attempts: 5,
+               output_format: "json",
+               on_failure: "return_partial"
+             })
     end
 
     let(:agent_without_continuation) do
@@ -258,9 +257,8 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
 
     it "uses default config if agent config missing" do
       agent_with_partial_config = double("Agent",
-        continuation_enabled?: true,
-        continuation_config: { max_attempts: 3 }
-      )
+                                         continuation_enabled?: true,
+                                         continuation_config: { max_attempts: 3 })
 
       config = agent_with_partial_config.continuation_config
       default_config = {
@@ -344,7 +342,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         .to_return(status: 200, body: continuation_response.to_json)
 
       first = provider.responses_completion(messages: messages, model: model)
-      second = provider.responses_completion(
+      provider.responses_completion(
         messages: [],
         model: model,
         previous_response_id: first["id"]
@@ -403,7 +401,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
               content: [{ type: "text", text: "Part #{i + 1}" }]
             }
           ],
-          usage: { input_tokens: 10 + i * 10, output_tokens: 20 }
+          usage: { input_tokens: 10 + (i * 10), output_tokens: 20 }
         }
 
         if i == 0
@@ -421,10 +419,10 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
 
       5.times do |i|
         response = if i == 0
-          provider.responses_completion(messages: messages, model: model)
-        else
-          provider.responses_completion(messages: [], model: model, previous_response_id: prev_id)
-        end
+                     provider.responses_completion(messages: messages, model: model)
+                   else
+                     provider.responses_completion(messages: [], model: model, previous_response_id: prev_id)
+                   end
 
         attempts << response["id"]
         prev_id = response["id"]
@@ -448,7 +446,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
               content: [{ type: "text", text: "Part #{i + 1}" }]
             }
           ],
-          usage: { input_tokens: 10 + i * 10, output_tokens: 20 }
+          usage: { input_tokens: 10 + (i * 10), output_tokens: 20 }
         }
 
         if i == 0
@@ -467,10 +465,10 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
 
       max_attempts.times do |i|
         response = if i == 0
-          provider.responses_completion(messages: messages, model: model)
-        else
-          provider.responses_completion(messages: [], model: model, previous_response_id: prev_id)
-        end
+                     provider.responses_completion(messages: messages, model: model)
+                   else
+                     provider.responses_completion(messages: [], model: model, previous_response_id: prev_id)
+                   end
 
         attempts << response["id"]
         prev_id = response["id"]
@@ -504,10 +502,10 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
 
       max_attempts.times do |i|
         response = if i == 0
-          provider.responses_completion(messages: messages, model: model)
-        else
-          provider.responses_completion(messages: [], model: model, previous_response_id: prev_id)
-        end
+                     provider.responses_completion(messages: messages, model: model)
+                   else
+                     provider.responses_completion(messages: [], model: model, previous_response_id: prev_id)
+                   end
 
         attempts << response
         prev_id = response["id"]
@@ -636,7 +634,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
           previous_response_id: i > 0 ? "resp_#{i - 1}" : nil,
           finish_reason: i < 2 ? "length" : "stop",
           output: [{ type: "message", role: "assistant", content: [{ type: "text", text: "Part #{i}" }] }],
-          usage: { input_tokens: 10 + i * 20, output_tokens: 20 }
+          usage: { input_tokens: 10 + (i * 20), output_tokens: 20 }
         }
 
         if i == 0
@@ -652,10 +650,10 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
       prev_id = nil
       3.times do |i|
         response = if i == 0
-          provider.responses_completion(messages: messages, model: model)
-        else
-          provider.responses_completion(messages: [], model: model, previous_response_id: prev_id)
-        end
+                     provider.responses_completion(messages: messages, model: model)
+                   else
+                     provider.responses_completion(messages: [], model: model, previous_response_id: prev_id)
+                   end
 
         responses << response
         prev_id = response["id"]
@@ -798,8 +796,8 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
     it "records finish_reason for each chunk" do
       chunk_finish_reasons = []
 
-      ["length", "length", "stop"].each_with_index do |reason, i|
-        response = {
+      %w[length length stop].each_with_index do |reason, i|
+        {
           id: "resp_#{i}",
           finish_reason: reason,
           output: [{ type: "message", role: "assistant", content: [{ type: "text", text: "Part #{i}" }] }]
@@ -809,10 +807,10 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
       end
 
       expect(chunk_finish_reasons).to eq([
-        { chunk: 0, finish_reason: "length" },
-        { chunk: 1, finish_reason: "length" },
-        { chunk: 2, finish_reason: "stop" }
-      ])
+                                           { chunk: 0, finish_reason: "length" },
+                                           { chunk: 1, finish_reason: "length" },
+                                           { chunk: 2, finish_reason: "stop" }
+                                         ])
     end
 
     it "includes all metadata in final result" do
@@ -820,7 +818,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         continuation_count: 2,
         total_chunks: 2,
         truncation_points: ["resp_001"],
-        finish_reasons: ["length", "stop"],
+        finish_reasons: %w[length stop],
         total_input_tokens: 150,
         total_output_tokens: 300,
         model: "gpt-4o",
@@ -830,7 +828,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
       expect(final_metadata[:continuation_count]).to eq(2)
       expect(final_metadata[:total_chunks]).to eq(2)
       expect(final_metadata[:truncation_points]).to include("resp_001")
-      expect(final_metadata[:finish_reasons]).to eq(["length", "stop"])
+      expect(final_metadata[:finish_reasons]).to eq(%w[length stop])
     end
   end
 
@@ -922,7 +920,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
             id: "resp_#{i}",
             finish_reason: "length",
             output: [{ type: "message", role: "assistant", content: [{ type: "text", text: "Part #{i}" }] }],
-            usage: { input_tokens: 10 + i * 5, output_tokens: 50 }
+            usage: { input_tokens: 10 + (i * 5), output_tokens: 50 }
           }.to_json)
       end
 
@@ -931,10 +929,10 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
 
       5.times do |i|
         response = if i == 0
-          provider.responses_completion(messages: messages, model: model)
-        else
-          provider.responses_completion(messages: [], model: model, previous_response_id: prev_id)
-        end
+                     provider.responses_completion(messages: messages, model: model)
+                   else
+                     provider.responses_completion(messages: [], model: model, previous_response_id: prev_id)
+                   end
 
         responses << response
         prev_id = response["id"]
@@ -946,7 +944,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
     end
 
     it "handles mixed finish_reasons in sequence" do
-      finish_reasons = ["length", "tool_calls", "length", "stop"]
+      finish_reasons = %w[length tool_calls length stop]
 
       finish_reasons.each_with_index do |reason, i|
         stub_request(:post, "https://api.openai.com/v1/responses")
@@ -960,7 +958,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
 
       collected_reasons = []
 
-      4.times do |i|
+      4.times do |_i|
         response = provider.responses_completion(messages: messages, model: model)
         collected_reasons << response["finish_reason"]
       end
@@ -984,7 +982,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
       end
 
       expect(chunks.map { |c| c[:sequence] }).to eq([0, 1, 2])
-      expect(chunks.map { |c| c[:id] }).to eq(["resp_0", "resp_1", "resp_2"])
+      expect(chunks.map { |c| c[:id] }).to eq(%w[resp_0 resp_1 resp_2])
     end
 
     it "handles empty continuation response" do
@@ -1032,9 +1030,9 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
 
       response1 = provider.responses_completion(messages: messages, model: model)
 
-      expect {
+      expect do
         provider.responses_completion(messages: [], model: model, previous_response_id: response1["id"])
-      }.to raise_error(Net::ReadTimeout)
+      end.to raise_error(Net::ReadTimeout)
     end
 
     it "handles malformed response during continuation" do
@@ -1045,9 +1043,9 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
 
       response1 = provider.responses_completion(messages: messages, model: model)
 
-      expect {
+      expect do
         provider.responses_completion(messages: [], model: model, previous_response_id: response1["id"])
-      }.to raise_error(JSON::ParserError)
+      end.to raise_error(JSON::ParserError)
     end
 
     it "handles timeout during continuation" do
@@ -1058,9 +1056,9 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
 
       response1 = provider.responses_completion(messages: messages, model: model)
 
-      expect {
+      expect do
         provider.responses_completion(messages: [], model: model, previous_response_id: response1["id"])
-      }.to raise_error(Net::OpenTimeout)
+      end.to raise_error(Net::OpenTimeout)
     end
 
     it "logs error details on API failure" do
@@ -1080,9 +1078,9 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
         hash_including(status_code: "400")
       )
 
-      expect {
+      expect do
         provider.responses_completion(messages: messages, model: model)
-      }.to raise_error(RAAF::APIError)
+      end.to raise_error(RAAF::APIError)
     end
 
     it "allows graceful degradation with partial response" do
@@ -1099,9 +1097,9 @@ RSpec.describe RAAF::Models::ResponsesProvider, "Continuation Support" do
       response1 = provider.responses_completion(messages: messages, model: model)
       expect(response1["output"].first["content"].first["text"]).to eq("Part 1")
 
-      expect {
+      expect do
         provider.responses_completion(messages: [], model: model, previous_response_id: response1["id"])
-      }.to raise_error(RAAF::APIError)
+      end.to raise_error(RAAF::APIError)
 
       expect(response1).not_to be_nil
     end

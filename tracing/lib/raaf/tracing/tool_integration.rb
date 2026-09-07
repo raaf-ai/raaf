@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Tracing
+
     # Tool integration module for seamless agent context detection and span parenting
     #
     # This module provides tools with the ability to detect when they're running
@@ -21,6 +23,7 @@ module RAAF
     #   end
     #
     module ToolIntegration
+
       def self.included(base)
         base.include(Traceable)
         base.trace_as :tool
@@ -208,9 +211,9 @@ module RAAF
         method_name = location.label
 
         # Look for patterns that indicate agent execution
-        return true if path.include?('step_processor') && method_name.include?('execute')
-        return true if path.include?('runner') && method_name.include?('run')
-        return true if method_name.include?('agent') && method_name.include?('execute')
+        return true if path.include?("step_processor") && method_name.include?("execute")
+        return true if path.include?("runner") && method_name.include?("run")
+        return true if method_name.include?("agent") && method_name.include?("execute")
 
         false
       end
@@ -224,7 +227,7 @@ module RAAF
       # @param location [Thread::Backtrace::Location] Call stack location
       # @return [Object, nil] Extracted agent or nil
       #
-      def extract_agent_from_location(location)
+      def extract_agent_from_location(_location)
         # This is a simplified implementation
         # In a real system, you might:
         # 1. Use binding information to access local variables
@@ -234,12 +237,13 @@ module RAAF
         # For now, we rely on thread-local storage set by the runner
         # but we still need to check if the agent is currently being traced
         current_agent = Thread.current[:current_agent]
-        if current_agent&.respond_to?(:traced?) && current_agent.traced?
-          current_agent
-        else
-          nil
-        end
+        return unless current_agent&.respond_to?(:traced?) && current_agent.traced?
+
+        current_agent
       end
+
     end
+
   end
+
 end

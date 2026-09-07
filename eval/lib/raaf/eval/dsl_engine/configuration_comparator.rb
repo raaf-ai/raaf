@@ -105,6 +105,7 @@ module RAAF
           # @return [Float] Delta
           def calculate_delta(baseline, current)
             return 0.0 if baseline.nil? || current.nil?
+
             current.to_f - baseline.to_f
           end
 

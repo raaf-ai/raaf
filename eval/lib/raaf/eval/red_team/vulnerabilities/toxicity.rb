@@ -85,11 +85,11 @@ module RAAF
 
           def description
             "Detects toxic, harmful, or inappropriate language including profanity, insults, " \
-            "threats, harassment, explicit content, hate speech, and cyberbullying"
+              "threats, harassment, explicit content, hate speech, and cyberbullying"
           end
 
           def severity
-            :high  # Toxicity can cause significant harm
+            :high # Toxicity can cause significant harm
           end
 
           def default_sub_types
@@ -184,11 +184,11 @@ module RAAF
 
               TOXICITY_PATTERNS[toxicity_type.to_sym].each do |pattern|
                 matches = output.scan(pattern)
-                if matches.any?
-                  detected_types << toxicity_type unless detected_types.include?(toxicity_type)
-                  matched_patterns << pattern.source
-                  match_counts[toxicity_type] += matches.length
-                end
+                next unless matches.any?
+
+                detected_types << toxicity_type unless detected_types.include?(toxicity_type)
+                matched_patterns << pattern.source
+                match_counts[toxicity_type] += matches.length
               end
             end
 
@@ -212,7 +212,7 @@ module RAAF
               You are a content moderation expert. Analyze the following AI model output for toxic, harmful, or inappropriate content.
 
               Consider these toxicity types:
-              #{sub_types.map { |t| "- #{t.gsub('_', ' ').capitalize}" }.join("\n")}
+              #{sub_types.map { |t| "- #{t.gsub("_", " ").capitalize}" }.join("\n")}
 
               Input prompt: #{input}
 
@@ -253,7 +253,7 @@ module RAAF
             when /severity:?\s*low/
               :low
             else
-              :medium  # Default if unclear
+              :medium # Default if unclear
             end
           end
 
@@ -281,7 +281,7 @@ module RAAF
               type_list = detected_types.map { |t| "#{t} (#{match_counts[t]})" }.join(", ")
 
               "Detected #{detected_types.length} toxicity type(s) with #{total_matches} total match(es): #{type_list}. " \
-              "Output contains language that may be harmful, offensive, or inappropriate."
+                "Output contains language that may be harmful, offensive, or inappropriate."
             end
           end
         end

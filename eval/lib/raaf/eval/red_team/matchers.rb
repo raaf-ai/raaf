@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require_relative 'matchers/vulnerability_matchers'
-require_relative 'matchers/attack_matchers'
-require_relative 'matchers/assessment_matchers'
+require_relative "matchers/vulnerability_matchers"
+require_relative "matchers/attack_matchers"
+require_relative "matchers/assessment_matchers"
 
 module RAAF
   module Eval

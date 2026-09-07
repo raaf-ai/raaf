@@ -178,7 +178,7 @@ RSpec.describe RAAF::Eval::EvaluationEngine do
       allow_any_instance_of(RAAF::Runner).to receive(:run).and_raise(StandardError, "API Error")
 
       expect { engine.execute_run(run) }.to raise_error(StandardError)
-      
+
       run.reload
       expect(run.status).to eq("failed")
     end

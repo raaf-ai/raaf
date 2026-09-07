@@ -187,7 +187,9 @@ module RAAF
                 method = details[:method]
 
                 issues << "Missing evaluated_field" unless details[:evaluated_field]
-                issues << "Invalid method (must be contextual_relevancy, contextual_precision, or contextual_recall)" unless %w[contextual_relevancy contextual_precision contextual_recall].include?(method)
+                issues << "Invalid method (must be contextual_relevancy, contextual_precision, or contextual_recall)" unless %w[
+                  contextual_relevancy contextual_precision contextual_recall
+                ].include?(method)
                 issues << "Missing or invalid query" unless details[:query].is_a?(String)
 
                 case method
@@ -213,7 +215,7 @@ module RAAF
               "Expected valid RAG result, but found issues:\n#{issues.map { |i| "  - #{i}" }.join("\n")}"
             end
 
-            failure_message_when_negated do |result|
+            failure_message_when_negated do |_result|
               "Expected invalid RAG result, but result structure was valid"
             end
           end
@@ -241,13 +243,13 @@ module RAAF
               format("%.0f%%", value * 100)
             end
 
-            failure_message do |results|
+            failure_message do |_results|
               "Expected F1 score to be at least #{format_percent(min_f1)}, " \
                 "but got #{format_percent(@f1_score)} " \
                 "(precision: #{format_percent(@precision)}, recall: #{format_percent(@recall)})"
             end
 
-            failure_message_when_negated do |results|
+            failure_message_when_negated do |_results|
               "Expected F1 score to be below #{format_percent(min_f1)}, " \
                 "but got #{format_percent(@f1_score)}"
             end
@@ -263,22 +265,16 @@ module RAAF
 
               @failed_checks = []
 
-              if relevancy_result
-                unless relevancy_result[:score] >= relevancy
-                  @failed_checks << "Relevancy: #{format_percent(relevancy_result[:score])} < #{format_percent(relevancy)}"
-                end
+              if relevancy_result && !(relevancy_result[:score] >= relevancy)
+                @failed_checks << "Relevancy: #{format_percent(relevancy_result[:score])} < #{format_percent(relevancy)}"
               end
 
-              if precision_result
-                unless precision_result[:score] >= precision
-                  @failed_checks << "Precision: #{format_percent(precision_result[:score])} < #{format_percent(precision)}"
-                end
+              if precision_result && !(precision_result[:score] >= precision)
+                @failed_checks << "Precision: #{format_percent(precision_result[:score])} < #{format_percent(precision)}"
               end
 
-              if recall_result
-                unless recall_result[:score] >= recall
-                  @failed_checks << "Recall: #{format_percent(recall_result[:score])} < #{format_percent(recall)}"
-                end
+              if recall_result && !(recall_result[:score] >= recall)
+                @failed_checks << "Recall: #{format_percent(recall_result[:score])} < #{format_percent(recall)}"
               end
 
               @failed_checks.empty?
@@ -288,12 +284,12 @@ module RAAF
               format("%.0f%%", value * 100)
             end
 
-            failure_message do |results_hash|
+            failure_message do |_results_hash|
               "Expected all RAG metrics to meet thresholds, but failed checks:\n" \
                 "#{@failed_checks.map { |c| "  - #{c}" }.join("\n")}"
             end
 
-            failure_message_when_negated do |results_hash|
+            failure_message_when_negated do |_results_hash|
               "Expected some RAG metrics to fail thresholds, but all passed"
             end
           end
@@ -319,13 +315,13 @@ module RAAF
               format("%.0f%%", value * 100)
             end
 
-            failure_message do |results|
+            failure_message do |_results|
               "Expected precision and recall to be balanced (within #{format_percent(tolerance)}), " \
                 "but difference was #{format_percent(@difference)} " \
                 "(precision: #{format_percent(@precision)}, recall: #{format_percent(@recall)})"
             end
 
-            failure_message_when_negated do |results|
+            failure_message_when_negated do |_results|
               "Expected precision and recall to be imbalanced (difference > #{format_percent(tolerance)}), " \
                 "but difference was only #{format_percent(@difference)}"
             end

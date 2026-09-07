@@ -29,17 +29,11 @@ module RAAF
       def query(agent_name: nil, model: nil, time_range: nil, status: nil)
         spans = Models::EvaluationSpan.all
 
-        if agent_name
-          spans = spans.where("span_data ->> 'agent_name' = ?", agent_name)
-        end
+        spans = spans.where("span_data ->> 'agent_name' = ?", agent_name) if agent_name
 
-        if model
-          spans = spans.where("span_data ->> 'model' = ?", model)
-        end
+        spans = spans.where("span_data ->> 'model' = ?", model) if model
 
-        if time_range
-          spans = spans.where(created_at: time_range)
-        end
+        spans = spans.where(created_at: time_range) if time_range
 
         spans.map do |s|
           OpenStruct.new(s.span_data.merge(span_id: s.span_id))

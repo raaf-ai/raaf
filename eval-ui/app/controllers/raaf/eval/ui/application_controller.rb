@@ -56,10 +56,10 @@ module RAAF
           callback = RAAF::Eval::UI.configuration.authorize_span_access
           return true unless callback
 
-          unless callback.call(current_user, span)
-            flash[:alert] = "You don't have permission to access this span"
-            redirect_to root_path
-          end
+          return if callback.call(current_user, span)
+
+          flash[:alert] = "You don't have permission to access this span"
+          redirect_to root_path
         end
 
         # Handle errors gracefully
@@ -70,7 +70,7 @@ module RAAF
           respond_to do |format|
             format.html do
               flash[:error] = "An error occurred: #{exception.message}"
-              redirect_back(fallback_location: root_path)
+              redirect_back_or_to(root_path)
             end
             format.json do
               render json: { error: exception.message }, status: :internal_server_error

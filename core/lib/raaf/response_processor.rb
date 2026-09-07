@@ -294,7 +294,7 @@ module RAAF
     #
     def build_function_map(all_tools)
       all_tools.select { |tool| tool.is_a?(FunctionTool) }
-               .to_h { |tool| [tool.name, tool] }
+               .index_by { |tool| tool.name }
     end
 
     ##
@@ -331,7 +331,7 @@ module RAAF
     #
     def create_message_item(item, agent)
       content = item[:content] || ""
-      
+
       # Extract JSON from markdown-wrapped responses for schema validation
       if content.is_a?(String) && content.include?("```")
         extracted_json = RAAF::JsonRepair.extract_json_from_content(content)
@@ -344,7 +344,7 @@ module RAAF
           content = extracted_json
         end
       end
-      
+
       raw_item = {
         type: "message",
         role: item[:role] || "assistant",

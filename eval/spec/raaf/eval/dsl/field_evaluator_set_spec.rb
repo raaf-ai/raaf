@@ -37,7 +37,7 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
     context "with custom alias" do
       it "stores custom alias" do
         field_set.add_evaluator(:semantic_similarity, { threshold: 0.85 }, evaluator_alias: :similarity_check)
-        
+
         expect(field_set.evaluators.first[:alias]).to eq(:similarity_check)
       end
     end
@@ -48,9 +48,9 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
       end
 
       it "raises error when alias duplicated" do
-        expect {
+        expect do
           field_set.add_evaluator(:coherence, {}, evaluator_alias: :check1)
-        }.to raise_error(RAAF::Eval::DSL::DuplicateAliasError)
+        end.to raise_error(RAAF::Eval::DSL::DuplicateAliasError)
       end
     end
 
@@ -59,9 +59,9 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
         field_set.add_evaluator(:first, {})
         field_set.add_evaluator(:second, {})
         field_set.add_evaluator(:third, {})
-        
+
         names = field_set.evaluators.map { |e| e[:name] }
-        expect(names).to eq([:first, :second, :third])
+        expect(names).to eq(%i[first second third])
       end
     end
   end
@@ -78,15 +78,15 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
     end
 
     it "sets lambda strategy" do
-      lambda_proc = lambda { |results| results }
+      lambda_proc = ->(results) { results }
       field_set.set_combination(lambda_proc)
       expect(field_set.combination_strategy).to eq(lambda_proc)
     end
 
     it "raises error for invalid strategy" do
-      expect {
+      expect do
         field_set.set_combination(:invalid)
-      }.to raise_error(RAAF::Eval::DSL::InvalidCombinationStrategyError)
+      end.to raise_error(RAAF::Eval::DSL::InvalidCombinationStrategyError)
     end
   end
 
@@ -109,8 +109,7 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
               { label: "good",
                 score: 0.9,
                 details: { similarity_score: 0.9 },
-                message: "Similarity: 0.9 (threshold: #{threshold})"
-              }
+                message: "Similarity: 0.9 (threshold: #{threshold})" }
             end
           end
         when :coherence
@@ -120,8 +119,7 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
               { label: "good",
                 score: 0.85,
                 details: { coherence_score: 0.85 },
-                message: "Coherence: 0.85 (min: #{min_score})"
-              }
+                message: "Coherence: 0.85 (min: #{min_score})" }
             end
           end
         when :failing_evaluator
@@ -130,8 +128,7 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
               { label: "bad",
                 score: 0.5,
                 details: {},
-                message: "Failed check"
-              }
+                message: "Failed check" }
             end
           end
         end
@@ -147,7 +144,7 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
 
       it "combines results with AND logic" do
         result = field_set.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(0.85) # minimum
       end
@@ -162,7 +159,7 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
 
       it "returns label 'good' when at least one evaluator passes" do
         result = field_set.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(0.9) # maximum
       end
@@ -172,11 +169,15 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
       before do
         field_set.add_evaluator(:semantic_similarity, { threshold: 0.85 }, evaluator_alias: :sim)
         field_set.add_evaluator(:coherence, { min_score: 0.8 }, evaluator_alias: :coh)
-        
+
         field_set.set_combination(lambda { |results|
           avg_score = (results[:sim][:score] + results[:coh][:score]) / 2.0
           {
-            label: avg_score >= 0.8 ? "good" : (avg_score >= 0.6 ? "average" : "bad"),
+            label: if avg_score >= 0.8
+                     "good"
+                   else
+                     (avg_score >= 0.6 ? "average" : "bad")
+                   end,
             score: avg_score,
             details: { average: avg_score },
             message: "Average: #{avg_score}"
@@ -186,7 +187,7 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
 
       it "applies custom lambda logic" do
         result = field_set.evaluate(field_context)
-        
+
         expected_avg = (0.9 + 0.85) / 2.0
         expect(result[:score]).to eq(expected_avg)
         expect(result[:label]).to eq("good")
@@ -210,14 +211,14 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
 
       it "marks failed evaluator but continues" do
         result = field_set.evaluate(field_context)
-        
+
         # Should fail because one evaluator failed (AND logic)
         expect(result[:label]).to eq("bad")
       end
 
       it "includes error details" do
         result = field_set.evaluate(field_context)
-        
+
         # Error details should be captured
         expect(result[:message]).to include("Evaluator crashed")
       end
@@ -233,14 +234,14 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
       it "fails with AND when one fails" do
         field_set.set_combination(:and)
         result = field_set.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("bad")
       end
 
       it "passes with OR when one passes" do
         field_set.set_combination(:or)
         result = field_set.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("good")
       end
     end
@@ -272,7 +273,7 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
       it "executes evaluators in definition order" do
         field_set.evaluate(field_context)
 
-        expect(execution_order).to eq([:first, :second, :third])
+        expect(execution_order).to eq(%i[first second third])
       end
     end
   end

@@ -97,7 +97,7 @@ RSpec.describe RAAF::DSL::SchemaCache do
               name: { type: :string },
               email: { type: :string, format: :email }
             },
-            required: [:name, :email]
+            required: %i[name email]
           }
         end
 
@@ -184,9 +184,9 @@ RSpec.describe RAAF::DSL::SchemaCache do
         allow(RAAF::DSL::SchemaGenerator).to receive(:generate_for_model)
           .and_raise(StandardError, "Model introspection failed")
 
-        expect {
+        expect do
           described_class.get_schema(market_model)
-        }.to raise_error(StandardError, "Model introspection failed")
+        end.to raise_error(StandardError, "Model introspection failed")
 
         # Cache should remain empty
         cache = described_class.instance_variable_get(:@cache)
@@ -386,7 +386,7 @@ RSpec.describe RAAF::DSL::SchemaCache do
 
         # Simulate typical usage - mostly repeated requests
         generation_count = 0
-        allow(RAAF::DSL::SchemaGenerator).to receive(:generate_for_model) do |model|
+        allow(RAAF::DSL::SchemaGenerator).to receive(:generate_for_model) do |_model|
           generation_count += 1
           sample_schema
         end

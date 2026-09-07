@@ -4,7 +4,9 @@ require_relative "base_store"
 require_relative "memory"
 
 module RAAF
+
   module Memory
+
     ##
     # In-memory implementation of memory storage
     #
@@ -22,18 +24,19 @@ module RAAF
     # @example Basic usage
     #   store = InMemoryStore.new
     #   store.store("pref_123", { theme: "dark" })
-    #   
+    #
     # @example With export/import for persistence
     #   # Save before shutdown
     #   data = store.export
     #   File.write("memories.json", data.to_json)
-    #   
+    #
     #   # Restore on startup
     #   store = InMemoryStore.new
     #   data = JSON.parse(File.read("memories.json"))
     #   store.import(data)
     #
     class InMemoryStore < BaseStore
+
       ##
       # Initialize a new in-memory store
       #
@@ -239,6 +242,9 @@ module RAAF
           end
         end
       end
+
     end
+
   end
+
 end

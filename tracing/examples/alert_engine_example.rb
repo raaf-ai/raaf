@@ -18,9 +18,9 @@ alert_engine = RAAF::Tracing::AlertEngine.new
 # Configure alert handlers
 alert_engine.add_handler(:console, RAAF::Tracing::AlertHandlers::Console.new)
 alert_engine.add_handler(:slack, RAAF::Tracing::AlertHandlers::Slack.new(
-  webhook_url: "https://hooks.slack.com/demo",
-  channel: "#ai-agents-alerts"
-))
+                                   webhook_url: "https://hooks.slack.com/demo",
+                                   channel: "#ai-agents-alerts"
+                                 ))
 
 puts "✅ Alert Engine configured with #{alert_engine.handlers.length} handlers"
 
@@ -58,8 +58,8 @@ test_events = [
 
 puts "\n=== Alert Testing ==="
 test_events.each_with_index do |event, i|
-  puts "Event #{i+1}: Cost=$#{event[:cost]}, Duration=#{event[:duration]}ms, Errors=#{event[:error_rate]}%"
-  
+  puts "Event #{i + 1}: Cost=$#{event[:cost]}, Duration=#{event[:duration]}ms, Errors=#{event[:error_rate]}%"
+
   triggered_alerts = alert_engine.process_event(event)
   if triggered_alerts.any?
     triggered_alerts.each do |alert|

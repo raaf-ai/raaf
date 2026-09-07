@@ -22,7 +22,7 @@ require "raaf-dsl"
 agent = RAAF::DSL::AgentBuilder.build do
   name "HelpfulAssistant"
   instructions "You are a helpful assistant that provides clear, concise, and accurate answers."
-  model "gpt-4o"  # Uses ResponsesProvider by default for Python SDK compatibility
+  model "gpt-4o" # Uses ResponsesProvider by default for Python SDK compatibility
 
   # Configure agent behavior
   config do
@@ -47,16 +47,15 @@ begin
 
   # Display the conversation history
   puts "\n📝 Conversation:"
-  result.messages.each_with_index do |message, index|
+  result.messages.each_with_index do |message, _index|
     role_emoji = message[:role] == "user" ? "👤" : "🤖"
     puts "#{role_emoji} #{message[:role].upcase}: #{message[:content]}"
   end
 
   # Show execution summary
   puts "\n📊 Execution Summary:"
-  puts "   Turns taken: #{result.messages.count { |m| m[:role] == "assistant" }}"
+  puts "   Turns taken: #{result.messages.count { |m| m[:role] == 'assistant' }}"
   puts "   Final agent: #{result.last_agent&.name || agent.name}"
-
 rescue RAAF::Error => e
   puts "\n❌ RAAF Error: #{e.message}"
   puts "   This example requires an OpenAI API key to run fully."

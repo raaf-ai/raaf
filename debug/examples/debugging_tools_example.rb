@@ -51,7 +51,7 @@ puts "\n=== Example 1: Debugger Creation and Configuration ==="
 # Create a debugger instance with standard configuration
 debugger = RAAF::Debugging::Debugger.new(
   output: $stdout,
-  log_level: ::Logger::DEBUG
+  log_level: Logger::DEBUG
 )
 
 puts "✅ Debugger configured with:"
@@ -68,32 +68,33 @@ puts "\n=== Example 2: Agent Setup with Debugging Integration ==="
 def complex_calculation(numbers:, operation: "sum")
   # Simulate a complex operation with potential issues
   raise ArgumentError, "Numbers array cannot be empty" if numbers.empty?
-  
+
   result = case operation
-  when "sum"
-    numbers.sum
-  when "average"
-    numbers.sum.to_f / numbers.length
-  when "fibonacci_sum"
-    # Intentionally complex/slow operation for debugging
-    numbers.map { |n| fibonacci(n) }.sum
-  else
-    raise ArgumentError, "Unknown operation: #{operation}"
-  end
-  
+           when "sum"
+             numbers.sum
+           when "average"
+             numbers.sum.to_f / numbers.length
+           when "fibonacci_sum"
+             # Intentionally complex/slow operation for debugging
+             numbers.map { |n| fibonacci(n) }.sum
+           else
+             raise ArgumentError, "Unknown operation: #{operation}"
+           end
+
   { operation: operation, input: numbers, result: result, processed_count: numbers.length }
 end
 
 def fibonacci(n)
   return 0 if n == 0
   return 1 if n == 1
-  fibonacci(n-1) + fibonacci(n-2)  # Intentionally inefficient for debugging
+
+  fibonacci(n - 1) + fibonacci(n - 2) # Intentionally inefficient for debugging
 end
 
 def data_processor(data:, filters: [])
   # Simulate data processing with various scenarios
   processed_data = data.dup
-  
+
   filters.each do |filter|
     case filter[:type]
     when "remove_nulls"
@@ -107,7 +108,7 @@ def data_processor(data:, filters: [])
       puts "⚠️  Unknown filter: #{filter[:type]}"
     end
   end
-  
+
   { original_count: data.length, processed_count: processed_data.length, data: processed_data }
 end
 
@@ -123,7 +124,7 @@ agent.add_tool(method(:complex_calculation))
 agent.add_tool(method(:data_processor))
 
 # Create debug-enabled runner
-runner = RAAF::Debugging::DebugRunner.new(
+RAAF::Debugging::DebugRunner.new(
   agent: agent,
   debugger: debugger
 )
@@ -191,7 +192,7 @@ rescue ArgumentError => e
   puts "    ⚠️  Caught error: #{e.message}"
 end
 
-# Test 3: Performance scenario  
+# Test 3: Performance scenario
 puts "  Test 3: Performance test (fibonacci)"
 result = debugger.debug_tool_call("complex_calculation", { numbers: [5, 6, 7], operation: "fibonacci_sum" }) do
   complex_calculation(numbers: [5, 6, 7], operation: "fibonacci_sum")
@@ -221,7 +222,7 @@ puts "\n=== Example 7: Memory Analysis ==="
 
 puts "🧠 Memory Analysis (simulated):"
 puts "  Memory tracking: enabled in debugger"
-puts "  GC stats available: #{defined?(GC) ? 'yes' : 'no'}"
+puts "  GC stats available: #{defined?(GC) ? "yes" : "no"}"
 if defined?(GC)
   puts "  Current heap pages: #{GC.stat[:heap_allocated_pages]}"
   puts "  Live objects: #{GC.stat[:heap_live_slots]}"

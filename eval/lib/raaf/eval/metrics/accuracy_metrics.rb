@@ -32,17 +32,19 @@ module RAAF
             # Simple character overlap scoring
             exp_chars = expected.to_s.downcase.chars.to_set
             act_chars = actual.to_s.downcase.chars.to_set
-            
+
             intersection = exp_chars & act_chars
             union = exp_chars | act_chars
 
             return 0.0 if union.empty?
+
             (intersection.size.to_f / union.size).round(3)
           end
 
           def length_ratio(expected, actual)
             exp_len = expected.to_s.length
             return 1.0 if exp_len.zero?
+
             (actual.to_s.length.to_f / exp_len).round(3)
           end
         end

@@ -68,7 +68,7 @@ module RAAF
           render_span_overview_header(
             icon,
             "#{provider_name.to_s.titleize} Search",
-            "#{result_count} results#{cost_cents ? " · #{cost_cents}¢" : ""}"
+            "#{result_count} results#{" · #{cost_cents}¢" if cost_cents}"
           )
         end
 
@@ -93,7 +93,10 @@ module RAAF
           params["Context"] = extract_span_attribute("search.context") if extract_span_attribute("search.context")
           params["Max Results"] = extract_span_attribute("search.num") if extract_span_attribute("search.num")
           params["Start Offset"] = extract_span_attribute("search.start") if extract_span_attribute("search.start")
-          params["Date Restrict"] = extract_span_attribute("search.date_restrict") if extract_span_attribute("search.date_restrict")
+          if extract_span_attribute("search.date_restrict")
+            params["Date Restrict"] =
+              extract_span_attribute("search.date_restrict")
+          end
           params["Sort"] = extract_span_attribute("search.sort") if extract_span_attribute("search.sort")
           params["Duration"] = "#{@span.duration_ms}ms" if @span.duration_ms
           params["Cost"] = "#{cost_cents}¢" if cost_cents
@@ -146,9 +149,7 @@ module RAAF
               end
 
               div(class: "flex-1 min-w-0") do
-                if result[:title]
-                  h4(class: "text-sm font-semibold text-gray-900 mb-1") { result[:title] }
-                end
+                h4(class: "text-sm font-semibold text-gray-900 mb-1") { result[:title] } if result[:title]
 
                 if result[:url]
                   a(
@@ -159,9 +160,7 @@ module RAAF
                   ) { result[:url] }
                 end
 
-                if result[:snippet]
-                  p(class: "text-sm text-gray-700 mb-2") { result[:snippet] }
-                end
+                p(class: "text-sm text-gray-700 mb-2") { result[:snippet] } if result[:snippet]
 
                 if result[:snippets].is_a?(Array) && result[:snippets].length > 1
                   div(class: "mt-2 space-y-1") do

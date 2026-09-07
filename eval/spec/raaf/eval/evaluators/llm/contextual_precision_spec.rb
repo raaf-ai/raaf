@@ -69,7 +69,7 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::ContextualPrecision do
 
       expect(result).to include(:label, :score, :message, :details)
       expect(result[:score]).to be_a(Float)
-      expect(result[:score]).to be >= 0.75  # High precision threshold
+      expect(result[:score]).to be >= 0.75 # High precision threshold
     end
 
     it "includes precision details" do
@@ -217,7 +217,7 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::ContextualPrecision do
       # Should identify Ruby-related docs as relevant, others as irrelevant
       # Mock scoring has randomness, so we expect 1-3 relevant docs (3 Ruby docs total)
       expect(relevant).to be_between(1, 3)
-      expect(relevant).to be > 0  # At least some Ruby docs should be relevant
+      expect(relevant).to be > 0 # At least some Ruby docs should be relevant
     end
 
     it "includes relevance breakdown for each document" do
@@ -247,7 +247,7 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::ContextualPrecision do
       result = evaluator.evaluate(field_context)
 
       # With stricter thresholds, might not be labeled 'good'
-      expect([:good, :average]).to include(result[:label].to_sym)
+      expect(%i[good average]).to include(result[:label].to_sym)
     end
 
     it "includes threshold metadata" do
@@ -287,52 +287,52 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::ContextualPrecision do
 
     it "raises error when query is empty" do
       field_context = RAAF::Eval::DSL::FieldContext.new(:rag_data, {
-        rag_data: {
-          query: "",
-          context: "Some context"
-        }
-      })
+                                                          rag_data: {
+                                                            query: "",
+                                                            context: "Some context"
+                                                          }
+                                                        })
 
-      expect {
+      expect do
         evaluator.evaluate(field_context)
-      }.to raise_error(ArgumentError, /Query cannot be empty/)
+      end.to raise_error(ArgumentError, /Query cannot be empty/)
     end
 
     it "raises error when context is empty" do
       field_context = RAAF::Eval::DSL::FieldContext.new(:rag_data, {
-        rag_data: {
-          query: "What is AI?",
-          context: ""
-        }
-      })
+                                                          rag_data: {
+                                                            query: "What is AI?",
+                                                            context: ""
+                                                          }
+                                                        })
 
-      expect {
+      expect do
         evaluator.evaluate(field_context)
-      }.to raise_error(ArgumentError, /Context cannot be empty/)
+      end.to raise_error(ArgumentError, /Context cannot be empty/)
     end
 
     it "raises error when query is missing" do
       field_context = RAAF::Eval::DSL::FieldContext.new(:rag_data, {
-        rag_data: {
-          context: "Some context"
-        }
-      })
+                                                          rag_data: {
+                                                            context: "Some context"
+                                                          }
+                                                        })
 
-      expect {
+      expect do
         evaluator.evaluate(field_context)
-      }.to raise_error(ArgumentError, /Query cannot be empty/)
+      end.to raise_error(ArgumentError, /Query cannot be empty/)
     end
 
     it "raises error when context is missing" do
       field_context = RAAF::Eval::DSL::FieldContext.new(:rag_data, {
-        rag_data: {
-          query: "What is AI?"
-        }
-      })
+                                                          rag_data: {
+                                                            query: "What is AI?"
+                                                          }
+                                                        })
 
-      expect {
+      expect do
         evaluator.evaluate(field_context)
-      }.to raise_error(ArgumentError, /Context cannot be empty/)
+      end.to raise_error(ArgumentError, /Context cannot be empty/)
     end
   end
 
@@ -414,18 +414,18 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::ContextualPrecision do
       field_context = RAAF::Eval::DSL::FieldContext.new(:query, { query: "What is AI?" })
 
       # This should fail because context is missing
-      expect {
+      expect do
         evaluator.evaluate(field_context)
-      }.to raise_error(ArgumentError, /Context cannot be empty/)
+      end.to raise_error(ArgumentError, /Context cannot be empty/)
     end
 
     it "handles context as direct field" do
       field_context = RAAF::Eval::DSL::FieldContext.new(:context, { context: "AI is artificial intelligence" })
 
       # This should fail because query is missing
-      expect {
+      expect do
         evaluator.evaluate(field_context)
-      }.to raise_error(ArgumentError, /Query cannot be empty/)
+      end.to raise_error(ArgumentError, /Query cannot be empty/)
     end
   end
 end

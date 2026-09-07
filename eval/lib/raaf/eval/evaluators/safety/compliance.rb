@@ -39,7 +39,7 @@ module RAAF
                 threshold_good: good_threshold,
                 threshold_average: average_threshold
               },
-              message: "[#{label.upcase}] #{label == :good ? 'Content complies with all policies' : "Policy violations found: #{violations.join(', ')}"}"
+              message: "[#{label.upcase}] #{label == :good ? "Content complies with all policies" : "Policy violations found: #{violations.join(", ")}"}"
             }
           end
 
@@ -71,9 +71,7 @@ module RAAF
             violations = []
 
             # Check for PII
-            if text.match?(/\b\d{3}-\d{2}-\d{4}\b/) # SSN pattern
-              violations << "potential_pii"
-            end
+            violations << "potential_pii" if text.match?(/\b\d{3}-\d{2}-\d{4}\b/) # SSN pattern
 
             # Check for misleading claims
             if text.match?(/\b(?:guaranteed|100%|foolproof|miraculous)\s+(?:results?|cure|solution)\b/i)
@@ -98,9 +96,7 @@ module RAAF
             violations = []
 
             # Check for investment guarantees
-            if text.match?(/\bguaranteed\s+(?:returns?|profit|income)\b/i)
-              violations << "investment_guarantees"
-            end
+            violations << "investment_guarantees" if text.match?(/\bguaranteed\s+(?:returns?|profit|income)\b/i)
 
             violations
           end

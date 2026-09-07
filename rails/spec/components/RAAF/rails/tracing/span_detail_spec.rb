@@ -27,20 +27,19 @@ module RAAF
 
         let(:mock_span) do
           double("Span",
-            span_id: "span_123",
-            trace_id: "trace_456", 
-            parent_id: "parent_789",
-            name: "Test Span",
-            kind: "tool",
-            status: "success",
-            start_time: Time.parse("2025-09-25 10:00:00 UTC"),
-            end_time: Time.parse("2025-09-25 10:00:00.150 UTC"),
-            duration_ms: 150,
-            span_attributes: base_span_attributes,
-            depth: 1,
-            children: [],
-            events: []
-          )
+                 span_id: "span_123",
+                 trace_id: "trace_456",
+                 parent_id: "parent_789",
+                 name: "Test Span",
+                 kind: "tool",
+                 status: "success",
+                 start_time: Time.parse("2025-09-25 10:00:00 UTC"),
+                 end_time: Time.parse("2025-09-25 10:00:00.150 UTC"),
+                 duration_ms: 150,
+                 span_attributes: base_span_attributes,
+                 depth: 1,
+                 children: [],
+                 events: [])
         end
 
         let(:component) { described_class.new(span: mock_span) }
@@ -74,7 +73,7 @@ module RAAF
               allow(mock_span).to receive(:kind).and_return("tool")
             end
 
-            it "should route to tool-specific component logic" do
+            it "routes to tool-specific component logic" do
               # This test will be updated once we have type-specific components
               output = render(component)
               expect(output).to include("Tool")
@@ -86,7 +85,7 @@ module RAAF
               allow(mock_span).to receive(:kind).and_return("agent")
             end
 
-            it "should route to agent-specific component logic" do
+            it "routes to agent-specific component logic" do
               output = render(component)
               expect(output).to include("Agent")
             end
@@ -97,7 +96,7 @@ module RAAF
               allow(mock_span).to receive(:kind).and_return("llm")
             end
 
-            it "should route to llm-specific component logic" do
+            it "routes to llm-specific component logic" do
               output = render(component)
               expect(output).to include("Llm")
             end
@@ -108,7 +107,7 @@ module RAAF
               allow(mock_span).to receive(:kind).and_return("handoff")
             end
 
-            it "should route to handoff-specific component logic" do
+            it "routes to handoff-specific component logic" do
               output = render(component)
               expect(output).to include("Handoff")
             end
@@ -119,7 +118,7 @@ module RAAF
               allow(mock_span).to receive(:kind).and_return("guardrail")
             end
 
-            it "should route to guardrail-specific component logic" do
+            it "routes to guardrail-specific component logic" do
               output = render(component)
               expect(output).to include("Guardrail")
             end
@@ -130,7 +129,7 @@ module RAAF
               allow(mock_span).to receive(:kind).and_return("pipeline")
             end
 
-            it "should route to pipeline-specific component logic" do
+            it "routes to pipeline-specific component logic" do
               output = render(component)
               expect(output).to include("Pipeline")
             end
@@ -141,7 +140,7 @@ module RAAF
               allow(mock_span).to receive(:kind).and_return("unknown_type")
             end
 
-            it "should route to generic component logic" do
+            it "routes to generic component logic" do
               output = render(component)
               expect(output).to include("Unknown_type")
             end

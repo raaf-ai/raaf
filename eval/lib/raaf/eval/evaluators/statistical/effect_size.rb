@@ -74,18 +74,18 @@ module RAAF
 
           def calculate_cohen_d(data)
             return nil unless data[:control] && data[:treatment]
-            
+
             control = data[:control]
             treatment = data[:treatment]
-            
+
             return nil if control.empty? || treatment.empty?
-            
+
             control_mean = calculate_mean(control)
             treatment_mean = calculate_mean(treatment)
             pooled_std = calculate_pooled_std(control, treatment)
-            
+
             return nil if pooled_std == 0
-            
+
             (treatment_mean - control_mean) / pooled_std
           end
 
@@ -96,13 +96,13 @@ module RAAF
           def calculate_pooled_std(group1, group2)
             mean1 = calculate_mean(group1)
             mean2 = calculate_mean(group2)
-            
+
             var1 = group1.sum { |v| (v - mean1)**2 } / (group1.size - 1)
             var2 = group2.sum { |v| (v - mean2)**2 } / (group2.size - 1)
-            
-            pooled_var = ((group1.size - 1) * var1 + (group2.size - 1) * var2) / 
-                        (group1.size + group2.size - 2)
-            
+
+            pooled_var = (((group1.size - 1) * var1) + ((group2.size - 1) * var2)) /
+                         (group1.size + group2.size - 2)
+
             Math.sqrt(pooled_var)
           end
 

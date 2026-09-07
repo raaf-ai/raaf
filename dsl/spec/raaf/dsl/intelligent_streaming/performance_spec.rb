@@ -60,7 +60,7 @@ RSpec.describe "IntelligentStreaming Performance" do
 
         # Direct processing without streaming
         direct_agent = base_agent_class.new
-        direct_context = context_class.new(items: items)
+        context_class.new(items: items)
 
         direct_time = Benchmark.realtime do
           direct_agent.call
@@ -123,8 +123,8 @@ RSpec.describe "IntelligentStreaming Performance" do
           mean_y = y_values.sum / y_values.size
 
           numerator = x_values.zip(y_values).sum { |x, y| (x - mean_x) * (y - mean_y) }
-          denominator_x = Math.sqrt(x_values.sum { |x| (x - mean_x) ** 2 })
-          denominator_y = Math.sqrt(y_values.sum { |y| (y - mean_y) ** 2 })
+          denominator_x = Math.sqrt(x_values.sum { |x| (x - mean_x)**2 })
+          denominator_y = Math.sqrt(y_values.sum { |y| (y - mean_y)**2 })
 
           correlation = numerator / (denominator_x * denominator_y)
 
@@ -185,7 +185,7 @@ RSpec.describe "IntelligentStreaming Performance" do
             stream_size 100
             over :items
 
-            on_stream_complete do |stream_num, total, results|
+            on_stream_complete do |_stream_num, _total, _results|
               GC.start
               memory_checkpoints << GC.stat[:heap_live_slots]
             end
@@ -286,19 +286,17 @@ RSpec.describe "IntelligentStreaming Performance" do
   describe "hook execution performance" do
     context "hook overhead" do
       it "keeps hook execution overhead minimal" do
-        hook_times = []
-
         agent_class = Class.new(base_agent_class) do
           intelligent_streaming do
             stream_size 100
             over :items
 
-            on_stream_start do |stream_num, total, context|
+            on_stream_start do |stream_num, _total, context|
               # Minimal hook logic
               context[:stream_started] = stream_num
             end
 
-            on_stream_complete do |stream_num, total, results|
+            on_stream_complete do |stream_num, _total, results|
               # Minimal hook logic
               results[:stream_completed] = stream_num
             end
@@ -345,8 +343,8 @@ RSpec.describe "IntelligentStreaming Performance" do
             stream_size 100
             over :items
 
-            skip_if do |record, context|
-              record[:id] % 2 == 0 # Skip even IDs
+            skip_if do |record, _context|
+              record[:id].even? # Skip even IDs
             end
           end
         end
@@ -374,7 +372,7 @@ RSpec.describe "IntelligentStreaming Performance" do
             stream_size 100
             over :items
 
-            load_existing do |record, context|
+            load_existing do |record, _context|
               cache[record[:id]]
             end
           end

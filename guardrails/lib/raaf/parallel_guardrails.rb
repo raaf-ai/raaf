@@ -1,6 +1,7 @@
 require "async"
 
 module RAAF
+
   ##
   # ParallelGuardrails - Execute guardrails in parallel for better performance
   #
@@ -8,7 +9,9 @@ module RAAF
   # implementation's async approach. Input guardrails can run in parallel
   # with the main LLM call for faster overall execution.
   module ParallelGuardrails
+
     class GuardrailResult
+
       attr_reader :guardrail, :result, :error, :duration
 
       def initialize(guardrail:, result: nil, error: nil, duration: nil)
@@ -25,6 +28,7 @@ module RAAF
       def tripwire_triggered?
         @result&.tripwire_triggered == true
       end
+
     end
 
     ##
@@ -265,5 +269,7 @@ module RAAF
         average_duration: results.map(&:duration).sum / results.length.to_f
       }
     end
+
   end
+
 end

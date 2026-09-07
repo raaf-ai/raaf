@@ -40,7 +40,7 @@ end
 # demonstrating tool reuse across different agents.
 def calculate(expression:)
   # Security: Remove any non-mathematical characters
-  cleaned_expr = expression.gsub(%r{[^0-9+\-*/\s\(\).]}, "")
+  cleaned_expr = expression.gsub(%r{[^0-9+\-*/\s().]}, "")
   return "Invalid expression" if cleaned_expr != expression
 
   # Use our safe parser instead of eval

@@ -6,21 +6,21 @@
 # reduce AI API costs by using cheaper models for filtering before
 # expensive models for detailed analysis.
 
-require 'raaf'
-require 'raaf-dsl'
+require "raaf"
+require "raaf-dsl"
 
 # Cost tracking module
 module CostTracker
   @costs = { cheap: 0.0, expensive: 0.0, saved: 0.0 }
 
   def self.track_cheap(count)
-    cost = count * 0.001  # $0.001 per item with gpt-4o-mini
+    cost = count * 0.001 # $0.001 per item with gpt-4o-mini
     @costs[:cheap] += cost
     cost
   end
 
   def self.track_expensive(count)
-    cost = count * 0.01  # $0.01 per item with gpt-4o
+    cost = count * 0.01 # $0.01 per item with gpt-4o
     @costs[:expensive] += cost
     cost
   end
@@ -54,11 +54,11 @@ class ProspectLoader < RAAF::DSL::Agent
       {
         id: i,
         company_name: "Company #{i}",
-        industry: ["SaaS", "E-commerce", "FinTech", "HealthTech", "EdTech",
-                   "Logistics", "Manufacturing", "Retail", "Services"].sample,
+        industry: %w[SaaS E-commerce FinTech HealthTech EdTech
+                     Logistics Manufacturing Retail Services].sample,
         employees: rand(5..5000),
         revenue: rand(50_000..50_000_000),
-        location: ["USA", "UK", "Germany", "Netherlands", "France"].sample,
+        location: %w[USA UK Germany Netherlands France].sample,
         website: "https://company#{i}.com",
         description: "Company #{i} is a leader in their industry...",
         signals: {
@@ -77,7 +77,7 @@ end
 # Quick filter using cheap model
 class QuickFilterAgent < RAAF::DSL::Agent
   agent_name "QuickFilterAgent"
-  model "gpt-4o-mini"  # CHEAP: $0.001 per prospect
+  model "gpt-4o-mini" # CHEAP: $0.001 per prospect
 
   # Stream processing with cost tracking
   intelligent_streaming stream_size: 100, over: :prospects, incremental: true do
@@ -86,7 +86,7 @@ class QuickFilterAgent < RAAF::DSL::Agent
       puts "  Analyzing #{stream_data.count} prospects with cheap model..."
     end
 
-    on_stream_complete do |stream_num, total, stream_data, stream_results|
+    on_stream_complete do |_stream_num, _total, stream_data, stream_results|
       analyzed = stream_results[:analyzed_prospects] || []
       qualified = analyzed.select { |p| p[:fit_score] >= 70 }
       rejected = analyzed.count - qualified.count
@@ -125,7 +125,7 @@ end
 # Detailed analysis using expensive model
 class DetailedAnalysisAgent < RAAF::DSL::Agent
   agent_name "DetailedAnalysisAgent"
-  model "gpt-4o"  # EXPENSIVE: $0.01 per prospect
+  model "gpt-4o" # EXPENSIVE: $0.01 per prospect
 
   # Process qualified prospects only
   intelligent_streaming stream_size: 30, over: :prospects, incremental: true do
@@ -134,7 +134,7 @@ class DetailedAnalysisAgent < RAAF::DSL::Agent
       puts "  Deep analysis of #{stream_data.count} qualified prospects..."
     end
 
-    on_stream_complete do |stream_num, total, stream_data, stream_results|
+    on_stream_complete do |_stream_num, _total, stream_data, stream_results|
       analyzed = stream_results[:detailed_prospects] || []
 
       # Track expensive model costs
@@ -226,7 +226,7 @@ if __FILE__ == $0
   if result[:prioritization_report]
     report = result[:prioritization_report]
 
-    puts "\n" + "=" * 50
+    puts "\n" + ("=" * 50)
     puts "📊 Pipeline Results"
     puts "=" * 50
     puts "Total Prospects Loaded: 1000"
@@ -248,9 +248,9 @@ if __FILE__ == $0
 
   # Cost analysis
   costs = CostTracker.report
-  total_without_optimization = 1000 * 0.01  # If we used expensive model for all
+  total_without_optimization = 1000 * 0.01 # If we used expensive model for all
 
-  puts "\n" + "=" * 50
+  puts "\n" + ("=" * 50)
   puts "💵 Cost Analysis"
   puts "=" * 50
   puts "\nWith Intelligent Streaming Optimization:"

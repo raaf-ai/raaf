@@ -7,9 +7,6 @@ Layout/IndentationConsistency:
 Style/EvalWithLocation:
   Enabled: false
 
-Performance/UnfreezeString:
-  Enabled: false
-
 Style/RedundantBegin:
   Enabled: false
 

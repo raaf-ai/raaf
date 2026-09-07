@@ -61,10 +61,13 @@ require_relative "span_collectors/dsl/agent_collector"
 # @since 1.0.0
 # @author RAAF Team
 module RAAF
+
   module Tracing
+
     # Span Collectors provide intelligent attribute extraction for different component types
     # using a powerful DSL and automatic discovery system.
     module SpanCollectors
+
       # Intelligent collector discovery that selects the most appropriate collector
       # for a given component based on class name analysis and inheritance patterns.
       # This method provides automatic collector selection with specialized handling
@@ -115,20 +118,23 @@ module RAAF
         return BaseCollector.new if class_name.nil?
 
         # Standard naming convention for other components
-        base_name = class_name.split('::').last
+        base_name = class_name.split("::").last
         collector_name = "#{base_name}Collector"
         if const_defined?(collector_name)
           const_get(collector_name).new
         else
           # Pattern-based fallback
-          return ToolCollector.new if base_name.end_with?('Tool')
-          return PipelineCollector.new if base_name.end_with?('Pipeline')
-          return JobCollector.new if base_name.end_with?('Job')
+          return ToolCollector.new if base_name.end_with?("Tool")
+          return PipelineCollector.new if base_name.end_with?("Pipeline")
+          return JobCollector.new if base_name.end_with?("Job")
 
           # Ultimate fallback
           BaseCollector.new
         end
       end
+
     end
+
   end
+
 end

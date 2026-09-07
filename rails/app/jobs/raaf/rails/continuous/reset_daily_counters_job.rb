@@ -27,16 +27,16 @@ module RAAF
           RAAF::Eval::Models::EvaluationPolicy.find_each do |policy|
             reset_policy_counter(policy)
             policies_count += 1
-          rescue => e
+          rescue StandardError => e
             failed_count += 1
             log_error("Failed to reset counter for policy #{policy.id}", e)
           end
 
           log_info("Reset daily counters", {
-            policies_count: policies_count,
-            failed_count: failed_count,
-            reset_date: Date.current
-          })
+                     policies_count: policies_count,
+                     failed_count: failed_count,
+                     reset_date: Date.current
+                   })
         end
 
         private

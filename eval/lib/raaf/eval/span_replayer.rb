@@ -72,15 +72,13 @@ module RAAF
         RAAF.logger.debug "[SpanReplayer] Messages count: #{messages.size}"
         RAAF.logger.debug "[SpanReplayer] Settings: #{settings.inspect}"
         RAAF.logger.debug "[SpanReplayer] Response format present: #{response_format.present?}"
-        if response_format.present?
-          RAAF.logger.debug "[SpanReplayer] Response format type: #{response_format[:type]}"
-        end
+        RAAF.logger.debug "[SpanReplayer] Response format type: #{response_format[:type]}" if response_format.present?
 
         # Log first message for debugging (truncated)
         if messages.any?
           first_msg = messages.first
-          content_preview = (first_msg[:content] || first_msg['content']).to_s[0..200]
-          RAAF.logger.debug "[SpanReplayer] First message role: #{first_msg[:role] || first_msg['role']}"
+          content_preview = (first_msg[:content] || first_msg["content"]).to_s[0..200]
+          RAAF.logger.debug "[SpanReplayer] First message role: #{first_msg[:role] || first_msg["role"]}"
           RAAF.logger.debug "[SpanReplayer] First message preview: #{content_preview}..."
         end
 
@@ -149,7 +147,7 @@ module RAAF
       # Extract messages from span attributes
       # @return [Array<Hash>] Array of message hashes
       def extract_messages
-        messages_json = @attrs['agent.conversation_messages']
+        messages_json = @attrs["agent.conversation_messages"]
         return [] unless messages_json.present?
 
         begin
@@ -157,8 +155,8 @@ module RAAF
           # Ensure messages have the correct structure
           messages.map do |msg|
             {
-              role: msg['role'] || msg[:role],
-              content: msg['content'] || msg[:content]
+              role: msg["role"] || msg[:role],
+              content: msg["content"] || msg[:content]
             }.compact
           end
         rescue JSON::ParserError => e
@@ -171,7 +169,7 @@ module RAAF
       # Extract model from span attributes
       # @return [String, nil] Model name
       def extract_model
-        @attrs['agent.model'] || @attrs['model'] || @attrs.dig('llm', 'request', 'model')
+        @attrs["agent.model"] || @attrs["model"] || @attrs.dig("llm", "request", "model")
       end
 
       ##
@@ -181,9 +179,9 @@ module RAAF
         settings = {}
 
         # Try to get from model_settings_json first (most complete)
-        if @attrs['agent.model_settings_json'].present?
+        if @attrs["agent.model_settings_json"].present?
           begin
-            parsed = JSON.parse(@attrs['agent.model_settings_json'])
+            parsed = JSON.parse(@attrs["agent.model_settings_json"])
             settings = parsed.transform_keys(&:to_sym)
           rescue JSON::ParserError
             # Fall through to individual attributes
@@ -191,11 +189,14 @@ module RAAF
         end
 
         # Override with individual attributes if present
-        settings[:temperature] = @attrs['agent.temperature'].to_f if @attrs['agent.temperature'].present?
-        settings[:max_tokens] = @attrs['agent.max_tokens'].to_i if @attrs['agent.max_tokens'].present?
-        settings[:top_p] = @attrs['agent.top_p'].to_f if @attrs['agent.top_p'].present?
-        settings[:frequency_penalty] = @attrs['agent.frequency_penalty'].to_f if @attrs['agent.frequency_penalty'].present?
-        settings[:presence_penalty] = @attrs['agent.presence_penalty'].to_f if @attrs['agent.presence_penalty'].present?
+        settings[:temperature] = @attrs["agent.temperature"].to_f if @attrs["agent.temperature"].present?
+        settings[:max_tokens] = @attrs["agent.max_tokens"].to_i if @attrs["agent.max_tokens"].present?
+        settings[:top_p] = @attrs["agent.top_p"].to_f if @attrs["agent.top_p"].present?
+        if @attrs["agent.frequency_penalty"].present?
+          settings[:frequency_penalty] =
+            @attrs["agent.frequency_penalty"].to_f
+        end
+        settings[:presence_penalty] = @attrs["agent.presence_penalty"].to_f if @attrs["agent.presence_penalty"].present?
 
         # Remove zero/nil values that shouldn't override defaults
         settings.reject { |_, v| v.nil? || v == 0 }
@@ -205,7 +206,7 @@ module RAAF
       # Extract response format (JSON schema) from span attributes
       # @return [Hash, nil] Response format hash with symbolized keys
       def extract_response_format
-        format_json = @attrs['agent.response_format']
+        format_json = @attrs["agent.response_format"]
         return nil unless format_json.present?
 
         begin
@@ -238,18 +239,18 @@ module RAAF
       # Validate that we have messages to replay
       # @raise [ArgumentError] If messages are empty
       def validate_messages!(messages)
-        if messages.empty?
-          raise ArgumentError, "Cannot replay span: no messages found in span #{span.span_id}"
-        end
+        return unless messages.empty?
+
+        raise ArgumentError, "Cannot replay span: no messages found in span #{span.span_id}"
       end
 
       ##
       # Validate that we have a model
       # @raise [ArgumentError] If model is missing
       def validate_model!(model)
-        if model.blank?
-          raise ArgumentError, "Cannot replay span: no model found in span #{span.span_id}"
-        end
+        return unless model.blank?
+
+        raise ArgumentError, "Cannot replay span: no model found in span #{span.span_id}"
       end
 
       ##
@@ -261,9 +262,7 @@ module RAAF
         # Use provider override if specified (can be a provider instance or a string name)
         if overrides[:provider]
           # If it's already a provider instance, return it directly
-          unless overrides[:provider].is_a?(String) || overrides[:provider].is_a?(Symbol)
-            return overrides[:provider]
-          end
+          return overrides[:provider] unless overrides[:provider].is_a?(String) || overrides[:provider].is_a?(Symbol)
 
           # It's a provider name string/symbol, use it to determine provider type
           provider_type = overrides[:provider].to_sym
@@ -338,9 +337,7 @@ module RAAF
         params[:top_p] = settings[:top_p] if settings[:top_p]
 
         # Add response format if present
-        if response_format.present?
-          params[:response_format] = response_format
-        end
+        params[:response_format] = response_format if response_format.present?
 
         params
       end
@@ -351,7 +348,11 @@ module RAAF
       # @param response [Hash] API response
       # @return [String] Response content
       def extract_response_content(response)
-        RAAF.logger.debug "[SpanReplayer] Extracting content from response keys: #{response.keys.inspect rescue 'no keys'}"
+        RAAF.logger.debug "[SpanReplayer] Extracting content from response keys: #{begin
+          response.keys.inspect
+        rescue StandardError
+          "no keys"
+        end}"
 
         # Helper to access keys with indifferent access (both string and symbol)
         get = ->(hash, key) { hash[key.to_s] || hash[key.to_sym] }
@@ -373,11 +374,15 @@ module RAAF
           RAAF.logger.debug "[SpanReplayer] Extracted from 'choices' format: #{content.present?}"
         elsif output
           # Responses API format or Gemini format (both use 'output')
-          RAAF.logger.debug "[SpanReplayer] Processing 'output' format, is_array: #{output.is_a?(Array)}, size: #{output.is_a?(Array) ? output.size : 'n/a'}"
+          RAAF.logger.debug "[SpanReplayer] Processing 'output' format, is_array: #{output.is_a?(Array)}, size: #{output.is_a?(Array) ? output.size : "n/a"}"
 
           if output.is_a?(Array) && output.any?
             first_item = output.first
-            RAAF.logger.debug "[SpanReplayer] first_item keys: #{first_item.keys.inspect rescue 'n/a'}"
+            RAAF.logger.debug "[SpanReplayer] first_item keys: #{begin
+              first_item.keys.inspect
+            rescue StandardError
+              "n/a"
+            end}"
 
             if first_item.is_a?(Hash)
               # Gemini format: output[0]['message']['content']
@@ -390,7 +395,7 @@ module RAAF
               # OpenAI Responses API format: output[0] has 'type' => 'message'
               if content.nil?
                 item_type = get.call(first_item, :type)
-                if item_type == 'message'
+                if item_type == "message"
                   # Try nested content[0]['text'] first
                   item_content = get.call(first_item, :content)
                   if item_content.is_a?(Array) && item_content.any?
@@ -406,7 +411,7 @@ module RAAF
               # Final fallback for first_item: try text or content directly
               if content.nil?
                 content = get.call(first_item, :text) || get.call(first_item, :content)
-                content = nil if content.is_a?(Hash) || content.is_a?(Array)  # Only accept strings
+                content = nil if content.is_a?(Hash) || content.is_a?(Array) # Only accept strings
                 RAAF.logger.debug "[SpanReplayer] Extracted from fallback format: #{content.present?}"
               end
             end

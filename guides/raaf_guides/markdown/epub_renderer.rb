@@ -7,7 +7,7 @@ Rouge::Lexers::Shell::BUILTINS << "|bin/rails|brew|bundle|gem|git|node|rails|rak
 
 module RailsGuides
   class Markdown
-    class EpubRenderer < Redcarpet::Render::XHTML  # :nodoc:
+    class EpubRenderer < Redcarpet::Render::XHTML # :nodoc:
       cattr_accessor :edge, :version
 
       def linebreak
@@ -26,22 +26,22 @@ module RailsGuides
 
       def header(text, header_level)
         header_with_id = text.scan(/(.*){#(.*)}/)
-        unless header_with_id.empty?
-          %(<h#{header_level} id="#{header_with_id[0][1].strip}">#{header_with_id[0][0].strip}</h#{header_level}>)
-        else
+        if header_with_id.empty?
           %(<h#{header_level}>#{text}</h#{header_level}>)
+        else
+          %(<h#{header_level} id="#{header_with_id[0][1].strip}">#{header_with_id[0][0].strip}</h#{header_level}>)
         end
       end
 
       def paragraph(text)
         if text =~ %r{^NOTE:\s+Defined\s+in\s+<code>(.*?)</code>\.?$}
-          %(<div class="note"><p>Defined in <code><a href="#{github_file_url($1)}">#{$1}</a></code>.</p></div>)
+          %(<div class="note"><p>Defined in <code><a href="#{github_file_url(::Regexp.last_match(1))}">#{::Regexp.last_match(1)}</a></code>.</p></div>)
         elsif /^(TIP|IMPORTANT|CAUTION|WARNING|NOTE|INFO|TODO)[.:]/.match?(text)
           convert_notes(text)
         elsif text.include?("DO NOT READ THIS FILE ON GITHUB")
-        elsif text =~ /^\[<sup>(\d+)\]:<\/sup> (.+)$/
-          linkback = %(<a href="#footnote-#{$1}-ref"><sup>#{$1}</sup></a>)
-          %(<p class="footnote" id="footnote-#{$1}">#{linkback} #{$2}</p>)
+        elsif text =~ %r{^\[<sup>(\d+)\]:</sup> (.+)$}
+          linkback = %(<a href="#footnote-#{::Regexp.last_match(1)}-ref"><sup>#{::Regexp.last_match(1)}</sup></a>)
+          %(<p class="footnote" id="footnote-#{::Regexp.last_match(1)}">#{linkback} #{::Regexp.last_match(2)}</p>)
         else
           text = convert_footnotes(text)
           "<p>#{text}</p>"
@@ -49,62 +49,63 @@ module RailsGuides
       end
 
       private
-        def convert_footnotes(text)
-          text.gsub(/\[<sup>(\d+)\]<\/sup>/i) do
-            %(<sup class="footnote" id="footnote-#{$1}-ref">) +
-              %(<a href="#footnote-#{$1}">#{$1}</a></sup>)
-          end
+
+      def convert_footnotes(text)
+        text.gsub(%r{\[<sup>(\d+)\]</sup>}i) do
+          %(<sup class="footnote" id="footnote-#{::Regexp.last_match(1)}-ref">) +
+            %(<a href="#footnote-#{::Regexp.last_match(1)}">#{::Regexp.last_match(1)}</a></sup>)
         end
+      end
 
-        def convert_notes(body)
-          # The following regexp detects special labels followed by a
-          # paragraph, perhaps at the end of the document.
-          #
-          # It is important that we do not eat more than one newline
-          # because formatting may be wrong otherwise. For example,
-          # if a bulleted list follows, the first item is not rendered
-          # as a list item, but as a paragraph starting with a plain
-          # asterisk.
-          body.gsub(/^(TIP|IMPORTANT|CAUTION|WARNING|NOTE|INFO|TODO)[.:](.*?)(\n(?=\n)|\Z)/m) do
-            css_class = \
-              case $1
-              when "CAUTION", "IMPORTANT"
-                "warning"
-              when "TIP"
-                "info"
-              else
-                $1.downcase
-              end
-            %(<div class="#{css_class}"><p>#{$2.strip}</p></div>)
-          end
-        end
-
-        def github_file_url(file_path)
-          tree = version || edge
-
-          root = file_path[%r{(\w+)/}, 1]
-          path = \
-            case root
-            when "abstract_controller", "action_controller", "action_dispatch"
-              "actionpack/lib/#{file_path}"
-            when /\A(action|active)_/
-              "#{root.sub("_", "")}/lib/#{file_path}"
+      def convert_notes(body)
+        # The following regexp detects special labels followed by a
+        # paragraph, perhaps at the end of the document.
+        #
+        # It is important that we do not eat more than one newline
+        # because formatting may be wrong otherwise. For example,
+        # if a bulleted list follows, the first item is not rendered
+        # as a list item, but as a paragraph starting with a plain
+        # asterisk.
+        body.gsub(/^(TIP|IMPORTANT|CAUTION|WARNING|NOTE|INFO|TODO)[.:](.*?)(\n(?=\n)|\Z)/m) do
+          css_class =
+            case ::Regexp.last_match(1)
+            when "CAUTION", "IMPORTANT"
+              "warning"
+            when "TIP"
+              "info"
             else
-              file_path
+              ::Regexp.last_match(1).downcase
             end
-
-          "https://github.com/rails/rails/tree/#{tree}/#{path}"
+          %(<div class="#{css_class}"><p>#{::Regexp.last_match(2).strip}</p></div>)
         end
+      end
 
-        def api_link(url)
-          if %r{https?://api\.rubyonrails\.org/v\d+\.}.match?(url)
-            url
-          elsif edge
-            url.sub("api", "edgeapi")
+      def github_file_url(file_path)
+        tree = version || edge
+
+        root = file_path[%r{(\w+)/}, 1]
+        path =
+          case root
+          when "abstract_controller", "action_controller", "action_dispatch"
+            "actionpack/lib/#{file_path}"
+          when /\A(action|active)_/
+            "#{root.sub("_", "")}/lib/#{file_path}"
           else
-            url.sub(/(?<=\.org)/, "/#{version}")
+            file_path
           end
+
+        "https://github.com/rails/rails/tree/#{tree}/#{path}"
+      end
+
+      def api_link(url)
+        if %r{https?://api\.rubyonrails\.org/v\d+\.}.match?(url)
+          url
+        elsif edge
+          url.sub("api", "edgeapi")
+        else
+          url.sub(/(?<=\.org)/, "/#{version}")
         end
+      end
     end
   end
 end

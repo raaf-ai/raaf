@@ -132,7 +132,9 @@ RSpec.describe RAAF::Eval::Storage::EvaluationRun do
 
   describe ".limit" do
     before do
-      3.times { |i| described_class.create!(evaluator_name: "test#{i}", configuration_name: "default", span_id: "s#{i}") }
+      3.times do |i|
+        described_class.create!(evaluator_name: "test#{i}", configuration_name: "default", span_id: "s#{i}")
+      end
     end
 
     it "limits number of results" do
@@ -148,7 +150,9 @@ RSpec.describe RAAF::Eval::Storage::EvaluationRun do
 
   describe ".destroy_all" do
     it "removes all evaluation runs" do
-      3.times { |i| described_class.create!(evaluator_name: "test#{i}", configuration_name: "default", span_id: "s#{i}") }
+      3.times do |i|
+        described_class.create!(evaluator_name: "test#{i}", configuration_name: "default", span_id: "s#{i}")
+      end
 
       described_class.destroy_all
       expect(described_class.all).to be_empty

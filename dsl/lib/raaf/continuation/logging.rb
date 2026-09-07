@@ -30,7 +30,7 @@ module RAAF
       #
       def self.log_continuation_start(attempt, format)
         Rails.logger.info "🔄 Continuation attempt #{attempt} (format: #{format})"
-      rescue StandardError => e
+      rescue StandardError
         # Graceful handling if Rails logger is not available
         puts "🔄 Continuation attempt #{attempt} (format: #{format})"
       end
@@ -46,7 +46,7 @@ module RAAF
       #
       def self.log_continuation_complete(count, token_count)
         Rails.logger.info "✅ Continuation complete after #{count} attempts (total tokens: #{token_count})"
-      rescue StandardError => e
+      rescue StandardError
         # Graceful handling if Rails logger is not available
         puts "✅ Continuation complete after #{count} attempts (total tokens: #{token_count})"
       end
@@ -83,7 +83,7 @@ module RAAF
                   end
 
         Rails.logger.info(message)
-      rescue StandardError => e
+      rescue StandardError
         # Graceful handling if Rails logger is not available
         puts message
       end
@@ -98,7 +98,7 @@ module RAAF
       #
       def self.log_warning(message)
         Rails.logger.warn "⚠️ #{message}"
-      rescue StandardError => e
+      rescue StandardError
         # Graceful handling if Rails logger is not available
         puts "⚠️ #{message}"
       end
@@ -115,7 +115,7 @@ module RAAF
       def self.log_error(message, error = nil)
         full_message = error ? "#{message}: #{error.message}" : message
         Rails.logger.error "❌ #{full_message}"
-      rescue StandardError => e
+      rescue StandardError
         # Graceful handling if Rails logger is not available
         puts "❌ #{full_message}"
       end
@@ -134,8 +134,8 @@ module RAAF
       #
       def self.log_metadata(metadata)
         formatted = metadata.map { |k, v| "#{k}: #{v}" }.join(", ")
-        Rails.logger.debug "📊 Continuation metadata: #{formatted}"
-      rescue StandardError => e
+        Rails.logger.debug { "📊 Continuation metadata: #{formatted}" }
+      rescue StandardError
         # Graceful handling if Rails logger is not available
         puts "📊 Continuation metadata: #{formatted}"
       end

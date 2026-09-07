@@ -61,7 +61,7 @@ module RAAF
           def evaluate_rubric(value, rubric)
             scores = {}
             text = value.to_s
-            
+
             return scores unless rubric[:criteria]
 
             rubric[:criteria].each do |criterion_name, criterion_spec|
@@ -74,11 +74,11 @@ module RAAF
           def evaluate_criterion(text, criterion)
             # Simulate rubric-based scoring
             # In production, would use LLM to evaluate against criterion
-            
+
             return 0.0 if text.empty?
-            
+
             score = 0.5 # Base score
-            
+
             # Check for required elements if specified
             if criterion[:required_elements]
               elements_found = criterion[:required_elements].count do |element|
@@ -88,8 +88,8 @@ module RAAF
             end
 
             # Apply weight if specified
-            weight = criterion[:weight] || 1.0
-            
+            criterion[:weight] || 1.0
+
             # Check against levels if specified
             if criterion[:levels]
               level_score = determine_level_score(text, criterion[:levels])
@@ -102,10 +102,10 @@ module RAAF
           def determine_level_score(text, levels)
             # Simplified level determination
             # In production, would use LLM to determine appropriate level
-            
+
             # Default to middle level
             return 0.5 unless levels.is_a?(Hash)
-            
+
             # Simple heuristic based on text length and complexity
             if text.length > 200 && text.include?(".") && text.include?(",")
               0.9 # Excellent
@@ -120,21 +120,25 @@ module RAAF
 
           def calculate_overall_score(rubric_scores, rubric)
             return 0.0 if rubric_scores.empty?
-            
+
             # Calculate weighted average if weights are provided
             if rubric[:criteria]
               total_weight = 0
               weighted_sum = 0
-              
+
               rubric_scores.each do |criterion_name, score|
-                weight = rubric[:criteria][criterion_name][:weight] || 1.0 rescue 1.0
+                weight = begin
+                  rubric[:criteria][criterion_name][:weight] || 1.0
+                rescue StandardError
+                  1.0
+                end
                 weighted_sum += score * weight
                 total_weight += weight
               end
-              
+
               return weighted_sum / total_weight if total_weight > 0
             end
-            
+
             # Simple average if no weights
             rubric_scores.values.sum.to_f / rubric_scores.size
           end

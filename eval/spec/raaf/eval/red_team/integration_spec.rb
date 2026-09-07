@@ -2,7 +2,7 @@
 
 require "spec_helper"
 require_relative "../../../../lib/raaf/eval/red_team"
-require "csv"  # Explicitly require CSV for Ruby 3.4+
+require "csv" # Explicitly require CSV for Ruby 3.4+
 
 RSpec.describe "Red-Team Integration Features" do
   # Mock model callback for testing
@@ -19,7 +19,7 @@ RSpec.describe "Red-Team Integration Features" do
   let(:red_teamer) do
     RAAF::Eval::RedTeam::RedTeamer.new(
       model_callback: model_callback,
-      async_mode: false,  # Disable for deterministic tests
+      async_mode: false, # Disable for deterministic tests
       ignore_errors: true
     )
   end
@@ -33,7 +33,7 @@ RSpec.describe "Red-Team Integration Features" do
     let(:assessment) do
       red_teamer.scan(
         vulnerabilities: [bias, toxicity],
-        attacks: [prompt_injection],  # Using Attack instance, not symbol
+        attacks: [prompt_injection], # Using Attack instance, not symbol
         attacks_per_vulnerability: 2
       )
     end
@@ -149,7 +149,7 @@ RSpec.describe "Red-Team Integration Features" do
       it "calculates risk metrics correctly" do
         summary = assessment.summary
 
-        expect([:critical, :high, :medium, :low]).to include(summary[:risk_level])
+        expect(%i[critical high medium low]).to include(summary[:risk_level])
         expect(summary[:risk_score]).to be_between(0.0, 1.0)
         expect(summary[:pass_rate]).to be_between(0.0, 1.0)
       end
@@ -166,7 +166,7 @@ RSpec.describe "Red-Team Integration Features" do
         # First scan generates attacks
         red_teamer.scan(
           vulnerabilities: [bias],
-          attacks: [prompt_injection],  # Using Attack instance
+          attacks: [prompt_injection], # Using Attack instance
           attacks_per_vulnerability: 2
         )
 
@@ -177,9 +177,9 @@ RSpec.describe "Red-Team Integration Features" do
 
       it "reuses cached attacks with reuse_previous_attacks flag" do
         # First scan
-        first_assessment = red_teamer.scan(
+        red_teamer.scan(
           vulnerabilities: [bias],
-          attacks: [prompt_injection],  # Using Attack instance
+          attacks: [prompt_injection], # Using Attack instance
           attacks_per_vulnerability: 2
         )
 
@@ -187,9 +187,9 @@ RSpec.describe "Red-Team Integration Features" do
         first_cache = red_teamer.attack_cache["bias"].dup
 
         # Second scan with different attack method but reusing baselines
-        second_assessment = red_teamer.scan(
+        red_teamer.scan(
           vulnerabilities: [bias],
-          attacks: [roleplay],  # Using Attack instance
+          attacks: [roleplay], # Using Attack instance
           attacks_per_vulnerability: 2,
           reuse_previous_attacks: true
         )
@@ -202,7 +202,7 @@ RSpec.describe "Red-Team Integration Features" do
         # First scan
         red_teamer.scan(
           vulnerabilities: [bias],
-          attacks: [prompt_injection],  # Using Attack instance
+          attacks: [prompt_injection], # Using Attack instance
           attacks_per_vulnerability: 2
         )
 
@@ -211,8 +211,8 @@ RSpec.describe "Red-Team Integration Features" do
         # Second scan WITHOUT reuse flag
         red_teamer.scan(
           vulnerabilities: [bias],
-          attacks: [roleplay],  # Using Attack instance
-          attacks_per_vulnerability: 3,  # Different count
+          attacks: [roleplay], # Using Attack instance
+          attacks_per_vulnerability: 3, # Different count
           reuse_previous_attacks: false
         )
 
@@ -226,7 +226,7 @@ RSpec.describe "Red-Team Integration Features" do
         # Generate some cached attacks
         red_teamer.scan(
           vulnerabilities: [bias],
-          attacks: [prompt_injection],  # Using Attack instance
+          attacks: [prompt_injection], # Using Attack instance
           attacks_per_vulnerability: 2
         )
 
@@ -258,7 +258,7 @@ RSpec.describe "Red-Team Integration Features" do
       it "completes scan successfully" do
         assessment = async_red_teamer.scan(
           vulnerabilities: [bias, toxicity],
-          attacks: [prompt_injection, roleplay],  # Using Attack instances
+          attacks: [prompt_injection, roleplay], # Using Attack instances
           attacks_per_vulnerability: 3
         )
 
@@ -269,7 +269,7 @@ RSpec.describe "Red-Team Integration Features" do
       it "processes multiple test cases" do
         assessment = async_red_teamer.scan(
           vulnerabilities: [bias, toxicity],
-          attacks: [prompt_injection],  # Using Attack instance
+          attacks: [prompt_injection], # Using Attack instance
           attacks_per_vulnerability: 5
         )
 
@@ -281,7 +281,7 @@ RSpec.describe "Red-Team Integration Features" do
         # This test verifies the system doesn't crash with concurrent operations
         assessment = async_red_teamer.scan(
           vulnerabilities: [bias, toxicity],
-          attacks: [prompt_injection, roleplay],  # Using Attack instances
+          attacks: [prompt_injection, roleplay], # Using Attack instances
           attacks_per_vulnerability: 10
         )
 
@@ -294,7 +294,7 @@ RSpec.describe "Red-Team Integration Features" do
       it "processes tests sequentially" do
         assessment = red_teamer.scan(
           vulnerabilities: [bias],
-          attacks: [prompt_injection],  # Using Attack instance
+          attacks: [prompt_injection], # Using Attack instance
           attacks_per_vulnerability: 3
         )
 
@@ -313,6 +313,7 @@ RSpec.describe "Red-Team Integration Features" do
       it "continues processing after model callback errors" do
         error_callback = lambda do |input|
           raise "Simulated error" if input.include?("specific")
+
           "Normal response"
         end
 
@@ -325,7 +326,7 @@ RSpec.describe "Red-Team Integration Features" do
         # Should complete despite errors
         assessment = error_tolerant_teamer.scan(
           vulnerabilities: [bias],
-          attacks: [prompt_injection],  # Using Attack instance
+          attacks: [prompt_injection], # Using Attack instance
           attacks_per_vulnerability: 5
         )
 
@@ -352,7 +353,7 @@ RSpec.describe "Red-Team Integration Features" do
 
       first_assessment = teamer.scan(
         vulnerabilities: [bias, toxicity],
-        attacks: [prompt_injection],  # Using Attack instance
+        attacks: [prompt_injection], # Using Attack instance
         attacks_per_vulnerability: 3
       )
 
@@ -361,7 +362,7 @@ RSpec.describe "Red-Team Integration Features" do
       # 3. Run second scan reusing cached attacks
       second_assessment = teamer.scan(
         vulnerabilities: [bias],
-        attacks: [roleplay],  # Using Attack instance
+        attacks: [roleplay], # Using Attack instance
         attacks_per_vulnerability: 3,
         reuse_previous_attacks: true
       )
@@ -375,7 +376,7 @@ RSpec.describe "Red-Team Integration Features" do
 
       # 5. Get summary statistics
       summary = second_assessment.summary
-      expect([:critical, :high, :medium, :low]).to include(summary[:risk_level])
+      expect(%i[critical high medium low]).to include(summary[:risk_level])
 
       # 6. Clean up
       File.delete(temp_csv)

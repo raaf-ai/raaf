@@ -246,7 +246,7 @@ RSpec.describe RAAF::Eval::LLMJudge::StatisticalJudge do
       [
         { input: "What is 1 + 1?", output: "2" },
         { input: "What is 2 + 2?", output: "4" },
-        { input: "What is 3 + 3?", output: "7" }  # Incorrect
+        { input: "What is 3 + 3?", output: "7" } # Incorrect
       ]
     end
 

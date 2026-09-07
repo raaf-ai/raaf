@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
-require 'active_support/core_ext/hash/indifferent_access'
+require "active_support/core_ext/hash/indifferent_access"
+require "active_support/core_ext/object/blank"
+require "active_support/core_ext/module/delegation"
 require_relative "raaf/version"
 require_relative "raaf/utils"
 require_relative "raaf/logging"
@@ -20,13 +22,17 @@ if File.exist?(tracing_path)
 else
   # Tracing not available, define empty module with no-op methods
   module RAAF
+
     module Tracing
+
       module Traceable
+
         def self.included(base)
           base.extend(ClassMethods) if defined?(ClassMethods)
         end
 
         module ClassMethods
+
           # No-op trace_as when tracing not available
           def trace_as(component_type)
             @trace_component_type = component_type
@@ -36,15 +42,16 @@ else
           def trace_component_type
             @trace_component_type || :component
           end
+
         end
 
         # No-op traced_run - just executes the block
-        def traced_run(*args, **kwargs, &block)
+        def traced_run(*_args, **_kwargs, &)
           yield if block_given?
         end
 
         # No-op with_tracing - just executes the block
-        def with_tracing(method_name = nil, **kwargs, &block)
+        def with_tracing(_method_name = nil, **_kwargs, &)
           yield if block_given?
         end
 
@@ -59,7 +66,9 @@ else
         end
 
       end
+
     end
+
   end
 end
 

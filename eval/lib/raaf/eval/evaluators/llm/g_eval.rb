@@ -55,8 +55,8 @@ module RAAF
           # @param good_threshold [Float, nil] Instance-level "good" threshold
           # @param average_threshold [Float, nil] Instance-level "average" threshold
           # @param options [Hash] Additional options
-          def initialize(criteria:, good_threshold: nil, average_threshold: nil, **options)
-            super(good_threshold: good_threshold, average_threshold: average_threshold, **options)
+          def initialize(criteria:, good_threshold: nil, average_threshold: nil, **)
+            super(good_threshold: good_threshold, average_threshold: average_threshold, **)
 
             raise ArgumentError, "At least one evaluation criterion is required" if criteria_empty?(criteria)
 
@@ -95,23 +95,22 @@ module RAAF
 
             # Determine label based on thresholds
             label = calculate_label(overall_score,
-                                   good_threshold: good_threshold,
-                                   average_threshold: average_threshold)
+                                    good_threshold: good_threshold,
+                                    average_threshold: average_threshold)
 
             build_result(overall_score, label, good_threshold, average_threshold,
-              evaluated_field: field_context.field_name.to_sym,
-              method: "g_eval",
-              criteria_count: @criteria.size,
-              chain_of_thought: chain_of_thought,
-              criteria_evaluation: criteria_results,
-              # What this judgement cost. The judge is a billed model call that
-              # leaves no tracing span — call_llm talks to OpenAI directly — so
-              # unless the usage travels out with the result there is no record
-              # of it anywhere and total_evaluation_cost can only ever be zero.
-              judge_model: @judge_model,
-              judge_usage: @judge_usage,
-              evaluation_note: g_eval_note(overall_score, criteria_results, good_threshold, average_threshold)
-            )
+                         evaluated_field: field_context.field_name.to_sym,
+                         method: "g_eval",
+                         criteria_count: @criteria.size,
+                         chain_of_thought: chain_of_thought,
+                         criteria_evaluation: criteria_results,
+                         # What this judgement cost. The judge is a billed model call that
+                         # leaves no tracing span — call_llm talks to OpenAI directly — so
+                         # unless the usage travels out with the result there is no record
+                         # of it anywhere and total_evaluation_cost can only ever be zero.
+                         judge_model: @judge_model,
+                         judge_usage: @judge_usage,
+                         evaluation_note: g_eval_note(overall_score, criteria_results, good_threshold, average_threshold))
           end
 
           private
@@ -124,6 +123,7 @@ module RAAF
             return true if criteria.nil?
             return criteria.empty? if criteria.is_a?(Array)
             return criteria.empty? if criteria.is_a?(Hash)
+
             false
           end
 
@@ -137,7 +137,7 @@ module RAAF
               # Simple array of descriptions - equal weight
               criteria.map.with_index do |description, index|
                 {
-                  criterion: "criterion_#{index + 1}".to_sym,
+                  criterion: :"criterion_#{index + 1}",
                   description: description,
                   weight: 1.0
                 }
@@ -216,7 +216,7 @@ module RAAF
             require "net/http"
             require "json"
 
-            api_key = ENV["OPENAI_API_KEY"]
+            api_key = ENV.fetch("OPENAI_API_KEY", nil)
             unless api_key&.present?
               RAAF.logger&.warn("[GEval] OPENAI_API_KEY not set, cannot run LLM judge")
               return nil
@@ -232,11 +232,11 @@ module RAAF
             req["Authorization"] = "Bearer #{api_key}"
             req["Content-Type"] = "application/json"
             req.body = JSON.generate({
-              model: model,
-              messages: [{ role: "user", content: prompt }],
-              temperature: 0,
-              response_format: { type: "json_object" }
-            })
+                                       model: model,
+                                       messages: [{ role: "user", content: prompt }],
+                                       temperature: 0,
+                                       response_format: { type: "json_object" }
+                                     })
 
             response = http.request(req)
             unless response.is_a?(Net::HTTPSuccess)
@@ -247,7 +247,7 @@ module RAAF
             data = JSON.parse(response.body)
             @judge_usage = extract_usage(data["usage"])
             data.dig("choices", 0, "message", "content")
-          rescue => e
+          rescue StandardError => e
             RAAF.logger&.warn("[GEval] LLM call failed: #{e.class}: #{e.message}")
             nil
           end
@@ -389,23 +389,23 @@ module RAAF
 
             # Adjust based on output length (reasonable length is good)
             length_factor = if output_length.between?(5, 50)
-                             0.1
-                           elsif output_length < 5
-                             -0.1
-                           else
-                             0.0
-                           end
+                              0.1
+                            elsif output_length < 5
+                              -0.1
+                            else
+                              0.0
+                            end
 
             # Adjust based on criterion keywords
             keyword_factor = if description.downcase.include?("accurate") && output_lower.include?("is")
-                              0.15
-                            elsif description.downcase.include?("clear") && output_length < 30
-                              0.1
-                            elsif description.downcase.include?("concise") && output_length < 20
-                              0.15
-                            else
-                              0.05
-                            end
+                               0.15
+                             elsif description.downcase.include?("clear") && output_length < 30
+                               0.1
+                             elsif description.downcase.include?("concise") && output_length < 20
+                               0.15
+                             else
+                               0.05
+                             end
 
             score = base_score + length_factor + keyword_factor
             [[score, 0.0].max, 1.0].min
@@ -450,13 +450,13 @@ module RAAF
             end
 
             reasoning += "\nOverall Assessment: "
-            if avg_score >= 0.80
-              reasoning += "The output performs well across most criteria."
-            elsif avg_score >= 0.60
-              reasoning += "The output shows acceptable performance with room for improvement."
-            else
-              reasoning += "The output requires significant revision to meet criteria standards."
-            end
+            reasoning += if avg_score >= 0.80
+                           "The output performs well across most criteria."
+                         elsif avg_score >= 0.60
+                           "The output shows acceptable performance with room for improvement."
+                         else
+                           "The output requires significant revision to meet criteria standards."
+                         end
 
             reasoning
           end

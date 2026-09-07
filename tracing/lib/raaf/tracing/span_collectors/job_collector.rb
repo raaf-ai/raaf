@@ -3,8 +3,11 @@
 require_relative "base_collector"
 
 module RAAF
+
   module Tracing
+
     module SpanCollectors
+
       # Specialized collector for Job components that captures background job execution
       # details, queue information, arguments, and execution status. This collector
       # provides visibility into asynchronous agent workflows and job processing.
@@ -54,17 +57,18 @@ module RAAF
       # @since 1.0.0
       # @author RAAF Team
       class JobCollector < BaseCollector
+
         # Job queue and processing information
         span queue: ->(comp) { comp.respond_to?(:queue_name) ? comp.queue_name : "default" }
 
         # Job arguments with length limiting to prevent oversized spans
-        span arguments: ->(comp) do
+        span arguments: lambda { |comp|
           if comp.respond_to?(:arguments)
             comp.arguments.inspect[0..100] # Truncate long arguments
           else
             "N/A"
           end
-        end
+        }
 
         # ============================================================================
         # JOB EXECUTION RESULTS
@@ -73,8 +77,12 @@ module RAAF
 
         # Job execution status extracted from result object
         # @return [String] Job status ("completed", "failed", "unknown", etc.)
-        result status: ->(result, comp) { result.respond_to?(:status) ? result.status : "unknown" }
+        result status: ->(result, _comp) { result.respond_to?(:status) ? result.status : "unknown" }
+
       end
+
     end
+
   end
+
 end

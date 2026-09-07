@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative '../context_access'
+require_relative "../context_access"
 
 module RAAF
   module DSL
@@ -18,11 +18,11 @@ module RAAF
       #       optional :store_to_database, default: false
       #       optional :campaign_id
       #     end
-      #     
+      #
       #     on_end do |context, agent, result|
       #       agent.with_context_variables do
       #         next unless store_to_database && campaign_id
-      #         
+      #
       #         # Direct variable access works here
       #         logger.info "Storing for campaign: #{campaign_id}"
       #       end
@@ -30,7 +30,6 @@ module RAAF
       #   end
       #
       module HookContext
-        
         # Execute a block with proxy context access
         #
         # This method creates a temporary proxy object that includes ContextAccess,
@@ -55,14 +54,14 @@ module RAAF
         #
         def with_context_variables(&block)
           # Only works if we have DSL context
-          return yield if block.arity > 0  # Block expects parameters
+          return yield if block.arity > 0 # Block expects parameters
           return yield unless defined?(@context) && @context
-          
+
           # Create proxy with ContextAccess for direct variable access
           proxy = HookContextProxy.new(self, @context)
           proxy.instance_eval(&block)
         end
-        
+
         ##
         # Proxy class that provides method_missing access to context variables
         #
@@ -72,13 +71,13 @@ module RAAF
         #
         class HookContextProxy
           include RAAF::DSL::ContextAccess
-          
+
           # @return [Object] The original agent instance
           attr_reader :agent
-          
+
           # @return [ContextVariables] The context variables
           attr_reader :context
-          
+
           # Initialize the proxy with agent and context
           #
           # @param agent [RAAF::DSL::Agent] The DSL agent instance
@@ -87,7 +86,7 @@ module RAAF
             @agent = agent
             @context = ensure_context_variables(context)
           end
-          
+
           # Provide access to the original agent
           #
           # @return [Object] The agent instance
@@ -96,16 +95,14 @@ module RAAF
           def current_agent
             @agent
           end
-          
+
           # Provide access to RAAF logger
           #
           # @return [Logger] RAAF logger instance
           # @example
           #   logger.info "Hook executed successfully"
-          def logger
-            RAAF.logger
-          end
-          
+          delegate :logger, to: :RAAF
+
           # Allow safe access to agent instance variables
           #
           # This provides a controlled way to access agent instance variables
@@ -117,10 +114,10 @@ module RAAF
           #   agent_instance_variable_get(:@some_var)
           #   agent_instance_variable_get("some_var")
           def agent_instance_variable_get(name)
-            var_name = name.to_s.start_with?('@') ? name.to_s : "@#{name}"
+            var_name = name.to_s.start_with?("@") ? name.to_s : "@#{name}"
             @agent.instance_variable_get(var_name)
           end
-          
+
           # Allow controlled access to agent methods
           #
           # This provides a way to call agent methods from within the hook context,
@@ -132,17 +129,17 @@ module RAAF
           # @return [Object] The method result
           # @example
           #   agent_send(:private_helper_method, arg1, arg2)
-          def agent_send(method, *args, &block)
-            @agent.send(method, *args, &block)
+          def agent_send(method, ...)
+            @agent.send(method, ...)
           end
-          
+
           # Provide helpful inspect output for debugging
           #
           # @return [String] Inspection string
           def inspect
             "#<#{self.class.name}:#{object_id} agent=#{@agent.class.name} context_keys=#{@context.keys.sort}>"
           end
-          
+
           # Provide helpful to_s output
           #
           # @return [String] String representation

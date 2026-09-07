@@ -79,9 +79,9 @@ RSpec.describe RAAF::Eval::DslEngine::CallbackManager do
 
     it "invokes callbacks in registration order" do
       order = []
-      callback1 = proc { |event| order << 1 }
-      callback2 = proc { |event| order << 2 }
-      callback3 = proc { |event| order << 3 }
+      callback1 = proc { |_event| order << 1 }
+      callback2 = proc { |_event| order << 2 }
+      callback3 = proc { |_event| order << 3 }
 
       manager.register(&callback1)
       manager.register(&callback2)
@@ -93,21 +93,21 @@ RSpec.describe RAAF::Eval::DslEngine::CallbackManager do
 
     it "catches and logs callback errors without failing" do
       results = []
-      callback1 = proc { |event| results << "callback1" }
-      callback2 = proc { |event| raise "Callback error" }
-      callback3 = proc { |event| results << "callback3" }
+      callback1 = proc { |_event| results << "callback1" }
+      callback2 = proc { |_event| raise "Callback error" }
+      callback3 = proc { |_event| results << "callback3" }
 
       manager.register(&callback1)
       manager.register(&callback2)
       manager.register(&callback3)
 
       # Should log error but not raise
-      expect {
+      expect do
         manager.invoke_callbacks(event)
-      }.not_to raise_error
+      end.not_to raise_error
 
       # Other callbacks should still execute
-      expect(results).to eq(["callback1", "callback3"])
+      expect(results).to eq(%w[callback1 callback3])
     end
 
     it "passes event object to callbacks" do

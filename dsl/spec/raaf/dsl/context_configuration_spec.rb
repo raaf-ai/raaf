@@ -21,7 +21,7 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
         config.required("field3")
 
         rules = config.to_h
-        expect(rules[:required]).to eq([:field1, :field2, :field3])
+        expect(rules[:required]).to eq(%i[field1 field2 field3])
       end
 
       it "handles multiple calls to required" do
@@ -29,7 +29,7 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
         config.required(:field2, :field3)
 
         rules = config.to_h
-        expect(rules[:required]).to eq([:field1, :field2, :field3])
+        expect(rules[:required]).to eq(%i[field1 field2 field3])
       end
     end
 
@@ -40,10 +40,10 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
 
         rules = config.to_h
         expect(rules[:optional]).to eq({
-          timeout: 30,
-          retries: 3,
-          format: "json"
-        })
+                                         timeout: 30,
+                                         retries: 3,
+                                         format: "json"
+                                       })
       end
 
       it "handles multiple calls to optional" do
@@ -52,9 +52,9 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
 
         rules = config.to_h
         expect(rules[:optional]).to eq({
-          field1: "value1",
-          field2: "value2"
-        })
+                                         field1: "value1",
+                                         field2: "value2"
+                                       })
       end
     end
 
@@ -64,7 +64,7 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
         config.output("analysis")
 
         rules = config.to_h
-        expect(rules[:output]).to eq([:result, :summary, :analysis])
+        expect(rules[:output]).to eq(%i[result summary analysis])
       end
     end
 
@@ -89,7 +89,7 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
         config.exclude(:secret, :internal)
 
         rules = config.to_h
-        expect(rules[:exclude]).to eq([:secret, :internal])
+        expect(rules[:exclude]).to eq(%i[secret internal])
       end
     end
 
@@ -98,7 +98,7 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
         config.include(:public, :shared)
 
         rules = config.to_h
-        expect(rules[:include]).to eq([:public, :shared])
+        expect(rules[:include]).to eq(%i[public shared])
       end
     end
 
@@ -109,9 +109,9 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
 
         rules = config.to_h
         expect(rules[:validations][:name]).to eq({
-          type: :string,
-          proc: validation_proc
-        })
+                                                   type: :string,
+                                                   proc: validation_proc
+                                                 })
       end
     end
 
@@ -194,9 +194,9 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
         end
 
         config = test_class._context_config[:context_rules]
-        expect(config[:required]).to eq([:product, :company])
+        expect(config[:required]).to eq(%i[product company])
         expect(config[:optional]).to eq({ timeout: 30, retries: 3 })
-        expect(config[:output]).to eq([:analysis, :summary])
+        expect(config[:output]).to eq(%i[analysis summary])
       end
 
       it "configures context with hash syntax" do
@@ -222,21 +222,21 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
           optional timeout: 30
         end
 
-        expect(test_class.required_fields).to eq([:product, :company])
+        expect(test_class.required_fields).to eq(%i[product company])
       end
 
       it "returns required fields from legacy format" do
-        test_class.context(requirements: [:product, :company])
+        test_class.context(requirements: %i[product company])
 
-        expect(test_class.required_fields).to eq([:product, :company])
+        expect(test_class.required_fields).to eq(%i[product company])
       end
 
       it "handles duplicate fields" do
         test_class.context do
-          required :product, :company, :product  # Duplicate
+          required :product, :company, :product # Duplicate
         end
 
-        expect(test_class.required_fields).to eq([:product, :company])
+        expect(test_class.required_fields).to eq(%i[product company])
       end
     end
 
@@ -244,15 +244,15 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
       it "returns fields without defaults" do
         test_class.context do
           required :product, :company, :timeout
-          optional timeout: 30  # Has default
+          optional timeout: 30 # Has default
         end
 
-        expect(test_class.externally_required_fields).to eq([:product, :company])
+        expect(test_class.externally_required_fields).to eq(%i[product company])
       end
 
       it "handles legacy format" do
         test_class.context(
-          requirements: [:product, :timeout],
+          requirements: %i[product timeout],
           defaults: { timeout: 30 }
         )
 
@@ -266,7 +266,7 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
           output :analysis, :summary
         end
 
-        expect(test_class.provided_fields).to eq([:analysis, :summary])
+        expect(test_class.provided_fields).to eq(%i[analysis summary])
       end
 
       it "returns empty array when no configuration" do
@@ -304,7 +304,7 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
         end
 
         it "returns false when requirements missing" do
-          context = { product: "Test Product" }  # Missing company
+          context = { product: "Test Product" } # Missing company
           expect(test_class.requirements_met?(context)).to be false
         end
 
@@ -316,10 +316,10 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
         it "considers default values" do
           test_class.context do
             required :product, :timeout
-            optional timeout: 30  # timeout has default
+            optional timeout: 30 # timeout has default
           end
 
-          context = { product: "Test Product" }  # timeout missing but has default
+          context = { product: "Test Product" } # timeout missing but has default
           expect(test_class.requirements_met?(context)).to be true
         end
       end
@@ -339,7 +339,7 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
           context_like = double("context_like")
           allow(context_like).to receive(:respond_to?).with(:keys).and_return(true)
           allow(context_like).to receive(:respond_to?).with(:key?).and_return(false)
-          allow(context_like).to receive(:keys).and_return([:product, :company])
+          allow(context_like).to receive(:keys).and_return(%i[product company])
 
           expect(test_class.requirements_met?(context_like)).to be true
         end
@@ -481,7 +481,7 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
       threads = 10.times.map do |i|
         Thread.new do
           test_class._context_config[:thread_id] = i
-          sleep(0.01)  # Small delay to increase chance of race conditions
+          sleep(0.01) # Small delay to increase chance of race conditions
           test_class._context_config[:thread_id]
         end
       end
@@ -529,9 +529,9 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
 
     it "works with HashWithIndifferentAccess objects" do
       context = ActiveSupport::HashWithIndifferentAccess.new({
-        "product" => "Test Product",
-        :company => "Test Company"
-      })
+                                                               "product" => "Test Product",
+                                                               :company => "Test Company"
+                                                             })
 
       expect(test_class.requirements_met?(context)).to be true
     end
@@ -546,12 +546,12 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
     it "supports legacy requirements and defaults keys" do
       test_class = Class.new { include RAAF::DSL::ContextConfiguration }
       test_class.context(
-        requirements: [:product, :company],
+        requirements: %i[product company],
         defaults: { timeout: 30 }
       )
 
-      expect(test_class.required_fields).to eq([:product, :company])
-      expect(test_class.externally_required_fields).to eq([:product, :company])
+      expect(test_class.required_fields).to eq(%i[product company])
+      expect(test_class.externally_required_fields).to eq(%i[product company])
 
       context = { product: "Test", company: "Test" }
       expect(test_class.requirements_met?(context)).to be true
@@ -561,9 +561,9 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
       test_class = Class.new { include RAAF::DSL::ContextConfiguration }
       test_class._context_config[:context_rules] = {
         required: [:new_field],
-        requirements: [:old_field],  # Should be ignored
+        requirements: [:old_field], # Should be ignored
         optional: { new_default: "new" },
-        defaults: { old_default: "old" }  # Should be ignored
+        defaults: { old_default: "old" } # Should be ignored
       }
 
       expect(test_class.required_fields).to eq([:new_field])

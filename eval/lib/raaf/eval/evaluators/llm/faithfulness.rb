@@ -47,9 +47,7 @@ module RAAF
 
             # Validate retrieval context is provided
             retrieval_context = options[:retrieval_context] || field_context.context
-            unless retrieval_context
-              raise ArgumentError, "Retrieval context is required for faithfulness evaluation"
-            end
+            raise ArgumentError, "Retrieval context is required for faithfulness evaluation" unless retrieval_context
 
             # Use LLM judge to evaluate faithfulness
             score = llm_judge_faithfulness(
@@ -59,16 +57,15 @@ module RAAF
             )
 
             label = calculate_label(score,
-                                   good_threshold: good_threshold,
-                                   average_threshold: average_threshold)
+                                    good_threshold: good_threshold,
+                                    average_threshold: average_threshold)
 
             build_result(score, label, good_threshold, average_threshold,
-              evaluated_field: field_context.field_name,
-              method: "llm_judge_rag",
-              context_chunks: context_chunk_count(retrieval_context),
-              faithfulness_percentage: (score * 100).round,
-              evaluation_note: faithfulness_note(score, good_threshold, average_threshold)
-            )
+                         evaluated_field: field_context.field_name,
+                         method: "llm_judge_rag",
+                         context_chunks: context_chunk_count(retrieval_context),
+                         faithfulness_percentage: (score * 100).round,
+                         evaluation_note: faithfulness_note(score, good_threshold, average_threshold))
           end
 
           private
@@ -84,7 +81,7 @@ module RAAF
             context_text = context.is_a?(Array) ? context.join("\n\n---\n\n") : context
 
             # Build evaluation prompt
-            prompt = build_faithfulness_prompt(answer, context_text)
+            build_faithfulness_prompt(answer, context_text)
 
             # Call LLM for evaluation
             # TODO: Replace with actual RAAF LLM call

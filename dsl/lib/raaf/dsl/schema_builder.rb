@@ -71,9 +71,7 @@ module RAAF
         type_definition = RAAF::DSL::Types.define(actual_type, **options)
 
         # For non-semantic types, ensure we have the basic type definition
-        if type_definition.empty?
-          type_definition = { type: actual_type.to_s }
-        end
+        type_definition = { type: actual_type.to_s } if type_definition.empty?
 
         # Add description if provided
         type_definition[:description] = description if description
@@ -86,9 +84,7 @@ module RAAF
         type_definition[:fallback] = options[:fallback] if options[:fallback]
 
         # Handle union types for flexible schema support
-        if actual_type == :union && options[:schemas]
-          type_definition = { oneOf: options[:schemas] }
-        end
+        type_definition = { oneOf: options[:schemas] } if actual_type == :union && options[:schemas]
 
         # Handle type-specific options from old SchemaBuilder
         case actual_type.to_s
@@ -124,11 +120,11 @@ module RAAF
           if block_given?
             nested_builder = self.class.new(&block)
             nested_result = nested_builder.build
-            if nested_result.is_a?(Hash) && nested_result[:schema]
-              type_definition[:items] = nested_result[:schema]
-            else
-              type_definition[:items] = nested_result
-            end
+            type_definition[:items] = if nested_result.is_a?(Hash) && nested_result[:schema]
+                                        nested_result[:schema]
+                                      else
+                                        nested_result
+                                      end
           end
         when "object"
           type_definition[:type] = "object"
@@ -350,15 +346,13 @@ module RAAF
 
         # If it's already an ActiveRecord model, use it directly
         begin
-          if model_constant.respond_to?(:columns) && model_constant < ActiveRecord::Base
-            return model_constant
-          end
+          return model_constant if model_constant.respond_to?(:columns) && model_constant < ActiveRecord::Base
         rescue StandardError
           # If we can't check inheritance, continue with resolution
         end
 
         # Extract the base model name (e.g., "Ai::Agents::Market" -> "Market")
-        base_name = model_name.split('::').last
+        base_name = model_name.split("::").last
 
         # Try to find the model in common Rails model locations
         candidates = [
@@ -367,25 +361,21 @@ module RAAF
         ]
 
         candidates.each do |candidate_name|
+          candidate = Object.const_get(candidate_name)
           begin
-            candidate = Object.const_get(candidate_name)
-            begin
-              if candidate.respond_to?(:columns) && candidate < ActiveRecord::Base
-                return candidate
-              end
-            rescue StandardError
-              # If we can't check inheritance, try the next candidate
-              next
-            end
-          rescue NameError, TypeError
-            # Continue trying other candidates
+            return candidate if candidate.respond_to?(:columns) && candidate < ActiveRecord::Base
+          rescue StandardError
+            # If we can't check inheritance, try the next candidate
             next
           end
+        rescue NameError, TypeError
+          # Continue trying other candidates
+          next
         end
 
         # If we can't find a proper ActiveRecord model, raise an error
         raise ArgumentError, "Could not resolve model '#{model_name}' to an ActiveRecord model class. " \
-                           "Available candidates tried: #{candidates.join(', ')}"
+                             "Available candidates tried: #{candidates.join(', ')}"
       end
 
       # Convert all symbols to strings recursively for JSON compatibility

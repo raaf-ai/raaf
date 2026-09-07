@@ -17,12 +17,12 @@ module RAAF
           # @return [String] Markdown-formatted result
           def self.format_result(result)
             details = result[:details] || {}
-            score = result[:score]
+            result[:score]
 
-            no_baseline = details[:no_baseline] || details['no_baseline']
-            max_drop = details[:max_drop] || details['max_drop']
-            drop = details[:drop] || details['drop']
-            tolerance = details[:tolerance] || details['tolerance'] || 0
+            no_baseline = details[:no_baseline] || details["no_baseline"]
+            max_drop = details[:max_drop] || details["max_drop"]
+            drop = details[:drop] || details["drop"]
+            tolerance = details[:tolerance] || details["tolerance"] || 0
 
             md = String.new("### Regression Check\n\n")
 
@@ -83,7 +83,7 @@ module RAAF
             # Handle array values - check each element
             if current_value.is_a?(Array) && baseline_value.is_a?(Array)
               return evaluate_array_regression(current_value, baseline_value, tolerance, field_context,
-                                              good_threshold, average_threshold)
+                                               good_threshold, average_threshold)
             end
 
             # For numeric values, check if current is not worse (within tolerance)
@@ -109,7 +109,7 @@ module RAAF
                 threshold_good: good_threshold,
                 threshold_average: average_threshold
               },
-              message: "[#{label.upcase}] #{label == :good ? 'No regression detected' : 'Regression detected from baseline'}"
+              message: "[#{label.upcase}] #{label == :good ? "No regression detected" : "Regression detected from baseline"}"
             }
           end
 
@@ -117,7 +117,7 @@ module RAAF
 
           # Evaluate regression for array values (element-by-element comparison)
           def evaluate_array_regression(current_array, baseline_array, tolerance, field_context,
-                                       good_threshold, average_threshold)
+                                        good_threshold, average_threshold)
             # Ensure arrays are same length
             if current_array.length != baseline_array.length
               return {
@@ -135,6 +135,7 @@ module RAAF
             # Calculate drops for each element
             drops = baseline_array.zip(current_array).map do |baseline_elem, current_elem|
               next nil unless numeric?(baseline_elem) && numeric?(current_elem)
+
               baseline_elem - current_elem
             end
 
@@ -171,7 +172,7 @@ module RAAF
                 threshold_good: good_threshold,
                 threshold_average: average_threshold
               },
-              message: "[#{label.upcase}] #{label == :good ? 'No regression detected in array' : "Regression detected: #{excessive_drops.length} element(s) exceed tolerance"}"
+              message: "[#{label.upcase}] #{label == :good ? "No regression detected in array" : "Regression detected: #{excessive_drops.length} element(s) exceed tolerance"}"
             }
           end
 

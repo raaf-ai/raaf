@@ -36,6 +36,7 @@ module RAAF
         # @return [Float] Progress percentage (0.0 to 100.0)
         def progress_percentage
           return 0.0 if total_streams.zero?
+
           (stream_number.to_f / total_streams * 100).round(2)
         end
 

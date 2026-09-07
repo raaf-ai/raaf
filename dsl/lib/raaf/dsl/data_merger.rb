@@ -7,7 +7,7 @@ module RAAF
     #
     # @example Basic usage
     #   merger = DataMerger.new
-    #   
+    #
     #   # Define merge strategy
     #   merger.merge_strategy(:companies) do
     #     key_field :company_domain
@@ -16,7 +16,7 @@ module RAAF
     #     sum_fields :employee_count
     #     combine_objects :enrichment_data, strategy: :deep_merge
     #   end
-    #   
+    #
     #   # Merge results
     #   search_results = search_agent.call
     #   enrichment_results = enrichment_agent.call
@@ -50,13 +50,13 @@ module RAAF
         return results.first if results.size == 1
 
         strategy = @merge_strategies[data_type] || @default_strategy
-        
+
         # Extract data arrays from agent results
         data_arrays = results.map { |result| extract_data_array(result, data_type) }
-        
+
         # Merge the data
         merged_data = merge_data_arrays(data_arrays, strategy)
-        
+
         # Build final result
         {
           success: results.all? { |r| r[:success] != false },
@@ -74,17 +74,17 @@ module RAAF
       # Merge arrays of data objects using the specified strategy
       def merge_data_arrays(data_arrays, strategy)
         return [] if data_arrays.empty?
-        
+
         # Flatten and group by key field
         all_items = data_arrays.flatten.compact
         return all_items if strategy.key_field.nil?
-        
+
         grouped_items = all_items.group_by { |item| item[strategy.key_field] || item[strategy.key_field.to_s] }
-        
+
         # Merge each group
-        grouped_items.map do |key, items|
+        grouped_items.map do |_key, items|
           next items.first if items.size == 1
-          
+
           merge_item_group(items, strategy)
         end.compact
       end
@@ -92,11 +92,11 @@ module RAAF
       # Merge a group of items that share the same key
       def merge_item_group(items, strategy)
         base_item = items.first.dup
-        
+
         items[1..-1].each do |item|
           merge_two_items(base_item, item, strategy)
         end
-        
+
         base_item
       end
 
@@ -105,38 +105,38 @@ module RAAF
         new_item.each do |key, value|
           key_sym = key.to_sym
           key_str = key.to_s
-          
+
           if strategy.array_merge_fields.include?(key_sym) || strategy.array_merge_fields.include?(key_str)
             # Merge arrays
             base_array = Array(base_item[key])
             new_array = Array(value)
             base_item[key] = (base_array + new_array).uniq
-            
+
           elsif strategy.latest_fields.include?(key_sym) || strategy.latest_fields.include?(key_str)
             # Use latest non-nil value
             base_item[key] = value if value && value != ""
-            
+
           elsif strategy.sum_fields.include?(key_sym) || strategy.sum_fields.include?(key_str)
             # Sum numeric values
             base_value = base_item[key] || 0
             base_item[key] = base_value + (value || 0) if value.is_a?(Numeric)
-            
+
           elsif strategy.object_merge_fields.include?(key_sym) || strategy.object_merge_fields.include?(key_str)
             # Deep merge objects
-            if base_item[key].is_a?(Hash) && value.is_a?(Hash)
-              base_item[key] = deep_merge_objects(base_item[key], value)
-            else
-              base_item[key] = value
-            end
-            
+            base_item[key] = if base_item[key].is_a?(Hash) && value.is_a?(Hash)
+                               deep_merge_objects(base_item[key], value)
+                             else
+                               value
+                             end
+
           elsif strategy.custom_merge_rules[key_sym] || strategy.custom_merge_rules[key_str]
             # Apply custom merge rule
             rule = strategy.custom_merge_rules[key_sym] || strategy.custom_merge_rules[key_str]
             base_item[key] = rule.call(base_item[key], value)
-            
-          else
+
+          elsif value
             # Default: prefer new value if not nil
-            base_item[key] = value if value
+            base_item[key] = value
           end
         end
       end
@@ -144,17 +144,17 @@ module RAAF
       # Deep merge two hash objects
       def deep_merge_objects(base_obj, new_obj)
         base_obj = base_obj.dup
-        
+
         new_obj.each do |key, value|
-          if base_obj[key].is_a?(Hash) && value.is_a?(Hash)
-            base_obj[key] = deep_merge_objects(base_obj[key], value)
-          elsif base_obj[key].is_a?(Array) && value.is_a?(Array)
-            base_obj[key] = (base_obj[key] + value).uniq
-          else
-            base_obj[key] = value
-          end
+          base_obj[key] = if base_obj[key].is_a?(Hash) && value.is_a?(Hash)
+                            deep_merge_objects(base_obj[key], value)
+                          elsif base_obj[key].is_a?(Array) && value.is_a?(Array)
+                            (base_obj[key] + value).uniq
+                          else
+                            value
+                          end
         end
-        
+
         base_obj
       end
 
@@ -163,19 +163,19 @@ module RAAF
       # Extract data array from agent result
       def extract_data_array(result, data_type)
         return [] unless result.is_a?(Hash)
-        
+
         # Try multiple possible data locations
         data = result[:data] || result["data"] || result
-        
+
         # Look for specific data type key
         if data.is_a?(Hash)
           type_data = data[data_type] || data[data_type.to_s]
           return Array(type_data) if type_data
         end
-        
+
         # If data is already an array, use it
         return data if data.is_a?(Array)
-        
+
         # Otherwise wrap in array
         [data].compact
       end
@@ -183,7 +183,7 @@ module RAAF
 
     # Merge strategy configuration class
     class MergeStrategyConfig
-      attr_reader :key_field, :array_merge_fields, :latest_fields, :sum_fields, 
+      attr_reader :key_field, :array_merge_fields, :latest_fields, :sum_fields,
                   :object_merge_fields, :custom_merge_rules
 
       def initialize
@@ -258,63 +258,65 @@ module RAAF
       # Merge prospect data from multiple discovery sources
       def self.merge_prospect_data(*results)
         merger = DataMerger.new
-        
+
         merger.merge_strategy(:prospects) do
           key_field :company_domain
           merge_arrays :contact_emails, :phone_numbers, :social_profiles, :technologies
           prefer_latest :last_updated_at, :funding_stage, :employee_range
           sum_fields :confidence_score
           combine_objects :enrichment_data, :social_data
-          
+
           # Custom merge for scores (average instead of sum)
           custom_merge(:overall_score) do |base_value, new_value|
             return new_value unless base_value
             return base_value unless new_value
+
             ((base_value + new_value) / 2.0).round(1)
           end
         end
-        
+
         merger.merge(*results, data_type: :prospects)
       end
 
       # Merge company enrichment data from multiple sources
       def self.merge_enrichment_data(*results)
         merger = DataMerger.new
-        
+
         merger.merge_strategy(:companies) do
           key_field :website_domain
           merge_arrays :technologies, :integrations, :social_profiles, :funding_rounds
           prefer_latest :employee_count, :revenue_range, :last_funding_date
           combine_objects :contact_info, :company_metrics, :market_data
-          
+
           # Custom merge for technology confidence
           custom_merge(:tech_confidence) do |base_value, new_value|
             [base_value || 0, new_value || 0].max
           end
         end
-        
+
         merger.merge(*results, data_type: :companies)
       end
 
       # Merge stakeholder data from different discovery methods
       def self.merge_stakeholder_data(*results)
         merger = DataMerger.new
-        
+
         merger.merge_strategy(:stakeholders) do
           key_field :linkedin_url
           merge_arrays :email_addresses, :social_profiles, :previous_roles
           prefer_latest :current_title, :department, :seniority_level
           combine_objects :contact_attempts, :engagement_history
-          
+
           # Custom merge for influence scores
           custom_merge(:influence_score) do |base_value, new_value|
             # Take highest confidence score
             return new_value unless base_value
             return base_value unless new_value
+
             new_value > base_value ? new_value : base_value
           end
         end
-        
+
         merger.merge(*results, data_type: :stakeholders)
       end
     end

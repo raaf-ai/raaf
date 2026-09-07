@@ -6,7 +6,7 @@ require_relative "../../../../../core/lib/raaf/lifecycle"
 # HooksAdapter - Bridges DSL hooks configuration to Core hooks execution
 #
 # This adapter transforms DSL-configured hooks into Core-compatible hook objects
-# that can be executed by the RAAF Core execution engine. It maintains the 
+# that can be executed by the RAAF Core execution engine. It maintains the
 # separation between configuration (DSL) and execution (Core) while providing
 # a seamless bridge between the two systems.
 #
@@ -27,14 +27,13 @@ module RAAF
     module Hooks
       ##
       # Core hooks adapter that wraps DSL hook configurations
-      # 
+      #
       # Inherits from RAAF::AgentHooks to integrate with the Core lifecycle system.
       # Transforms DSL method references and blocks into executable hooks.
       class HooksAdapter < RAAF::AgentHooks
-        
         def initialize(dsl_hooks_config, dsl_agent = nil)
           @dsl_hooks = dsl_hooks_config || {}
-          @dsl_agent = dsl_agent  # Store DSL agent reference for proxy context access
+          @dsl_agent = dsl_agent # Store DSL agent reference for proxy context access
         end
 
         # Called before this agent is invoked
@@ -137,28 +136,25 @@ module RAAF
           last_result = nil
 
           hooks.each do |hook|
-            begin
-              case hook
-              when Symbol
-                # Method reference - call method on the current agent instance
-                # Note: We need access to the DSL agent instance to call the method
-                # This would need to be passed during adapter creation
-                RAAF.logger.warn "Method hooks not yet implemented in adapter: #{hook}"
+            case hook
+            when Symbol
+              # Method reference - call method on the current agent instance
+              # Note: We need access to the DSL agent instance to call the method
+              # This would need to be passed during adapter creation
+              RAAF.logger.warn "Method hooks not yet implemented in adapter: #{hook}"
 
-              when Proc
-                # Block - call directly with comprehensive data hash
-                last_result = hook.call(data)
+            when Proc
+              # Block - call directly with comprehensive data hash
+              last_result = hook.call(data)
 
-              else
-                RAAF.logger.warn "Unknown hook type: #{hook.class}"
-              end
-
-            rescue => e
-              RAAF.logger.error "❌ Hook execution failed: #{e.message}"
-              RAAF.logger.error "🔍 Hook: #{hook.inspect}"
-              RAAF.logger.error "📄 Data: #{data.except(:context, :agent).inspect}"
-              # Continue with other hooks even if one fails
+            else
+              RAAF.logger.warn "Unknown hook type: #{hook.class}"
             end
+          rescue StandardError => e
+            RAAF.logger.error "❌ Hook execution failed: #{e.message}"
+            RAAF.logger.error "🔍 Hook: #{hook.inspect}"
+            RAAF.logger.error "📄 Data: #{data.except(:context, :agent).inspect}"
+            # Continue with other hooks even if one fails
           end
 
           last_result

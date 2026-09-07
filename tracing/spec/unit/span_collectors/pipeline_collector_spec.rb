@@ -5,13 +5,12 @@ require "spec_helper"
 RSpec.describe RAAF::Tracing::SpanCollectors::PipelineCollector do
   let(:flow_structure) { "Agent1 >> Agent2 | Agent3" }
   let(:agent_count) { 3 }
-  let(:context_fields) { [:product, :company, :analysis_depth] }
-  
+  let(:context_fields) { %i[product company analysis_depth] }
+
   let(:pipeline) do
     pipeline_class = double("PipelineClass",
-      name: "RAAF::MarketDiscoveryPipeline",
-      context_fields: context_fields
-    ).tap do |klass|
+                            name: "RAAF::MarketDiscoveryPipeline",
+                            context_fields: context_fields).tap do |klass|
       # Set up class method expectations
       allow(klass).to receive(:respond_to?).and_return(false)
       allow(klass).to receive(:respond_to?).with(:context_fields).and_return(true)
@@ -19,9 +18,8 @@ RSpec.describe RAAF::Tracing::SpanCollectors::PipelineCollector do
     end
 
     double("Pipeline",
-      class: pipeline_class,
-      pipeline_name: "MarketDiscovery"
-    ).tap do |pipeline|
+           class: pipeline_class,
+           pipeline_name: "MarketDiscovery").tap do |pipeline|
       flow = double("Flow")
       pipeline.instance_variable_set(:@flow, flow)
 
@@ -69,7 +67,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::PipelineCollector do
 
     it "falls back to class name when pipeline_name not available" do
       allow(pipeline).to receive(:respond_to?).with(:pipeline_name).and_return(false)
-      
+
       attributes = collector.collect_attributes(pipeline)
       name_key = attributes.keys.find { |k| k.end_with?(".name") && !k.start_with?("component.") }
       expect(attributes[name_key]).to eq("RAAF::MarketDiscoveryPipeline")
@@ -83,7 +81,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::PipelineCollector do
 
     it "handles missing flow structure description gracefully" do
       allow(pipeline).to receive(:respond_to?).with(:flow_structure_description).and_return(false)
-      
+
       attributes = collector.collect_attributes(pipeline)
       flow_structure_key = attributes.keys.find { |k| k.end_with?(".flow_structure") }
       expect(attributes[flow_structure_key]).to be_nil
@@ -91,7 +89,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::PipelineCollector do
 
     it "handles missing flow gracefully" do
       pipeline.instance_variable_set(:@flow, nil)
-      
+
       attributes = collector.collect_attributes(pipeline)
       flow_structure_key = attributes.keys.find { |k| k.end_with?(".flow_structure") }
       expect(attributes[flow_structure_key]).to be_nil
@@ -105,7 +103,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::PipelineCollector do
 
     it "handles missing agent count method gracefully" do
       allow(pipeline).to receive(:respond_to?).with(:count_agents_in_flow).and_return(false)
-      
+
       attributes = collector.collect_attributes(pipeline)
       agent_count_key = attributes.keys.find { |k| k.end_with?(".agent_count") }
       expect(attributes[agent_count_key]).to be_nil
@@ -115,12 +113,12 @@ RSpec.describe RAAF::Tracing::SpanCollectors::PipelineCollector do
       attributes = collector.collect_attributes(pipeline)
       context_fields_key = attributes.keys.find { |k| k.end_with?(".context_fields") }
       # Context fields are converted to strings by safe_value processing
-      expect(attributes[context_fields_key]).to eq(["product", "company", "analysis_depth"])
+      expect(attributes[context_fields_key]).to eq(%w[product company analysis_depth])
     end
 
     it "handles missing context fields gracefully" do
       allow(pipeline.class).to receive(:respond_to?).with(:context_fields).and_return(false)
-      
+
       attributes = collector.collect_attributes(pipeline)
       context_fields_key = attributes.keys.find { |k| k.end_with?(".context_fields") }
       expect(attributes[context_fields_key]).to eq([])
@@ -129,7 +127,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::PipelineCollector do
 
   describe "#collect_result" do
     it "collects base result attributes" do
-      result = { success: true, markets: ["market1", "market2"] }
+      result = { success: true, markets: %w[market1 market2] }
       attributes = collector.collect_result(pipeline, result)
 
       expect(attributes).to include("result.type")

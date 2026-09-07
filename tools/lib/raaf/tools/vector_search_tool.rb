@@ -7,9 +7,12 @@ rescue LoadError
 end
 
 module RAAF
+
   module Tools
+
     # Tool for searching in vector stores
     class VectorSearchTool
+
       attr_reader :name, :description, :vector_store
 
       def initialize(vector_store:, name: "vector_search", description: nil)
@@ -91,10 +94,12 @@ module RAAF
       def format_metadata(metadata)
         metadata.map { |k, v| "#{k}: #{v}" }.join(", ")
       end
+
     end
 
     # Tool for adding documents to vector store
     class VectorIndexTool
+
       attr_reader :name, :description, :vector_store
 
       def initialize(vector_store:, name: "vector_index", description: nil)
@@ -163,10 +168,12 @@ module RAAF
       rescue StandardError => e
         { error: "Vector indexing failed: #{e.message}" }
       end
+
     end
 
     # Tool for managing vector store
     class VectorManagementTool
+
       attr_reader :name, :description, :vector_store
 
       def initialize(vector_store:, name: "vector_manage", description: nil)
@@ -336,10 +343,12 @@ module RAAF
           "Cleared all namespaces"
         end
       end
+
     end
 
     # Combined vector RAG tool
     class VectorRAGTool
+
       attr_reader :name, :description, :vector_store
 
       def initialize(vector_store:, name: "vector_rag", description: nil)
@@ -394,6 +403,9 @@ module RAAF
           { error: "Unknown operation: #{operation}" }
         end
       end
+
     end
+
   end
+
 end

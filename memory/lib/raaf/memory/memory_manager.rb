@@ -3,7 +3,9 @@
 require_relative "memory"
 
 module RAAF
+
   module Memory
+
     ##
     # Manages memory context and token limits for agents
     #
@@ -26,7 +28,7 @@ module RAAF
     # @example With custom token counter
     #   require 'tiktoken'
     #   encoder = Tiktoken.encoding_for_model("gpt-4")
-    #   
+    #
     #   manager = MemoryManager.new(
     #     max_tokens: 2000,
     #     token_counter: ->(text) { encoder.encode(text).length }
@@ -36,6 +38,7 @@ module RAAF
     #   pruned = manager.prune_memories(memories, :oldest)
     #
     class MemoryManager
+
       # Default maximum tokens for memory context
       DEFAULT_MAX_TOKENS = 2000
       # Threshold for triggering summarization (80% of max)
@@ -211,7 +214,7 @@ module RAAF
       #     )
       #     response.dig("choices", 0, "message", "content")
       #   }
-      #   
+      #
       #   summaries = manager.summarize_memories(old_memories, summarizer)
       #
       def summarize_memories(memories, summarizer)
@@ -272,6 +275,9 @@ module RAAF
           memory[:conversation_id] || Time.parse(memory[:created_at]).strftime("%Y-%m-%d")
         end
       end
+
     end
+
   end
+
 end

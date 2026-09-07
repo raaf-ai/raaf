@@ -187,18 +187,18 @@ RSpec.describe RAAF::Tracing::NoOpTracer do
         1000.times do |i|
           tracer.agent_span("span_#{i}") { "work" }
         end
-      end.not_to change { tracer.processors.size }
+      end.not_to(change { tracer.processors.size })
     end
 
     it "doesn't create objects during span operations" do
       # Verify that no objects are created/stored during normal operations
       initial_object_count = ObjectSpace.count_objects[:TOTAL]
-      
+
       100.times do
         tracer.agent_span("test") { "work" }
         tracer.tool_span("test") { "work" }
       end
-      
+
       final_object_count = ObjectSpace.count_objects[:TOTAL]
       # Allow for minimal object creation (test framework overhead)
       expect(final_object_count - initial_object_count).to be < 10
@@ -352,12 +352,12 @@ RSpec.describe RAAF::Tracing::NoOpSpan do
   describe "method chaining" do
     it "supports fluent interface patterns" do
       result = span
-        .set_attribute("key1", "value1")
-        .set_attribute("key2", "value2")
-        .add_event("event1")
-        .set_status(:ok)
-        .record_exception(StandardError.new)
-        
+               .set_attribute("key1", "value1")
+               .set_attribute("key2", "value2")
+               .add_event("event1")
+               .set_status(:ok)
+               .record_exception(StandardError.new)
+
       expect(result).to eq(span)
     end
   end
@@ -367,12 +367,12 @@ RSpec.describe RAAF::Tracing::NoOpSpan do
       # Verify that NoOpSpan doesn't accumulate state
       initial_attributes = span.attributes
       initial_events = span.events
-      
+
       100.times do |i|
         span.set_attribute("key_#{i}", "value_#{i}")
         span.add_event("event_#{i}")
       end
-      
+
       expect(span.attributes).to be(initial_attributes)
       expect(span.events).to be(initial_events)
     end

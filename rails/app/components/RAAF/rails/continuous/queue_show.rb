@@ -4,7 +4,6 @@ module RAAF
   module Rails
     module Continuous
       class QueueShow < RAAF::Rails::Tracing::BaseComponent
-
         def initialize(queue_item:, results: [])
           @queue_item = queue_item
           @results = results
@@ -253,9 +252,7 @@ module RAAF
                 span(class: "font-medium text-gray-900") { result.evaluator_name }
                 div(class: "mt-1 flex items-center gap-2") do
                   render_result_status_badge(result)
-                  if result.score
-                    span(class: "text-sm text-gray-600") { "Score: #{result.score.round(2)}" }
-                  end
+                  span(class: "text-sm text-gray-600") { "Score: #{result.score.round(2)}" } if result.score
                 end
               end
               link_to(
@@ -276,25 +273,25 @@ module RAAF
 
         def render_status_badge(status)
           badge_config = case status.to_s
-                        when "pending"
-                          { color: "yellow", icon: "bi-clock", text: "Pending" }
-                        when "running"
-                          { color: "blue", icon: "bi-play-circle", text: "Running" }
-                        when "completed"
-                          { color: "green", icon: "bi-check-circle", text: "Completed" }
-                        when "failed"
-                          { color: "red", icon: "bi-x-circle", text: "Failed" }
-                        else
-                          { color: "gray", icon: "bi-question-circle", text: status }
-                        end
+                         when "pending"
+                           { color: "yellow", icon: "bi-clock", text: "Pending" }
+                         when "running"
+                           { color: "blue", icon: "bi-play-circle", text: "Running" }
+                         when "completed"
+                           { color: "green", icon: "bi-check-circle", text: "Completed" }
+                         when "failed"
+                           { color: "red", icon: "bi-x-circle", text: "Failed" }
+                         else
+                           { color: "gray", icon: "bi-question-circle", text: status }
+                         end
 
           color_classes = case badge_config[:color]
-                         when "yellow" then "bg-yellow-100 text-yellow-800"
-                         when "blue" then "bg-blue-100 text-blue-800"
-                         when "green" then "bg-green-100 text-green-800"
-                         when "red" then "bg-red-100 text-red-800"
-                         else "bg-gray-100 text-gray-800"
-                         end
+                          when "yellow" then "bg-yellow-100 text-yellow-800"
+                          when "blue" then "bg-blue-100 text-blue-800"
+                          when "green" then "bg-green-100 text-green-800"
+                          when "red" then "bg-red-100 text-red-800"
+                          else "bg-gray-100 text-gray-800"
+                          end
 
           span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{color_classes}") do
             i(class: "#{badge_config[:icon]} mr-1")
@@ -304,22 +301,22 @@ module RAAF
 
         def render_result_status_badge(result)
           badge_config = case result.status
-                        when "passed"
-                          { color: "green", text: "Passed" }
-                        when "failed"
-                          { color: "red", text: "Failed" }
-                        when "error"
-                          { color: "yellow", text: "Error" }
-                        else
-                          { color: "gray", text: result.status }
-                        end
+                         when "passed"
+                           { color: "green", text: "Passed" }
+                         when "failed"
+                           { color: "red", text: "Failed" }
+                         when "error"
+                           { color: "yellow", text: "Error" }
+                         else
+                           { color: "gray", text: result.status }
+                         end
 
           color_classes = case badge_config[:color]
-                         when "green" then "bg-green-100 text-green-800"
-                         when "red" then "bg-red-100 text-red-800"
-                         when "yellow" then "bg-yellow-100 text-yellow-800"
-                         else "bg-gray-100 text-gray-800"
-                         end
+                          when "green" then "bg-green-100 text-green-800"
+                          when "red" then "bg-red-100 text-red-800"
+                          when "yellow" then "bg-yellow-100 text-yellow-800"
+                          else "bg-gray-100 text-gray-800"
+                          end
 
           span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{color_classes}") do
             badge_config[:text]
@@ -348,6 +345,7 @@ module RAAF
 
         def format_timestamp(time)
           return "N/A" unless time
+
           time.strftime("%Y-%m-%d %H:%M:%S")
         end
       end

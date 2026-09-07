@@ -7,7 +7,7 @@ begin
   require "rails"
   require "active_record"
   require_relative "../../../../lib/raaf/tracing/rails_integrations"
-  
+
   # Check if database connection is available
   ActiveRecord::Base.connection.migration_context.current_version
 rescue LoadError, ActiveRecord::ConnectionNotDefined, ActiveRecord::NoDatabaseError => e
@@ -20,11 +20,11 @@ RSpec.describe RAAF::Tracing::RailsIntegrations do
     let(:job_class) do
       Class.new(ActiveJob::Base) do
         include RAAF::Tracing::RailsIntegrations::JobTracing
-        
+
         def perform(data)
           @performed_data = data
         end
-        
+
         attr_reader :performed_data
       end
     end
@@ -43,9 +43,9 @@ RSpec.describe RAAF::Tracing::RailsIntegrations do
     it "adds job metadata to trace" do
       trace_metadata = {}
       allow(OpenAIAgents).to receive(:trace).and_yield(double("trace", metadata: trace_metadata))
-      
+
       job.perform_now
-      
+
       expect(trace_metadata).to include(
         job_class: job_class.name,
         arguments: ["test_data"]
@@ -60,7 +60,7 @@ RSpec.describe RAAF::Tracing::RailsIntegrations do
     it "propagates job exceptions" do
       failing_job_class = Class.new(ActiveJob::Base) do
         include RAAF::Tracing::RailsIntegrations::JobTracing
-        
+
         def perform
           raise StandardError, "Job failed"
         end
@@ -79,8 +79,8 @@ RSpec.describe RAAF::Tracing::RailsIntegrations do
     before do
       # Mock Rails request
       allow(ActionDispatch::Request).to receive(:new).with(env).and_return(
-        double("request", 
-               request_id: "req_123", 
+        double("request",
+               request_id: "req_123",
                user_agent: "TestAgent/1.0",
                remote_ip: "192.168.1.1")
       )
@@ -88,7 +88,7 @@ RSpec.describe RAAF::Tracing::RailsIntegrations do
 
     it "sets thread-local correlation data" do
       middleware.call(env)
-      
+
       expect(Thread.current[:openai_agents_request_id]).to eq("req_123")
       expect(Thread.current[:openai_agents_user_agent]).to eq("TestAgent/1.0")
       expect(Thread.current[:openai_agents_remote_ip]).to eq("192.168.1.1")
@@ -96,7 +96,7 @@ RSpec.describe RAAF::Tracing::RailsIntegrations do
 
     it "cleans up thread-local data after request" do
       middleware.call(env)
-      
+
       expect(Thread.current[:openai_agents_request_id]).to be_nil
       expect(Thread.current[:openai_agents_user_agent]).to be_nil
       expect(Thread.current[:openai_agents_remote_ip]).to be_nil
@@ -111,9 +111,9 @@ RSpec.describe RAAF::Tracing::RailsIntegrations do
     it "cleans up even if exception occurs" do
       failing_app = ->(_env) { raise StandardError, "App failed" }
       failing_middleware = described_class.new(failing_app)
-      
+
       expect { failing_middleware.call(env) }.to raise_error(StandardError, "App failed")
-      
+
       expect(Thread.current[:openai_agents_request_id]).to be_nil
       expect(Thread.current[:openai_agents_user_agent]).to be_nil
       expect(Thread.current[:openai_agents_remote_ip]).to be_nil
@@ -126,7 +126,7 @@ RSpec.describe RAAF::Tracing::RailsIntegrations do
         include RAAF::Tracing::RailsIntegrations::ConsoleHelpers
       end
     end
-    
+
     let(:helper) { helper_class.new }
     let(:trace) { RAAF::Tracing::Trace.create!(workflow_name: "Test Workflow") }
 
@@ -164,7 +164,7 @@ RSpec.describe RAAF::Tracing::RailsIntegrations do
     describe "#performance_stats" do
       before do
         allow(RAAF::Tracing::Trace).to receive(:within_timeframe).and_return(
-          double("traces", 
+          double("traces",
                  count: 10,
                  completed: double("completed", count: 8),
                  failed: double("failed", count: 1),
@@ -184,7 +184,7 @@ RSpec.describe RAAF::Tracing::RailsIntegrations do
 
     describe "#trace_summary" do
       let(:span) { double("span", name: "test_span", kind: "llm", status: "ok", duration_ms: 1000) }
-      
+
       before do
         allow(helper).to receive(:trace).with(trace.trace_id).and_return(trace)
         allow(trace).to receive_messages(
@@ -196,7 +196,7 @@ RSpec.describe RAAF::Tracing::RailsIntegrations do
           ended_at: 30.minutes.ago
         )
         allow(trace).to receive(:spans).and_return(
-          double("spans", 
+          double("spans",
                  count: 1,
                  where: double("error_spans", count: 0),
                  order: [span])
@@ -221,8 +221,8 @@ RSpec.describe RAAF::Tracing::RailsIntegrations do
       end
 
       it "calls cleanup and reports results" do
-        expect do 
-          described_class.cleanup_old_traces(older_than: 1.month) 
+        expect do
+          described_class.cleanup_old_traces(older_than: 1.month)
         end.to output(/Cleaned up 5 traces/).to_stdout
       end
 
@@ -236,22 +236,24 @@ RSpec.describe RAAF::Tracing::RailsIntegrations do
     describe ".performance_report" do
       before do
         allow(RAAF::Tracing::Trace).to receive(:performance_stats).and_return({
-                                                                                        total_traces: 100,
-                                                                                        success_rate: 95.0,
-                                                                                        avg_duration: 2.5
-                                                                                      })
+                                                                                total_traces: 100,
+                                                                                success_rate: 95.0,
+                                                                                avg_duration: 2.5
+                                                                              })
         allow(RAAF::Tracing::Trace).to receive(:top_workflows).and_return([
-                                                                                    { workflow_name: "Test Workflow", trace_count: 50, success_rate: 98.0 }
-                                                                                  ])
+                                                                            { workflow_name: "Test Workflow",
+                                                                              trace_count: 50, success_rate: 98.0 }
+                                                                          ])
         allow(RAAF::Tracing::Span).to receive(:error_analysis).and_return({
-                                                                                    total_errors: 5,
-                                                                                    errors_by_kind: { "llm" => 3, "tool" => 2 }
-                                                                                  })
+                                                                            total_errors: 5,
+                                                                            errors_by_kind: { "llm" => 3,
+                                                                                              "tool" => 2 }
+                                                                          })
       end
 
       it "generates comprehensive performance report" do
-        expect do 
-          described_class.performance_report(timeframe: 24.hours) 
+        expect do
+          described_class.performance_report(timeframe: 24.hours)
         end.to output(/Performance Report.*Total Traces: 100.*Test Workflow: 50/m).to_stdout
       end
 

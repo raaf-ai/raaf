@@ -23,7 +23,7 @@ class CreateRAAFTracingSpans < ActiveRecord::Migration[7.0]
     add_index :raaf_tracing_spans, :kind
     add_index :raaf_tracing_spans, :status
     add_index :raaf_tracing_spans, :start_time
-    add_index :raaf_tracing_spans, [:trace_id, :parent_id]
+    add_index :raaf_tracing_spans, %i[trace_id parent_id]
     add_index :raaf_tracing_spans, :span_attributes, using: :gin
     add_index :raaf_tracing_spans, :events, using: :gin
 

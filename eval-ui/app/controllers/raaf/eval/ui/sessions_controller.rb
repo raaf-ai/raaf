@@ -13,7 +13,7 @@ module RAAF
       # - Deleting sessions
       #
       class SessionsController < ApplicationController
-        before_action :set_session, only: [:show, :update, :destroy]
+        before_action :set_session, only: %i[show update destroy]
 
         # GET /sessions
         def index
@@ -47,7 +47,7 @@ module RAAF
               render json: @session.as_json(
                 include: {
                   configurations: {},
-                  results: { include: :configuration }
+                  results: { include: :configuration },
                 }
               )
             end
@@ -66,8 +66,8 @@ module RAAF
             end
           else
             respond_to do |format|
-              format.html { render :new, status: :unprocessable_entity }
-              format.json { render json: { errors: @session.errors }, status: :unprocessable_entity }
+              format.html { render :new, status: :unprocessable_content }
+              format.json { render json: { errors: @session.errors }, status: :unprocessable_content }
             end
           end
         end
@@ -81,8 +81,8 @@ module RAAF
             end
           else
             respond_to do |format|
-              format.html { render :edit, status: :unprocessable_entity }
-              format.json { render json: { errors: @session.errors }, status: :unprocessable_entity }
+              format.html { render :edit, status: :unprocessable_content }
+              format.json { render json: { errors: @session.errors }, status: :unprocessable_content }
             end
           end
         end

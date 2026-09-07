@@ -5,11 +5,11 @@ namespace :raaf do
     # Helper to format sampling configuration for display
     def format_sampling(policy)
       case policy.sampling_mode
-      when 'percentage'
+      when "percentage"
         "#{policy.sample_rate}% of spans"
-      when 'every_n'
+      when "every_n"
         "Every #{policy.sample_every_n}th span"
-      when 'all'
+      when "all"
         "All spans"
       else
         "Not configured"
@@ -176,9 +176,9 @@ namespace :raaf do
 
       # Common locations for evaluator files
       search_paths = [
-        Rails.root.join("app", "evaluators"),
-        Rails.root.join("lib", "evaluators"),
-        Rails.root.join("app", "models", "evaluators")
+        Rails.root.join("app/evaluators"),
+        Rails.root.join("lib/evaluators"),
+        Rails.root.join("app/models/evaluators")
       ].select(&:exist?)
 
       if search_paths.empty?
@@ -209,12 +209,12 @@ namespace :raaf do
             end
 
             # Check for configure_history method
-            if content.match?(/configure_history/)
-              deprecated_files << {
-                file: file,
-                pattern: "configure_history method"
-              }
-            end
+            next unless content.match?(/configure_history/)
+
+            deprecated_files << {
+              file: file,
+              pattern: "configure_history method"
+            }
           end
         end
 

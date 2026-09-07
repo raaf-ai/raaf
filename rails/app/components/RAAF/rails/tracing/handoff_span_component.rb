@@ -18,28 +18,28 @@ module RAAF
 
         def source_agent
           @source_agent ||= extract_span_attribute("handoff.source_agent") ||
-                           extract_span_attribute("source_agent") ||
-                           extract_span_attribute("from_agent") ||
-                           "Unknown Source Agent"
+                            extract_span_attribute("source_agent") ||
+                            extract_span_attribute("from_agent") ||
+                            "Unknown Source Agent"
         end
 
         def target_agent
           @target_agent ||= extract_span_attribute("handoff.target_agent") ||
-                           extract_span_attribute("target_agent") ||
-                           extract_span_attribute("to_agent") ||
-                           "Unknown Target Agent"
+                            extract_span_attribute("target_agent") ||
+                            extract_span_attribute("to_agent") ||
+                            "Unknown Target Agent"
         end
 
         def handoff_reason
           @handoff_reason ||= extract_span_attribute("handoff.reason") ||
-                             extract_span_attribute("reason") ||
-                             extract_span_attribute("transfer_reason")
+                              extract_span_attribute("reason") ||
+                              extract_span_attribute("transfer_reason")
         end
 
         def context_transfer_data
           @context_transfer_data ||= extract_span_attribute("handoff.context") ||
-                                    extract_span_attribute("context_transfer") ||
-                                    extract_span_attribute("transferred_context")
+                                     extract_span_attribute("context_transfer") ||
+                                     extract_span_attribute("transferred_context")
         end
 
         def handoff_metadata
@@ -53,8 +53,8 @@ module RAAF
 
         def render_handoff_overview
           render_span_overview_header(
-            "bi bi-arrow-left-right", 
-            "Agent Handoff", 
+            "bi bi-arrow-left-right",
+            "Agent Handoff",
             "#{source_agent} → #{target_agent}"
           )
         end
@@ -75,7 +75,7 @@ module RAAF
                   div(class: "text-sm font-medium text-gray-900") { source_agent }
                   div(class: "text-xs text-gray-500") { "Source" }
                 end
-                
+
                 # Arrow
                 div(class: "mx-6 flex flex-col items-center") do
                   i(class: "bi bi-arrow-right text-gray-400 text-2xl")
@@ -85,7 +85,7 @@ module RAAF
                     div(class: "text-xs text-red-600 mt-1") { "Failed" }
                   end
                 end
-                
+
                 # Target agent
                 div(class: "flex flex-col items-center text-center") do
                   div(class: "w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-2") do
@@ -95,22 +95,22 @@ module RAAF
                   div(class: "text-xs text-gray-500") { "Target" }
                 end
               end
-              
+
               # Handoff metadata
               dl(class: "grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2") do
                 render_detail_item("Source Agent", source_agent)
                 render_detail_item("Target Agent", target_agent)
                 render_detail_item("Handoff Status", render_status_badge(@span.status))
                 render_detail_item("Duration", render_duration_badge(@span.duration_ms))
-                
+
                 if handoff_metadata["handoff_type"]
                   render_detail_item("Handoff Type", handoff_metadata["handoff_type"].to_s.humanize)
                 end
-                
+
                 if handoff_metadata["conversation_id"]
                   render_detail_item("Conversation ID", handoff_metadata["conversation_id"], monospace: true)
                 end
-                
+
                 if handoff_metadata["timestamp"]
                   render_detail_item("Transfer Time", format_timestamp(handoff_metadata["timestamp"]))
                 end
@@ -139,9 +139,10 @@ module RAAF
                     end
                   end
                 end
-                
+
                 # Full context data (collapsible)
-                render_json_section("Full Context Data", context_transfer_data, collapsed: true, use_json_highlighter: true)
+                render_json_section("Full Context Data", context_transfer_data, collapsed: true,
+                                                                                use_json_highlighter: true)
               else
                 render_json_section("Context Data", context_transfer_data, collapsed: false, use_json_highlighter: true)
               end
@@ -181,7 +182,7 @@ module RAAF
         def render_expandable_text(text, prefix)
           text_id = "#{prefix}-#{@span.span_id}"
           preview_text = text[0..200] + "..."
-          
+
           div(data: { controller: "span-detail" }) do
             div(id: "#{text_id}-preview", class: "bg-orange-50 p-3 rounded border text-sm") do
               plain preview_text

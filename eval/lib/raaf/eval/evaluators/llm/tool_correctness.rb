@@ -87,25 +87,24 @@ module RAAF
 
             score = evaluation[:score]
             label = calculate_label(score,
-                                   good_threshold: good_threshold,
-                                   average_threshold: average_threshold)
+                                    good_threshold: good_threshold,
+                                    average_threshold: average_threshold)
 
             build_result(score, label, good_threshold, average_threshold,
-              evaluated_field: field_context.field_name,
-              method: "llm_judge",
-              task_context: task_context,
-              available_tools_count: available_tools.size,
-              tools_used_count: tools_used.size,
-              expected_tools_provided: !expected_tools.empty?,
-              tool_sequence_matters: tool_sequence_matters,
-              tool_selection_analysis: evaluation[:tool_selection],
-              parameter_correctness_analysis: evaluation[:parameter_correctness],
-              sequence_analysis: evaluation[:sequence_analysis],
-              output_handling_analysis: evaluation[:output_handling],
-              overall_reasoning: evaluation[:reasoning],
-              correctness_percentage: (score * 100).round,
-              evaluation_note: tool_correctness_note(score, good_threshold, average_threshold)
-            )
+                         evaluated_field: field_context.field_name,
+                         method: "llm_judge",
+                         task_context: task_context,
+                         available_tools_count: available_tools.size,
+                         tools_used_count: tools_used.size,
+                         expected_tools_provided: !expected_tools.empty?,
+                         tool_sequence_matters: tool_sequence_matters,
+                         tool_selection_analysis: evaluation[:tool_selection],
+                         parameter_correctness_analysis: evaluation[:parameter_correctness],
+                         sequence_analysis: evaluation[:sequence_analysis],
+                         output_handling_analysis: evaluation[:output_handling],
+                         overall_reasoning: evaluation[:reasoning],
+                         correctness_percentage: (score * 100).round,
+                         evaluation_note: tool_correctness_note(score, good_threshold, average_threshold))
           end
 
           private
@@ -120,9 +119,10 @@ module RAAF
           # @param tool_capabilities [Hash] Tool capabilities
           # @param model [String, nil] LLM model for judging
           # @return [Hash] Evaluation with :score and analysis details
-          def llm_judge_tool_correctness(task_context:, available_tools:, tools_used:, expected_tools:, tool_sequence_matters:, tool_capabilities:, model: nil)
+          def llm_judge_tool_correctness(task_context:, available_tools:, tools_used:, expected_tools:,
+                                         tool_sequence_matters:, tool_capabilities:, model: nil)
             # Build evaluation prompt
-            prompt = build_tool_correctness_prompt(
+            build_tool_correctness_prompt(
               task_context,
               available_tools,
               tools_used,
@@ -152,7 +152,8 @@ module RAAF
           # @param tool_sequence_matters [Boolean] Whether sequence matters
           # @param tool_capabilities [Hash] Tool capabilities
           # @return [String] Evaluation prompt
-          def build_tool_correctness_prompt(task_context, available_tools, tools_used, expected_tools, tool_sequence_matters, tool_capabilities)
+          def build_tool_correctness_prompt(task_context, available_tools, tools_used, expected_tools,
+                                            tool_sequence_matters, tool_capabilities)
             prompt = <<~PROMPT
               You are an expert AI agent evaluator. Your task is to assess whether an AI agent
               used tools correctly and appropriately for its task.
@@ -171,9 +172,7 @@ module RAAF
               end
             end
 
-            if expected_tools.any?
-              prompt += "\nEXPECTED TOOLS (for reference):\n#{expected_tools.join(", ")}\n"
-            end
+            prompt += "\nEXPECTED TOOLS (for reference):\n#{expected_tools.join(", ")}\n" if expected_tools.any?
 
             prompt += "\nTOOLS ACTUALLY USED:\n"
             tools_used.each_with_index do |tool_call, idx|
@@ -182,7 +181,7 @@ module RAAF
               prompt += "   Result: #{truncate_text(tool_call[:result].to_s, 200)}\n"
             end
 
-            prompt += "\nSEQUENCE IMPORTANCE: #{tool_sequence_matters ? 'Tool order matters for this task' : 'Tool order does not matter'}\n"
+            prompt += "\nSEQUENCE IMPORTANCE: #{tool_sequence_matters ? "Tool order matters for this task" : "Tool order does not matter"}\n"
 
             prompt += <<~EVALUATION
 
@@ -222,17 +221,18 @@ module RAAF
           # @param expected_tools [Array<String>] Expected tools
           # @param tool_sequence_matters [Boolean] Whether sequence matters
           # @return [Hash] Mock evaluation
-          def mock_tool_correctness_evaluation(task_context, available_tools, tools_used, expected_tools, tool_sequence_matters)
+          def mock_tool_correctness_evaluation(task_context, available_tools, tools_used, expected_tools,
+                                               tool_sequence_matters)
             # Simple heuristics for mock evaluation
             tools_used_names = tools_used.map { |t| t[:tool] }
 
             # Check if expected tools were used (if provided)
             expected_tool_coverage = if expected_tools.any?
-              used_expected = (tools_used_names & expected_tools).size
-              used_expected.to_f / expected_tools.size
-            else
-              1.0
-            end
+                                       used_expected = (tools_used_names & expected_tools).size
+                                       used_expected.to_f / expected_tools.size
+                                     else
+                                       1.0
+                                     end
 
             # Check if all used tools are available
             valid_tools = tools_used_names.all? { |tool| available_tools.include?(tool) }
@@ -248,9 +248,9 @@ module RAAF
 
             # Combine scores
             base_score = (expected_tool_coverage * 0.4) +
-                        (tool_validity_score * 0.25) +
-                        (param_score * 0.20) +
-                        (result_score * 0.15)
+                         (tool_validity_score * 0.25) +
+                         (param_score * 0.20) +
+                         (result_score * 0.15)
 
             # Normalize to 0.45-0.95 range
             score = 0.45 + (base_score * 0.50)
@@ -278,6 +278,7 @@ module RAAF
           # @return [String] Formatted parameters
           def format_params(params)
             return "none" if params.nil? || params.empty?
+
             params.map { |k, v| "#{k}: #{truncate_text(v.to_s, 50)}" }.join(", ")
           end
 
@@ -304,6 +305,7 @@ module RAAF
           # @return [String] Truncated text
           def truncate_text(text, max_length)
             return text if text.length <= max_length
+
             "#{text[0...max_length - 3]}..."
           end
         end

@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
-require 'date'
+require "date"
 require_relative "base_collector"
 
 module RAAF
+
   module Tracing
+
     module SpanCollectors
+
       # Specialized collector for Pipeline components that captures multi-agent
       # orchestration details, flow structure, and execution context. This collector
       # provides visibility into complex agent workflows and their coordination patterns.
@@ -54,6 +57,7 @@ module RAAF
       # @since 1.0.0
       # @author RAAF Team
       class PipelineCollector < BaseCollector
+
         # ============================================================================
         # PIPELINE IDENTIFICATION AND STRUCTURE
         # ============================================================================
@@ -62,30 +66,30 @@ module RAAF
         span class: ->(comp) { comp.class.name }
 
         # Flow structure and agent composition analysis
-        span flow_structure: ->(comp) do
+        span flow_structure: lambda { |comp|
           if comp.respond_to?(:flow_structure_description) && comp.instance_variable_get(:@flow)
             comp.flow_structure_description(comp.instance_variable_get(:@flow))
           end
-        end
+        }
 
-        span total_agents: ->(comp) do
+        span total_agents: lambda { |comp|
           if comp.respond_to?(:count_agents_in_flow) && comp.instance_variable_get(:@flow)
             comp.count_agents_in_flow(comp.instance_variable_get(:@flow))
           end
-        end
+        }
 
-        span execution_mode: ->(comp) do
+        span execution_mode: lambda { |comp|
           if comp.respond_to?(:detect_execution_mode) && comp.instance_variable_get(:@flow)
             comp.detect_execution_mode(comp.instance_variable_get(:@flow))
           end
-        end
+        }
 
         # ============================================================================
         # PIPELINE CONTEXT AND DATA FLOW
         # ============================================================================
 
         # Initial context provided to the pipeline
-        span initial_context: ->(comp) do
+        span initial_context: lambda { |comp|
           context = comp.instance_variable_get(:@context)
           if context
             context_data = context.respond_to?(:to_h) ? context.to_h : context
@@ -94,7 +98,7 @@ module RAAF
           else
             {}
           end
-        end
+        }
 
         # Context field requirements
         span context_fields: ->(comp) { comp.class.respond_to?(:context_fields) ? comp.class.context_fields : [] }
@@ -104,7 +108,7 @@ module RAAF
         # ============================================================================
 
         # Agent execution sequence with detailed step information
-        span execution_flow: ->(comp) do
+        span execution_flow: lambda { |comp|
           agent_results = comp.instance_variable_get(:@agent_results)
           next [] unless agent_results && agent_results.any?
 
@@ -120,10 +124,10 @@ module RAAF
               "output_summary" => sanitized_result[:output_summary]
             }.compact
           end
-        end
+        }
 
         # Execution metrics and performance data
-        span metrics: ->(comp) do
+        span metrics: lambda { |comp|
           agent_results = comp.instance_variable_get(:@agent_results)
           next {} unless agent_results && agent_results.any?
 
@@ -147,10 +151,10 @@ module RAAF
             "total_execution_time_ms" => total_execution_time,
             "average_agent_time_ms" => agent_results.any? ? (total_execution_time / agent_results.size) : 0
           }
-        end
+        }
 
         # Overall pipeline status
-        span status: ->(comp) do
+        span status: lambda { |comp|
           agent_results = comp.instance_variable_get(:@agent_results)
           next "unknown" unless agent_results && agent_results.any?
 
@@ -161,14 +165,14 @@ module RAAF
           else
             "failed"
           end
-        end
+        }
 
         # ============================================================================
         # PIPELINE EXECUTION RESULTS
         # ============================================================================
 
         # Final merged result from all agents
-        result final_result: ->(result, comp) do
+        result final_result: lambda { |result, _comp|
           if result.is_a?(Hash)
             sanitized_data = sanitize_data(result)
             redacted = redact_sensitive_data(sanitized_data)
@@ -176,12 +180,10 @@ module RAAF
           else
             {}
           end
-        end
+        }
 
         # High-level execution status based on result analysis
-        result execution_status: ->(result, comp) { result.is_a?(Hash) && result[:success] ? "success" : "failure" }
-
-        private
+        result execution_status: ->(result, _comp) { result.is_a?(Hash) && result[:success] ? "success" : "failure" }
 
         # Sanitize data using Rails' built-in serializable_hash for ActiveRecord objects
         # This leverages Rails' battle-tested implementation for handling ActiveRecord serialization
@@ -203,7 +205,7 @@ module RAAF
             # Basic types pass through unchanged
             data
           end
-        rescue => e
+        rescue StandardError => e
           # Fallback if sanitization fails
           "[Sanitization error: #{e.message}]"
         end
@@ -215,15 +217,15 @@ module RAAF
           redacted = {}
           data.each do |key, value|
             key_str = key.to_s.downcase
-            if sensitive_key?(key_str)
-              redacted[key] = "[REDACTED]"
-            elsif value.is_a?(Hash)
-              redacted[key] = redact_sensitive_data(value)
-            elsif value.is_a?(Array) && value.any? { |v| v.is_a?(Hash) }
-              redacted[key] = value.map { |v| v.is_a?(Hash) ? redact_sensitive_data(v) : v }
-            else
-              redacted[key] = value
-            end
+            redacted[key] = if sensitive_key?(key_str)
+                              "[REDACTED]"
+                            elsif value.is_a?(Hash)
+                              redact_sensitive_data(value)
+                            elsif value.is_a?(Array) && value.any? { |v| v.is_a?(Hash) }
+                              value.map { |v| v.is_a?(Hash) ? redact_sensitive_data(v) : v }
+                            else
+                              value
+                            end
           end
           redacted
         end
@@ -236,7 +238,11 @@ module RAAF
           ]
           sensitive_patterns.any? { |pattern| key.include?(pattern) }
         end
+
       end
+
     end
+
   end
+
 end

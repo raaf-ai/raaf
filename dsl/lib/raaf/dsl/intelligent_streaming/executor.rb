@@ -29,8 +29,7 @@ module RAAF
       class Executor
         include RAAF::Logger if defined?(RAAF::Logger)
 
-        attr_reader :scope, :context, :config
-        attr_reader :accumulated_results, :execution_stats
+        attr_reader :scope, :context, :config, :accumulated_results, :execution_stats
 
         # Initialize a new executor
         #
@@ -151,9 +150,7 @@ module RAAF
                     nil
                   end
 
-          unless value
-            raise ExecutorError, "No array field '#{array_field}' found in context"
-          end
+          raise ExecutorError, "No array field '#{array_field}' found in context" unless value
 
           unless value.is_a?(Array)
             raise ExecutorError, "Field '#{array_field}' does not contain an array, got: #{value.class}"
@@ -237,11 +234,11 @@ module RAAF
 
             # Merge agent result back into context
             if agent_result.is_a?(Hash)
-              if record_context.is_a?(RAAF::DSL::ContextVariables)
-                record_context = RAAF::DSL::ContextVariables.new(record_context.to_h.merge(agent_result))
-              else
-                record_context = agent_context.merge(agent_result)
-              end
+              record_context = if record_context.is_a?(RAAF::DSL::ContextVariables)
+                                 RAAF::DSL::ContextVariables.new(record_context.to_h.merge(agent_result))
+                               else
+                                 agent_context.merge(agent_result)
+                               end
             else
               record_context = RAAF::DSL::ContextVariables.new(agent_result)
             end
@@ -264,9 +261,9 @@ module RAAF
           log_error("Stream #{stream_num}/#{total_streams} failed: #{error.message}") if respond_to?(:log_error)
 
           # Fire error hook if configured
-          if config.blocks[:on_stream_error]
-            config.blocks[:on_stream_error].call(stream_num, total_streams, stream_items, error)
-          end
+          return unless config.blocks[:on_stream_error]
+
+          config.blocks[:on_stream_error].call(stream_num, total_streams, stream_items, error)
         end
 
         def merge_results(all_results)

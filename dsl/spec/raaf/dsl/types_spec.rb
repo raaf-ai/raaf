@@ -176,7 +176,7 @@ RSpec.describe RAAF::DSL::Types do
         let(:pattern) { described_class.define(:naics_code)[:pattern] }
 
         it "matches valid NAICS code formats" do
-          valid_codes = ["11", "541", "5415", "54151", "541511"]
+          valid_codes = %w[11 541 5415 54151 541511]
 
           valid_codes.each do |code|
             expect(code).to match(pattern), "Expected #{code} to match NAICS pattern"

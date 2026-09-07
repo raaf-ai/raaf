@@ -52,7 +52,7 @@ RSpec.describe "RAAF::Continuation::MergerFactory" do
 
       expect(merger1).to be_a(RAAF::Continuation::Mergers::CSVMerger)
       expect(merger2).to be_a(RAAF::Continuation::Mergers::CSVMerger)
-      expect(merger1).not_to be(merger2)  # Different instances
+      expect(merger1).not_to be(merger2) # Different instances
     end
 
     it "handles symbol format as string" do
@@ -227,7 +227,7 @@ RSpec.describe "RAAF::Continuation::MergerFactory" do
       factory = RAAF::Continuation::MergerFactory.new(output_format: :auto, logger: logger)
       content = "id,name\n1,Alice"
 
-      merger = factory.get_merger_for_content(content)
+      factory.get_merger_for_content(content)
 
       # Should use the provided logger
       expect(logger).to have_received(:debug).at_least(:once)
@@ -303,7 +303,7 @@ RSpec.describe "RAAF::Continuation::MergerFactory" do
       merger = factory.get_merger
 
       chunk1 = { content: '{"items": [{"id": 1}, {"id": 2' }
-      chunk2 = { content: '}]}' }
+      chunk2 = { content: "}]}" }
 
       result = merger.merge([chunk1, chunk2])
 
@@ -326,7 +326,7 @@ RSpec.describe "RAAF::Continuation::MergerFactory" do
       factory = RAAF::Continuation::MergerFactory.new(output_format: :auto)
 
       chunk1 = { content: '{"items": [{"id": 1' }
-      chunk2 = { content: '}]}' }
+      chunk2 = { content: "}]}" }
 
       merger = factory.get_merger_for_content(chunk1[:content])
       result = merger.merge([chunk1, chunk2])
@@ -360,7 +360,7 @@ RSpec.describe "RAAF::Continuation::MergerFactory" do
       factory = RAAF::Continuation::MergerFactory.new(output_format: :auto)
 
       # Very large content shouldn't cause issues
-      large_content = "a" * (1024 * 1024)  # 1MB of text
+      large_content = "a" * (1024 * 1024) # 1MB of text
       merger = factory.get_merger_for_content(large_content)
 
       expect(merger).to be_a(RAAF::Continuation::Mergers::BaseMerger)

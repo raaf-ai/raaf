@@ -4,11 +4,11 @@ require "spec_helper"
 require "raaf/eval/llm_judge"
 
 RSpec.describe RAAF::Eval::LLMJudge::MultiJudgeEvaluator do
-  let(:models) { ["gpt-4o", "gpt-4o-mini"] }
-
   subject(:evaluator) do
     described_class.new(models: models, temperature: 0.0)
   end
+
+  let(:models) { %w[gpt-4o gpt-4o-mini] }
 
   describe "#initialize" do
     it "creates judges from model names" do
@@ -150,7 +150,7 @@ RSpec.describe RAAF::Eval::LLMJudge::MultiJudgeEvaluator do
       [
         { input: "What is 1 + 1?", output: "2" },
         { input: "What is 2 + 2?", output: "4" },
-        { input: "What is 3 + 3?", output: "7" }  # Incorrect
+        { input: "What is 3 + 3?", output: "7" } # Incorrect
       ]
     end
     let(:criteria) { "Is the answer correct?" }
@@ -188,7 +188,7 @@ RSpec.describe RAAF::Eval::LLMJudge::MultiJudgeEvaluator do
       flagged = evaluator.flag_for_human_review(
         samples,
         criteria: criteria,
-        disagreement_threshold: 0.9  # High threshold to catch most samples
+        disagreement_threshold: 0.9 # High threshold to catch most samples
       )
 
       expect(flagged).to be_an(Array)

@@ -22,9 +22,9 @@ module Raaf
         source_root File.expand_path("templates", __dir__)
 
         class_option :skip_tracing, type: :boolean, default: false,
-                     desc: "Skip tracing migrations (trace_records, span_records)"
+                                    desc: "Skip tracing migrations (trace_records, span_records)"
         class_option :skip_eval, type: :boolean, default: false,
-                     desc: "Skip continuous evaluation migrations"
+                                 desc: "Skip continuous evaluation migrations"
 
         def self.next_migration_number(dirname)
           ::ActiveRecord::Generators::Base.next_migration_number(dirname)
@@ -33,13 +33,9 @@ module Raaf
         def create_migrations
           say "Installing RAAF Rails migrations...", :green
 
-          unless options[:skip_tracing]
-            copy_tracing_migrations
-          end
+          copy_tracing_migrations unless options[:skip_tracing]
 
-          unless options[:skip_eval]
-            copy_eval_migrations
-          end
+          copy_eval_migrations unless options[:skip_eval]
 
           say ""
           say "Migrations installed successfully!", :green

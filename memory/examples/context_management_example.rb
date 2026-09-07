@@ -21,10 +21,10 @@ require "raaf"
 
 agent = RAAF::Agent.new(
   name: "Assistant",
-  
+
   # Simple instructions - agent doesn't need to know about context management
   instructions: "You are a helpful assistant. Help the user with their questions.",
-  
+
   # Using GPT-4o which has a 128k token context window
   model: "gpt-4o"
 )
@@ -39,26 +39,26 @@ agent = RAAF::Agent.new(
 # The manager automatically knows token limits for common models
 context_manager = RAAF::ContextManager.new(
   model: "gpt-4o",        # Auto-configures for 128k token limit
-  
+
   preserve_system: true,  # System messages contain critical instructions
-                         # Always preserved to maintain agent behavior
-  
-  preserve_recent: 5      # Keep last N messages regardless of truncation
-                         # Ensures recent context is always available
+  # Always preserved to maintain agent behavior
+
+  preserve_recent: 5 # Keep last N messages regardless of truncation
+  # Ensures recent context is always available
 )
 
 # Option 2: Custom configuration for specific needs
 # Use when you need different limits or preservation strategies
-custom_context_manager = RAAF::ContextManager.new(
+RAAF::ContextManager.new(
   model: "gpt-4o",
-  
-  max_tokens: 50_000,     # Custom limit (less than model maximum)
-                          # Useful for: cost control, faster responses
-  
+
+  max_tokens: 50_000, # Custom limit (less than model maximum)
+  # Useful for: cost control, faster responses
+
   preserve_system: true,
-  
-  preserve_recent: 10     # Keep more recent context
-                         # Better for: complex conversations, multi-step tasks
+
+  preserve_recent: 10 # Keep more recent context
+  # Better for: complex conversations, multi-step tasks
 )
 
 # ============================================================================
@@ -69,7 +69,7 @@ custom_context_manager = RAAF::ContextManager.new(
 
 runner = RAAF::Runner.new(
   agent: agent,
-  
+
   # Enable automatic context management
   # The runner will apply truncation before each API call
   context_manager: context_manager
@@ -90,27 +90,25 @@ puts "Simulating a long conversation..."
 20.times do |i|
   # Create detailed requests that consume many tokens
   user_message = "Tell me fact ##{i + 1} about Ruby programming. Make it detailed with examples."
-  
+
   # Run conversation with new message
   # Context manager automatically truncates if needed
   result = runner.run(conversation + [{ role: "user", content: user_message }])
-  
+
   # Update conversation history
   conversation = result.messages
-  
+
   # Monitor conversation growth
   total_messages = conversation.count { |msg| msg[:role] != "system" }
   puts "\nConversation now has #{total_messages} messages"
-  
+
   # Detect when context manager activates
   # It adds system messages to explain truncation
-  truncation_messages = conversation.select do |msg| 
+  truncation_messages = conversation.select do |msg|
     msg[:role] == "system" && msg[:content]&.include?("[Note:")
   end
-  
-  if truncation_messages.any?
-    puts "Context manager activated: #{truncation_messages.last[:content]}"
-  end
+
+  puts "Context manager activated: #{truncation_messages.last[:content]}" if truncation_messages.any?
 end
 
 # ============================================================================
@@ -137,10 +135,10 @@ conversation.last(5).each_with_index do |msg, _i|
   # Count tokens for each message
   tokens = context_manager.count_message_tokens(msg)
   role = msg[:role]
-  
+
   # Show preview of content
   content_preview = msg[:content].to_s[0..50].gsub("\n", " ")
-  
+
   puts "  #{role.ljust(10)} (#{tokens} tokens): #{content_preview}..."
 end
 
@@ -156,7 +154,7 @@ puts "=" * 60
 
 # Create an artificially long conversation
 # Simulates loading historical conversation from storage
-long_conversation = conversation * 3  # Triple size to exceed limits
+long_conversation = conversation * 3 # Triple size to exceed limits
 
 puts "Original conversation: #{long_conversation.length} messages"
 

@@ -7,8 +7,6 @@ require_relative "../spec/spec_helper"
 
 # Example prompt class for testing
 class DocumentAnalysisPrompt < RAAF::DSL::Prompts::Base
-
-
   def system
     <<~SYSTEM
       You are a professional document analyst specializing in #{analysis_type} analysis.

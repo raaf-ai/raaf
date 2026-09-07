@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'raaf-core'
+require "raaf-core"
 
 RSpec.describe "End-to-End Token Tracking", type: :integration do
   #
@@ -66,7 +66,7 @@ RSpec.describe "End-to-End Token Tracking", type: :integration do
       runner_with_tracing = RAAF::Runner.new(agent: agent, provider: provider, tracer: tracer)
 
       # Run agent
-      result = runner_with_tracing.run("Test message")
+      runner_with_tracing.run("Test message")
 
       # Get the agent span
       spans = tracer.spans
@@ -86,7 +86,7 @@ RSpec.describe "End-to-End Token Tracking", type: :integration do
       runner_with_tracing = RAAF::Runner.new(agent: agent, provider: provider, tracer: tracer)
 
       # Run agent
-      result = runner_with_tracing.run("Test message")
+      runner_with_tracing.run("Test message")
 
       # Get the agent span
       spans = tracer.spans
@@ -216,7 +216,6 @@ RSpec.describe "End-to-End Token Tracking", type: :integration do
 
   describe "eval metrics integration" do
     it "uses normalized fields in RSpec matchers" do
-      baseline_usage = { input_tokens: 100, output_tokens: 50, total_tokens: 150 }
       eval_result = double(
         usage: { input_tokens: 110, output_tokens: 55, total_tokens: 165 }
       )

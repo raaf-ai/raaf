@@ -263,8 +263,8 @@ RSpec.describe "Pipeline Token Usage Aggregation" do
       expect(usage[:input_tokens]).to eq(100)
       expect(usage[:output_tokens]).to eq(200)
       expect(usage[:total_tokens]).to eq(300)
-      expect(usage[:prompt_tokens]).to eq(100)  # Alias
-      expect(usage[:completion_tokens]).to eq(200)  # Alias
+      expect(usage[:prompt_tokens]).to eq(100) # Alias
+      expect(usage[:completion_tokens]).to eq(200) # Alias
       expect(usage[:agent_breakdown].length).to eq(1)
       expect(usage[:agent_breakdown][0][:agent_name]).to eq("Agent1")
     end
@@ -325,7 +325,7 @@ RSpec.describe "Pipeline Token Usage Aggregation" do
       expect(usage[:input_tokens]).to eq(100)
       expect(usage[:output_tokens]).to eq(150)
       expect(usage[:total_tokens]).to eq(250)
-      expect(usage[:agent_breakdown].length).to eq(1)  # Only Agent1
+      expect(usage[:agent_breakdown].length).to eq(1) # Only Agent1
     end
 
     it "supports both input_tokens/output_tokens and prompt_tokens/completion_tokens" do
@@ -451,8 +451,8 @@ RSpec.describe "Pipeline Token Usage Aggregation" do
       result = pipeline.run
 
       expect(result[:usage]).to be_present
-      expect(result[:usage][:input_tokens]).to eq(300)  # 100 + 200
-      expect(result[:usage][:output_tokens]).to eq(400)  # 150 + 250
+      expect(result[:usage][:input_tokens]).to eq(300) # 100 + 200
+      expect(result[:usage][:output_tokens]).to eq(400) # 150 + 250
       expect(result[:usage][:total_tokens]).to eq(700)
       expect(result[:usage][:agent_breakdown].length).to eq(2)
     end
@@ -493,7 +493,7 @@ RSpec.describe "Pipeline Token Usage Aggregation" do
 
       expect(result[:usage][:input_tokens]).to eq(100)
       expect(result[:usage][:output_tokens]).to eq(150)
-      expect(result[:usage][:agent_breakdown].length).to eq(1)  # Only Agent1
+      expect(result[:usage][:agent_breakdown].length).to eq(1) # Only Agent1
     end
 
     it "aggregates usage from pipeline with reasoning model" do
@@ -511,8 +511,8 @@ RSpec.describe "Pipeline Token Usage Aggregation" do
       pipeline = pipeline_class.new
       result = pipeline.run
 
-      expect(result[:usage][:input_tokens]).to eq(250)  # 100 + 150
-      expect(result[:usage][:output_tokens]).to eq(450)  # 150 + 300
+      expect(result[:usage][:input_tokens]).to eq(250) # 100 + 150
+      expect(result[:usage][:output_tokens]).to eq(450) # 150 + 300
       expect(result[:usage][:output_tokens_details][:reasoning_tokens]).to eq(100)
     end
 

@@ -83,8 +83,8 @@ RSpec.describe "RAAF::DSL::Agent provider configuration" do
 
       agent_class = Class.new(RAAF::DSL::Agent) do
         agent_name "TestAgent"
-        model "gpt-4o"  # Would auto-detect to :openai
-        provider :anthropic  # But explicitly set to :anthropic
+        model "gpt-4o" # Would auto-detect to :openai
+        provider :anthropic # But explicitly set to :anthropic
       end
 
       agent = agent_class.new
@@ -175,7 +175,7 @@ RSpec.describe "RAAF::DSL::Agent provider configuration" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         agent_name "TestAgent"
         model "gpt-4o"
-        auto_detect_provider false  # Disable auto-detection
+        auto_detect_provider false # Disable auto-detection
         static_instructions "Test agent"
       end
 

@@ -17,7 +17,7 @@ module RAAF
         #
         # @example Register and use
         #   RAAF::Eval.register_evaluator(:smart_quality, SmartQualityEvaluator)
-        #   
+        #
         #   evaluator = RAAF::Eval.define do
         #     evaluate_field :output do
         #       evaluate_with :smart_quality, min_score: 0.7
@@ -34,14 +34,26 @@ module RAAF
           # @return [Hash] Evaluation result with :passed, :score, :details, :message
           def evaluate(field_context, **options)
             output = field_context.value
-            min_score = options[:min_score] || 0.7
+            options[:min_score] || 0.7
             good_threshold = options[:good_threshold] || 0.8
             average_threshold = options[:average_threshold] || 0.6
 
             # Access cross-field context
-            tokens = field_context[:usage][:total_tokens] rescue 0
-            latency = field_context[:latency_ms] rescue 0
-            model = field_context[:configuration][:model] rescue "unknown"
+            tokens = begin
+              field_context[:usage][:total_tokens]
+            rescue StandardError
+              0
+            end
+            latency = begin
+              field_context[:latency_ms]
+            rescue StandardError
+              0
+            end
+            model = begin
+              field_context[:configuration][:model]
+            rescue StandardError
+              "unknown"
+            end
 
             # Calculate base quality
             base_score = calculate_quality(output)

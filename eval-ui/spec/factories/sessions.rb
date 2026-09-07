@@ -40,7 +40,7 @@ FactoryBot.define do
         model: "gpt-4o",
         provider: "openai",
         temperature: 0.7,
-        max_tokens: 1000
+        max_tokens: 1000,
       }
     end
     display_order { 0 }
@@ -58,13 +58,13 @@ FactoryBot.define do
       result_data do
         {
           output: "Test output",
-          tokens: 150
+          tokens: 150,
         }
       end
       metrics do
         {
           latency_ms: 1200,
-          cost: 0.003
+          cost: 0.003,
         }
       end
     end

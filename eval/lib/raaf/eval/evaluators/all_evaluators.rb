@@ -35,7 +35,7 @@ require_relative "structural/schema_match"
 require_relative "structural/format_compliance"
 
 # LLM evaluators
-require_relative "llm/base_evaluator"  # Base class for LLM evaluators
+require_relative "llm/base_evaluator" # Base class for LLM evaluators
 require_relative "llm/llm_judge"
 require_relative "llm/quality_score"
 require_relative "llm/rubric_evaluation"

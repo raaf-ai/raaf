@@ -7,16 +7,16 @@ RSpec.describe RAAF::Eval::Comparison::BestConfigurationSelector do
     context "when configurations have different improvement counts" do
       let(:improvements) do
         {
-          config_a: [:output, :tokens],
+          config_a: %i[output tokens],
           config_b: [:output],
-          config_c: [:output, :tokens, :latency]
+          config_c: %i[output tokens latency]
         }
       end
 
       let(:regressions) do
         {
           config_a: [:latency],
-          config_b: [:tokens, :latency],
+          config_b: %i[tokens latency],
           config_c: []
         }
       end
@@ -32,8 +32,8 @@ RSpec.describe RAAF::Eval::Comparison::BestConfigurationSelector do
     context "when improvements are tied" do
       let(:improvements) do
         {
-          config_a: [:output, :tokens],
-          config_b: [:output, :tokens]
+          config_a: %i[output tokens],
+          config_b: %i[output tokens]
         }
       end
 
@@ -78,8 +78,8 @@ RSpec.describe RAAF::Eval::Comparison::BestConfigurationSelector do
     context "when using net score logic" do
       let(:improvements) do
         {
-          config_a: [:output, :tokens, :latency],
-          config_b: [:output, :tokens],
+          config_a: %i[output tokens latency],
+          config_b: %i[output tokens],
           config_c: [:output]
         }
       end
@@ -134,7 +134,7 @@ RSpec.describe RAAF::Eval::Comparison::BestConfigurationSelector do
       let(:regressions) do
         {
           config_a: [:output],
-          config_b: [:output, :tokens]
+          config_b: %i[output tokens]
         }
       end
 
@@ -181,8 +181,8 @@ RSpec.describe RAAF::Eval::Comparison::BestConfigurationSelector do
 
       let(:regressions) do
         {
-          config_a: [:tokens, :latency],
-          config_b: [:output, :tokens, :latency]
+          config_a: %i[tokens latency],
+          config_b: %i[output tokens latency]
         }
       end
 

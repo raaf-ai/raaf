@@ -8,7 +8,7 @@ begin
   require "active_record"
   require_relative "../../../../app/models/raaf/tracing/trace"
   require_relative "../../../../app/models/raaf/tracing/span"
-  
+
   # Check if database connection is available
   ActiveRecord::Base.connection.migration_context.current_version
 rescue LoadError, ActiveRecord::ConnectionNotDefined, ActiveRecord::NoDatabaseError => e
@@ -107,7 +107,7 @@ RSpec.describe "Rails Tracing Models" do
 
       it "returns comprehensive performance metrics" do
         summary = trace.performance_summary
-        
+
         expect(summary[:total_duration_ms]).to eq(trace.duration_ms)
         expect(summary[:total_spans]).to eq(2)
         expect(summary[:success_rate]).to eq(50.0) # 1 success out of 2
@@ -128,7 +128,7 @@ RSpec.describe "Rails Tracing Models" do
 
       it "calculates token usage" do
         analysis = trace.cost_analysis
-        
+
         expect(analysis[:total_input_tokens]).to eq(100)
         expect(analysis[:total_output_tokens]).to eq(50)
         expect(analysis[:total_tokens]).to eq(150)
@@ -138,12 +138,17 @@ RSpec.describe "Rails Tracing Models" do
     end
 
     describe ".performance_stats" do
-      let!(:trace1) { described_class.create!(workflow_name: "Test", status: "completed", started_at: 2.hours.ago, ended_at: 1.hour.ago) }
-      let!(:trace2) { described_class.create!(workflow_name: "Test", status: "failed", started_at: 3.hours.ago, ended_at: 2.hours.ago) }
+      let!(:trace1) do
+        described_class.create!(workflow_name: "Test", status: "completed", started_at: 2.hours.ago,
+                                ended_at: 1.hour.ago)
+      end
+      let!(:trace2) do
+        described_class.create!(workflow_name: "Test", status: "failed", started_at: 3.hours.ago, ended_at: 2.hours.ago)
+      end
 
       it "calculates aggregate statistics" do
         stats = described_class.performance_stats
-        
+
         expect(stats[:total_traces]).to be >= 2
         expect(stats[:completed_traces]).to be >= 1
         expect(stats[:failed_traces]).to be >= 1
@@ -164,7 +169,7 @@ RSpec.describe "Rails Tracing Models" do
         expect do
           described_class.cleanup_old_traces(older_than: 1.month)
         end.to change { described_class.count }.by(-1)
-        
+
         expect(described_class.exists?(old_trace.id)).to be false
         expect(described_class.exists?(recent_trace.id)).to be true
       end
@@ -251,7 +256,7 @@ RSpec.describe "Rails Tracing Models" do
           start_time: 2.hours.ago,
           end_time: 1.hour.ago
         )
-        
+
         child_span = described_class.create!(
           span_id: "child_#{SecureRandom.hex(12)}",
           trace_id: trace.trace_id,
@@ -260,16 +265,25 @@ RSpec.describe "Rails Tracing Models" do
           start_time: 90.minutes.ago,
           end_time: 70.minutes.ago
         )
-        
+
         expect(child_span.parent_span).to eq(parent_span)
         expect(parent_span.children).to include(child_span)
       end
     end
 
     describe "scopes" do
-      let!(:error_span) { described_class.create!(span_id: "error_#{SecureRandom.hex(12)}", trace_id: trace.trace_id, name: "error", status: "error", start_time: 1.hour.ago) }
-      let!(:slow_span) { described_class.create!(span_id: "slow_#{SecureRandom.hex(12)}", trace_id: trace.trace_id, name: "slow", duration_ms: 5000, start_time: 1.hour.ago) }
-      let!(:llm_span) { described_class.create!(span_id: "llm_#{SecureRandom.hex(12)}", trace_id: trace.trace_id, name: "llm", kind: "llm", start_time: 1.hour.ago) }
+      let!(:error_span) do
+        described_class.create!(span_id: "error_#{SecureRandom.hex(12)}", trace_id: trace.trace_id, name: "error",
+                                status: "error", start_time: 1.hour.ago)
+      end
+      let!(:slow_span) do
+        described_class.create!(span_id: "slow_#{SecureRandom.hex(12)}", trace_id: trace.trace_id, name: "slow",
+                                duration_ms: 5000, start_time: 1.hour.ago)
+      end
+      let!(:llm_span) do
+        described_class.create!(span_id: "llm_#{SecureRandom.hex(12)}", trace_id: trace.trace_id, name: "llm", kind: "llm",
+                                start_time: 1.hour.ago)
+      end
 
       it "filters by status" do
         expect(described_class.errors).to include(error_span)
@@ -318,7 +332,7 @@ RSpec.describe "Rails Tracing Models" do
 
       it "extracts error information" do
         details = error_span.error_details
-        
+
         expect(details["status_description"]).to eq("Connection timeout")
         expect(details["exception_type"]).to eq("TimeoutError")
         expect(details["exception_message"]).to eq("Request timed out")
@@ -333,7 +347,7 @@ RSpec.describe "Rails Tracing Models" do
     describe "#operation_details" do
       it "extracts LLM-specific details" do
         details = span.operation_details
-        
+
         expect(details[:model]).to eq("gpt-4o")
         expect(details[:input_tokens]).to eq(100)
       end
@@ -351,7 +365,7 @@ RSpec.describe "Rails Tracing Models" do
             "function.output" => "Sunny, 72°F"
           }
         )
-        
+
         details = tool_span.operation_details
         expect(details[:function_name]).to eq("get_weather")
         expect(details[:input]).to eq({ "location" => "San Francisco" })
@@ -362,7 +376,7 @@ RSpec.describe "Rails Tracing Models" do
     describe "#depth" do
       it "calculates span depth in hierarchy" do
         expect(span.depth).to eq(0) # Root span
-        
+
         child_span = described_class.create!(
           span_id: "child_#{SecureRandom.hex(12)}",
           trace_id: trace.trace_id,
@@ -370,7 +384,7 @@ RSpec.describe "Rails Tracing Models" do
           name: "child",
           start_time: 1.hour.ago
         )
-        
+
         expect(child_span.depth).to eq(1)
       end
     end
@@ -378,14 +392,17 @@ RSpec.describe "Rails Tracing Models" do
     describe ".performance_metrics" do
       before do
         # Create test spans with known performance characteristics
-        described_class.create!(span_id: "fast_#{SecureRandom.hex(12)}", trace_id: trace.trace_id, name: "fast", kind: "llm", duration_ms: 100, status: "ok", start_time: 1.hour.ago)
-        described_class.create!(span_id: "slow_#{SecureRandom.hex(12)}", trace_id: trace.trace_id, name: "slow", kind: "llm", duration_ms: 2000, status: "ok", start_time: 1.hour.ago)
-        described_class.create!(span_id: "error_#{SecureRandom.hex(12)}", trace_id: trace.trace_id, name: "error", kind: "llm", duration_ms: 500, status: "error", start_time: 1.hour.ago)
+        described_class.create!(span_id: "fast_#{SecureRandom.hex(12)}", trace_id: trace.trace_id, name: "fast",
+                                kind: "llm", duration_ms: 100, status: "ok", start_time: 1.hour.ago)
+        described_class.create!(span_id: "slow_#{SecureRandom.hex(12)}", trace_id: trace.trace_id, name: "slow",
+                                kind: "llm", duration_ms: 2000, status: "ok", start_time: 1.hour.ago)
+        described_class.create!(span_id: "error_#{SecureRandom.hex(12)}", trace_id: trace.trace_id, name: "error",
+                                kind: "llm", duration_ms: 500, status: "error", start_time: 1.hour.ago)
       end
 
       it "calculates performance statistics" do
         metrics = described_class.performance_metrics(kind: "llm")
-        
+
         expect(metrics[:total_spans]).to be >= 3
         expect(metrics[:successful_spans]).to be >= 2
         expect(metrics[:error_spans]).to be >= 1
@@ -413,7 +430,7 @@ RSpec.describe "Rails Tracing Models" do
 
       it "calculates cost metrics" do
         analysis = described_class.cost_analysis
-        
+
         expect(analysis[:total_llm_calls]).to be >= 1
         expect(analysis[:total_input_tokens]).to be >= 200
         expect(analysis[:total_output_tokens]).to be >= 100

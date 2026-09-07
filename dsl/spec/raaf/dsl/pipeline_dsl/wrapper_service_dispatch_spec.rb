@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
-require 'active_support/all'
-require 'raaf/dsl/service'
-require 'raaf/dsl/pipelineable'
-require 'raaf/dsl/pipeline_dsl/remapped_agent'
-require 'raaf/dsl/pipeline_dsl/configured_agent'
-require 'raaf/dsl/pipeline_dsl/parallel_agents'
+require "spec_helper"
+require "active_support/all"
+require "raaf/dsl/service"
+require "raaf/dsl/pipelineable"
+require "raaf/dsl/pipeline_dsl/remapped_agent"
+require "raaf/dsl/pipeline_dsl/configured_agent"
+require "raaf/dsl/pipeline_dsl/parallel_agents"
 
 # Regression coverage for the Service-vs-Agent dispatch bug in pipeline wrappers.
 #
@@ -20,7 +20,7 @@ require 'raaf/dsl/pipeline_dsl/parallel_agents'
 #
 # These specs lock in the correct dispatch (Service -> call, Agent -> run) for every
 # wrapper that instantiates and executes the wrapped class.
-RSpec.describe 'Pipeline wrapper Service vs Agent dispatch' do
+RSpec.describe "Pipeline wrapper Service vs Agent dispatch" do
   # Restricted-context Service that mirrors a real production service
   # (e.g. Ai::Services::Company::WebsiteLookup). Only declares :input,
   # so any stray method_missing on an undeclared variable raises
@@ -33,7 +33,7 @@ RSpec.describe 'Pipeline wrapper Service vs Agent dispatch' do
       end
 
       def self.name
-        'TestRestrictedService'
+        "TestRestrictedService"
       end
 
       def self.required_fields
@@ -45,7 +45,7 @@ RSpec.describe 'Pipeline wrapper Service vs Agent dispatch' do
       end
 
       def self.requirements_met?(context)
-        context.respond_to?(:has?) ? context.has?(:input) : (context.key?(:input) || context.key?('input'))
+        context.respond_to?(:has?) ? context.has?(:input) : (context.key?(:input) || context.key?("input"))
       end
 
       def call
@@ -61,7 +61,7 @@ RSpec.describe 'Pipeline wrapper Service vs Agent dispatch' do
       include RAAF::DSL::Pipelineable
 
       def self.name
-        'TestAgent'
+        "TestAgent"
       end
 
       def self.required_fields
@@ -73,7 +73,7 @@ RSpec.describe 'Pipeline wrapper Service vs Agent dispatch' do
       end
 
       def self.requirements_met?(context)
-        context.key?(:input) || context.key?('input')
+        context.key?(:input) || context.key?("input")
       end
 
       def initialize(**context)
@@ -87,17 +87,17 @@ RSpec.describe 'Pipeline wrapper Service vs Agent dispatch' do
   end
 
   let(:context) do
-    RAAF::DSL::ContextVariables.new(input: 'value')
+    RAAF::DSL::ContextVariables.new(input: "value")
   end
 
   describe RAAF::DSL::PipelineDSL::RemappedAgent do
-    it 'invokes #call on a Service (regression: previously hardcoded #run)' do
+    it "invokes #call on a Service (regression: previously hardcoded #run)" do
       wrapper = described_class.new(restricted_service_class, input_mapping: {}, output_mapping: {})
 
       expect { wrapper.execute(context) }.not_to raise_error
     end
 
-    it 'still invokes #run on an Agent' do
+    it "still invokes #run on an Agent" do
       wrapper = described_class.new(agent_class, input_mapping: {}, output_mapping: {})
 
       expect { wrapper.execute(context) }.not_to raise_error
@@ -105,13 +105,13 @@ RSpec.describe 'Pipeline wrapper Service vs Agent dispatch' do
   end
 
   describe RAAF::DSL::PipelineDSL::ConfiguredAgent do
-    it 'invokes #call on a Service (regression: previously hardcoded #run)' do
+    it "invokes #call on a Service (regression: previously hardcoded #run)" do
       wrapper = described_class.new(restricted_service_class, {})
 
       expect { wrapper.execute(context) }.not_to raise_error
     end
 
-    it 'still invokes #run on an Agent' do
+    it "still invokes #run on an Agent" do
       wrapper = described_class.new(agent_class, {})
 
       expect { wrapper.execute(context) }.not_to raise_error
@@ -119,13 +119,13 @@ RSpec.describe 'Pipeline wrapper Service vs Agent dispatch' do
   end
 
   describe RAAF::DSL::PipelineDSL::ParallelAgents do
-    it 'invokes #call on a Service in a parallel branch (regression: previously hardcoded #run)' do
+    it "invokes #call on a Service in a parallel branch (regression: previously hardcoded #run)" do
       wrapper = described_class.new([restricted_service_class])
 
       expect { wrapper.execute(context) }.not_to raise_error
     end
 
-    it 'still invokes #run on an Agent in a parallel branch' do
+    it "still invokes #run on an Agent in a parallel branch" do
       wrapper = described_class.new([agent_class])
 
       expect { wrapper.execute(context) }.not_to raise_error

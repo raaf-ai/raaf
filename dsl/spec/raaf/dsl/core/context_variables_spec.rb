@@ -19,7 +19,7 @@ RSpec.describe RAAF::DSL::ContextVariables do
 
     it "supports indifferent access at top level" do
       context = described_class.new(user_name: "John")
-      
+
       expect(context[:user_name]).to eq("John")
       expect(context["user_name"]).to eq("John")
     end
@@ -60,7 +60,7 @@ RSpec.describe RAAF::DSL::ContextVariables do
     it "supports indifferent access in complex nested structures" do
       prefs = context[:preferences]
       notifications = prefs[:notifications]
-      
+
       expect(notifications[:email]).to be true
       expect(notifications["email"]).to be true
       expect(notifications[:sms]).to be false
@@ -76,8 +76,8 @@ RSpec.describe RAAF::DSL::ContextVariables do
           { name: "Jane", details: { age: 25, city: "LA" } }
         ],
         items: [
-          { id: 1, metadata: { type: "document", tags: ["important", "draft"] } },
-          { id: 2, metadata: { type: "image", tags: ["photo", "vacation"] } }
+          { id: 1, metadata: { type: "document", tags: %w[important draft] } },
+          { id: 2, metadata: { type: "image", tags: %w[photo vacation] } }
         ]
       }
     end
@@ -101,11 +101,11 @@ RSpec.describe RAAF::DSL::ContextVariables do
     it "handles complex nested arrays with mixed access" do
       first_item = context["items"][0]
       metadata = first_item["metadata"]
-      
+
       expect(metadata["type"]).to eq("document")
       expect(metadata[:type]).to eq("document")
-      expect(metadata["tags"]).to eq(["important", "draft"])
-      expect(metadata[:tags]).to eq(["important", "draft"])
+      expect(metadata["tags"]).to eq(%w[important draft])
+      expect(metadata[:tags]).to eq(%w[important draft])
     end
   end
 
@@ -120,7 +120,7 @@ RSpec.describe RAAF::DSL::ContextVariables do
       user = updated[:user]
       expect(user[:name]).to eq("John")
       expect(user["name"]).to eq("John")
-      
+
       profile = user[:profile]
       expect(profile[:age]).to eq(30)
       expect(profile["age"]).to eq(30)
@@ -137,7 +137,7 @@ RSpec.describe RAAF::DSL::ContextVariables do
       first_item = updated[:items].first
       expect(first_item[:id]).to eq(1)
       expect(first_item["id"]).to eq(1)
-      
+
       first_data = first_item[:data]
       expect(first_data[:value]).to eq("test")
       expect(first_data["value"]).to eq("test")
@@ -149,7 +149,7 @@ RSpec.describe RAAF::DSL::ContextVariables do
 
     it "applies deep indifferent access to set nested hashes" do
       updated = context.set(:user, { profile: { settings: { theme: "dark" } } })
-      
+
       settings = updated[:user][:profile][:settings]
       expect(settings[:theme]).to eq("dark")
       expect(settings["theme"]).to eq("dark")
@@ -166,17 +166,17 @@ RSpec.describe RAAF::DSL::ContextVariables do
         }
       }
     end
-    
+
     let(:context) { described_class.new(nested_data) }
 
     it "retrieves deeply nested values using mixed key types" do
-      expect(context.get_nested([:level1, :level2, :level3, :value])).to eq("deep_value")
-      expect(context.get_nested(["level1", "level2", "level3", "value"])).to eq("deep_value")
+      expect(context.get_nested(%i[level1 level2 level3 value])).to eq("deep_value")
+      expect(context.get_nested(%w[level1 level2 level3 value])).to eq("deep_value")
       expect(context.get_nested([:level1, "level2", :level3, "value"])).to eq("deep_value")
     end
 
     it "returns default for non-existent nested paths" do
-      expect(context.get_nested([:level1, :missing, :path], "default")).to eq("default")
+      expect(context.get_nested(%i[level1 missing path], "default")).to eq("default")
     end
   end
 

@@ -11,7 +11,6 @@ require "raaf-dsl"
 
 # Example 1: Simple prompt with basic schema
 class UserExtractionPrompt < RAAF::DSL::Prompts::Base
-
   # Define schema using the same DSL as agents
   schema do
     field :name, type: :string, required: true
@@ -37,7 +36,6 @@ end
 
 # Example 2: Complex nested schema for company analysis
 class CompanyAnalysisPrompt < RAAF::DSL::Prompts::Base
-
   # Complex nested schema with objects and arrays
   schema do
     field :company_analysis, type: :object, required: true do
@@ -99,7 +97,6 @@ end
 
 # Example 3: Agent using prompt with schema
 class CompanyAnalysisAgent < RAAF::DSL::Agent
-
   agent_name "CompanyAnalyst"
   model "gpt-4o"
   max_turns 3
@@ -114,7 +111,6 @@ end
 
 # Example 4: Demonstration of schema conflict detection
 class ConflictingAgent < RAAF::DSL::Agent
-
   agent_name "ConflictingAgent"
   prompt_class UserExtractionPrompt # This prompt has a schema
 

@@ -3,7 +3,9 @@
 require_relative "base"
 
 module RAAF
+
   module Guardrails
+
     ##
     # GuidelineGuardrail verifies agent responses against behavioral guidelines
     #
@@ -31,6 +33,7 @@ module RAAF
     #   )
     #
     class GuidelineGuardrail
+
       MODES = %i[strict permissive monitor].freeze
       DEFAULT_MODE = :strict
 
@@ -144,7 +147,7 @@ module RAAF
       def validate_mode(mode)
         mode_sym = mode.to_sym
         unless MODES.include?(mode_sym)
-          raise ArgumentError, "Invalid mode: #{mode}. Must be one of: #{MODES.join(', ')}"
+          raise ArgumentError, "Invalid mode: #{mode}. Must be one of: #{MODES.join(", ")}"
         end
 
         mode_sym
@@ -194,14 +197,10 @@ module RAAF
 
       def build_guardrail_result(agent, agent_output, critique_result, guidelines)
         # Call violation callback if violations detected
-        if critique_result.failed? && @on_violation
-          @on_violation.call(critique_result)
-        end
+        @on_violation.call(critique_result) if critique_result.failed? && @on_violation
 
         # Log violations
-        if critique_result.failed?
-          log_violations(critique_result, guidelines)
-        end
+        log_violations(critique_result, guidelines) if critique_result.failed?
 
         # Determine if tripwire should be triggered based on mode
         tripwire_triggered = case @mode
@@ -236,19 +235,21 @@ module RAAF
         )
       end
 
-      def log_violations(critique_result, guidelines)
+      def log_violations(critique_result, _guidelines)
         RAAF.logger.warn "[GuidelineGuardrail] #{critique_result.violation_count} guideline violation(s) detected"
 
         critique_result.violations.each do |violation|
           RAAF.logger.warn "  - [#{violation[:guideline_name]}] #{violation[:reason]}"
         end
       end
+
     end
 
     ##
     # Builder methods for GuidelineGuardrail
     #
     module GuidelineGuardrailBuilder
+
       ##
       # Create a guideline guardrail with the given configuration
       #
@@ -267,8 +268,11 @@ module RAAF
           **kwargs
         )
       end
+
     end
 
     extend GuidelineGuardrailBuilder
+
   end
+
 end

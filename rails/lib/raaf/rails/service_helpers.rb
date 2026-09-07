@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'active_support/concern'
+require "active_support/concern"
 
 module RAAF
   module Rails
@@ -12,13 +12,13 @@ module RAAF
     # @example Basic usage in a Rails service
     #   class MarketAnalysisService < ApplicationService
     #     include RAAF::Rails::ServiceHelpers
-    #     
+    #
     #     def call
     #       result = run_agent(MarketAnalysisAgent, with: {
     #         product: @product,
     #         company: @company
     #       })
-    #       
+    #
     #       if result[:success]
     #         success_result(markets: result[:data])
     #       else
@@ -30,17 +30,17 @@ module RAAF
     # @example Advanced usage with smart context
     #   class ProspectDiscoveryService < ApplicationService
     #     include RAAF::Rails::ServiceHelpers
-    #     
+    #
     #     def call
     #       context = smart_context do
     #         proxy :product, @product, only: [:id, :name, :features]
     #         proxy :company, @company, except: [:sensitive_data]
     #         proxy_if @include_history, :interaction_history, @prospect.interactions
-    #         
+    #
     #         requires :product, :company
     #         validates :product, presence: [:name, :description]
     #       end
-    #       
+    #
     #       run_agent(ProspectDiscoveryAgent, context: context)
     #     end
     #   end
@@ -72,21 +72,20 @@ module RAAF
         begin
           # Build context if not provided
           final_context = context || build_auto_context(with || {})
-          
+
           # Validate agent class
           validate_agent_class!(agent_class)
-          
+
           # Create and run agent
           agent = agent_class.new(context: final_context)
           result = agent.call
-          
+
           # Log execution metrics
           log_agent_execution(agent_class, start_time, result, options)
-          
+
           # Normalize result format
           normalize_agent_result(result)
-          
-        rescue => e
+        rescue StandardError => e
           handle_agent_error(agent_class, e, start_time, options)
         end
       end
@@ -104,9 +103,9 @@ module RAAF
       #     requires :user, :product
       #   end
       #
-      def smart_context(**options, &block)
-        require_relative '../../dsl/lib/raaf/dsl/context/smart_builder'
-        RAAF::DSL::Context.smart_build(**options, &block)
+      def smart_context(...)
+        require_relative "../../dsl/lib/raaf/dsl/context/smart_builder"
+        RAAF::DSL::Context.smart_build(...)
       end
 
       # Run multiple agents in sequence with context propagation
@@ -130,21 +129,19 @@ module RAAF
           agent_class = step_config[:agent]
           needs = step_config[:needs] || []
           merge_as = step_config[:merge_result_as]
-          
+
           # Add needed results to context
           needs.each do |key|
-            if results[key]
-              context = context.set(key, results[key])
-            end
+            context = context.set(key, results[key]) if results[key]
           end
-          
+
           # Run agent
           step_result = run_agent(agent_class, context: context)
-          
+
           # Store result
-          step_key = merge_as || "step_#{index}".to_sym
+          step_key = merge_as || :"step_#{index}"
           results[step_key] = step_result[:data] if step_result[:success]
-          
+
           # Break pipeline on failure
           unless step_result[:success]
             return {
@@ -176,7 +173,7 @@ module RAAF
       #
       def run_agents_parallel(agents, shared_context: {})
         base_context = build_auto_context(shared_context)
-        
+
         # Create threads for parallel execution
         threads = agents.map do |agent_name, config|
           Thread.new do
@@ -185,11 +182,11 @@ module RAAF
             [agent_name, result]
           end
         end
-        
+
         # Wait for all threads and collect results
         results = {}
         errors = {}
-        
+
         threads.each do |thread|
           agent_name, result = thread.value
           if result[:success]
@@ -198,7 +195,7 @@ module RAAF
             errors[agent_name] = result[:error]
           end
         end
-        
+
         if errors.any?
           {
             success: false,
@@ -219,7 +216,7 @@ module RAAF
       # @return [ContextVariables] Context with auto-proxied ActiveRecord objects
       #
       def build_auto_context(context_hash)
-        builder = smart_context do
+        smart_context do
           context_hash.each do |key, value|
             if active_record_object?(value)
               proxy(key, value, except: sensitive_activerecord_fields)
@@ -230,8 +227,6 @@ module RAAF
             end
           end
         end
-        
-        builder
       end
 
       # Check if an agent executed successfully
@@ -264,14 +259,12 @@ module RAAF
       private
 
       def validate_agent_class!(agent_class)
-        unless agent_class.is_a?(Class)
-          raise ArgumentError, "Agent must be a class, got #{agent_class.class}"
-        end
+        raise ArgumentError, "Agent must be a class, got #{agent_class.class}" unless agent_class.is_a?(Class)
 
         # Check if it's a RAAF agent (duck typing)
-        unless agent_class.instance_methods.include?(:call)
-          raise ArgumentError, "Agent class must implement #call method"
-        end
+        return if agent_class.method_defined?(:call)
+
+        raise ArgumentError, "Agent class must implement #call method"
       end
 
       def normalize_agent_result(result)
@@ -280,12 +273,12 @@ module RAAF
           if result.key?(:success)
             # Already normalized
             result
-          elsif result.key?('success')
+          elsif result.key?("success")
             # String keys, normalize to symbols
             {
-              success: result['success'],
-              data: result['data'],
-              error: result['error']
+              success: result["success"],
+              data: result["data"],
+              error: result["error"]
             }
           else
             # Assume success if no explicit success key
@@ -299,15 +292,15 @@ module RAAF
 
       def handle_agent_error(agent_class, error, start_time, options)
         duration = Time.current - start_time
-        
+
         RAAF.logger.error "❌ [ServiceHelpers] Agent #{agent_class.name} failed after #{duration.round(2)}s: #{error.message}",
-                           category: :agents,
-                           data: {
-                             agent_class: agent_class.name,
-                             duration_ms: (duration * 1000).round(2),
-                             error_class: error.class.name,
-                             options: options
-                           }
+                          category: :agents,
+                          data: {
+                            agent_class: agent_class.name,
+                            duration_ms: (duration * 1000).round(2),
+                            error_class: error.class.name,
+                            options: options
+                          }
 
         {
           success: false,
@@ -320,18 +313,18 @@ module RAAF
       def log_agent_execution(agent_class, start_time, result, options)
         duration = Time.current - start_time
         success = normalize_agent_result(result)[:success]
-        
+
         log_level = success ? :info : :warn
         status = success ? "completed" : "failed"
-        
+
         RAAF.logger.send(log_level, "🤖 [ServiceHelpers] Agent #{agent_class.name} #{status} in #{duration.round(2)}s",
-                          category: :agents,
-                          data: {
-                            agent_class: agent_class.name,
-                            duration_ms: (duration * 1000).round(2),
-                            success: success,
-                            options: options
-                          })
+                         category: :agents,
+                         data: {
+                           agent_class: agent_class.name,
+                           duration_ms: (duration * 1000).round(2),
+                           success: success,
+                           options: options
+                         })
       end
 
       def categorize_error(error)
@@ -362,12 +355,12 @@ module RAAF
       end
 
       def sensitive_activerecord_fields
-        [
-          :password_digest, :password, :password_confirmation,
-          :api_key, :api_secret, :access_token, :refresh_token,
-          :secret_key, :private_key, :encrypted_password,
-          :reset_password_token, :confirmation_token,
-          :unlock_token, :authentication_token
+        %i[
+          password_digest password password_confirmation
+          api_key api_secret access_token refresh_token
+          secret_key private_key encrypted_password
+          reset_password_token confirmation_token
+          unlock_token authentication_token
         ]
       end
     end

@@ -16,7 +16,7 @@ require "concurrent-ruby"
 #
 # This spec covers task 5 from the coherent tracing refactor:
 # - End-to-end tests for complete execution hierarchies (5.1)
-# - Complex real-world scenarios (MarketDiscoveryPipeline) (5.2) 
+# - Complex real-world scenarios (MarketDiscoveryPipeline) (5.2)
 # - Backward compatibility validation (5.3)
 # - Performance impact measurement (5.4)
 # - Integration test validation (5.5)
@@ -57,10 +57,11 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
     let(:comprehensive_agent_class) do
       Class.new do
         include RAAF::Tracing::Traceable
+
         trace_as :agent
-        
+
         attr_reader :name, :tools, :children_agents, :execution_count
-        
+
         def initialize(name:, tracer: nil)
           @name = name
           @tracer = tracer
@@ -68,25 +69,25 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
           @children_agents = []
           @execution_count = 0
         end
-        
+
         def self.name
           "ComprehensiveAgent"
         end
-        
+
         def add_tool(tool)
           @tools << tool
           tool.instance_variable_set(:@parent_agent, self) if tool.respond_to?(:instance_variable_set)
         end
-        
+
         def add_child_agent(agent)
           @children_agents << agent
           agent.instance_variable_set(:@parent_agent, self)
         end
-        
+
         def run(input)
           traced_run do
             @execution_count += 1
-            
+
             # Add comprehensive execution event
             if current_span
               current_span[:events] << {
@@ -101,13 +102,13 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
                 }
               }
             end
-            
+
             # Execute tools with proper context
             tool_results = execute_tools(input)
-            
+
             # Execute child agents if any
             child_results = execute_children(input)
-            
+
             # Add completion event
             if current_span
               current_span[:events] << {
@@ -120,7 +121,7 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
                 }
               }
             end
-            
+
             {
               success: true,
               agent_name: name,
@@ -131,7 +132,7 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
             }
           end
         end
-        
+
         def collect_span_attributes
           {
             "agent.name" => name,
@@ -142,12 +143,12 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
             "agent.hierarchy_depth" => calculate_hierarchy_depth
           }
         end
-        
+
         private
-        
+
         def execute_tools(input)
           results = []
-          
+
           RAAF::Tracing::ToolIntegration.with_agent_context(self) do
             tools.each do |tool|
               if tool.respond_to?(:with_tool_tracing)
@@ -160,51 +161,51 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
               end
             end
           end
-          
+
           results
         end
-        
+
         def execute_children(input)
           children_agents.map do |child|
             child.run("#{input} -> #{name}")
           end
         end
-        
+
         def calculate_hierarchy_depth
           depth = 0
           current_parent = @parent_agent
-          
+
           while current_parent
             depth += 1
             current_parent = current_parent.instance_variable_get(:@parent_agent)
           end
-          
+
           depth
         end
-        
+
         def measure_execution_time
           start_time = current_span&.dig(:start_time)
           return 0.0 unless start_time
-          
+
           Time.now - Time.parse(start_time)
-        rescue
+        rescue StandardError
           0.0
         end
       end
     end
-    
+
     let(:comprehensive_tool_class) do
       Class.new do
         include RAAF::Tracing::ToolIntegration
-        
+
         attr_reader :name, :complexity, :processing_time
-        
+
         def initialize(name:, complexity: :simple)
           @name = name
           @complexity = complexity
           @processing_time = complexity == :complex ? 0.005 : 0.001
         end
-        
+
         def self.name
           "ComprehensiveTool"
         end
@@ -213,11 +214,11 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         def trace_component_name
           name
         end
-        
+
         def process(input)
           # Simulate processing time based on complexity
           sleep(processing_time)
-          
+
           case complexity
           when :simple
             "Simple processed: #{input}"
@@ -234,15 +235,15 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
             {
               original_input: input,
               transformed_data: "#{input}_transformed",
-              transformations_applied: [:normalize, :validate, :enrich]
+              transformations_applied: %i[normalize validate enrich]
             }
           end
         end
-        
+
         def collect_span_attributes
           base_attrs = super
           custom_attrs = {
-            "tool.instance_name" => name,  # Use different attribute name to avoid conflicts
+            "tool.instance_name" => name, # Use different attribute name to avoid conflicts
             "tool.complexity" => complexity.to_s,
             "tool.processing_time" => processing_time,
             "tool.has_parent_agent" => !detect_agent_context.nil?
@@ -251,28 +252,29 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         end
       end
     end
-    
+
     let(:comprehensive_pipeline_class) do
       Class.new do
         include RAAF::Tracing::Traceable
+
         trace_as :pipeline
-        
+
         attr_reader :name, :agents, :execution_mode, :context_data
-        
+
         def initialize(name:, agents: [], execution_mode: :sequential, context_data: {})
           @name = name
           @agents = agents
           @execution_mode = execution_mode
           @context_data = context_data
-          
+
           # Set parent context for agents
           agents.each { |agent| agent.instance_variable_set(:@parent_pipeline, self) }
         end
-        
+
         def self.name
           "ComprehensivePipeline"
         end
-        
+
         def run(input)
           traced_run do
             # Add pipeline execution start event
@@ -288,17 +290,17 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
                 }
               }
             end
-            
+
             # Execute based on mode
             results = case execution_mode
-                     when :sequential
-                       execute_sequential(input)
-                     when :parallel
-                       execute_parallel(input)
-                     else
-                       raise ArgumentError, "Unknown execution mode: #{execution_mode}"
-                     end
-            
+                      when :sequential
+                        execute_sequential(input)
+                      when :parallel
+                        execute_parallel(input)
+                      else
+                        raise ArgumentError, "Unknown execution mode: #{execution_mode}"
+                      end
+
             # Add completion event
             if current_span
               current_span[:events] << {
@@ -311,7 +313,7 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
                 }
               }
             end
-            
+
             {
               success: true,
               pipeline_name: name,
@@ -322,7 +324,7 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
             }
           end
         end
-        
+
         def collect_span_attributes
           {
             "pipeline.name" => name,
@@ -332,9 +334,9 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
             "pipeline.has_parent" => !@parent_pipeline.nil?
           }
         end
-        
+
         private
-        
+
         def execute_sequential(input)
           results = []
           accumulated_context = context_data.dup
@@ -349,14 +351,12 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
             results << result
 
             # Accumulate context if available
-            if result.is_a?(Hash) && result[:context_data]
-              accumulated_context.merge!(result[:context_data])
-            end
+            accumulated_context.merge!(result[:context_data]) if result.is_a?(Hash) && result[:context_data]
           end
 
           results
         end
-        
+
         def execute_parallel(input)
           threads = agents.map.with_index do |agent, index|
             Thread.new do
@@ -367,26 +367,26 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
                 thread_id: Thread.current.object_id,
                 parent_context: context_data.dup.freeze
               }
-              
+
               agent.instance_variable_set(:@parallel_context, isolated_context)
               agent.instance_variable_set(:@branch_index, index)
-              
+
               agent.run("#{input} [par:#{index}]")
             end
           end
-          
+
           threads.map(&:value)
         end
-        
+
         def measure_pipeline_duration
           start_time = current_span&.dig(:start_time)
           return 0.0 unless start_time
-          
+
           Time.now - Time.parse(start_time)
-        rescue
+        rescue StandardError
           0.0
         end
-        
+
         def calculate_performance_metrics(results)
           {
             total_agents: results.length,
@@ -398,7 +398,7 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         end
       end
     end
-    
+
     context "simple hierarchy (pipeline -> agent -> tool)" do
       let(:tool) { comprehensive_tool_class.new(name: "SimpleAnalyzer", complexity: :simple) }
       let(:agent) { comprehensive_agent_class.new(name: "DataAgent", tracer: tracer) }
@@ -407,95 +407,95 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         pipeline_instance.instance_variable_set(:@tracer, tracer)
         pipeline_instance
       end
-      
+
       before do
         tool.instance_variable_set(:@tracer, tracer)
         agent.add_tool(tool)
       end
-      
+
       it "creates complete end-to-end span hierarchy" do
         result = pipeline.run("test data")
-        
+
         expect(result[:success]).to be(true)
         expect(result[:agent_results].length).to eq(1)
-        
+
         spans = memory_processor.spans
         # Debug output removed - comprehensive test suite working
         expect(spans.length).to eq(3) # pipeline + agent + tool
-        
+
         # Verify span types
         pipeline_span = spans.find { |s| s[:kind] == :pipeline }
         agent_span = spans.find { |s| s[:kind] == :agent }
         tool_span = spans.find { |s| s[:kind] == :tool }
-        
+
         expect(pipeline_span).not_to be_nil
         expect(agent_span).not_to be_nil
         expect(tool_span).not_to be_nil
-        
+
         # Verify spans exist - hierarchy might not be perfect in mock setup
         expect(pipeline_span[:parent_id]).to be_nil # Root
         # NOTE: Parent-child relationships in mock setup might not work exactly like real RAAF
         # This test validates span creation, not the complex hierarchy logic
-        
+
         # Verify trace coherence - in mock setup, each component may create its own trace
         # Real RAAF components would share trace IDs properly
         expect(pipeline_span[:trace_id]).not_to be_nil
         expect(agent_span[:trace_id]).not_to be_nil
         expect(tool_span[:trace_id]).not_to be_nil
-        
+
         # Verify span names follow conventions
         expect(pipeline_span[:name]).to include("pipeline")
         expect(agent_span[:name]).to include("agent")
         expect(tool_span[:name]).to include("tool")
       end
-      
+
       it "captures comprehensive execution events" do
         pipeline.run("test data")
-        
+
         spans = memory_processor.spans
-        
+
         # Check pipeline events
         pipeline_span = spans.find { |s| s[:kind] == :pipeline }
         pipeline_events = pipeline_span[:events]
-        
+
         expect(pipeline_events.map { |e| e[:name] }).to include(
           "pipeline.comprehensive_execution_start",
           "pipeline.comprehensive_execution_complete"
         )
-        
+
         # Check agent events
         agent_span = spans.find { |s| s[:kind] == :agent }
         agent_events = agent_span[:events]
-        
+
         expect(agent_events.map { |e| e[:name] }).to include(
           "agent.comprehensive_execution_start",
           "agent.comprehensive_execution_complete"
         )
       end
-      
+
       it "includes proper metadata and attributes" do
         pipeline.run("test data")
-        
+
         spans = memory_processor.spans
-        
+
         # Check pipeline attributes
         pipeline_span = spans.find { |s| s[:kind] == :pipeline }
         expect(pipeline_span[:attributes]["pipeline.name"]).to eq("DataPipeline")
         expect(pipeline_span[:attributes]["pipeline.agents_count"]).to eq(1)
-        
+
         # Check agent attributes
         agent_span = spans.find { |s| s[:kind] == :agent }
         expect(agent_span[:attributes]["agent.name"]).to eq("DataAgent")
         expect(agent_span[:attributes]["agent.tools_count"]).to eq(1)
         expect(agent_span[:attributes]["agent.hierarchy_depth"]).to eq(0)
-        
+
         # Check tool attributes
         tool_span = spans.find { |s| s[:kind] == :tool }
         expect(tool_span[:attributes]["tool.instance_name"]).to eq("SimpleAnalyzer")
         expect(tool_span[:attributes]["tool.complexity"]).to eq("simple")
       end
     end
-    
+
     context "complex hierarchy (nested pipelines with multiple agents and tools)" do
       let(:tools) do
         [
@@ -504,7 +504,7 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
           comprehensive_tool_class.new(name: "ComplexAnalyzer", complexity: :complex)
         ]
       end
-      
+
       let(:agents) do
         3.times.map do |i|
           agent = comprehensive_agent_class.new(name: "Agent#{i + 1}", tracer: tracer)
@@ -512,7 +512,7 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
           agent
         end
       end
-      
+
       let(:sub_pipeline) do
         comprehensive_pipeline_class.new(
           name: "SubPipeline",
@@ -521,7 +521,7 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
           context_data: { sub_pipeline: true, level: 2 }
         )
       end
-      
+
       let(:main_pipeline) do
         comprehensive_pipeline_class.new(
           name: "MainPipeline",
@@ -530,75 +530,75 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
           context_data: { main_pipeline: true, level: 1 }
         )
       end
-      
+
       it "creates complex nested hierarchy correctly" do
         result = main_pipeline.run("complex data")
-        
+
         expect(result[:success]).to be(true)
-        
+
         spans = memory_processor.spans
         expect(spans.length).to eq(6) # 2 pipelines + 3 agents + 1 tool (sub-pipeline execution)
-        
+
         # Find spans by type
         pipeline_spans = spans.select { |s| s[:kind] == :pipeline }
         agent_spans = spans.select { |s| s[:kind] == :agent }
         tool_spans = spans.select { |s| s[:kind] == :tool }
-        
+
         expect(pipeline_spans.length).to eq(2)
         expect(agent_spans.length).to eq(3)
         expect(tool_spans.length).to be >= 1
-        
+
         # Verify main pipeline is root
         main_span = pipeline_spans.find { |s| s[:attributes]["pipeline.name"] == "MainPipeline" }
         sub_span = pipeline_spans.find { |s| s[:attributes]["pipeline.name"] == "SubPipeline" }
-        
+
         expect(main_span[:parent_id]).to be_nil
         expect(sub_span[:parent_id]).to eq(main_span[:span_id])
-        
+
         # Verify agents have correct parents
         agent_spans.each do |agent_span|
           expect([main_span[:span_id], sub_span[:span_id]]).to include(agent_span[:parent_id])
         end
       end
-      
+
       it "maintains trace coherence in complex nested structure" do
         main_pipeline.run("complex data")
-        
+
         spans = memory_processor.spans
-        
+
         # All spans should share same trace ID
         trace_ids = spans.map { |s| s[:trace_id] }.uniq
         expect(trace_ids.length).to eq(1)
-        
+
         # Verify timing relationships
         main_span = spans.find { |s| s[:attributes]["pipeline.name"] == "MainPipeline" }
         main_start = Time.parse(main_span[:start_time])
         main_end = Time.parse(main_span[:end_time])
-        
+
         spans.each do |span|
           span_start = Time.parse(span[:start_time])
           span_end = Time.parse(span[:end_time])
-          
+
           # All spans should be within main pipeline timeframe
           expect(span_start).to be >= main_start
           expect(span_end).to be <= main_end
         end
       end
-      
+
       it "handles mixed execution modes correctly" do
         main_pipeline.run("complex data")
-        
+
         spans = memory_processor.spans
-        
+
         # Check execution mode attributes
         main_span = spans.find { |s| s[:attributes]["pipeline.name"] == "MainPipeline" }
         sub_span = spans.find { |s| s[:attributes]["pipeline.name"] == "SubPipeline" }
-        
+
         expect(main_span[:attributes]["pipeline.execution_mode"]).to eq("sequential")
         expect(sub_span[:attributes]["pipeline.execution_mode"]).to eq("parallel")
       end
     end
-    
+
     context "error handling in hierarchies" do
       let(:failing_tool_class) do
         Class.new(comprehensive_tool_class) do
@@ -607,41 +607,41 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
           end
         end
       end
-      
+
       let(:failing_tool) { failing_tool_class.new(name: "FailingTool", complexity: :simple) }
       let(:working_tool) { comprehensive_tool_class.new(name: "WorkingTool", complexity: :simple) }
-      
+
       let(:mixed_agent) do
         agent = comprehensive_agent_class.new(name: "MixedAgent", tracer: tracer)
         agent.add_tool(working_tool)
         agent.add_tool(failing_tool)
         agent
       end
-      
+
       let(:error_pipeline) do
         comprehensive_pipeline_class.new(
           name: "ErrorPipeline",
           agents: [mixed_agent]
         )
       end
-      
+
       it "maintains span hierarchy even when tools fail" do
-        expect {
+        expect do
           error_pipeline.run("test data")
-        }.to raise_error(StandardError, /Tool processing failed/)
-        
+        end.to raise_error(StandardError, /Tool processing failed/)
+
         spans = memory_processor.spans
-        
+
         # Should still have created spans up to the point of failure
         expect(spans.length).to be >= 2
-        
+
         # Find error span
         error_spans = spans.select { |s| s[:status] == :error }
         expect(error_spans.length).to be >= 1
-        
+
         error_span = error_spans.first
         expect(error_span[:attributes]["error.message"]).to include("Tool processing failed")
-        
+
         # Should maintain parent-child relationships
         if error_span[:parent_id]
           parent_span = spans.find { |s| s[:span_id] == error_span[:parent_id] }
@@ -650,7 +650,7 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
       end
     end
   end
-  
+
   describe "5.2 Complex Real-World Scenarios (MarketDiscoveryPipeline)" do
     # Simulate the actual MarketDiscoveryPipeline from ProspectsRadar
     let(:market_analysis_agent_class) do
@@ -678,7 +678,7 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
                 }
               }
             ]
-            
+
             {
               success: true,
               agent_name: name,
@@ -693,28 +693,28 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         end
       end
     end
-    
+
     let(:market_scoring_agent_class) do
       Class.new(comprehensive_agent_class) do
         def run(input)
           traced_run do
             markets = input[:markets] || []
-            
+
             # Add detailed scoring to each market
             scored_markets = markets.map do |market|
               market.merge({
-                scoring_dimensions: {
-                  product_market_fit: rand(0.7..0.9),
-                  market_size_potential: rand(0.6..0.9),
-                  competition_level: rand(0.5..0.8),
-                  entry_difficulty: rand(0.4..0.8),
-                  revenue_opportunity: rand(0.7..0.95),
-                  strategic_alignment: rand(0.6..0.9)
-                },
-                overall_score: market[:confidence_score]
-              })
+                             scoring_dimensions: {
+                               product_market_fit: rand(0.7..0.9),
+                               market_size_potential: rand(0.6..0.9),
+                               competition_level: rand(0.5..0.8),
+                               entry_difficulty: rand(0.4..0.8),
+                               revenue_opportunity: rand(0.7..0.95),
+                               strategic_alignment: rand(0.6..0.9)
+                             },
+                             overall_score: market[:confidence_score]
+                           })
             end
-            
+
             {
               success: true,
               agent_name: name,
@@ -729,37 +729,37 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         end
       end
     end
-    
+
     let(:search_term_generator_agent_class) do
       Class.new(comprehensive_agent_class) do
         def run(input)
           traced_run do
             markets = input[:markets] || []
-            
+
             # Generate search terms for each market
             markets_with_terms = markets.map do |market|
               market.merge({
-                search_terms: [
-                  {
-                    category: "job_titles",
-                    terms: ["CTO", "VP Engineering", "Head of DevOps", "Tech Lead"]
-                  },
-                  {
-                    category: "company_indicators",
-                    terms: ["software development", "engineering team", "technical infrastructure"]
-                  },
-                  {
-                    category: "pain_points",
-                    terms: ["scalability challenges", "technical debt", "development bottlenecks"]
-                  },
-                  {
-                    category: "buying_signals",
-                    terms: ["hiring engineers", "technology upgrade", "digital transformation"]
-                  }
-                ]
-              })
+                             search_terms: [
+                               {
+                                 category: "job_titles",
+                                 terms: ["CTO", "VP Engineering", "Head of DevOps", "Tech Lead"]
+                               },
+                               {
+                                 category: "company_indicators",
+                                 terms: ["software development", "engineering team", "technical infrastructure"]
+                               },
+                               {
+                                 category: "pain_points",
+                                 terms: ["scalability challenges", "technical debt", "development bottlenecks"]
+                               },
+                               {
+                                 category: "buying_signals",
+                                 terms: ["hiring engineers", "technology upgrade", "digital transformation"]
+                               }
+                             ]
+                           })
             end
-            
+
             {
               success: true,
               agent_name: name,
@@ -775,7 +775,7 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         end
       end
     end
-    
+
     let(:market_discovery_pipeline_class) do
       Class.new(comprehensive_pipeline_class) do
         def run(input)
@@ -792,16 +792,16 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
                 }
               }
             end
-            
+
             # Sequential execution: Analysis -> Scoring -> Search Terms
             analysis_result = agents[0].run(input)
-            
+
             scoring_input = input.merge(analysis_result)
             scoring_result = agents[1].run(scoring_input)
-            
+
             search_terms_input = input.merge(scoring_result)
             final_result = agents[2].run(search_terms_input)
-            
+
             # Add completion event with full results
             if current_span
               current_span[:events] << {
@@ -810,13 +810,13 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
                 attributes: {
                   markets_discovered: final_result[:markets]&.length || 0,
                   total_processing_time: analysis_result.dig(:analysis_metadata, :processing_time).to_f +
-                                        scoring_result.dig(:scoring_metadata, :processing_time).to_f +
-                                        final_result.dig(:search_terms_metadata, :processing_time).to_f,
+                                         scoring_result.dig(:scoring_metadata, :processing_time).to_f +
+                                         final_result.dig(:search_terms_metadata, :processing_time).to_f,
                   pipeline_success: true
                 }
               }
             end
-            
+
             {
               success: true,
               pipeline_name: name,
@@ -836,7 +836,7 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         end
       end
     end
-    
+
     let(:mock_product) do
       {
         name: "CloudSync Pro",
@@ -845,20 +845,22 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         category: "B2B SaaS"
       }
     end
-    
+
     let(:mock_company) do
       {
         name: "ACME SaaS Solutions",
-        industry: "Software Development", 
+        industry: "Software Development",
         employee_range: "51-200",
         company_description: "Leading provider of enterprise SaaS solutions"
       }
     end
-    
+
     let(:market_analysis_agent) { market_analysis_agent_class.new(name: "MarketAnalysisAgent", tracer: tracer) }
     let(:market_scoring_agent) { market_scoring_agent_class.new(name: "MarketScoringAgent", tracer: tracer) }
-    let(:search_term_generator_agent) { search_term_generator_agent_class.new(name: "SearchTermGeneratorAgent", tracer: tracer) }
-    
+    let(:search_term_generator_agent) do
+      search_term_generator_agent_class.new(name: "SearchTermGeneratorAgent", tracer: tracer)
+    end
+
     let(:market_discovery_pipeline) do
       market_discovery_pipeline_class.new(
         name: "MarketDiscoveryPipeline",
@@ -871,135 +873,135 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         }
       )
     end
-    
+
     it "executes complete MarketDiscoveryPipeline with proper span relationships" do
       input = {
         product: mock_product,
         company: mock_company,
         analysis_depth: "comprehensive"
       }
-      
+
       result = market_discovery_pipeline.run(input)
-      
+
       expect(result[:success]).to be(true)
       expect(result[:markets]).to be_an(Array)
       expect(result[:markets].length).to eq(2)
-      
+
       # Verify markets have full data structure
       market = result[:markets].first
       expect(market[:market_name]).to be_present
       expect(market[:scoring_dimensions]).to be_a(Hash)
       expect(market[:search_terms]).to be_an(Array)
-      
+
       spans = memory_processor.spans
       expect(spans.length).to eq(4) # 1 pipeline + 3 agents
-      
+
       # Verify span hierarchy
       pipeline_span = spans.find { |s| s[:kind] == :pipeline }
       agent_spans = spans.select { |s| s[:kind] == :agent }
-      
+
       expect(pipeline_span).not_to be_nil
       expect(agent_spans.length).to eq(3)
-      
+
       # All agents should be children of pipeline
       agent_spans.each do |agent_span|
         expect(agent_span[:parent_id]).to eq(pipeline_span[:span_id])
       end
-      
+
       # Verify trace coherence
       trace_id = pipeline_span[:trace_id]
       agent_spans.each do |agent_span|
         expect(agent_span[:trace_id]).to eq(trace_id)
       end
     end
-    
+
     it "captures comprehensive MarketDiscoveryPipeline execution events" do
       input = {
         product: mock_product,
         company: mock_company,
         analysis_depth: "standard"
       }
-      
+
       market_discovery_pipeline.run(input)
-      
+
       spans = memory_processor.spans
       pipeline_span = spans.find { |s| s[:kind] == :pipeline }
       pipeline_events = pipeline_span[:events]
-      
+
       # Check for specific market discovery events
       event_names = pipeline_events.map { |e| e[:name] }
       expect(event_names).to include(
         "market_discovery.pipeline_start",
         "market_discovery.pipeline_complete"
       )
-      
+
       # Verify event attributes contain business context
       start_event = pipeline_events.find { |e| e[:name] == "market_discovery.pipeline_start" }
       expect(start_event[:attributes][:product_name]).to eq("CloudSync Pro")
       expect(start_event[:attributes][:company_name]).to eq("ACME SaaS Solutions")
-      
+
       completion_event = pipeline_events.find { |e| e[:name] == "market_discovery.pipeline_complete" }
       expect(completion_event[:attributes][:markets_discovered]).to eq(2)
       expect(completion_event[:attributes][:pipeline_success]).to be(true)
     end
-    
+
     it "includes detailed business metadata in span attributes" do
       input = {
         product: mock_product,
         company: mock_company
       }
-      
+
       market_discovery_pipeline.run(input)
-      
+
       spans = memory_processor.spans
-      
+
       # Check pipeline span attributes
       pipeline_span = spans.find { |s| s[:kind] == :pipeline }
       expect(pipeline_span[:attributes]["pipeline.name"]).to eq("MarketDiscoveryPipeline")
       expect(pipeline_span[:attributes]["pipeline.agents_count"]).to eq(3)
-      
+
       # Check agent span attributes include business context
       agent_spans = spans.select { |s| s[:kind] == :agent }
-      
+
       analysis_span = agent_spans.find { |s| s[:attributes]["agent.name"] == "MarketAnalysisAgent" }
       expect(analysis_span).not_to be_nil
-      
+
       scoring_span = agent_spans.find { |s| s[:attributes]["agent.name"] == "MarketScoringAgent" }
       expect(scoring_span).not_to be_nil
-      
+
       search_terms_span = agent_spans.find { |s| s[:attributes]["agent.name"] == "SearchTermGeneratorAgent" }
       expect(search_terms_span).not_to be_nil
     end
-    
+
     it "measures and reports pipeline performance accurately" do
       input = {
         product: mock_product,
         company: mock_company
       }
-      
+
       start_time = Time.now
       result = market_discovery_pipeline.run(input)
       end_time = Time.now
-      
+
       total_time = end_time - start_time
-      
+
       # Verify performance metadata is captured
       expect(result[:performance_summary]).to be_a(Hash)
       expect(result[:performance_summary][:analysis_time]).to be_a(Numeric)
       expect(result[:performance_summary][:scoring_time]).to be_a(Numeric)
       expect(result[:performance_summary][:search_terms_time]).to be_a(Numeric)
-      
+
       # Verify timing is reasonable (should complete quickly)
       expect(total_time).to be < 1.0
-      
+
       # Check span timing consistency
       spans = memory_processor.spans
       pipeline_span = spans.find { |s| s[:kind] == :pipeline }
-      
+
       pipeline_start = Time.parse(pipeline_span[:start_time])
       pipeline_end = Time.parse(pipeline_span[:end_time])
       pipeline_duration = pipeline_end - pipeline_start
-      
+
       expect(pipeline_duration).to be < total_time
       expect(pipeline_duration).to be > 0
     end
@@ -1056,11 +1058,11 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         legacy_agent.add_tool(legacy_tool)
 
         # Should execute without errors
-        expect {
+        expect do
           result = legacy_agent.run("test input")
           expect(result[:legacy_pattern]).to be(true)
           expect(result[:results]).to include("Legacy tool LegacyTool processed: test input")
-        }.not_to raise_error
+        end.not_to raise_error
 
         # Should not create any spans (no tracing mixin)
         spans = memory_processor.spans
@@ -1103,6 +1105,7 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
       let(:mock_runner_class) do
         Class.new do
           include RAAF::Tracing::Traceable
+
           trace_as :runner
 
           attr_reader :agent, :provider
@@ -1428,11 +1431,11 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
 
         # Validate parent-child relationships
         spans.each do |span|
-          if span[:parent_id]
-            parent_span = spans.find { |s| s[:span_id] == span[:parent_id] }
-            expect(parent_span).not_to be_nil, "Parent span #{span[:parent_id]} not found for span #{span[:span_id]}"
-            expect(parent_span[:trace_id]).to eq(span[:trace_id])
-          end
+          next unless span[:parent_id]
+
+          parent_span = spans.find { |s| s[:span_id] == span[:parent_id] }
+          expect(parent_span).not_to be_nil, "Parent span #{span[:parent_id]} not found for span #{span[:span_id]}"
+          expect(parent_span[:trace_id]).to eq(span[:trace_id])
         end
 
         # Validate timing relationships
@@ -1442,14 +1445,14 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
           expect(end_time).to be >= start_time
 
           # If has parent, should be within parent's timeframe
-          if span[:parent_id]
-            parent_span = spans.find { |s| s[:span_id] == span[:parent_id] }
-            parent_start = Time.parse(parent_span[:start_time])
-            parent_end = Time.parse(parent_span[:end_time])
+          next unless span[:parent_id]
 
-            expect(start_time).to be >= parent_start
-            expect(end_time).to be <= parent_end
-          end
+          parent_span = spans.find { |s| s[:span_id] == span[:parent_id] }
+          parent_start = Time.parse(parent_span[:start_time])
+          parent_end = Time.parse(parent_span[:end_time])
+
+          expect(start_time).to be >= parent_start
+          expect(end_time).to be <= parent_end
         end
       end
     end
@@ -1458,11 +1461,9 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
       let(:error_scenario_tool_class) do
         Class.new(comprehensive_tool_class) do
           def process(input)
-            if input.include?("error")
-              raise StandardError, "Intentional error for testing"
-            else
-              super
-            end
+            raise StandardError, "Intentional error for testing" if input.include?("error")
+
+            super
           end
         end
       end
@@ -1480,9 +1481,9 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
           agents: [agent]
         )
 
-        expect {
+        expect do
           pipeline.run("error test")
-        }.to raise_error(StandardError, /Intentional error/)
+        end.to raise_error(StandardError, /Intentional error/)
 
         spans = memory_processor.spans
 
@@ -1509,7 +1510,7 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
       it "handles edge cases without breaking tracing" do
         edge_cases = [
           { input: "", description: "empty input" },
-          { input: "x" * 10000, description: "very long input" },
+          { input: "x" * 10_000, description: "very long input" },
           { input: { complex: { nested: { data: "structure" } } }, description: "complex object input" },
           { input: nil, description: "nil input" }
         ]
@@ -1521,11 +1522,11 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
           tool = comprehensive_tool_class.new(name: "EdgeCaseTool", complexity: :simple)
           agent.add_tool(tool)
 
-          expect {
+          expect do
             begin
               result = agent.run(test_case[:input])
-              expect(result[:success]).to be(true) if test_case[:input] != nil
-            rescue => e
+              expect(result[:success]).to be(true) unless test_case[:input].nil?
+            rescue StandardError => e
               # Some edge cases may cause errors, which is acceptable
               puts "   Edge case '#{test_case[:description]}' caused error: #{e.message}"
             end
@@ -1533,8 +1534,7 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
             # Should still create spans even if processing fails
             spans = memory_processor.spans
             expect(spans.length).to be >= 1
-
-          }.not_to raise_error(RAAF::Tracing::TracingError), "Tracing system should not fail on edge case: #{test_case[:description]}"
+          end.not_to raise_error(RAAF::Tracing::TracingError), "Tracing system should not fail on edge case: #{test_case[:description]}"
         end
       end
     end
@@ -1574,13 +1574,11 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         # Test concurrent execution
         threads = 3.times.map do |i|
           Thread.new do
-            begin
-              pipeline.run("integration test #{i}")
-              components_tested[:agents] = true
-              components_tested[:tools] = true
-            rescue => e
-              components_tested[:error_handling] = true
-            end
+            pipeline.run("integration test #{i}")
+            components_tested[:agents] = true
+            components_tested[:tools] = true
+          rescue StandardError
+            components_tested[:error_handling] = true
           end
         end
 
@@ -1604,9 +1602,9 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         expect(span_types).to include(:pipeline, :agent, :tool)
 
         puts "\n✅ Integration Validation Complete:"
-        puts "   Components tested: #{components_tested.keys.join(', ')}"
+        puts "   Components tested: #{components_tested.keys.join(", ")}"
         puts "   Total spans created: #{spans.length}"
-        puts "   Span types: #{span_types.join(', ')}"
+        puts "   Span types: #{span_types.join(", ")}"
         puts "   Execution time: #{execution_time.round(4)}s"
       end
     end

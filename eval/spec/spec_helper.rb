@@ -42,12 +42,12 @@ RSpec.configure do |config|
   end
 
   # Clear span repository before each test
-  config.before(:each) do
+  config.before do
     RAAF::Eval::SpanRepository.clear!
   end
 
   # Clean up after each test
-  config.after(:each) do
+  config.after do
     RAAF::Eval::SpanRepository.clear!
   end
 end

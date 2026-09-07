@@ -17,7 +17,7 @@ require "rspec/autorun"
 RSpec.describe "RAAF Tracing Bug Report" do
   it "creates span tracer successfully" do
     tracer = RAAF::Tracing::SpanTracer.new
-    
+
     expect(tracer).to be_a(RAAF::Tracing::SpanTracer)
   end
 
@@ -26,10 +26,10 @@ RSpec.describe "RAAF Tracing Bug Report" do
       log_level: :debug,
       include_payloads: true
     )
-    
+
     tracer = RAAF::Tracing::SpanTracer.new
     tracer.add_processor(processor)
-    
+
     expect(processor).to be_a(RAAF::Tracing::ConsoleProcessor)
   end
 
@@ -38,28 +38,28 @@ RSpec.describe "RAAF Tracing Bug Report" do
       api_key: "test-key",
       project_id: "test-project"
     )
-    
-    tracer = RAAF::Tracing::SpanTracer.new  
+
+    tracer = RAAF::Tracing::SpanTracer.new
     tracer.add_processor(processor)
-    
+
     expect(processor).to be_a(RAAF::Tracing::OpenAIProcessor)
   end
 
   it "integrates tracing with agent runner" do
     tracer = RAAF::Tracing::SpanTracer.new
     tracer.add_processor(RAAF::Tracing::ConsoleProcessor.new)
-    
+
     agent = RAAF::Agent.new(
       name: "TracedAgent",
       instructions: "You are being traced",
       model: "gpt-4o-mini"
     )
-    
+
     runner = RAAF::Runner.new(
       agent: agent,
       tracer: tracer
     )
-    
+
     # Test that tracer is properly attached
     expect(tracer).to be_a(RAAF::Tracing::SpanTracer)
     expect(runner).to be_a(RAAF::Runner)
@@ -68,25 +68,25 @@ RSpec.describe "RAAF Tracing Bug Report" do
   it "tracks costs accurately" do
     cost_tracker = RAAF::Tracing::CostTracker.new(
       pricing: {
-        'gpt-4o' => { input: 5.00, output: 15.00 },
-        'gpt-4o-mini' => { input: 0.15, output: 0.60 }
+        "gpt-4o" => { input: 5.00, output: 15.00 },
+        "gpt-4o-mini" => { input: 0.15, output: 0.60 }
       }
     )
-    
+
     # Test cost calculation
     cost = cost_tracker.calculate_cost(
-      model: 'gpt-4o-mini',
+      model: "gpt-4o-mini",
       input_tokens: 100,
       output_tokens: 50
     )
-    
+
     expected_cost = (100 * 0.15 / 1_000_000) + (50 * 0.60 / 1_000_000)
     expect(cost).to be_within(0.0001).of(expected_cost)
   end
 
   it "analyzes traces and provides insights" do
     analyzer = RAAF::Tracing::TraceAnalyzer.new
-    
+
     # Mock trace data for testing
     traces = [
       {
@@ -98,9 +98,9 @@ RSpec.describe "RAAF Tracing Bug Report" do
         cost: 0.045
       }
     ]
-    
+
     insights = analyzer.analyze_traces(traces)
-    
+
     expect(insights).to be_a(Hash)
     expect(insights).to have_key(:total_cost)
     expect(insights).to have_key(:average_duration)

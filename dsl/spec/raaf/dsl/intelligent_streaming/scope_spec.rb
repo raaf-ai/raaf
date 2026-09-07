@@ -165,11 +165,11 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Scope do
       hash = scope.to_h
 
       expect(hash).to eq({
-        trigger_agent: "TriggerAgent",
-        scope_agents: ["Agent1", "Agent2"],
-        stream_size: 100,
-        array_field: :companies
-      })
+                           trigger_agent: "TriggerAgent",
+                           scope_agents: %w[Agent1 Agent2],
+                           stream_size: 100,
+                           array_field: :companies
+                         })
     end
 
     it "handles nil array_field" do
@@ -182,11 +182,11 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Scope do
       hash = scope.to_h
 
       expect(hash).to eq({
-        trigger_agent: "TriggerAgent",
-        scope_agents: [],
-        stream_size: 50,
-        array_field: nil
-      })
+                           trigger_agent: "TriggerAgent",
+                           scope_agents: [],
+                           stream_size: 50,
+                           array_field: nil
+                         })
     end
   end
 end

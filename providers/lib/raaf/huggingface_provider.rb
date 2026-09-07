@@ -110,7 +110,7 @@ module RAAF
         }
 
         # Add tools if present (already OpenAI format)
-        if tools && !tools.empty?
+        if tools.present?
           # Warn if model may not support function calling
           unless FUNCTION_CALLING_MODELS.include?(model)
             log_warn("Model '#{model}' may not support function calling. " \
@@ -163,12 +163,14 @@ module RAAF
           data = chunk[6..].strip
 
           if data == "[DONE]"
-            yield({
-              type: "finish",
-              finish_reason: "stop",
-              accumulated_content: accumulated_content,
-              accumulated_tool_calls: accumulated_tool_calls
-            }) if block_given?
+            if block_given?
+              yield({
+                type: "finish",
+                finish_reason: "stop",
+                accumulated_content: accumulated_content,
+                accumulated_tool_calls: accumulated_tool_calls
+              })
+            end
           else
             begin
               parsed = RAAF::Utils.parse_json(data)
@@ -177,22 +179,26 @@ module RAAF
               if parsed.dig("choices", 0, "delta", "content")
                 content = parsed["choices"][0]["delta"]["content"]
                 accumulated_content += content
-                yield({
-                  type: "content",
-                  content: content,
-                  accumulated_content: accumulated_content
-                }) if block_given?
+                if block_given?
+                  yield({
+                    type: "content",
+                    content: content,
+                    accumulated_content: accumulated_content
+                  })
+                end
               end
 
               # Handle tool calls delta
               if parsed.dig("choices", 0, "delta", "tool_calls")
                 tool_calls = parsed["choices"][0]["delta"]["tool_calls"]
                 accumulated_tool_calls.concat(tool_calls)
-                yield({
-                  type: "tool_calls",
-                  tool_calls: tool_calls,
-                  accumulated_tool_calls: accumulated_tool_calls
-                }) if block_given?
+                if block_given?
+                  yield({
+                    type: "tool_calls",
+                    tool_calls: tool_calls,
+                    accumulated_tool_calls: accumulated_tool_calls
+                  })
+                end
               end
             rescue JSON::ParserError => e
               log_warn("Failed to parse streaming chunk: #{e.message}",
@@ -267,7 +273,7 @@ module RAAF
         }
 
         # Add tools if present
-        if tools && !tools.empty?
+        if tools.present?
           unless FUNCTION_CALLING_MODELS.include?(model)
             log_warn("Model '#{model}' may not support function calling",
                      provider: "HuggingFaceProvider",

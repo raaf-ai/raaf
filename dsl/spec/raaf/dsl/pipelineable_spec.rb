@@ -139,17 +139,17 @@ RSpec.describe RAAF::DSL::Pipelineable do
       end
 
       it "raises error for invalid iteration syntax" do
-        expect {
+        expect do
           TestPipelineableAgent.each_over(:from, :items, :results)
-        }.to raise_error(ArgumentError, /Invalid syntax/)
+        end.to raise_error(ArgumentError, /Invalid syntax/)
 
-        expect {
+        expect do
           TestPipelineableAgent.each_over(:from, :items)
-        }.to raise_error(ArgumentError, /:from marker requires 'to:' keyword argument/)
+        end.to raise_error(ArgumentError, /:from marker requires 'to:' keyword argument/)
 
-        expect {
+        expect do
           TestPipelineableAgent.each_over
-        }.to raise_error(ArgumentError, /Invalid each_over syntax/)
+        end.to raise_error(ArgumentError, /Invalid each_over syntax/)
       end
 
       it "supports iteration options" do
@@ -280,11 +280,11 @@ RSpec.describe RAAF::DSL::Pipelineable do
         include RAAF::DSL::Pipelineable
 
         def self.externally_required_fields
-          [:external_field1, :external_field2]
+          %i[external_field1 external_field2]
         end
       end
 
-      expect(ExternalFieldsAgent.required_fields).to eq([:external_field1, :external_field2])
+      expect(ExternalFieldsAgent.required_fields).to eq(%i[external_field1 external_field2])
     end
 
     it "handles output fields from context configuration" do
@@ -294,13 +294,13 @@ RSpec.describe RAAF::DSL::Pipelineable do
         def self._context_config
           {
             context_rules: {
-              output: [:config_output1, :config_output2]
+              output: %i[config_output1 config_output2]
             }
           }
         end
       end
 
-      expect(OutputConfigAgent.provided_fields).to eq([:config_output1, :config_output2])
+      expect(OutputConfigAgent.provided_fields).to eq(%i[config_output1 config_output2])
     end
 
     it "falls back to declared provided fields" do
@@ -308,11 +308,11 @@ RSpec.describe RAAF::DSL::Pipelineable do
         include RAAF::DSL::Pipelineable
 
         def self.declared_provided_fields
-          [:declared_field1, :declared_field2]
+          %i[declared_field1 declared_field2]
         end
       end
 
-      expect(DeclaredFieldsAgent.provided_fields).to eq([:declared_field1, :declared_field2])
+      expect(DeclaredFieldsAgent.provided_fields).to eq(%i[declared_field1 declared_field2])
     end
   end
 
@@ -346,8 +346,8 @@ RSpec.describe RAAF::DSL::Pipelineable do
       it "considers default values during validation" do
         # Mock defaults
         allow(TestPipelineableAgent).to receive(:_context_config).and_return({
-          context_rules: { defaults: { input_data: ["default"] } }
-        })
+                                                                               context_rules: { defaults: { input_data: ["default"] } }
+                                                                             })
 
         empty_context = {}
         expect { instance.validate_for_pipeline(empty_context) }.not_to raise_error

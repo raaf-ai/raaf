@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
-require 'raaf-core'
-require 'raaf-tracing'
-require 'raaf-eval'
+require "raaf-core"
+require "raaf-tracing"
+require "raaf-eval"
 
 RSpec.describe "Token Tracking Pipeline", type: :integration do
   #
@@ -182,7 +182,7 @@ RSpec.describe "Token Tracking Pipeline", type: :integration do
           "usage" => {
             input_tokens: 200,
             output_tokens: 100,
-            total_tokens: 300  # Normalizer would calculate this
+            total_tokens: 300 # Normalizer would calculate this
           }
         }
       )

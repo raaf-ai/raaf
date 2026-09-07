@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 FactoryBot.define do
-  factory :evaluation_run, class: 'RAAF::Eval::Models::EvaluationRun' do
+  factory :evaluation_run, class: "RAAF::Eval::Models::EvaluationRun" do
     name { "Test Evaluation #{SecureRandom.hex(4)}" }
     description { "Testing agent behavior changes" }
     status { "pending" }
@@ -10,7 +10,7 @@ FactoryBot.define do
     metadata { { tags: ["test"], version: "1.0" } }
   end
 
-  factory :evaluation_span, class: 'RAAF::Eval::Models::EvaluationSpan' do
+  factory :evaluation_span, class: "RAAF::Eval::Models::EvaluationSpan" do
     span_id { SecureRandom.uuid }
     trace_id { SecureRandom.uuid }
     span_type { "agent" }
@@ -28,7 +28,7 @@ FactoryBot.define do
     end
   end
 
-  factory :evaluation_configuration, class: 'RAAF::Eval::Models::EvaluationConfiguration' do
+  factory :evaluation_configuration, class: "RAAF::Eval::Models::EvaluationConfiguration" do
     association :evaluation_run
     name { "Model Change Test" }
     configuration_type { "model_change" }
@@ -36,7 +36,7 @@ FactoryBot.define do
     execution_order { 0 }
   end
 
-  factory :evaluation_result, class: 'RAAF::Eval::Models::EvaluationResult' do
+  factory :evaluation_result, class: "RAAF::Eval::Models::EvaluationResult" do
     association :evaluation_run
     association :evaluation_configuration
     result_span_id { SecureRandom.uuid }

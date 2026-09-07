@@ -35,11 +35,9 @@ module RAAF
 
           # Invoke callbacks outside lock to avoid blocking
           callbacks_snapshot.each do |callback|
-            begin
-              callback.call(event)
-            rescue => e
-              log_callback_error(e, event)
-            end
+            callback.call(event)
+          rescue StandardError => e
+            log_callback_error(e, event)
           end
         end
 

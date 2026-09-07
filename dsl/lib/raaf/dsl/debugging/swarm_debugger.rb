@@ -95,7 +95,7 @@ module RAAF
         debug_output("Workflow: #{workflow_name}")
         debug_output("Session ID: #{@current_session[:session_id]}")
         debug_output("Start Time: #{@session_start_time}")
-        if initial_context && !initial_context.empty?
+        if initial_context.present?
           debug_output("\n📋 INITIAL CONTEXT VARIABLES:")
           pretty_print_context(initial_context)
         end
@@ -171,7 +171,7 @@ module RAAF
         # Show user prompt
         begin
           user_prompt = agent.build_user_prompt
-          if user_prompt && !user_prompt.empty?
+          if user_prompt.present?
             debug_output("\n💬 USER PROMPT:")
             debug_output(format_prompt_preview(user_prompt))
           end
@@ -618,7 +618,7 @@ module RAAF
         debug_output("")
 
         user_prompt = agent.build_user_prompt
-        if user_prompt && !user_prompt.empty?
+        if user_prompt.present?
           debug_output("User Prompt:")
           debug_output(user_prompt)
         else

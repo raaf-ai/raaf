@@ -173,7 +173,11 @@ RSpec.describe RAAF::Eval::DSL::CombinationLogic do
                            (results[:coherence][:score] * coherence_weight)
 
           {
-            label: combined_score >= 0.8 ? "good" : (combined_score >= 0.6 ? "average" : "bad"),
+            label: if combined_score >= 0.8
+                     "good"
+                   else
+                     (combined_score >= 0.6 ? "average" : "bad")
+                   end,
             score: combined_score,
             details: {
               similarity: results[:similarity],
@@ -214,7 +218,7 @@ RSpec.describe RAAF::Eval::DSL::CombinationLogic do
         lambda { |results|
           # Primary must pass, secondary is optional bonus
           base_pass = results[:primary][:label] != "bad"
-          bonus = results[:secondary][:label] != "bad" ? 0.1 : 0
+          bonus = results[:secondary][:label] == "bad" ? 0 : 0.1
           final_score = results[:primary][:score] + bonus
 
           {
@@ -276,13 +280,13 @@ RSpec.describe RAAF::Eval::DSL::CombinationLogic do
       end
 
       let(:invalid_lambda) do
-        lambda { |_results| { label: "good" } } # Missing required fields
+        ->(_results) { { label: "good" } } # Missing required fields
       end
 
       it "raises error for missing required fields" do
-        expect {
+        expect do
           described_class.combine_lambda(evaluator_results, invalid_lambda)
-        }.to raise_error(RAAF::Eval::DSL::InvalidLambdaResultError)
+        end.to raise_error(RAAF::Eval::DSL::InvalidLambdaResultError)
       end
     end
   end

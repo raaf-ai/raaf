@@ -91,7 +91,6 @@ module RAAF
       # @param config [Config] Configuration
       # @param original_error [StandardError, nil] Original error if retrying
       # @return [Hash] Result with fallback_level metadata
-      private
 
       def attempt_level_1_format_merge(merger, chunks, config, original_error)
         log_info("Attempting Level 1: Format-specific merge")
@@ -131,7 +130,6 @@ module RAAF
       # @param config [Config] Configuration
       # @param original_error [StandardError, nil] Original error
       # @return [Hash] Result with fallback_level metadata
-      private
 
       def attempt_level_2_concatenation(chunks, config, original_error)
         log_info("Attempting Level 2: Simple line concatenation")
@@ -181,7 +179,6 @@ module RAAF
       # @param config [Config] Configuration
       # @param original_error [StandardError, nil] Original error
       # @return [Hash] Result with fallback_level metadata
-      private
 
       def attempt_level_3_first_chunk(chunks, config, original_error)
         log_info("Attempting Level 3: First chunk only")
@@ -251,7 +248,6 @@ module RAAF
       # @param original_error [StandardError, nil] Original error
       # @return [Hash] The result to return
       # @raise [MergeError] If config.on_failure is :raise_error
-      private
 
       def handle_final_result(result, config, original_error)
         # If we have content, return it even if fallback was used
@@ -279,7 +275,6 @@ module RAAF
       #
       # @param chunks [Array] Chunks to concatenate
       # @return [String] Concatenated content
-      private
 
       def simple_concatenate(chunks)
         return "" if chunks.nil? || chunks.empty?
@@ -293,7 +288,6 @@ module RAAF
       #
       # @param chunks [Array] Chunks to search
       # @return [String, nil] First valid content found
-      private
 
       def extract_first_valid_chunk(chunks)
         return nil if chunks.nil? || chunks.empty?
@@ -310,7 +304,6 @@ module RAAF
       #
       # @param chunk [Object] Chunk to extract from
       # @return [String, nil] Extracted content
-      private
 
       def extract_content(chunk)
         return nil unless chunk
@@ -328,7 +321,6 @@ module RAAF
       end
 
       # Logging helpers
-      private
 
       def log_failure_start(merger, chunks, original_error)
         message = "Starting merge error handling"

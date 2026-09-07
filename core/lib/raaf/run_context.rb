@@ -159,9 +159,7 @@ module RAAF
     # @param key [Symbol, String] The storage key
     # @return [Boolean] true if key exists
     #
-    def key?(key)
-      @storage.key?(key)
-    end
+    delegate :key?, to: :@storage
 
     ##
     # Unified interface methods for RAAF context harmonization
@@ -174,7 +172,7 @@ module RAAF
     # @param default [Object] Default value if key not found
     # @return [Object] The stored value or default
     #
-    alias_method :get, :fetch
+    alias get fetch
 
     ##
     # Set value in storage (unified interface)
@@ -183,7 +181,7 @@ module RAAF
     # @param value [Object] The value to store
     # @return [Object] The stored value
     #
-    alias_method :set, :store
+    alias set store
 
     ##
     # Check if key exists (unified interface)
@@ -191,7 +189,7 @@ module RAAF
     # @param key [Symbol, String] The storage key
     # @return [Boolean] true if key exists
     #
-    alias_method :has?, :key?
+    alias has? key?
 
     ##
     # Array-style read access (unified interface)
@@ -199,9 +197,7 @@ module RAAF
     # @param key [Symbol, String] The storage key
     # @return [Object, nil] The stored value or nil
     #
-    def [](key)
-      @storage[key]
-    end
+    delegate :[], to: :@storage
 
     ##
     # Array-style write access (unified interface)
@@ -210,36 +206,28 @@ module RAAF
     # @param value [Object] The value to store
     # @return [Object] The stored value
     #
-    def []=(key, value)
-      @storage[key] = value
-    end
+    delegate :[]=, to: :@storage
 
     ##
     # Get all storage keys (unified interface)
     #
     # @return [Array<Symbol, String>] All keys in storage
     #
-    def keys
-      @storage.keys
-    end
+    delegate :keys, to: :@storage
 
     ##
     # Get all storage values (unified interface)
     #
     # @return [Array<Object>] All values in storage
     #
-    def values
-      @storage.values
-    end
+    delegate :values, to: :@storage
 
     ##
     # Export storage as hash (unified interface)
     #
     # @return [Hash] The storage hash with indifferent access
     #
-    def to_h
-      @storage.to_h
-    end
+    delegate :to_h, to: :@storage
 
     ##
     # Delete a key from storage (unified interface)
@@ -247,9 +235,7 @@ module RAAF
     # @param key [Symbol, String] The storage key
     # @return [Object, nil] The deleted value or nil
     #
-    def delete(key)
-      @storage.delete(key)
-    end
+    delegate :delete, to: :@storage
 
     ##
     # Update storage with multiple values (unified interface)
@@ -257,9 +243,7 @@ module RAAF
     # @param hash [Hash] Hash of key-value pairs to merge
     # @return [Hash] The updated storage
     #
-    def update(hash)
-      @storage.update(hash)
-    end
+    delegate :update, to: :@storage
 
     ##
     # Add a message to the conversation
@@ -366,49 +350,31 @@ module RAAF
     # Get conversation messages
     # @return [Array<Hash>] The conversation messages
     #
-    def messages
-      @context.messages
-    end
+    delegate :messages, to: :@context
 
-    def metadata
-      @context.metadata
-    end
+    delegate :metadata, to: :@context
 
-    def trace_id
-      @context.trace_id
-    end
+    delegate :trace_id, to: :@context
 
-    def current_agent
-      @context.current_agent
-    end
+    delegate :current_agent, to: :@context
 
-    def current_turn
-      @context.current_turn
-    end
+    delegate :current_turn, to: :@context
 
     # Store and retrieve data
-    def store(key, value)
-      @context.store(key, value)
-    end
+    delegate :store, to: :@context
 
     def fetch(key, default = nil)
       @context.fetch(key, default)
     end
 
     # Get input messages
-    def input_messages
-      @context.input_messages
-    end
+    delegate :input_messages, to: :@context
 
     # Get generated messages
-    def generated_messages
-      @context.generated_messages
-    end
+    delegate :generated_messages, to: :@context
 
     # Delegate message methods
-    def add_message(message)
-      @context.add_message(message)
-    end
+    delegate :add_message, to: :@context
 
     # Add helper methods for hooks
     def agent_stack

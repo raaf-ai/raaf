@@ -13,7 +13,7 @@ require_relative "../../lib/raaf/eval"
 
 puts "=== Database Query Benchmark ===\n\n"
 
-# Note: This benchmark assumes a PostgreSQL database is configured
+# NOTE: This benchmark assumes a PostgreSQL database is configured
 # and contains test data. For demonstration, we simulate query patterns
 # and measure overhead.
 
@@ -32,7 +32,7 @@ puts "-" * 50
 iterations = 1000
 
 # Simulate span lookup
-span_ids = Array.new(iterations) { "span_#{rand(10000)}" }
+span_ids = Array.new(iterations) { "span_#{rand(10_000)}" }
 
 lookup_time = Benchmark.measure do
   span_ids.each do |span_id|
@@ -45,7 +45,7 @@ end
 lookup_avg_ms = (lookup_time.real * 1000) / iterations
 puts "Total time: #{(lookup_time.real * 1000).round(2)}ms"
 puts "Average per lookup: #{lookup_avg_ms.round(3)}ms"
-puts "Status: #{lookup_avg_ms < 50 ? '✓ PASS' : '✗ FAIL'} (target: <50ms)"
+puts "Status: #{lookup_avg_ms < 50 ? "✓ PASS" : "✗ FAIL"} (target: <50ms)"
 puts "Expected with index: <10ms actual database time"
 puts "Throughput: #{(iterations / lookup_time.real).round(2)} lookups/sec"
 
@@ -61,14 +61,14 @@ recent_time = Benchmark.measure do
     #           WHERE created_at > NOW() - INTERVAL '7 days'
     #           ORDER BY created_at DESC
     #           LIMIT 50
-    Array.new(50) { |i| { id: i, name: "eval_#{i}", created_at: Time.now - i * 3600 } }
+    Array.new(50) { |i| { id: i, name: "eval_#{i}", created_at: Time.now - (i * 3600) } }
   end
 end
 
 recent_avg_ms = (recent_time.real * 1000) / recent_iterations
 puts "Total time: #{(recent_time.real * 1000).round(2)}ms"
 puts "Average per query: #{recent_avg_ms.round(3)}ms"
-puts "Status: #{recent_avg_ms < 100 ? '✓ PASS' : '✗ FAIL'} (target: <100ms)"
+puts "Status: #{recent_avg_ms < 100 ? "✓ PASS" : "✗ FAIL"} (target: <100ms)"
 puts "Expected with index on created_at: <20ms actual database time"
 
 # Benchmark 3: Filter Spans by Model (JSONB Query)
@@ -89,7 +89,7 @@ end
 jsonb_avg_ms = (jsonb_time.real * 1000) / jsonb_iterations
 puts "Total time: #{(jsonb_time.real * 1000).round(2)}ms"
 puts "Average per query: #{jsonb_avg_ms.round(3)}ms"
-puts "Status: #{jsonb_avg_ms < 200 ? '✓ PASS' : '✗ FAIL'} (target: <200ms)"
+puts "Status: #{jsonb_avg_ms < 200 ? "✓ PASS" : "✗ FAIL"} (target: <200ms)"
 puts "Expected with GIN index: <50ms actual database time"
 puts "Index usage: GIN index on span_data column"
 
@@ -112,7 +112,7 @@ end
 results_avg_ms = (results_time.real * 1000) / results_iterations
 puts "Total time: #{(results_time.real * 1000).round(2)}ms"
 puts "Average per query: #{results_avg_ms.round(3)}ms"
-puts "Status: #{results_avg_ms < 50 ? '✓ PASS' : '✗ FAIL'} (target: <50ms)"
+puts "Status: #{results_avg_ms < 50 ? "✓ PASS" : "✗ FAIL"} (target: <50ms)"
 puts "Expected with index on evaluation_run_id: <10ms actual database time"
 
 # Benchmark 5: Aggregation Query - Average Metrics
@@ -139,7 +139,7 @@ end
 agg_avg_ms = (agg_time.real * 1000) / agg_iterations
 puts "Total time: #{(agg_time.real * 1000).round(2)}ms"
 puts "Average per query: #{agg_avg_ms.round(3)}ms"
-puts "Status: #{agg_avg_ms < 1000 ? '✓ PASS' : '✗ FAIL'} (target: <1000ms)"
+puts "Status: #{agg_avg_ms < 1000 ? "✓ PASS" : "✗ FAIL"} (target: <1000ms)"
 puts "Expected with GIN index: <200ms actual database time"
 
 # Benchmark 6: Regression Detection Query
@@ -161,7 +161,7 @@ end
 regression_avg_ms = (regression_time.real * 1000) / regression_iterations
 puts "Total time: #{(regression_time.real * 1000).round(2)}ms"
 puts "Average per query: #{regression_avg_ms.round(3)}ms"
-puts "Status: #{regression_avg_ms < 500 ? '✓ PASS' : '✗ FAIL'} (target: <500ms)"
+puts "Status: #{regression_avg_ms < 500 ? "✓ PASS" : "✗ FAIL"} (target: <500ms)"
 puts "Expected with GIN index on baseline_comparison: <100ms actual database time"
 
 # Benchmark 7: Complex Join Query
@@ -197,7 +197,7 @@ end
 join_avg_ms = (join_time.real * 1000) / join_iterations
 puts "Total time: #{(join_time.real * 1000).round(2)}ms"
 puts "Average per query: #{join_avg_ms.round(3)}ms"
-puts "Status: #{join_avg_ms < 500 ? '✓ PASS' : '✗ FAIL'} (target: <500ms)"
+puts "Status: #{join_avg_ms < 500 ? "✓ PASS" : "✗ FAIL"} (target: <500ms)"
 puts "Expected with proper indexes: <100ms actual database time"
 
 # Benchmark 8: Bulk Insert
@@ -229,7 +229,7 @@ bulk_sizes.each do |size|
   puts "  Total time: #{total_ms.round(2)}ms"
   puts "  Average per record: #{avg_ms.round(3)}ms"
   puts "  Throughput: #{(size / bulk_time.real).round(2)} records/sec"
-  puts "  Status: #{avg_ms < 10 ? '✓ PASS' : '✗ FAIL'} (target: <10ms per record)"
+  puts "  Status: #{avg_ms < 10 ? "✓ PASS" : "✗ FAIL"} (target: <10ms per record)"
 end
 
 # Benchmark 9: Index Usage Verification (Simulated EXPLAIN ANALYZE)
@@ -286,7 +286,7 @@ end
 pool_avg_ms = (pool_time.real * 1000) / pool_iterations
 puts "Total time: #{(pool_time.real * 1000).round(2)}ms"
 puts "Average per batch (5 queries): #{pool_avg_ms.round(3)}ms"
-puts "Status: #{pool_avg_ms < 50 ? '✓ PASS' : '✗ FAIL'} (target: <50ms)"
+puts "Status: #{pool_avg_ms < 50 ? "✓ PASS" : "✗ FAIL"} (target: <50ms)"
 puts "Recommendation: Configure pool size based on concurrent evaluation load"
 
 # Performance Summary
@@ -328,4 +328,4 @@ puts "  psql> EXPLAIN ANALYZE SELECT * FROM evaluation_spans WHERE span_data @> 
 puts "  psql> EXPLAIN ANALYZE SELECT * FROM evaluation_results WHERE baseline_comparison @> '{\"regression_detected\": true}';"
 
 all_passed = query_performance.values.all? { |data| data[:time] < data[:target] }
-puts "\n#{all_passed ? '✓' : '✗'} Overall: #{all_passed ? 'All query performance targets met!' : 'Some targets not met'}"
+puts "\n#{all_passed ? "✓" : "✗"} Overall: #{all_passed ? "All query performance targets met!" : "Some targets not met"}"

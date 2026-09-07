@@ -48,7 +48,7 @@ module RAAF
 
           def assess_quality(value)
             text = value.to_s
-            
+
             # Simulate multi-dimensional quality assessment
             dimensions = {
               accuracy: assess_accuracy(text),
@@ -76,11 +76,11 @@ module RAAF
           def assess_accuracy(text)
             # Simplified accuracy assessment
             return 0.5 if text.empty?
-            
+
             # Check for hedging language that might indicate uncertainty
             uncertainty_terms = ["might", "maybe", "possibly", "could be", "unclear"]
             uncertainty_count = uncertainty_terms.sum { |term| text.downcase.scan(term).size }
-            
+
             [1.0 - (uncertainty_count * 0.1), 0.3].max
           end
 
@@ -89,17 +89,17 @@ module RAAF
             return 0.0 if text.empty?
             return 0.3 if text.length < 20
             return 1.0 if text.length > 100
-            
+
             text.length / 100.0
           end
 
           def assess_coherence(text)
             # Simple coherence check
             return 0.0 if text.empty?
-            
+
             sentences = text.split(/[.!?]+/)
             return 0.5 if sentences.size == 1
-            
+
             # More sentences generally indicate more coherent structure
             [sentences.size / 5.0, 1.0].min
           end
@@ -107,7 +107,7 @@ module RAAF
           def assess_relevance(text)
             # Simplified relevance (would need context in production)
             return 0.0 if text.empty?
-            
+
             # Basic heuristic: longer responses are often more relevant
             # In production, would compare against expected topics
             [text.length / 200.0, 1.0].min
@@ -116,10 +116,10 @@ module RAAF
           def assess_clarity(text)
             # Check for clarity indicators
             return 0.0 if text.empty?
-            
+
             # Simple readability heuristics
             avg_word_length = text.split.map(&:length).sum.to_f / [text.split.size, 1].max
-            
+
             # Shorter average word length often indicates clarity
             if avg_word_length < 5
               0.9

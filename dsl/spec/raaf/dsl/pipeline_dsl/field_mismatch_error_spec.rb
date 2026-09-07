@@ -8,16 +8,16 @@ RSpec.describe RAAF::DSL::PipelineDSL::FieldMismatchError do
       error = described_class.new(
         "Field mismatch detected",
         agent: "TestAgent",
-        expected_fields: [:name, :age],
-        actual_fields: [:name, :email],
+        expected_fields: %i[name age],
+        actual_fields: %i[name email],
         missing_fields: [:age],
         extra_fields: [:email]
       )
 
       expect(error.message).to eq("Field mismatch detected")
       expect(error.agent).to eq("TestAgent")
-      expect(error.expected_fields).to eq([:name, :age])
-      expect(error.actual_fields).to eq([:name, :email])
+      expect(error.expected_fields).to eq(%i[name age])
+      expect(error.actual_fields).to eq(%i[name email])
       expect(error.missing_fields).to eq([:age])
       expect(error.extra_fields).to eq([:email])
     end
@@ -44,9 +44,9 @@ RSpec.describe RAAF::DSL::PipelineDSL::FieldMismatchError do
       described_class.new(
         "Test error",
         agent: "DataProcessor",
-        expected_fields: [:id, :name, :status],
-        actual_fields: [:id, :description],
-        missing_fields: [:name, :status],
+        expected_fields: %i[id name status],
+        actual_fields: %i[id description],
+        missing_fields: %i[name status],
         extra_fields: [:description]
       )
     end
@@ -56,15 +56,15 @@ RSpec.describe RAAF::DSL::PipelineDSL::FieldMismatchError do
     end
 
     it "provides access to expected fields" do
-      expect(error.expected_fields).to eq([:id, :name, :status])
+      expect(error.expected_fields).to eq(%i[id name status])
     end
 
     it "provides access to actual fields" do
-      expect(error.actual_fields).to eq([:id, :description])
+      expect(error.actual_fields).to eq(%i[id description])
     end
 
     it "provides access to missing fields" do
-      expect(error.missing_fields).to eq([:name, :status])
+      expect(error.missing_fields).to eq(%i[name status])
     end
 
     it "provides access to extra fields" do
@@ -78,15 +78,15 @@ RSpec.describe RAAF::DSL::PipelineDSL::FieldMismatchError do
     end
 
     it "can be caught as StandardError" do
-      expect {
+      expect do
         raise described_class.new("Test error")
-      }.to raise_error(StandardError, "Test error")
+      end.to raise_error(StandardError, "Test error")
     end
 
     it "can be caught specifically" do
-      expect {
+      expect do
         raise described_class.new("Test error")
-      }.to raise_error(described_class, "Test error")
+      end.to raise_error(described_class, "Test error")
     end
   end
 
@@ -95,9 +95,9 @@ RSpec.describe RAAF::DSL::PipelineDSL::FieldMismatchError do
       error = described_class.new(
         "Pipeline validation failed",
         agent: "DataValidator",
-        expected_fields: [:user_id, :email, :name],
-        actual_fields: [:user_id, :username],
-        missing_fields: [:email, :name],
+        expected_fields: %i[user_id email name],
+        actual_fields: %i[user_id username],
+        missing_fields: %i[email name],
         extra_fields: [:username]
       )
 
@@ -111,8 +111,8 @@ RSpec.describe RAAF::DSL::PipelineDSL::FieldMismatchError do
       error = described_class.new(
         "No field mismatches",
         agent: "PerfectAgent",
-        expected_fields: [:id, :name],
-        actual_fields: [:id, :name],
+        expected_fields: %i[id name],
+        actual_fields: %i[id name],
         missing_fields: [],
         extra_fields: []
       )
@@ -141,12 +141,12 @@ RSpec.describe RAAF::DSL::PipelineDSL::FieldMismatchError do
   describe "usage in pipeline validation" do
     it "can be raised with comprehensive field analysis" do
       # Simulate a pipeline validation scenario
-      expected = [:id, :name, :email, :status]
-      actual = [:id, :name, :description, :created_at]
+      expected = %i[id name email status]
+      actual = %i[id name description created_at]
       missing = expected - actual
       extra = actual - expected
 
-      expect {
+      expect do
         raise described_class.new(
           "Agent output fields don't match pipeline requirements",
           agent: "UserProcessor",
@@ -155,7 +155,7 @@ RSpec.describe RAAF::DSL::PipelineDSL::FieldMismatchError do
           missing_fields: missing,
           extra_fields: extra
         )
-      }.to raise_error(described_class) do |error|
+      end.to raise_error(described_class) do |error|
         expect(error.missing_fields).to include(:email, :status)
         expect(error.extra_fields).to include(:description, :created_at)
       end
@@ -166,8 +166,8 @@ RSpec.describe RAAF::DSL::PipelineDSL::FieldMismatchError do
       validation_error = described_class.new(
         "Field validation failed in pipeline step 2",
         agent: "DataEnricher",
-        expected_fields: [:user_data, :enriched_data],
-        actual_fields: [:user_data, :raw_enrichment],
+        expected_fields: %i[user_data enriched_data],
+        actual_fields: %i[user_data raw_enrichment],
         missing_fields: [:enriched_data],
         extra_fields: [:raw_enrichment]
       )
@@ -195,9 +195,9 @@ RSpec.describe RAAF::DSL::PipelineDSL::FieldMismatchError do
       described_class.new(
         "Complex validation error",
         agent: "ComplexAgent",
-        expected_fields: [:a, :b, :c],
-        actual_fields: [:a, :d],
-        missing_fields: [:b, :c],
+        expected_fields: %i[a b c],
+        actual_fields: %i[a d],
+        missing_fields: %i[b c],
         extra_fields: [:d]
       )
     end
@@ -215,8 +215,8 @@ RSpec.describe RAAF::DSL::PipelineDSL::FieldMismatchError do
 
   describe "edge cases" do
     it "handles very long field lists" do
-      long_expected = (1..100).map { |i| "field_#{i}".to_sym }
-      long_actual = (50..150).map { |i| "field_#{i}".to_sym }
+      long_expected = (1..100).map { |i| :"field_#{i}" }
+      long_actual = (50..150).map { |i| :"field_#{i}" }
       missing = long_expected - long_actual
       extra = long_actual - long_expected
 
@@ -235,13 +235,13 @@ RSpec.describe RAAF::DSL::PipelineDSL::FieldMismatchError do
     it "handles special characters in field names" do
       error = described_class.new(
         "Special char test",
-        expected_fields: [:"field-with-dashes", :"field_with_underscores", :"field.with.dots"],
+        expected_fields: %i[field-with-dashes field_with_underscores field.with.dots],
         actual_fields: [:"field-with-dashes", :"field with spaces"],
-        missing_fields: [:"field_with_underscores", :"field.with.dots"],
+        missing_fields: %i[field_with_underscores field.with.dots],
         extra_fields: [:"field with spaces"]
       )
 
-      expect(error.missing_fields).to include(:"field_with_underscores", :"field.with.dots")
+      expect(error.missing_fields).to include(:field_with_underscores, :"field.with.dots")
       expect(error.extra_fields).to include(:"field with spaces")
     end
   end

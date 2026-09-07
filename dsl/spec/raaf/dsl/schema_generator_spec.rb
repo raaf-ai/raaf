@@ -10,27 +10,27 @@ RSpec.describe RAAF::DSL::SchemaGenerator do
 
       # Mock database columns
       allow(model).to receive(:columns).and_return([
-        double("Column", name: "id", type: :integer, null: false, limit: nil),
-        double("Column", name: "market_name", type: :string, null: false, limit: 255),
-        double("Column", name: "overall_score", type: :integer, null: true, limit: nil),
-        double("Column", name: "market_description", type: :text, null: true, limit: nil),
-        double("Column", name: "created_at", type: :datetime, null: false, limit: nil),
-        double("Column", name: "updated_at", type: :datetime, null: false, limit: nil),
-        double("Column", name: "active", type: :boolean, null: false, limit: nil),
-        double("Column", name: "metadata", type: :json, null: true, limit: nil),
-        double("Column", name: "price", type: :decimal, null: true, limit: nil)
-      ])
+                                                     double("Column", name: "id", type: :integer, null: false, limit: nil),
+                                                     double("Column", name: "market_name", type: :string, null: false, limit: 255),
+                                                     double("Column", name: "overall_score", type: :integer, null: true, limit: nil),
+                                                     double("Column", name: "market_description", type: :text, null: true, limit: nil),
+                                                     double("Column", name: "created_at", type: :datetime, null: false, limit: nil),
+                                                     double("Column", name: "updated_at", type: :datetime, null: false, limit: nil),
+                                                     double("Column", name: "active", type: :boolean, null: false, limit: nil),
+                                                     double("Column", name: "metadata", type: :json, null: true, limit: nil),
+                                                     double("Column", name: "price", type: :decimal, null: true, limit: nil)
+                                                   ])
 
       # Mock associations
       allow(model).to receive(:reflect_on_all_associations).and_return([
-        double("Association", name: :product, macro: :belongs_to),
-        double("Association", name: :prospects, macro: :has_many)
-      ])
+                                                                         double("Association", name: :product, macro: :belongs_to),
+                                                                         double("Association", name: :prospects, macro: :has_many)
+                                                                       ])
 
       # Mock validations - use generic doubles to avoid ActiveModel dependency
       presence_validator = double("PresenceValidator")
-      allow(presence_validator).to receive(:is_a?).and_return(true)  # Generic is_a? response
-      allow(presence_validator).to receive(:attributes).and_return([:market_name, :overall_score])
+      allow(presence_validator).to receive(:is_a?).and_return(true) # Generic is_a? response
+      allow(presence_validator).to receive(:attributes).and_return(%i[market_name overall_score])
 
       allow(model).to receive(:validators).and_return([presence_validator])
     end
@@ -42,9 +42,9 @@ RSpec.describe RAAF::DSL::SchemaGenerator do
         double("SimpleModel").tap do |model|
           allow(model).to receive(:name).and_return("SimpleModel")
           allow(model).to receive(:columns).and_return([
-            double("Column", name: "id", type: :integer, null: false, limit: nil),
-            double("Column", name: "name", type: :string, null: false, limit: 100)
-          ])
+                                                         double("Column", name: "id", type: :integer, null: false, limit: nil),
+                                                         double("Column", name: "name", type: :string, null: false, limit: 100)
+                                                       ])
           allow(model).to receive(:reflect_on_all_associations).and_return([])
           allow(model).to receive(:validators).and_return([])
         end
@@ -118,9 +118,9 @@ RSpec.describe RAAF::DSL::SchemaGenerator do
         double("UnconstrainedModel").tap do |model|
           allow(model).to receive(:name).and_return("UnconstrainedModel")
           allow(model).to receive(:columns).and_return([
-            double("Column", name: "id", type: :integer, null: false, limit: nil),
-            double("Column", name: "optional_field", type: :string, null: true, limit: nil)
-          ])
+                                                         double("Column", name: "id", type: :integer, null: false, limit: nil),
+                                                         double("Column", name: "optional_field", type: :string, null: true, limit: nil)
+                                                       ])
           allow(model).to receive(:reflect_on_all_associations).and_return([])
           allow(model).to receive(:validators).and_return([])
         end
@@ -287,7 +287,7 @@ RSpec.describe RAAF::DSL::SchemaGenerator do
         double("ModelWithValidations").tap do |model|
           presence_validator = double("PresenceValidator")
           allow(presence_validator).to receive(:is_a?).and_return(true)
-          allow(presence_validator).to receive(:attributes).and_return([:name, :email])
+          allow(presence_validator).to receive(:attributes).and_return(%i[name email])
 
           other_validator = double("OtherValidator")
           allow(other_validator).to receive(:is_a?).and_return(false)
@@ -313,10 +313,10 @@ RSpec.describe RAAF::DSL::SchemaGenerator do
           allow(model).to receive(:validators).and_return([])
           allow(model).to receive(:reflect_on_all_associations).and_return([])
           allow(model).to receive(:columns).and_return([
-            double("Column", name: "id", type: :integer, null: false),
-            double("Column", name: "required_field", type: :string, null: false),
-            double("Column", name: "optional_field", type: :string, null: true)
-          ])
+                                                         double("Column", name: "id", type: :integer, null: false),
+                                                         double("Column", name: "required_field", type: :string, null: false),
+                                                         double("Column", name: "optional_field", type: :string, null: true)
+                                                       ])
         end
       end
 

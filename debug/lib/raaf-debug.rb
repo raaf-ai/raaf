@@ -14,6 +14,7 @@ require_relative "raaf/debug/formatter"
 require_relative "raaf/debug/middleware"
 
 module RAAF
+
   ##
   # Advanced debugging and development utilities for Ruby AI Agents Factory
   #
@@ -36,17 +37,17 @@ module RAAF
   #
   # @example Basic debugging setup
   #   require 'raaf-debug'
-  #   
+  #
   #   # Enable debug mode
   #   RAAF::Debug.enable!
-  #   
+  #
   #   # Create debug-enabled agent
   #   agent = RAAF::Agent.new(
   #     name: "DebugAgent",
   #     instructions: "You are a helpful assistant",
   #     debug: true
   #   )
-  #   
+  #
   #   # Run with debugging
   #   result = agent.run("Hello") do |debug_info|
   #     puts "Debug: #{debug_info}"
@@ -54,13 +55,13 @@ module RAAF
   #
   # @example Request tracing
   #   require 'raaf-debug'
-  #   
+  #
   #   # Create tracer
   #   tracer = RAAF::Debug::Tracer.new
-  #   
+  #
   #   # Enable tracing
   #   tracer.start
-  #   
+  #
   #   # Trace agent execution
   #   tracer.trace_agent_execution(agent, "Hello world") do |trace|
   #     puts "Request: #{trace.request}"
@@ -70,44 +71,44 @@ module RAAF
   #
   # @example Performance profiling
   #   require 'raaf-debug'
-  #   
+  #
   #   # Create profiler
   #   profiler = RAAF::Debug::Profiler.new
-  #   
+  #
   #   # Profile agent execution
   #   profile_result = profiler.profile do
   #     100.times { agent.run("Test message") }
   #   end
-  #   
+  #
   #   # Generate profile report
   #   report = profiler.generate_report(profile_result)
   #   puts report
   #
   # @example Interactive debugging
   #   require 'raaf-debug'
-  #   
+  #
   #   # Create debugger
   #   debugger = RAAF::Debug::Debugger.new
-  #   
+  #
   #   # Set breakpoint
   #   debugger.set_breakpoint(agent, :before_run) do |context|
   #     puts "About to run agent with: #{context.message}"
   #     # Interactive debugging session
   #     binding.pry
   #   end
-  #   
+  #
   #   # Run agent with debugging
   #   agent.run("Debug this message")
   #
   # @example Log analysis
   #   require 'raaf-debug'
-  #   
+  #
   #   # Create log analyzer
   #   analyzer = RAAF::Debug::LogAnalyzer.new
-  #   
+  #
   #   # Analyze log files
   #   analysis = analyzer.analyze_log_file("logs/agent.log")
-  #   
+  #
   #   # Get insights
   #   puts "Error rate: #{analysis.error_rate}%"
   #   puts "Average response time: #{analysis.avg_response_time}ms"
@@ -115,16 +116,16 @@ module RAAF
   #
   # @example Memory tracking
   #   require 'raaf-debug'
-  #   
+  #
   #   # Create memory tracker
   #   tracker = RAAF::Debug::MemoryTracker.new
-  #   
+  #
   #   # Track memory usage
   #   tracker.start_tracking
-  #   
+  #
   #   # Run agent operations
   #   100.times { agent.run("Memory test") }
-  #   
+  #
   #   # Get memory report
   #   report = tracker.generate_report
   #   puts "Memory used: #{report.memory_used}MB"
@@ -132,6 +133,7 @@ module RAAF
   #
   # @since 1.0.0
   module Debug
+
     # Default configuration
     DEFAULT_CONFIG = {
       # General debug settings
@@ -139,7 +141,7 @@ module RAAF
       log_level: :debug,
       output_format: :terminal,
       color_output: true,
-      
+
       # Tracer settings
       tracer: {
         enabled: true,
@@ -149,7 +151,7 @@ module RAAF
         max_trace_depth: 10,
         include_stack_trace: true
       },
-      
+
       # Profiler settings
       profiler: {
         enabled: true,
@@ -157,9 +159,9 @@ module RAAF
         memory_profiling: true,
         allocation_tracking: true,
         profile_threshold: 0.01,
-        max_samples: 10000
+        max_samples: 10_000
       },
-      
+
       # Inspector settings
       inspector: {
         enabled: true,
@@ -168,7 +170,7 @@ module RAAF
         inspect_internal_state: true,
         max_inspection_depth: 5
       },
-      
+
       # Debugger settings
       debugger: {
         enabled: true,
@@ -177,7 +179,7 @@ module RAAF
         auto_continue: false,
         debug_console: true
       },
-      
+
       # Log analyzer settings
       log_analyzer: {
         enabled: true,
@@ -186,7 +188,7 @@ module RAAF
         error_categorization: true,
         performance_analysis: true
       },
-      
+
       # Performance monitor settings
       performance_monitor: {
         enabled: true,
@@ -195,7 +197,7 @@ module RAAF
         metrics_collection: true,
         dashboard_enabled: true
       },
-      
+
       # Memory tracker settings
       memory_tracker: {
         enabled: true,
@@ -204,7 +206,7 @@ module RAAF
         gc_analysis: true,
         memory_snapshots: true
       },
-      
+
       # Request recorder settings
       request_recorder: {
         enabled: true,
@@ -213,7 +215,7 @@ module RAAF
         record_metadata: true,
         replay_enabled: true
       },
-      
+
       # Interactive console settings
       interactive_console: {
         enabled: true,
@@ -222,7 +224,7 @@ module RAAF
         syntax_highlighting: true,
         code_completion: true
       },
-      
+
       # Formatter settings
       formatter: {
         enabled: true,
@@ -231,7 +233,7 @@ module RAAF
         json_pretty_print: true,
         markdown_output: false
       },
-      
+
       # Middleware settings
       middleware: {
         enabled: true,
@@ -243,6 +245,7 @@ module RAAF
     }.freeze
 
     class << self
+
       # @return [Hash] Current configuration
       attr_accessor :config
 
@@ -284,9 +287,9 @@ module RAAF
         @enabled = true
         @config ||= deep_dup(DEFAULT_CONFIG)
         @config.merge!(options)
-        
+
         setup_debug_environment
-        
+
         puts "🐛 Debug mode enabled".colorize(:green) if @config[:color_output]
       end
 
@@ -296,7 +299,7 @@ module RAAF
       def disable!
         @enabled = false
         cleanup_debug_environment
-        
+
         puts "🐛 Debug mode disabled".colorize(:red) if @config[:color_output]
       end
 
@@ -314,7 +317,7 @@ module RAAF
       # @param options [Hash] Tracer options
       # @return [Tracer] Tracer instance
       def create_tracer(**options)
-        Tracer.new(**config[:tracer].merge(options))
+        Tracer.new(**config[:tracer], **options)
       end
 
       ##
@@ -323,7 +326,7 @@ module RAAF
       # @param options [Hash] Profiler options
       # @return [Profiler] Profiler instance
       def create_profiler(**options)
-        Profiler.new(**config[:profiler].merge(options))
+        Profiler.new(**config[:profiler], **options)
       end
 
       ##
@@ -332,7 +335,7 @@ module RAAF
       # @param options [Hash] Inspector options
       # @return [Inspector] Inspector instance
       def create_inspector(**options)
-        Inspector.new(**config[:inspector].merge(options))
+        Inspector.new(**config[:inspector], **options)
       end
 
       ##
@@ -341,7 +344,7 @@ module RAAF
       # @param options [Hash] Debugger options
       # @return [Debugger] Debugger instance
       def create_debugger(**options)
-        Debugger.new(**config[:debugger].merge(options))
+        Debugger.new(**config[:debugger], **options)
       end
 
       ##
@@ -350,7 +353,7 @@ module RAAF
       # @param options [Hash] Log analyzer options
       # @return [LogAnalyzer] Log analyzer instance
       def create_log_analyzer(**options)
-        LogAnalyzer.new(**config[:log_analyzer].merge(options))
+        LogAnalyzer.new(**config[:log_analyzer], **options)
       end
 
       ##
@@ -359,7 +362,7 @@ module RAAF
       # @param options [Hash] Performance monitor options
       # @return [PerformanceMonitor] Performance monitor instance
       def create_performance_monitor(**options)
-        PerformanceMonitor.new(**config[:performance_monitor].merge(options))
+        PerformanceMonitor.new(**config[:performance_monitor], **options)
       end
 
       ##
@@ -368,7 +371,7 @@ module RAAF
       # @param options [Hash] Memory tracker options
       # @return [MemoryTracker] Memory tracker instance
       def create_memory_tracker(**options)
-        MemoryTracker.new(**config[:memory_tracker].merge(options))
+        MemoryTracker.new(**config[:memory_tracker], **options)
       end
 
       ##
@@ -377,7 +380,7 @@ module RAAF
       # @param options [Hash] Request recorder options
       # @return [RequestRecorder] Request recorder instance
       def create_request_recorder(**options)
-        RequestRecorder.new(**config[:request_recorder].merge(options))
+        RequestRecorder.new(**config[:request_recorder], **options)
       end
 
       ##
@@ -386,7 +389,7 @@ module RAAF
       # @param options [Hash] Interactive console options
       # @return [InteractiveConsole] Interactive console instance
       def create_interactive_console(**options)
-        InteractiveConsole.new(**config[:interactive_console].merge(options))
+        InteractiveConsole.new(**config[:interactive_console], **options)
       end
 
       ##
@@ -395,7 +398,7 @@ module RAAF
       # @param options [Hash] Formatter options
       # @return [Formatter] Formatter instance
       def create_formatter(**options)
-        Formatter.new(**config[:formatter].merge(options))
+        Formatter.new(**config[:formatter], **options)
       end
 
       ##
@@ -404,7 +407,7 @@ module RAAF
       # @param options [Hash] Middleware options
       # @return [Middleware] Debug middleware instance
       def create_middleware(**options)
-        Middleware.new(**config[:middleware].merge(options))
+        Middleware.new(**config[:middleware], **options)
       end
 
       ##
@@ -417,10 +420,10 @@ module RAAF
         # Add debug middleware to agent
         middleware = create_middleware(**options)
         agent.add_middleware(middleware)
-        
+
         # Set debug flag on agent
         agent.instance_variable_set(:@debug_enabled, true)
-        
+
         agent
       end
 
@@ -443,12 +446,12 @@ module RAAF
       # @yield [debug_info] Debug information
       def debug(agent, message, **options)
         return agent.run(message) unless enabled?
-        
+
         tracer = create_tracer(**options)
         profiler = create_profiler(**options)
-        
+
         debug_info = {}
-        
+
         # Profile execution
         profile_result = profiler.profile do
           tracer.trace_agent_execution(agent, message) do |trace|
@@ -456,7 +459,7 @@ module RAAF
             yield debug_info if block_given?
           end
         end
-        
+
         debug_info[:profile] = profile_result
         debug_info
       end
@@ -483,7 +486,7 @@ module RAAF
       # @return [String] Debug report
       def generate_report(format: :text)
         formatter = create_formatter
-        
+
         case format
         when :text
           formatter.format_debug_report(statistics)
@@ -513,10 +516,10 @@ module RAAF
       # @param context [Hash] Debug context
       def breakpoint(message = "Debug breakpoint", context = {})
         return unless enabled?
-        
+
         puts "🔍 #{message}".colorize(:yellow) if config[:color_output]
         puts "Context: #{context.inspect}" if context.any?
-        
+
         if config[:debugger][:interactive_mode]
           binding.pry
         else
@@ -532,7 +535,7 @@ module RAAF
       # @param context [Hash] Debug context
       def log(message, level: :debug, **context)
         return unless enabled?
-        
+
         formatted_message = create_formatter.format_log_message(message, level, context)
         puts formatted_message
       end
@@ -545,14 +548,14 @@ module RAAF
       # @return [Object] Block result
       def measure(label = "Execution")
         return yield unless enabled?
-        
+
         start_time = Time.current
         result = yield
         end_time = Time.current
-        
+
         duration = ((end_time - start_time) * 1000).round(2)
         puts "⏱️  #{label}: #{duration}ms".colorize(:blue) if config[:color_output]
-        
+
         result
       end
 
@@ -563,10 +566,10 @@ module RAAF
       # @return [Hash] Memory snapshot
       def memory_snapshot(label = "Memory snapshot")
         return {} unless enabled?
-        
+
         tracker = create_memory_tracker
         snapshot = tracker.take_snapshot
-        
+
         puts "📸 #{label}: #{snapshot[:memory_usage]}MB".colorize(:cyan) if config[:color_output]
         snapshot
       end
@@ -583,13 +586,13 @@ module RAAF
 
       def setup_debug_environment
         # Set up debug environment
-        require 'pry'
-        require 'pry-byebug'
-        
+        require "pry"
+        require "pry-byebug"
+
         # Configure Pry
         Pry.config.theme = "monokai"
-        Pry.config.editor = ENV['EDITOR'] || 'vim'
-        
+        Pry.config.editor = ENV["EDITOR"] || "vim"
+
         # Set up signal handlers
         setup_signal_handlers
       end
@@ -601,22 +604,24 @@ module RAAF
 
       def setup_signal_handlers
         # Set up signal handlers for debugging
-        Signal.trap('USR1') do
+        Signal.trap("USR1") do
           puts "\n🐛 Debug signal received - starting debug console"
           start_console
         end
 
-        Signal.trap('USR2') do
+        Signal.trap("USR2") do
           puts "\n📊 Debug statistics:"
           puts generate_report
         end
       end
+
     end
 
     ##
     # Debug session for coordinated debugging
     #
     class DebugSession
+
       include RAAF::Logging
 
       attr_reader :agent, :tracer, :profiler, :debugger, :session_id
@@ -636,7 +641,7 @@ module RAAF
         @tracer.start
         @profiler.start
         @debugger.start
-        
+
         log_info("Debug session started", session_id: @session_id)
         self
       end
@@ -646,20 +651,20 @@ module RAAF
         @tracer.stop
         @profiler.stop
         @debugger.stop
-        
+
         log_info("Debug session stopped", session_id: @session_id)
         self
       end
 
       def debug_run(message, **options)
         return @agent.run(message) unless @active
-        
+
         debug_info = {
           session_id: @session_id,
           message: message,
           options: options
         }
-        
+
         @profiler.profile do
           @tracer.trace_agent_execution(@agent, message) do |trace|
             debug_info[:trace] = trace
@@ -686,6 +691,9 @@ module RAAF
           debugger_stats: @debugger.statistics
         }
       end
+
     end
+
   end
+
 end

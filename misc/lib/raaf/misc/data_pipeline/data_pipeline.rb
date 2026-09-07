@@ -15,7 +15,7 @@ module RAAF
   #
   # @example Basic pipeline usage
   #   require 'openai_agents/data_pipeline'
-  #   
+  #
   #   # Create a pipeline
   #   pipeline = DataPipeline::PipelineBuilder.new("data-processor")
   #     .input(:json)
@@ -24,7 +24,7 @@ module RAAF
   #     .validate(required_fields: [:id, :name])
   #     .output(:csv, file: "processed_data.csv")
   #     .build
-  #   
+  #
   #   # Process data
   #   result = pipeline.process(input_data)
   #   puts "Processed #{result[:processed]} items"
@@ -34,7 +34,7 @@ module RAAF
   #     name: "DataEnricher",
   #     instructions: "Enrich customer data with additional insights"
   #   )
-  #   
+  #
   #   pipeline = DataPipeline::Pipeline.new("customer-enrichment")
   #     .add_stage(DataPipeline::AgentStage.new(enrichment_agent))
   #     .add_stage(DataPipeline::ValidationStage.new(
@@ -49,7 +49,7 @@ module RAAF
   #   result = pipeline.process(data)
   #   puts "Success rate: #{result[:processed] / result[:total] * 100}%"
   #   puts "Errors: #{result[:errors]}"
-  #   
+  #
   #   # Access detailed metrics
   #   pipeline.metrics.each do |stage, metrics|
   #     puts "#{stage}: #{metrics[:duration]}ms"
@@ -73,7 +73,7 @@ module RAAF
     #     max_workers: 4,
     #     error_strategy: :continue
     #   })
-    #   
+    #
     #   pipeline
     #     .add_stage(FilterStage.new { |item| item[:active] })
     #     .add_stage(AgentStage.new(processing_agent))
@@ -90,13 +90,13 @@ module RAAF
     class Pipeline
       # @return [String] Pipeline name for identification
       attr_reader :name
-      
+
       # @return [Array<Stage>] Ordered list of processing stages
       attr_reader :stages
-      
+
       # @return [Hash] Pipeline configuration options
       attr_reader :config
-      
+
       # @return [Symbol] Current pipeline state (:idle, :running, :completed, :error)
       attr_reader :state
 
@@ -172,7 +172,7 @@ module RAAF
       #     { id: 1, name: "John", status: "active" },
       #     { id: 2, name: "Jane", status: "inactive" }
       #   ])
-      #   
+      #
       #   puts "Processed #{result[:processed]} items in #{result[:duration]}s"
       #
       def process(input_data)

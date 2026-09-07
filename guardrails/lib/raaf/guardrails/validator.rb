@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Guardrails
+
     ##
     # Main validator class for guardrails
     #
@@ -9,6 +11,7 @@ module RAAF
     # PII detection, prompt injection prevention, and custom rules.
     #
     class Validator
+
       include RAAF::Logging
 
       # @return [Array<Object>] Validation providers
@@ -27,7 +30,7 @@ module RAAF
         @providers = []
         @custom_rules = nil
         @cache = {}
-        
+
         setup_providers
       end
 
@@ -55,11 +58,11 @@ module RAAF
       # @return [ValidationResult] Validation result
       def validate(content, context = {})
         start_time = Time.current
-        
+
         # Check cache first
         cache_key = generate_cache_key(content, context)
-        if @config[:cache_results] && (cached_result = @cache[cache_key])
-          return cached_result if cached_result.fresh?
+        if @config[:cache_results] && (cached_result = @cache[cache_key]) && cached_result.fresh?
+          return cached_result
         end
 
         violations = []
@@ -71,7 +74,7 @@ module RAAF
           violations.concat(validate_pii(content, context)) if @config[:pii_detection]
           violations.concat(validate_prompt_injection(content, context)) if @config[:prompt_injection_detection]
           violations.concat(validate_content_filter(content, context)) if @config[:content_filtering]
-          
+
           # Apply custom rules
           if @config[:custom_rules] && @custom_rules
             custom_result = @custom_rules.validate(content, context)
@@ -107,7 +110,7 @@ module RAAF
           result
         rescue StandardError => e
           log_error("Validation error", error: e, content_length: content.length)
-          
+
           # Return safe result on error to avoid blocking
           ValidationResult.new(
             content: content,
@@ -146,21 +149,15 @@ module RAAF
 
       def setup_providers
         # Add default providers based on configuration
-        if @config[:toxicity_detection]
-          @providers << ToxicityDetector.new(**@config)
-        end
+        @providers << ToxicityDetector.new(**@config) if @config[:toxicity_detection]
 
-        if @config[:pii_detection]
-          @providers << PIIDetector.new(**@config)
-        end
+        @providers << PIIDetector.new(**@config) if @config[:pii_detection]
 
-        if @config[:prompt_injection_detection]
-          @providers << PromptInjectionDetector.new(**@config)
-        end
+        @providers << PromptInjectionDetector.new(**@config) if @config[:prompt_injection_detection]
 
-        if @config[:content_filtering]
-          @providers << ContentFilter.new(**@config)
-        end
+        return unless @config[:content_filtering]
+
+        @providers << ContentFilter.new(**@config)
       end
 
       def validate_toxicity(content, context)
@@ -201,27 +198,29 @@ module RAAF
           context: context,
           config: @config.slice(:toxicity_threshold, :pii_confidence_threshold, :prompt_injection_threshold)
         }
-        
+
         Digest::SHA256.hexdigest(JSON.generate(key_data))
       end
 
       def clean_cache
         # Remove expired entries
         @cache.delete_if { |_, result| !result.fresh? }
-        
+
         # If still too large, remove oldest entries
-        if @cache.size > 1000
-          sorted_entries = @cache.sort_by { |_, result| result.timestamp }
-          entries_to_remove = sorted_entries.first(@cache.size - 500)
-          entries_to_remove.each { |key, _| @cache.delete(key) }
-        end
+        return unless @cache.size > 1000
+
+        sorted_entries = @cache.sort_by { |_, result| result.timestamp }
+        entries_to_remove = sorted_entries.first(@cache.size - 500)
+        entries_to_remove.each { |key, _| @cache.delete(key) }
       end
+
     end
 
     ##
     # Validation result class
     #
     class ValidationResult
+
       # @return [String] Original content
       attr_reader :content
 
@@ -321,12 +320,14 @@ module RAAF
       def to_json(*args)
         JSON.generate(to_h, *args)
       end
+
     end
 
     ##
     # Violation class
     #
     class Violation
+
       # @return [Symbol] Violation type
       attr_reader :type
 
@@ -371,6 +372,9 @@ module RAAF
       def to_json(*args)
         JSON.generate(to_h, *args)
       end
+
     end
+
   end
+
 end

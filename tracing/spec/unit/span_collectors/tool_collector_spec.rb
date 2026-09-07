@@ -5,8 +5,7 @@ require "spec_helper"
 RSpec.describe RAAF::Tracing::SpanCollectors::ToolCollector do
   let(:tool) do
     double("Tool",
-      class: double("ToolClass", name: "RAAF::WebSearchTool")
-    ).tap do |tool|
+           class: double("ToolClass", name: "RAAF::WebSearchTool")).tap do |tool|
       tool.instance_variable_set(:@method_name, :search)
       # Allow respond_to? to work for any method, returning false by default
       allow(tool).to receive(:respond_to?).and_return(false)
@@ -57,7 +56,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::ToolCollector do
 
     it "handles missing method name gracefully" do
       tool.instance_variable_set(:@method_name, nil)
-      
+
       attributes = collector.collect_attributes(tool)
       method_key = attributes.keys.find { |k| k.end_with?(".method") }
       expect(attributes[method_key]).to eq("unknown")
@@ -71,7 +70,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::ToolCollector do
 
     it "handles missing agent context detection gracefully" do
       allow(tool).to receive(:respond_to?).with(:detect_agent_context).and_return(false)
-      
+
       attributes = collector.collect_attributes(tool)
       agent_context_key = attributes.keys.find { |k| k.end_with?(".agent_context") }
       expect(attributes[agent_context_key]).to be_nil
@@ -79,7 +78,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::ToolCollector do
 
     it "handles nil agent context gracefully" do
       allow(tool).to receive(:detect_agent_context).and_return(nil)
-      
+
       attributes = collector.collect_attributes(tool)
       agent_context_key = attributes.keys.find { |k| k.end_with?(".agent_context") }
       expect(attributes[agent_context_key]).to be_nil
@@ -88,7 +87,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::ToolCollector do
     it "handles agent context without class gracefully" do
       agent_context = double("Agent", class: nil)
       allow(tool).to receive(:detect_agent_context).and_return(agent_context)
-      
+
       attributes = collector.collect_attributes(tool)
       agent_context_key = attributes.keys.find { |k| k.end_with?(".agent_context") }
       expect(attributes[agent_context_key]).to be_nil
@@ -96,7 +95,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::ToolCollector do
   end
 
   describe "#collect_result" do
-    let(:result) { "Tool execution completed successfully with data: #{[*1..50].join(', ')}" }
+    let(:result) { "Tool execution completed successfully with data: #{[*1..50].join(", ")}" }
 
     it "collects base result attributes" do
       attributes = collector.collect_result(tool, result)
@@ -118,7 +117,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::ToolCollector do
 
     it "handles short execution results" do
       short_result = "success"
-      
+
       attributes = collector.collect_result(tool, short_result)
       expect(attributes).to include("result.execution_result")
       expect(attributes["result.execution_result"]).to eq("success")
@@ -134,7 +133,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::ToolCollector do
 
     it "handles complex result objects" do
       complex_result = { status: "success", data: [1, 2, 3] }
-      
+
       attributes = collector.collect_result(tool, complex_result)
       expect(attributes["result.execution_result"]).to match(/\{.*status.*success.*\}/)
       expect(attributes["result.execution_result"].length).to be <= 101
@@ -242,9 +241,8 @@ RSpec.describe RAAF::Tracing::SpanCollectors::ToolCollector do
     context "with error response object" do
       let(:error_response) do
         double("ErrorResponse",
-          failure?: true,
-          error: double("Error", class: double("ErrorClass", name: "NetworkError"), message: "Connection timeout")
-        )
+               failure?: true,
+               error: double("Error", class: double("ErrorClass", name: "NetworkError"), message: "Connection timeout"))
       end
 
       it "marks status as error for error response objects" do
@@ -289,10 +287,10 @@ RSpec.describe RAAF::Tracing::SpanCollectors::ToolCollector do
         attributes = collector.collect_result(tool, complex_result)
         # BaseCollector converts symbol keys to string keys for JSONB storage
         expect(attributes["result.tool_result"]).to eq({
-          "status" => "success",
-          "data" => [1, 2, 3],
-          "metadata" => { "timestamp" => "2024-01-01" }
-        })
+                                                         "status" => "success",
+                                                         "data" => [1, 2, 3],
+                                                         "metadata" => { "timestamp" => "2024-01-01" }
+                                                       })
       end
 
       it "converts exception to hash in tool_result" do
@@ -300,9 +298,9 @@ RSpec.describe RAAF::Tracing::SpanCollectors::ToolCollector do
         attributes = collector.collect_result(tool, error)
         # BaseCollector converts symbol keys to string keys for JSONB storage
         expect(attributes["result.tool_result"]).to eq({
-          "error" => "Test error",
-          "class" => "RuntimeError"
-        })
+                                                         "error" => "Test error",
+                                                         "class" => "RuntimeError"
+                                                       })
       end
     end
   end

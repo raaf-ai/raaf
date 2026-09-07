@@ -18,7 +18,7 @@ RSpec.describe RAAF::DSL::Railtie, :with_rails, :with_temp_files do
   # Helper to simulate to_prepare callback
   def simulate_to_prepare
     # Execute the to_prepare block from the railtie
-    config_file = Rails.root.join("config", "ai_agents.yml")
+    config_file = Rails.root.join("config/ai_agents.yml")
     RAAF::DSL::Config.reload! if config_file.exist?
   end
 

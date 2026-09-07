@@ -112,7 +112,7 @@ module RAAF
         end
 
         def log_tools_configuration(tools)
-          if tools && !tools.empty?
+          if tools.present?
             logger.info "   🛠️  TOOLS CONFIGURED:"
             tools.each_with_index do |tool, idx|
               logger.info "   │ #{idx + 1}. Type: #{tool[:type] || tool['type']}"

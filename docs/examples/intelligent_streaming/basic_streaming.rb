@@ -5,8 +5,8 @@
 # This example demonstrates the simplest use of intelligent streaming
 # to process a large dataset through multiple agents in a pipeline.
 
-require 'raaf'
-require 'raaf-dsl'
+require "raaf"
+require "raaf-dsl"
 
 # Step 1: Define agents for the pipeline
 
@@ -23,8 +23,8 @@ class CompanyLoader < RAAF::DSL::Agent
       {
         id: i,
         name: "Company #{i}",
-        industry: ["Tech", "Finance", "Healthcare", "Retail"].sample,
-        employees: rand(10..10000),
+        industry: %w[Tech Finance Healthcare Retail].sample,
+        employees: rand(10..10_000),
         revenue: rand(100_000..100_000_000)
       }
     end

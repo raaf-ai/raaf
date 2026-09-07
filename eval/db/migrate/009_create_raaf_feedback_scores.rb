@@ -20,8 +20,8 @@ class CreateRaafFeedbackScores < ActiveRecord::Migration[7.0]
     add_index :raaf_feedback_scores, :source
     add_index :raaf_feedback_scores, :span_id
     add_index :raaf_feedback_scores, :trace_id
-    add_index :raaf_feedback_scores, [:span_id, :name], name: "idx_feedback_scores_span_name"
-    add_index :raaf_feedback_scores, [:trace_id, :name], name: "idx_feedback_scores_trace_name"
+    add_index :raaf_feedback_scores, %i[span_id name], name: "idx_feedback_scores_span_name"
+    add_index :raaf_feedback_scores, %i[trace_id name], name: "idx_feedback_scores_trace_name"
     add_index :raaf_feedback_scores, :scored_by
     add_index :raaf_feedback_scores, :created_at
 

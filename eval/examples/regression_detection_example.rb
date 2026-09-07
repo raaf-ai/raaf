@@ -45,8 +45,8 @@ RSpec.describe "AgentBehaviorRegression", :evaluation do
 
     it "doesn't regress on quality" do
       result = evaluate_span("production_span_789")
-        .with_configuration(instructions: new_instructions)
-        .run
+               .with_configuration(instructions: new_instructions)
+               .run
 
       expect(result).not_to have_regressions
       expect(result).to maintain_quality
@@ -55,16 +55,16 @@ RSpec.describe "AgentBehaviorRegression", :evaluation do
 
     it "maintains coherent output" do
       result = evaluate_span("production_span_789")
-        .with_configuration(instructions: new_instructions)
-        .run
+               .with_configuration(instructions: new_instructions)
+               .run
 
       expect(result).to have_coherent_output.with_threshold(0.7)
     end
 
     it "doesn't hallucinate" do
       result = evaluate_span("production_span_789")
-        .with_configuration(instructions: new_instructions)
-        .run
+               .with_configuration(instructions: new_instructions)
+               .run
 
       expect(result).to_not not_hallucinate
     end
@@ -73,8 +73,8 @@ RSpec.describe "AgentBehaviorRegression", :evaluation do
   context "performance regression checks" do
     it "maintains latency performance" do
       result = evaluate_span("production_span_789")
-        .with_configuration(temperature: 0.5)
-        .run
+               .with_configuration(temperature: 0.5)
+               .run
 
       # We expect the result structure to exist
       expect(result).to be_a(RAAF::Eval::EvaluationResult)
@@ -82,8 +82,8 @@ RSpec.describe "AgentBehaviorRegression", :evaluation do
 
     it "maintains token efficiency" do
       result = evaluate_span("production_span_789")
-        .with_configuration(temperature: 0.5)
-        .run
+               .with_configuration(temperature: 0.5)
+               .run
 
       expect(result.baseline_usage).to be_a(Hash)
     end
@@ -91,6 +91,4 @@ RSpec.describe "AgentBehaviorRegression", :evaluation do
 end
 
 # Run the example
-if __FILE__ == $PROGRAM_NAME
-  require "rspec/autorun"
-end
+require "rspec/autorun" if __FILE__ == $PROGRAM_NAME

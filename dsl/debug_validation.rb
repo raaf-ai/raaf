@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative 'lib/raaf/dsl/types'
+require_relative "lib/raaf/dsl/types"
 
 # Debug specific validation failures
 puts "=== Debugging Validation Issues ==="
@@ -14,7 +14,7 @@ puts "Valid URL test: #{RAAF::DSL::Types.valid?('https://example.com', url_def)}
 puts "Invalid URL test: #{RAAF::DSL::Types.valid?('not-a-url', url_def)}"
 puts
 
-# Test phone validation  
+# Test phone validation
 phone_def = RAAF::DSL::Types.define(:phone)
 puts "Phone definition: #{phone_def}"
 puts "Valid phone test: #{RAAF::DSL::Types.valid?('+1234567890', phone_def)}"

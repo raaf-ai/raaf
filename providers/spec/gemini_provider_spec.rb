@@ -495,9 +495,10 @@ RSpec.describe RAAF::Models::GeminiProvider do
         result = provider.send(:extract_grounding_metadata, metadata)
 
         expect(result["grounding_chunks"]).to eq([
-          { "uri" => "https://example.com/article1", "title" => "Euro 2024 Results" },
-          { "uri" => "https://example.com/article2", "title" => "Championship Final" }
-        ])
+                                                   { "uri" => "https://example.com/article1",
+                                                     "title" => "Euro 2024 Results" },
+                                                   { "uri" => "https://example.com/article2", "title" => "Championship Final" }
+                                                 ])
       end
 
       it "extracts grounding supports with segment mappings" do

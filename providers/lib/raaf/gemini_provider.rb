@@ -266,7 +266,7 @@ module RAAF
         # Responses API: { "output" => [...], "usage" => {...}, "model" => ... }
 
         responses_result = {
-          "output" => chat_result["choices"],  # Rename "choices" → "output"
+          "output" => chat_result["choices"], # Rename "choices" → "output"
           "usage" => chat_result["usage"],      # Keep usage unchanged
           "model" => chat_result["model"]       # Keep model unchanged
         }
@@ -429,12 +429,12 @@ module RAAF
 
         # Add generation config (skip JSON response format when grounding tools are present)
         # Gemini API error: "Tool use with a response mime type: 'application/json' is unsupported"
-        if has_grounding_tools
-          # Build generation config without response format
-          generation_config = build_generation_config(kwargs.except(:response_format))
-        else
-          generation_config = build_generation_config(kwargs)
-        end
+        generation_config = if has_grounding_tools
+                              # Build generation config without response format
+                              build_generation_config(kwargs.except(:response_format))
+                            else
+                              build_generation_config(kwargs)
+                            end
         body[:generationConfig] = generation_config unless generation_config.empty?
 
         request.body = JSON.generate(body)
@@ -531,9 +531,7 @@ module RAAF
         result = []
 
         # Add function declarations if any
-        if function_tools.any?
-          result << { functionDeclarations: function_tools }
-        end
+        result << { functionDeclarations: function_tools } if function_tools.any?
 
         # Add grounding tools directly to array
         result.concat(grounding_tools)
@@ -588,15 +586,13 @@ module RAAF
         return schema unless schema.is_a?(Hash)
 
         # Remove additionalProperties from current level (handle both string and symbol keys)
-        filtered = schema.reject { |k, _| k == "additionalProperties" || k == :additionalProperties }
+        filtered = schema.reject { |k, _| ["additionalProperties", :additionalProperties].include?(k) }
 
         # Convert items_type to standard JSON Schema format
         # RAAF uses: { type: "array", items_type: "string" }
         # JSON Schema expects: { type: "array", items: { type: "string" } }
         items_type = filtered.delete("items_type") || filtered.delete(:items_type)
-        if items_type && !filtered.key?("items") && !filtered.key?(:items)
-          filtered[:items] = { type: items_type.to_s }
-        end
+        filtered[:items] = { type: items_type.to_s } if items_type && !filtered.key?("items") && !filtered.key?(:items)
 
         # Recursively filter nested structures
         filtered.transform_values do |value|
@@ -764,9 +760,7 @@ module RAAF
         result = {}
 
         # Extract web search queries that Gemini executed
-        if metadata["webSearchQueries"]
-          result["web_search_queries"] = metadata["webSearchQueries"]
-        end
+        result["web_search_queries"] = metadata["webSearchQueries"] if metadata["webSearchQueries"]
 
         # Extract grounding chunks (sources with URIs and titles)
         if metadata["groundingChunks"]
@@ -836,15 +830,13 @@ module RAAF
           end
 
           # Check for finish
-          if candidate["finishReason"]
-            if block_given?
-              yield({
-                type: "finish",
-                finish_reason: map_finish_reason(candidate["finishReason"]),
-                accumulated_content: accumulated_content,
-                accumulated_tool_calls: []
-              })
-            end
+          if candidate["finishReason"] && block_given?
+            yield({
+              type: "finish",
+              finish_reason: map_finish_reason(candidate["finishReason"]),
+              accumulated_content: accumulated_content,
+              accumulated_tool_calls: []
+            })
           end
         rescue JSON::ParserError
           # Skip malformed chunks

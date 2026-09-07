@@ -78,7 +78,6 @@ end
 
 # Example 2: Define a Phlex-style prompt class
 class ResearchPrompt < RAAF::DSL::Prompts::Base
-
   def prompt_id
     "research-assistant"
   end

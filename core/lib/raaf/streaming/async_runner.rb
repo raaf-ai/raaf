@@ -398,9 +398,7 @@ module RAAF
       # Check if runner is shutdown
       #
       # @return [Boolean] True if shutdown
-      def shutdown?
-        @thread_pool.shutdown?
-      end
+      delegate :shutdown?, to: :@thread_pool
 
       ##
       # Get job count
@@ -518,7 +516,6 @@ module RAAF
 
           # Call completion block
           task[:block]&.call(result)
-
         rescue StandardError => e
           # Final failure after all retries
           @mutex.synchronize do

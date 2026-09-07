@@ -54,7 +54,7 @@ module RAAF
             end
 
             def deterministic?
-              true  # Always produces same output for same input
+              true # Always produces same output for same input
             end
 
             # Execute Base64 encoding attack
@@ -76,7 +76,7 @@ module RAAF
               template = if context[:instruction_style]
                            find_template_by_style(context[:instruction_style])
                          else
-                           DECODE_INSTRUCTIONS.first  # Use first template for determinism
+                           DECODE_INSTRUCTIONS.first # Use first template for determinism
                          end
 
               # Format with encoded content
@@ -92,7 +92,7 @@ module RAAF
             def decode_attack(attack_string)
               # Find all potential Base64 sequences (minimum 4 chars)
               # Look for sequences that match Base64 character set
-              matches = attack_string.scan(/[A-Za-z0-9+\/]{8,}={0,2}/)
+              matches = attack_string.scan(%r{[A-Za-z0-9+/]{8,}={0,2}})
               return nil if matches.empty?
 
               # Try to decode each match, return first valid one

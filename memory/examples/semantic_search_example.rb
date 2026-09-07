@@ -51,17 +51,18 @@ if defined?(RAAF::SemanticSearch::VectorDatabase)
 else
   # Mock implementation for demonstration
   class VectorDatabase
+
     def initialize(dimension:)
       @dimension = dimension
       @vectors = []
       @metadata = []
     end
-    
+
     def add(vectors, metadata)
       @vectors.concat(vectors)
       @metadata.concat(metadata)
     end
-    
+
     def search(query, k:, filter: nil)
       # Simple cosine similarity search
       scores = @vectors.map do |vec|
@@ -70,35 +71,36 @@ else
         norm_b = Math.sqrt(query.map { |x| x**2 }.sum)
         dot / (norm_a * norm_b)
       end
-      
-      results = scores.each_with_index.map { |score, i| 
+
+      results = scores.each_with_index.map do |score, i|
         { score: score, vector: @vectors[i], metadata: @metadata[i] }
-      }
-      
+      end
+
       # Apply filter if provided
       if filter
         results = results.select do |r|
           filter.all? { |k, v| r[:metadata][k] == v }
         end
       end
-      
+
       results.sort_by { |r| -r[:score] }.first(k)
     end
-    
+
     def save(path)
-      require 'json'
+      require "json"
       File.write(path, { vectors: @vectors, metadata: @metadata }.to_json)
     end
-    
+
     def self.load(path)
-      require 'json'
+      require "json"
       data = JSON.parse(File.read(path), symbolize_names: true)
       db = new(dimension: data[:vectors].first.size)
       db.add(data[:vectors], data[:metadata])
       db
     end
+
   end
-  
+
   vector_db = VectorDatabase.new(dimension: 5)
 end
 
@@ -128,7 +130,7 @@ vector_db.add(vectors, metadata)
 # Perform similarity search with a query vector
 # The query vector represents the semantic meaning of a search query
 # k parameter limits results to top 3 most similar
-query = [0.15, 0.25, 0.35, 0.45, 0.55]  # Similar to programming topics
+query = [0.15, 0.25, 0.35, 0.45, 0.55] # Similar to programming topics
 results = vector_db.search(query, k: 3)
 
 puts "Query vector: #{query}"
@@ -153,6 +155,7 @@ puts "-" * 50
 # Real implementation would call OpenAI's text-embedding endpoint
 # Cache parameter enables storing computed embeddings for efficiency
 class MockEmbeddingGenerator
+
   def generate(texts, cache: true)
     # In production, this would:
     # 1. Check cache for existing embeddings
@@ -165,6 +168,7 @@ class MockEmbeddingGenerator
       text.chars.map { |c| c.ord / 255.0 }.first(5).fill(0.5, 5)
     end
   end
+
 end
 
 embedding_gen = MockEmbeddingGenerator.new
@@ -203,20 +207,21 @@ if defined?(RAAF::SemanticSearch::DocumentIndexer)
 else
   # Mock indexer for demonstration
   class DocumentIndexer
+
     def initialize(vector_db:, embedding_generator:)
       @vector_db = vector_db
       @embedding_generator = embedding_generator
       @documents = {}
     end
-    
+
     def index_documents(documents, chunk_size: 50, overlap: 10)
       documents.each do |doc|
         # Chunk document into overlapping segments
         chunks = chunk_text(doc[:content], chunk_size, overlap)
-        
+
         # Generate embeddings for chunks
         embeddings = @embedding_generator.generate(chunks)
-        
+
         # Store with metadata
         metadata = chunks.map.with_index do |chunk, i|
           {
@@ -227,19 +232,19 @@ else
             **doc[:metadata]
           }
         end
-        
+
         @vector_db.add(embeddings, metadata)
         @documents[doc[:id]] = doc
       end
     end
-    
+
     def search(query, k: 5)
       # Generate query embedding
       query_embedding = @embedding_generator.generate([query]).first
-      
+
       # Search vector database
       results = @vector_db.search(query_embedding, k: k)
-      
+
       # Enrich with document data
       results.map do |result|
         doc_id = result[:metadata][:document_id]
@@ -250,22 +255,23 @@ else
         }
       end
     end
-    
+
     private
-    
+
     def chunk_text(text, size, overlap)
       words = text.split
       chunks = []
       i = 0
       while i < words.length
-        chunk = words[i...(i + size)].join(' ')
+        chunk = words[i...(i + size)].join(" ")
         chunks << chunk
         i += size - overlap
       end
       chunks
     end
+
   end
-  
+
   indexer = DocumentIndexer.new(
     vector_db: vector_db,
     embedding_generator: MockEmbeddingGenerator.new
@@ -335,18 +341,19 @@ puts "-" * 50
 if defined?(RAAF::SemanticSearch::KeywordIndexer)
   keyword_indexer = RAAF::SemanticSearch::KeywordIndexer.new
   keyword_indexer.index_documents(documents)
-  
+
   # Combine semantic and keyword search strategies
   # Weights can be adjusted based on use case
   hybrid_search = RAAF::SemanticSearch::HybridSearch.new(indexer, keyword_indexer)
 else
   # Mock implementation
   class KeywordIndexer
+
     def initialize
       @documents = {}
       @index = Hash.new { |h, k| h[k] = [] }
     end
-    
+
     def index_documents(documents)
       documents.each do |doc|
         @documents[doc[:id]] = doc
@@ -357,42 +364,44 @@ else
         end
       end
     end
-    
+
     def search(query, k: 5)
       # Simple keyword matching
       query_words = query.downcase.split(/\W+/)
       scores = Hash.new(0)
-      
+
       query_words.each do |word|
         @index[word].each do |doc_id|
           scores[doc_id] += 1
         end
       end
-      
+
       scores.sort_by { |_, score| -score }
             .first(k)
-            .map { |doc_id, score| 
+            .map do |doc_id, score|
               { document: @documents[doc_id], score: score.to_f / query_words.length }
-            }
+            end
     end
+
   end
-  
+
   class HybridSearch
+
     def initialize(semantic_indexer, keyword_indexer, semantic_weight: 0.7)
       @semantic_indexer = semantic_indexer
       @keyword_indexer = keyword_indexer
       @semantic_weight = semantic_weight
       @keyword_weight = 1 - semantic_weight
     end
-    
+
     def search(query, k: 5)
       # Get results from both search methods
       semantic_results = @semantic_indexer.search(query, k: k * 2)
       keyword_results = @keyword_indexer.search(query, k: k * 2)
-      
+
       # Combine and rerank
       combined = {}
-      
+
       semantic_results.each do |result|
         doc_id = result[:document][:id]
         combined[doc_id] = {
@@ -402,7 +411,7 @@ else
           combined_score: result[:score] * @semantic_weight
         }
       end
-      
+
       keyword_results.each do |result|
         doc_id = result[:document][:id]
         if combined[doc_id]
@@ -417,11 +426,12 @@ else
           }
         end
       end
-      
+
       combined.values.sort_by { |r| -r[:combined_score] }.first(k)
     end
+
   end
-  
+
   keyword_indexer = KeywordIndexer.new
   keyword_indexer.index_documents(documents)
   hybrid_search = HybridSearch.new(indexer, keyword_indexer)
@@ -459,18 +469,19 @@ if defined?(RAAF::SemanticSearch::SemanticSearchTool)
 else
   # Mock search tool
   class SemanticSearchTool
+
     def initialize(indexer)
       @indexer = indexer
     end
-    
+
     def name
       "semantic_search"
     end
-    
+
     def description
       "Search through indexed documents using semantic similarity"
     end
-    
+
     def search(query:, k: 3)
       results = @indexer.search(query, k: k)
       # Format for agent consumption
@@ -482,7 +493,7 @@ else
         }
       end
     end
-    
+
     def to_openai_format
       {
         type: "function",
@@ -500,8 +511,9 @@ else
         }
       }
     end
+
   end
-  
+
   search_tool = SemanticSearchTool.new(indexer)
 end
 
@@ -515,7 +527,7 @@ agent = RAAF::Agent.new(
 agent.add_tool(search_tool)
 
 puts "Created agent with semantic search capability"
-puts "Agent tools: #{agent.tools.map(&:name).join(', ')}"
+puts "Agent tools: #{agent.tools.map(&:name).join(", ")}"
 puts
 
 # Simulate tool usage
@@ -542,26 +554,27 @@ if defined?(RAAF::SemanticSearch::QueryExpander)
 else
   # Mock query expander
   class QueryExpander
+
     def expand_query(query, method: :synonyms)
       case method
       when :synonyms
         # Simple synonym expansion
         synonyms = {
-          "find" => ["search", "locate", "discover"],
-          "documentation" => ["docs", "manual", "guide"],
+          "find" => %w[search locate discover],
+          "documentation" => %w[docs manual guide],
           "ruby" => ["Ruby", "ruby-lang", "Ruby language"]
         }
-        
+
         expanded = [query]
         query.downcase.split.each do |word|
-          if synonyms[word]
-            synonyms[word].each do |syn|
-              expanded << query.sub(/\b#{word}\b/i, syn)
-            end
+          next unless synonyms[word]
+
+          synonyms[word].each do |syn|
+            expanded << query.sub(/\b#{word}\b/i, syn)
           end
         end
         expanded.uniq
-        
+
       when :questions
         # Generate question variations
         base = query.downcase
@@ -574,8 +587,9 @@ else
         ]
       end
     end
+
   end
-  
+
   query_expander = QueryExpander.new
 end
 
@@ -612,11 +626,11 @@ puts "Vector database saved to #{db_file}"
 
 # Load vector database from disk
 # Preserves all vectors and metadata
-if defined?(RAAF::SemanticSearch::VectorDatabase)
-  loaded_db = RAAF::SemanticSearch::VectorDatabase.load(db_file)
-else
-  loaded_db = VectorDatabase.load(db_file)
-end
+loaded_db = if defined?(RAAF::SemanticSearch::VectorDatabase)
+              RAAF::SemanticSearch::VectorDatabase.load(db_file)
+            else
+              VectorDatabase.load(db_file)
+            end
 puts "Vector database loaded from #{db_file}"
 
 # Verify loaded data integrity
@@ -625,7 +639,7 @@ loaded_results = loaded_db.search(query, k: 1)
 puts "Verification search result: #{loaded_results.first[:metadata][:title]}"
 
 # Clean up temporary file
-require 'fileutils'
+require "fileutils"
 FileUtils.rm_f(db_file)
 puts
 
@@ -735,31 +749,31 @@ puts <<~PRACTICES
      - Include relevant metadata for filtering
      - Consider document structure and hierarchy
      - Remove redundant information
-  
+
   2. Chunking Strategy:
      - Use semantic boundaries (paragraphs, sections)
      - Maintain context with overlap
      - Include document metadata in chunks
      - Test different chunk sizes
-  
+
   3. Embedding Models:
      - Choose model based on use case
      - Consider multilingual needs
      - Balance quality vs speed/cost
      - Keep embeddings up to date
-  
+
   4. Search Optimization:
      - Implement query expansion
      - Use hybrid search for better recall
      - Add reranking for precision
      - Cache frequent queries
-  
+
   5. Scalability:
      - Use appropriate index types
      - Implement sharding for large datasets
      - Consider distributed search
      - Monitor performance metrics
-  
+
   6. Quality Improvements:
      - Collect user feedback
      - A/B test different approaches

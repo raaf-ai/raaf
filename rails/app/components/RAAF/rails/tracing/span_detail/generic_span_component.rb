@@ -10,7 +10,7 @@ module RAAF
         class GenericSpanComponent < RAAF::Rails::Tracing::SpanDetailBase
           def initialize(span:, **options)
             @span = span
-            super(span: span, **options)
+            super
           end
 
           def view_template
@@ -42,11 +42,11 @@ module RAAF
 
           def render_generic_status_badge
             color_classes = case @span.status&.downcase
-                           when "success", "ok" then "bg-green-100 text-green-800 border-green-200"
-                           when "error", "failed" then "bg-red-100 text-red-800 border-red-200"
-                           when "warning" then "bg-yellow-100 text-yellow-800 border-yellow-200"
-                           else "bg-gray-100 text-gray-800 border-gray-200"
-                           end
+                            when "success", "ok" then "bg-green-100 text-green-800 border-green-200"
+                            when "error", "failed" then "bg-red-100 text-red-800 border-red-200"
+                            when "warning" then "bg-yellow-100 text-yellow-800 border-yellow-200"
+                            else "bg-gray-100 text-gray-800 border-gray-200"
+                            end
 
             span(class: "px-3 py-1 text-sm font-medium rounded-full border #{color_classes}") do
               (@span.status || "Unknown").to_s.titleize
@@ -74,7 +74,7 @@ module RAAF
               # Group attributes by logical categories
               grouped_attributes.each do |category, attrs|
                 next if attrs.empty?
-                
+
                 render_attribute_group(category, attrs)
               end
             end
@@ -90,7 +90,7 @@ module RAAF
                   span(class: "px-2 py-0.5 text-xs bg-gray-200 text-gray-600 rounded") { "#{attributes.length} items" }
                 end
               end
-              
+
               # Group content
               div(class: "p-3") do
                 attributes.each do |key, value|
@@ -102,13 +102,13 @@ module RAAF
 
           def render_category_icon(category)
             icon_class = case category
-                        when :metadata then "bi-info-circle text-blue-600"
-                        when :execution then "bi-play-circle text-green-600"
-                        when :timing then "bi-clock text-yellow-600"
-                        when :data then "bi-database text-purple-600"
-                        when :error then "bi-exclamation-triangle text-red-600"
-                        else "bi-tag text-gray-600"
-                        end
+                         when :metadata then "bi-info-circle text-blue-600"
+                         when :execution then "bi-play-circle text-green-600"
+                         when :timing then "bi-clock text-yellow-600"
+                         when :data then "bi-database text-purple-600"
+                         when :error then "bi-exclamation-triangle text-red-600"
+                         else "bi-tag text-gray-600"
+                         end
             i(class: icon_class)
           end
 
@@ -232,7 +232,8 @@ module RAAF
               next unless data
 
               div(class: "bg-white border border-gray-200 rounded-lg shadow") do
-                render_collapsible_header(section[:title], "additional-#{section[:key]}", section[:icon], expanded: false)
+                render_collapsible_header(section[:title], "additional-#{section[:key]}", section[:icon],
+                                          expanded: false)
                 div(id: "additional-#{section[:key]}-content", class: "p-4 border-t border-gray-200 hidden") do
                   render_json_content(data, "additional-#{section[:key]}-data")
                 end
@@ -282,7 +283,7 @@ module RAAF
 
           def has_additional_data?
             return false unless @span.span_attributes
-            
+
             %w[events metrics logs custom].any? do |key|
               @span.span_attributes.key?(key) || @span.span_attributes.key?(key.to_sym)
             end
@@ -316,20 +317,20 @@ module RAAF
             @span.span_attributes.each do |key, value|
               key_str = key.to_s.downcase
               category = case key_str
-                        when /name|id|version|type|kind|status/
-                          :metadata
-                        when /execution|run|process|agent|model/
-                          :execution
-                        when /time|duration|start|end|created|updated/
-                          :timing
-                        when /input|output|data|result|response|content/
-                          :data
-                        when /error|exception|fail|stack|trace/
-                          :error
-                        else
-                          :other
-                        end
-              
+                         when /name|id|version|type|kind|status/
+                           :metadata
+                         when /execution|run|process|agent|model/
+                           :execution
+                         when /time|duration|start|end|created|updated/
+                           :timing
+                         when /input|output|data|result|response|content/
+                           :data
+                         when /error|exception|fail|stack|trace/
+                           :error
+                         else
+                           :other
+                         end
+
               groups[category] << [key, value]
             end
 
@@ -339,6 +340,7 @@ module RAAF
 
           def truncate(text, length: 100)
             return text unless text.is_a?(String) && text.length > length
+
             "#{text[0, length]}..."
           end
         end

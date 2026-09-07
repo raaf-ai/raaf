@@ -15,7 +15,7 @@ require "raaf-core"
 
 # API key validation - structured output requires a valid OpenAI API key
 # The response_format feature is a paid API feature
-return if ENV["OPENAI_API_KEY"] && !ENV["OPENAI_API_KEY"].empty?
+return if ENV["OPENAI_API_KEY"].present?
 
 puts "⚠️  OPENAI_API_KEY environment variable is required for full execution"
 puts "Demonstrating schema creation without API calls..."

@@ -10,7 +10,9 @@ rescue LoadError
 end
 
 module RAAF
+
   module Tools
+
     ##
     # Example tool that demonstrates tracing integration
     #
@@ -28,10 +30,9 @@ module RAAF
     #   result = runner.run("Process some data")
     #
     class TracedExampleTool < FunctionTool
+
       # Include tracing integration if available
-      if defined?(RAAF::Tracing::ToolIntegration)
-        include RAAF::Tracing::ToolIntegration
-      end
+      include RAAF::Tracing::ToolIntegration if defined?(RAAF::Tracing::ToolIntegration)
 
       ##
       # Initialize a new traced example tool
@@ -90,7 +91,7 @@ module RAAF
       def perform_processing(data)
         # Simulate some processing work
         processed_data = data.upcase.reverse
-        
+
         {
           original: data,
           processed: processed_data,
@@ -98,6 +99,9 @@ module RAAF
           timestamp: Time.now.iso8601
         }
       end
+
     end
+
   end
+
 end

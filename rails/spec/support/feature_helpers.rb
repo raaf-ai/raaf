@@ -44,25 +44,17 @@ module FeatureHelpers
     fill_in "Name", with: attrs[:name] || "Test Policy"
     fill_in "Agent name", with: attrs[:agent_name] || "TestAgent"
 
-    if attrs[:description]
-      fill_in "Description", with: attrs[:description]
-    end
+    fill_in "Description", with: attrs[:description] if attrs[:description]
 
-    if attrs[:sampling_mode]
-      select attrs[:sampling_mode].humanize, from: "Sampling mode"
-    end
+    select attrs[:sampling_mode].humanize, from: "Sampling mode" if attrs[:sampling_mode]
 
-    if attrs[:sample_rate]
-      fill_in "Sample rate", with: attrs[:sample_rate]
-    end
+    fill_in "Sample rate", with: attrs[:sample_rate] if attrs[:sample_rate]
 
-    if attrs[:max_daily_evaluations]
-      fill_in "Max daily evaluations", with: attrs[:max_daily_evaluations]
-    end
+    fill_in "Max daily evaluations", with: attrs[:max_daily_evaluations] if attrs[:max_daily_evaluations]
 
-    if attrs[:priority]
-      fill_in "Priority", with: attrs[:priority]
-    end
+    return unless attrs[:priority]
+
+    fill_in "Priority", with: attrs[:priority]
   end
 
   def submit_policy_form

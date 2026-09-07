@@ -25,7 +25,6 @@ puts "\n=== Demonstrating error when no prompt class is configured ==="
 
 # Example of what happens when no prompt class is configured
 class BadAgent < RAAF::DSL::Agent
-
   agent_name "bad_agent"
   tool :web_search
 

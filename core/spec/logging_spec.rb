@@ -339,21 +339,18 @@ RSpec.describe RAAF::Logging do
       # Rapidly call configure and configuration from multiple threads
       thread_count = 50
       errors = []
-      threads = []
       mutex = Mutex.new
 
       threads = thread_count.times.map do |i|
         Thread.new do
-          begin
-            if i.even?
-              described_class.configure { |c| c.log_format = :json }
-            else
-              described_class.configuration
-            end
-          rescue => e
-            mutex.synchronize do
-              errors << { thread: i, error: e }
-            end
+          if i.even?
+            described_class.configure { |c| c.log_format = :json }
+          else
+            described_class.configuration
+          end
+        rescue StandardError => e
+          mutex.synchronize do
+            errors << { thread: i, error: e }
           end
         end
       end
@@ -378,18 +375,16 @@ RSpec.describe RAAF::Logging do
 
       threads = thread_count.times.map do |i|
         Thread.new do
-          begin
-            # Half configure, half just read
-            if i.even?
-              log_level = (i / 2) % 4 == 0 ? :debug : :info
-              described_class.configure { |c| c.log_level = log_level }
-            else
-              described_class.configuration
-            end
-          rescue => e
-            mutex.synchronize do
-              errors << e
-            end
+          # Half configure, half just read
+          if i.even?
+            log_level = (i / 2) % 4 == 0 ? :debug : :info
+            described_class.configure { |c| c.log_level = log_level }
+          else
+            described_class.configuration
+          end
+        rescue StandardError => e
+          mutex.synchronize do
+            errors << e
           end
         end
       end
@@ -398,7 +393,7 @@ RSpec.describe RAAF::Logging do
       threads.each(&:join)
 
       # Verify no deadlocks or errors occurred
-      expect(errors).to be_empty, "Errors in stress test: #{errors.map(&:message).join(', ')}"
+      expect(errors).to be_empty, "Errors in stress test: #{errors.map(&:message).join(", ")}"
 
       # Verify system is still functional
       config = described_class.configuration

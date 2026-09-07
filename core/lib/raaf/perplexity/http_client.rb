@@ -5,7 +5,9 @@ require "net/http"
 require "uri"
 
 module RAAF
+
   module Perplexity
+
     ##
     # Shared HTTP client for Perplexity API communication
     #
@@ -35,6 +37,7 @@ module RAAF
     #   )
     #
     class HttpClient
+
       # Perplexity API base URL
       DEFAULT_API_BASE = "https://api.perplexity.ai"
 
@@ -226,13 +229,13 @@ module RAAF
       #
       def extract_html_error(html_body)
         # Try to extract title
-        if html_body =~ /<title[^>]*>(.*?)<\/title>/mi
+        if html_body =~ %r{<title[^>]*>(.*?)</title>}mi
           title = Regexp.last_match(1).strip
           return truncate_message("HTML error: #{title}") unless title.empty?
         end
 
         # Try to extract first h1
-        if html_body =~ /<h1[^>]*>(.*?)<\/h1>/mi
+        if html_body =~ %r{<h1[^>]*>(.*?)</h1>}mi
           heading = Regexp.last_match(1).strip
           return truncate_message("HTML error: #{heading}") unless heading.empty?
         end
@@ -258,6 +261,9 @@ module RAAF
 
         "#{message[0...max_length]}... (truncated)"
       end
+
     end
+
   end
+
 end

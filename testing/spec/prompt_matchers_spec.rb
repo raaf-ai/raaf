@@ -8,8 +8,8 @@ RSpec.describe RAAF::Testing::PromptMatchers do
     Class.new(RAAF::DSL::Prompts::Base) do
       requires :document_name, :analysis_type
       optional :priority_level
-      requires_from_context :document_path, path: [:document, :file_path]
-      optional_from_context :page_count, path: [:document, :metadata, :pages], default: "unknown"
+      requires_from_context :document_path, path: %i[document file_path]
+      optional_from_context :page_count, path: %i[document metadata pages], default: "unknown"
 
       def system
         <<~SYSTEM
@@ -79,9 +79,9 @@ RSpec.describe RAAF::Testing::PromptMatchers do
       end
 
       it "requires context when testing prompt class" do
-        expect {
+        expect do
           expect(test_prompt_class).to include_prompt_content("content")
-        }.to raise_error(ArgumentError, /Context required when testing prompt class/)
+        end.to raise_error(ArgumentError, /Context required when testing prompt class/)
       end
     end
 
@@ -95,19 +95,19 @@ RSpec.describe RAAF::Testing::PromptMatchers do
       end
 
       it "rejects context when testing instance" do
-        expect {
+        expect do
           expect(prompt_instance).to include_prompt_content("content")
             .with_context(valid_context)
-        }.to raise_error(ArgumentError, /Context should not be provided/)
+        end.to raise_error(ArgumentError, /Context should not be provided/)
       end
     end
 
     context "failure cases" do
       it "provides helpful error messages when content is missing" do
-        expect {
+        expect do
           expect(test_prompt_class).to include_prompt_content("Missing Content")
             .with_context(valid_context)
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError) do |error|
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError) do |error|
           expect(error.message).to include("Expected prompt to include: \"Missing Content\"")
           expect(error.message).to include("Missing content: \"Missing Content\"")
           expect(error.message).to include("Rendered content:")
@@ -136,10 +136,10 @@ RSpec.describe RAAF::Testing::PromptMatchers do
       end
 
       it "provides helpful error messages" do
-        expect {
+        expect do
           expect(test_prompt_class).to validate_prompt_successfully
             .with_context({ document_name: "Test" })
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError) do |error|
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError) do |error|
           expect(error.message).to include("validation failed with:")
           expect(error.message).to include("analysis_type")
         end
@@ -160,10 +160,10 @@ RSpec.describe RAAF::Testing::PromptMatchers do
     end
 
     it "fails when validation unexpectedly succeeds" do
-      expect {
+      expect do
         expect(test_prompt_class).to fail_prompt_validation
           .with_context(valid_context)
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError) do |error|
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError) do |error|
         expect(error.message).to include("Expected prompt validation to fail")
         expect(error.message).to include("but it succeeded")
       end
@@ -189,18 +189,18 @@ RSpec.describe RAAF::Testing::PromptMatchers do
     end
 
     it "fails when variable doesn't exist" do
-      expect {
+      expect do
         expect(prompt_instance).to have_prompt_context_variable(:nonexistent)
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError) do |error|
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError) do |error|
         expect(error.message).to include("Expected prompt to have context variable :nonexistent")
       end
     end
 
     it "fails when value doesn't match" do
-      expect {
+      expect do
         expect(prompt_instance).to have_prompt_context_variable(:document_name)
           .with_value("Wrong Value")
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError) do |error|
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError) do |error|
         expect(error.message).to include("Expected context variable :document_name to have value")
         expect(error.message).to include("\"Wrong Value\"")
         expect(error.message).to include("\"Annual Report 2024\"")

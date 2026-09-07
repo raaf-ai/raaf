@@ -4,7 +4,9 @@ require_relative "input_guardrail"
 require_relative "output_guardrail"
 
 module RAAF
+
   module Guardrails
+
     ##
     # Built-in guardrails for common use cases
     #
@@ -15,23 +17,24 @@ module RAAF
     #
     # @example Using built-in guardrails
     #   agent = RAAF::Agent.new(name: "Support")
-    #   
+    #
     #   # Add profanity filter
     #   agent.add_input_guardrail(
     #     RAAF::Guardrails.profanity_guardrail
     #   )
-    #   
+    #
     #   # Add PII detection
     #   agent.add_input_guardrail(
     #     RAAF::Guardrails.pii_guardrail
     #   )
-    #   
+    #
     #   # Add length limit for outputs
     #   agent.add_output_guardrail(
     #     RAAF::Guardrails.length_guardrail(max_length: 1000)
     #   )
     #
     module BuiltIn
+
       ##
       # Input guardrail that detects profanity and inappropriate content
       #
@@ -51,6 +54,7 @@ module RAAF
       #   )
       #
       class ProfanityGuardrail < InputGuardrail
+
         # Default patterns for detecting inappropriate content
         INAPPROPRIATE_PATTERNS = [
           /\b(fuck|shit|damn|hell|ass|bitch|bastard)\b/i,
@@ -102,6 +106,7 @@ module RAAF
             input.to_s
           end
         end
+
       end
 
       ##
@@ -124,6 +129,7 @@ module RAAF
       #   )
       #
       class PIIGuardrail < InputGuardrail
+
         # Default patterns for common PII types
         PII_PATTERNS = {
           ssn: /\b\d{3}-\d{2}-\d{4}\b/,
@@ -179,6 +185,7 @@ module RAAF
             input.to_s
           end
         end
+
       end
 
       ##
@@ -198,6 +205,7 @@ module RAAF
       #   )
       #
       class LengthGuardrail < OutputGuardrail
+
         ##
         # Initialize length validation guardrail
         #
@@ -234,6 +242,7 @@ module RAAF
             )
           end
         end
+
       end
 
       ##
@@ -252,7 +261,7 @@ module RAAF
       #     },
       #     required: ["name"]
       #   }
-      #   
+      #
       #   guardrail = BuiltIn::JSONSchemaGuardrail.new(schema: schema)
       #
       # @example Complex nested schema
@@ -274,6 +283,7 @@ module RAAF
       #   }
       #
       class JSONSchemaGuardrail < OutputGuardrail
+
         ##
         # Initialize JSON schema validation guardrail
         #
@@ -398,6 +408,7 @@ module RAAF
 
           errors
         end
+
       end
 
       ##
@@ -416,7 +427,7 @@ module RAAF
       #   guardrail = BuiltIn::TopicRelevanceGuardrail.new(
       #     allowed_topics: [
       #       "product features",
-      #       "pricing plans", 
+      #       "pricing plans",
       #       "integration support",
       #       "API documentation"
       #     ],
@@ -424,6 +435,7 @@ module RAAF
       #   )
       #
       class TopicRelevanceGuardrail < InputGuardrail
+
         ##
         # Initialize topic relevance guardrail
         #
@@ -476,7 +488,11 @@ module RAAF
             input.to_s
           end
         end
+
       end
+
     end
+
   end
+
 end

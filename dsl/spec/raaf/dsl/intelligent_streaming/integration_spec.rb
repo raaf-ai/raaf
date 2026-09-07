@@ -26,9 +26,9 @@ RSpec.describe "IntelligentStreaming End-to-End Integration" do
           {
             id: i,
             name: "Company #{i}",
-            industry: ["tech", "finance", "healthcare", "retail"].sample,
-            size: ["small", "medium", "large"].sample,
-            location: ["US", "EU", "ASIA"].sample,
+            industry: %w[tech finance healthcare retail].sample,
+            size: %w[small medium large].sample,
+            location: %w[US EU ASIA].sample,
             revenue: rand(1_000_000..100_000_000)
           }
         end
@@ -59,7 +59,7 @@ RSpec.describe "IntelligentStreaming End-to-End Integration" do
           # Simple fit criteria
           fit_score = 0
           fit_score += 30 if company[:industry] == "tech"
-          fit_score += 20 if company[:size] == "medium" || company[:size] == "large"
+          fit_score += 20 if %w[medium large].include?(company[:size])
           fit_score += 25 if company[:revenue] > 10_000_000
           fit_score += 25 if company[:location] == "US"
 
@@ -88,13 +88,13 @@ RSpec.describe "IntelligentStreaming End-to-End Integration" do
         # Simulate deep intelligence gathering
         enriched = context[:companies].map do |company|
           company.merge(
-            technologies: ["Ruby", "Rails", "PostgreSQL", "Redis"].sample(2),
+            technologies: %w[Ruby Rails PostgreSQL Redis].sample(2),
             employee_count: rand(10..10_000),
             growth_rate: rand(5..50),
-            funding_stage: ["seed", "series_a", "series_b", "series_c"].sample,
+            funding_stage: %w[seed series_a series_b series_c].sample,
             recent_news: "Recent #{['expansion', 'product launch', 'acquisition', 'partnership'].sample}",
             decision_makers: rand(3..10),
-            pain_points: ["scaling", "automation", "integration", "compliance"].sample(2)
+            pain_points: %w[scaling automation integration compliance].sample(2)
           )
         end
 
@@ -127,7 +127,7 @@ RSpec.describe "IntelligentStreaming End-to-End Integration" do
               strategic_alignment: rand(65..90)
             },
             overall_score: rand(70..95),
-            tier: ["A", "B", "C"].sample
+            tier: %w[A B C].sample
           )
         end
 
@@ -207,7 +207,7 @@ RSpec.describe "IntelligentStreaming End-to-End Integration" do
           market: "Tech"
         )
 
-        result = pipeline.run
+        pipeline.run
 
         # Should have progress updates for each stream
         expect(progress_updates).not_to be_empty
@@ -240,15 +240,15 @@ RSpec.describe "IntelligentStreaming End-to-End Integration" do
             stream_size 20
             over :companies
 
-            skip_if do |company, context|
+            skip_if do |company, _context|
               processed_companies.include?(company[:id]) && cached_results[company[:id]]
             end
 
-            load_existing do |company, context|
+            load_existing do |company, _context|
               cached_results[company[:id]]
             end
 
-            persist do |stream_results, context|
+            persist do |stream_results, _context|
               # Simulate persisting to database
               stream_results[:companies].each do |company|
                 unless company[:cached]
@@ -313,7 +313,7 @@ RSpec.describe "IntelligentStreaming End-to-End Integration" do
             stream_size 20
             over :items
 
-            skip_if do |item, context|
+            skip_if do |item, _context|
               processed_ids.include?(item[:id])
             end
           end
@@ -353,7 +353,7 @@ RSpec.describe "IntelligentStreaming End-to-End Integration" do
             stream_size 25
             over :items
 
-            persist do |stream_results, context|
+            persist do |stream_results, _context|
               batch_data = {
                 timestamp: Time.now,
                 count: stream_results[:items].size,
@@ -376,7 +376,7 @@ RSpec.describe "IntelligentStreaming End-to-End Integration" do
         config = persist_analyzer.class._intelligent_streaming_config
         executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
 
-        result = executor.execute(context)
+        executor.execute(context)
 
         # Should have persisted 4 batches (100 / 25)
         expect(persisted_batches.size).to eq(4)
@@ -403,7 +403,7 @@ RSpec.describe "IntelligentStreaming End-to-End Integration" do
             stream_size 20
             over :items
 
-            load_existing do |item, context|
+            load_existing do |item, _context|
               cache[item[:id]]
             end
           end
@@ -480,7 +480,7 @@ RSpec.describe "IntelligentStreaming End-to-End Integration" do
         config = incremental_agent.class._intelligent_streaming_config
         executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
 
-        result = executor.execute(context)
+        executor.execute(context)
 
         # Should have delivered results 3 times (60 / 20)
         expect(delivered_results.size).to eq(3)
@@ -533,7 +533,7 @@ RSpec.describe "IntelligentStreaming End-to-End Integration" do
         config = accumulated_agent.class._intelligent_streaming_config
         executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
 
-        result = executor.execute(context)
+        executor.execute(context)
 
         # Should have called hook once with all results
         expect(final_results).not_to be_nil
@@ -560,7 +560,7 @@ RSpec.describe "IntelligentStreaming End-to-End Integration" do
               item.merge(
                 processed: true,
                 score: rand(100),
-                category: ["A", "B", "C"].sample
+                category: %w[A B C].sample
               )
             end
             context[:total_processed] = context[:items].size
@@ -599,7 +599,7 @@ RSpec.describe "IntelligentStreaming End-to-End Integration" do
             stream_size 500
             over :items
 
-            on_stream_start do |stream_num, total, context|
+            on_stream_start do |_stream_num, _total, _context|
               stream_count += 1
             end
           end

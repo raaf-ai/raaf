@@ -14,10 +14,10 @@ RSpec.describe RAAF::Eval::DSL::Evaluator do
       value = field_context.value.to_f if field_context.value.respond_to?(:to_f)
 
       {
-        label: (value && value > threshold) ? "good" : "bad",
+        label: value && value > threshold ? "good" : "bad",
         score: value ? [value, 1.0].min : 0.0,
         details: { threshold: threshold, actual: value },
-        message: "Test evaluator: #{value > threshold ? 'PASS' : 'FAIL'}"
+        message: "Test evaluator: #{value > threshold ? "PASS" : "FAIL"}"
       }
     end
   end
@@ -42,7 +42,7 @@ RSpec.describe RAAF::Eval::DSL::Evaluator do
 
       expect(result).to be_a(Hash)
       expect(result).to include(:label, :score, :details, :message)
-      expect(result[:label]).to be_in(["good", "average", "bad"])
+      expect(result[:label]).to be_in(%w[good average bad])
       expect(result[:score]).to be_a(Numeric).and be_between(0.0, 1.0)
     end
 
@@ -57,16 +57,17 @@ RSpec.describe RAAF::Eval::DSL::Evaluator do
       # Invalid evaluator that returns incomplete result
       invalid_evaluator = Class.new do
         include RAAF::Eval::DSL::Evaluator
+
         evaluator_name :invalid
         def evaluate(field_context, **options)
           { label: "good" } # Missing required fields
         end
       end.new
 
-      expect {
+      expect do
         result = invalid_evaluator.evaluate(field_context)
         invalid_evaluator.validate_result!(result)
-      }.to raise_error(RAAF::Eval::DSL::InvalidEvaluatorResultError)
+      end.to raise_error(RAAF::Eval::DSL::InvalidEvaluatorResultError)
     end
 
     it "provides access to field context in evaluate method" do
@@ -77,7 +78,7 @@ RSpec.describe RAAF::Eval::DSL::Evaluator do
       }
       context = RAAF::Eval::DSL::FieldContext.new(:tokens, result_with_baseline)
 
-      eval_result = evaluator.evaluate(context)
+      evaluator.evaluate(context)
 
       # Evaluator should have access to field value and baseline
       expect(context.value).to eq(100)

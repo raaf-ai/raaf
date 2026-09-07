@@ -15,11 +15,11 @@ RSpec.describe RAAF::DSL::Agent do
   class BasicTestAgent < described_class
     agent_name "BasicTestAgent"
     model "gpt-4o"
-    
+
     def build_instructions
       "You are a basic test assistant."
     end
-    
+
     def build_schema
       {
         type: "object",
@@ -31,7 +31,7 @@ RSpec.describe RAAF::DSL::Agent do
       }
     end
   end
-  
+
   class SmartTestAgent < described_class
     agent_name "SmartTestAgent"
     model "gpt-4o-mini"
@@ -69,83 +69,83 @@ RSpec.describe RAAF::DSL::Agent do
       "Process endpoint #{context[:endpoint]} with key #{truncated_key}"
     end
   end
-  
+
   class MinimalAgent < described_class
     def build_instructions
       "Minimal agent"
     end
-    
+
     def build_schema
       nil # Test unstructured output
     end
   end
-  
+
   describe "Basic Agent Functionality (from old Base)" do
     let(:context) { RAAF::DSL::ContextVariables.new(test: true) }
     let(:agent) { BasicTestAgent.new(context: context) }
-    
+
     describe "#initialize" do
       it "accepts context parameter" do
         expect { BasicTestAgent.new(context: context) }.not_to raise_error
       end
-      
+
       it "accepts context_variables parameter for compatibility" do
         expect { BasicTestAgent.new(context_variables: context) }.not_to raise_error
       end
-      
+
       it "accepts processing_params" do
         agent = BasicTestAgent.new(context: context, processing_params: { foo: "bar" })
         expect(agent.processing_params).to eq({ foo: "bar" })
       end
-      
+
       it "defaults to empty context when not provided" do
         agent = BasicTestAgent.new
         expect(agent.context).to be_a(RAAF::DSL::ContextVariables)
         expect(agent.context.to_h).to eq({})
       end
     end
-    
+
     describe "#agent_name" do
       it "returns the configured agent name" do
         expect(agent.agent_name).to eq("BasicTestAgent")
       end
-      
+
       it "falls back to class name if not configured" do
         minimal = MinimalAgent.new
         expect(minimal.agent_name).to eq("MinimalAgent")
       end
     end
-    
+
     describe "#model_name" do
       it "returns the configured model" do
         expect(agent.model_name).to eq("gpt-4o")
       end
-      
+
       it "defaults to gpt-4o if not configured" do
         minimal = MinimalAgent.new
         expect(minimal.model_name).to eq("gpt-4o")
       end
     end
-    
+
     describe "#build_instructions" do
       it "returns the system instructions" do
         expect(agent.build_instructions).to eq("You are a basic test assistant.")
       end
     end
-    
+
     describe "#build_schema" do
       it "returns the response schema" do
         schema = agent.build_schema
         expect(schema[:type]).to eq("object")
         expect(schema[:properties][:message]).to eq({ type: "string" })
       end
-      
+
       it "can return nil for unstructured output" do
         minimal = MinimalAgent.new
         expect(minimal.build_schema).to be_nil
       end
     end
-    
+
     describe "#response_format" do
       it "returns structured format with schema" do
         format = agent.response_format
@@ -160,13 +160,13 @@ RSpec.describe RAAF::DSL::Agent do
         actual_json = JSON.generate(actual_schema)
         expect(actual_json).to eq(expected_json)
       end
-      
+
       it "returns nil for unstructured output" do
         minimal = MinimalAgent.new
         expect(minimal.response_format).to be_nil
       end
     end
-    
+
     describe "#create_agent" do
       it "creates a RAAF::Agent instance" do
         openai_agent = agent.create_agent
@@ -176,43 +176,43 @@ RSpec.describe RAAF::DSL::Agent do
       end
     end
   end
-  
+
   describe "Smart Agent Features" do
     let(:valid_context) { RAAF::DSL::ContextVariables.new(api_key: "sk-123456", endpoint: "https://api.example.com") }
     let(:invalid_context) { RAAF::DSL::ContextVariables.new(endpoint: "https://api.example.com") }
-    
+
     describe "Context Validation" do
       it "validates required context keys" do
         expect { SmartTestAgent.new(context: invalid_context) }
           .to raise_error(ArgumentError, /Required context keys missing: api_key/)
       end
-      
+
       it "validates context value types" do
         invalid = RAAF::DSL::ContextVariables.new(api_key: 123, endpoint: "test")
         expect { SmartTestAgent.new(context: invalid) }
           .to raise_error(ArgumentError, /Context key 'api_key' must be String/)
       end
-      
+
       it "accepts valid context" do
         expect { SmartTestAgent.new(context: valid_context) }.not_to raise_error
       end
     end
-    
+
     describe "DSL Configuration" do
       let(:agent) { SmartTestAgent.new(context: valid_context) }
-      
+
       it "configures agent name" do
         expect(agent.agent_name).to eq("SmartTestAgent")
       end
-      
+
       it "configures model" do
         expect(agent.model_name).to eq("gpt-4o-mini")
       end
-      
+
       it "configures max_turns" do
         expect(agent.max_turns).to eq(5)
       end
-      
+
       it "has retry configuration" do
         expect(SmartTestAgent._retry_config).to include(:rate_limit)
         expect(SmartTestAgent._retry_config[:rate_limit]).to include(
@@ -220,7 +220,7 @@ RSpec.describe RAAF::DSL::Agent do
           backoff: :exponential
         )
       end
-      
+
       it "has circuit breaker configuration" do
         expect(SmartTestAgent._circuit_breaker_config).to include(
           threshold: 5,
@@ -229,10 +229,10 @@ RSpec.describe RAAF::DSL::Agent do
         )
       end
     end
-    
+
     describe "Schema DSL" do
       let(:agent) { SmartTestAgent.new(context: valid_context) }
-      
+
       it "builds schema from DSL" do
         schema_def = agent.build_schema
         schema = schema_def[:schema]
@@ -244,84 +244,84 @@ RSpec.describe RAAF::DSL::Agent do
         expect(schema["required"]).to include("status")
       end
     end
-    
+
     describe "Prompt DSL" do
       let(:agent) { SmartTestAgent.new(context: valid_context) }
-      
+
       it "builds system prompt from string" do
         expect(agent.build_instructions).to eq("You are a smart test assistant.")
       end
-      
+
       it "builds user prompt from block" do
         prompt = agent.build_user_prompt
         expect(prompt).to eq("Process endpoint https://api.example.com with key sk-123...")
       end
     end
-    
+
     describe "#run with smart features" do
       let(:agent) { SmartTestAgent.new(context: valid_context) }
-      
+
       before do
         # Mock the direct_run method to simulate execution
         allow(agent).to receive(:direct_run).and_return({
-          success: true,
-          results: double(
-            messages: [
-              { role: "assistant", content: '{"status": "success", "data": []}' }
-            ],
-            final_output: '{"status": "success", "data": []}'
-          )
-        })
+                                                          success: true,
+                                                          results: double(
+                                                            messages: [
+                                                              { role: "assistant", content: '{"status": "success", "data": []}' }
+                                                            ],
+                                                            final_output: '{"status": "success", "data": []}'
+                                                          )
+                                                        })
       end
-      
+
       it "executes with retry and error handling when smart features configured" do
         result = agent.run
         expect(result).to include(success: true, data: { "status" => "success", "data" => [] })
       end
-      
+
       it "logs execution start and completion for smart agents" do
         expect(RAAF::Logging).to receive(:info).with(/Starting execution/)
         expect(RAAF::Logging).to receive(:info).with(/completed successfully/)
         agent.run
       end
-      
+
       it "skips smart features when skip_retries is true" do
         expect(agent).not_to receive(:check_circuit_breaker!)
         expect(agent).not_to receive(:execute_with_retry)
         agent.run(skip_retries: true)
       end
     end
-    
+
     describe "#call method (backward compatibility)" do
       let(:agent) { SmartTestAgent.new(context: valid_context) }
-      
+
       it "delegates to run method" do
         expect(agent).to receive(:run).and_return({ success: true })
         result = agent.call
         expect(result).to eq({ success: true })
       end
     end
-    
+
     describe "Error Handling" do
       let(:agent) { SmartTestAgent.new(context: valid_context) }
-      
+
       context "with rate limit error" do
         before do
           allow(agent).to receive(:direct_run).and_raise(StandardError.new("rate limit exceeded"))
         end
-        
+
         it "categorizes rate limit errors" do
           result = agent.run
           expect(result[:error_type]).to eq("rate_limit")
           expect(result[:error]).to include("Rate limit exceeded")
         end
       end
-      
+
       context "with JSON parse error" do
         before do
           allow(agent).to receive(:direct_run).and_raise(JSON::ParserError.new("unexpected token"))
         end
-        
+
         it "categorizes JSON errors" do
           result = agent.run
           expect(result[:error_type]).to eq("json_error")
@@ -330,12 +330,12 @@ RSpec.describe RAAF::DSL::Agent do
       end
     end
   end
-  
+
   describe "AgentDsl Integration" do
     it "includes ContextAccess automatically" do
       expect(described_class.ancestors).to include(RAAF::DSL::ContextAccess)
     end
-    
+
     it "provides DSL methods without explicit include" do
       expect(described_class).to respond_to(:agent_name)
       expect(described_class).to respond_to(:model)
@@ -344,19 +344,19 @@ RSpec.describe RAAF::DSL::Agent do
       # expect(described_class).to respond_to(:schema)
     end
   end
-  
+
   describe "AgentHooks Integration" do
     it "includes HookContext automatically" do
       expect(described_class.ancestors).to include(RAAF::DSL::Hooks::HookContext)
     end
-    
+
     it "provides hook methods" do
       expect(described_class).to respond_to(:on_start)
       expect(described_class).to respond_to(:on_end)
       expect(described_class).to respond_to(:on_handoff)
     end
   end
-  
+
   describe "Backward Compatibility" do
     it "works with old initialization style" do
       agent = BasicTestAgent.new(
@@ -367,29 +367,29 @@ RSpec.describe RAAF::DSL::Agent do
       expect(agent.context.to_h["context_variables"].to_h).to include("foo" => "bar")
       expect(agent.processing_params).to eq({ baz: "qux" })
     end
-    
+
     it "supports run method" do
       agent = BasicTestAgent.new(context: RAAF::DSL::ContextVariables.new)
       expect(agent).to respond_to(:run)
-      # Note: call method not implemented in current version
+      # NOTE: call method not implemented in current version
     end
   end
-  
+
   describe "Default Schema" do
     class DefaultSchemaAgent < described_class
       agent_name "DefaultAgent"
     end
-    
+
     it "provides a default schema when not defined" do
       agent = DefaultSchemaAgent.new
       schema = agent.build_schema
-      
+
       expect(schema[:type]).to eq("object")
       expect(schema[:properties]).to include(:result)
       expect(schema[:required]).to include("result")
     end
   end
-  
+
   describe "Configuration Inheritance" do
     class ParentAgent < described_class
       agent_name "ParentAgent"
@@ -407,7 +407,7 @@ RSpec.describe RAAF::DSL::Agent do
         required :session_id
       end
     end
-    
+
     it "inherits configuration from parent class" do
       expect(ChildAgent._required_context_keys).to include(:user_id, :session_id)
       expect(ChildAgent._retry_config).to include(:network)
@@ -552,7 +552,7 @@ RSpec.describe RAAF::DSL::Agent do
         # Tools & context
         expect(mock_span).to receive(:set_attribute).with("agent.tools", [])
         expect(mock_span).to receive(:set_attribute).with("agent.tool_count", 0)
-        expect(mock_span).to receive(:set_attribute).with("agent.required_fields", [:product, :company])
+        expect(mock_span).to receive(:set_attribute).with("agent.required_fields", %i[product company])
         expect(mock_span).to receive(:set_attribute).with("agent.optional_fields", [:analysis_depth])
 
         # Runtime info
@@ -589,10 +589,10 @@ RSpec.describe RAAF::DSL::Agent do
         expect(mock_span).to receive(:set_attribute).with("dialog.messages", anything)
         expect(mock_span).to receive(:set_attribute).with("dialog.message_count", 2)
         expect(mock_span).to receive(:set_attribute).with("dialog.total_tokens", {
-          prompt_tokens: 50,
-          completion_tokens: 100,
-          total_tokens: 150
-        })
+                                                            prompt_tokens: 50,
+                                                            completion_tokens: 100,
+                                                            total_tokens: 150
+                                                          })
 
         agent.direct_run
       end
@@ -624,10 +624,10 @@ RSpec.describe RAAF::DSL::Agent do
       # Mock the core execution
       before do
         allow(agent).to receive(:execute_without_tracing).and_return({
-          success: true,
-          markets: ["market1"],
-          analysis: { confidence: 0.9 }
-        })
+                                                                       success: true,
+                                                                       markets: ["market1"],
+                                                                       analysis: { confidence: 0.9 }
+                                                                     })
       end
 
       it "executes without tracing when tracer is nil" do
@@ -755,12 +755,12 @@ RSpec.describe RAAF::DSL::Agent do
 
         it "captures context metadata" do
           expect(mock_span).to receive(:set_attribute).with("dialog.context_size", 3)
-          expect(mock_span).to receive(:set_attribute).with("dialog.context_keys", [:product, :company, :api_key])
+          expect(mock_span).to receive(:set_attribute).with("dialog.context_keys", %i[product company api_key])
           expect(mock_span).to receive(:set_attribute).with("dialog.initial_context", hash_including(
-            product: "Test",
-            company: "Corp",
-            api_key: "[REDACTED]"
-          ))
+                                                                                        product: "Test",
+                                                                                        company: "Corp",
+                                                                                        api_key: "[REDACTED]"
+                                                                                      ))
 
           agent.send(:capture_initial_dialog_state, mock_span, context)
         end
@@ -795,10 +795,10 @@ RSpec.describe RAAF::DSL::Agent do
           expect(mock_span).to receive(:set_attribute).with("dialog.messages", anything)
           expect(mock_span).to receive(:set_attribute).with("dialog.message_count", 2)
           expect(mock_span).to receive(:set_attribute).with("dialog.total_tokens", {
-            prompt_tokens: 25,
-            completion_tokens: 75,
-            total_tokens: 100
-          })
+                                                              prompt_tokens: 25,
+                                                              completion_tokens: 75,
+                                                              total_tokens: 100
+                                                            })
 
           agent.send(:capture_final_dialog_state, mock_span, run_result)
         end
@@ -865,7 +865,7 @@ RSpec.describe RAAF::DSL::Agent do
   end
 
   # TracingRegistry integration tests
-  describe "TracingRegistry integration", :if => defined?(RAAF::Tracing::TracingRegistry) do
+  describe "TracingRegistry integration", if: defined?(RAAF::Tracing::TracingRegistry) do
     let(:registry_tracer) { double("MockTracer") }
     let(:mock_span) { double("MockSpan", span_id: "span_123", set_attribute: nil, add_event: nil, set_status: nil) }
 
@@ -914,13 +914,17 @@ RSpec.describe RAAF::DSL::Agent do
 
           before do
             allow(noop_tracer).to receive(:is_a?).and_return(false)
-            allow(noop_tracer).to receive(:is_a?).with(RAAF::Tracing::NoOpTracer).and_return(true) if defined?(RAAF::Tracing::NoOpTracer)
+            if defined?(RAAF::Tracing::NoOpTracer)
+              allow(noop_tracer).to receive(:is_a?).with(RAAF::Tracing::NoOpTracer).and_return(true)
+            end
             RAAF::Tracing::TracingRegistry.set_process_tracer(noop_tracer)
           end
 
           it "falls back to TraceProvider" do
             # Mock the TraceProvider fallback
-            allow(RAAF::Tracing::TraceProvider).to receive(:tracer).and_return(registry_tracer) if defined?(RAAF::Tracing::TraceProvider)
+            if defined?(RAAF::Tracing::TraceProvider)
+              allow(RAAF::Tracing::TraceProvider).to receive(:tracer).and_return(registry_tracer)
+            end
 
             tracer = agent.send(:get_tracer_for_skipped_span)
             # Should either be the registry_tracer or handle the fallback gracefully
@@ -1208,7 +1212,7 @@ RSpec.describe RAAF::DSL::Agent do
         incremental_processing do
           chunk_size 2
 
-          skip_if { |_item, _ctx| false }  # never skip
+          skip_if { |_item, _ctx| false } # never skip
 
           persistence_handler do |batch_results, context|
             # Accumulate IDs and count across batches – exactly how Prospect::Scoring works

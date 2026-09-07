@@ -136,7 +136,6 @@ require_relative "raaf/eval/result_store"
 # @since 0.1.0
 module RAAF
   module Eval
-
     # Eval gem version
     EVAL_VERSION = VERSION
 

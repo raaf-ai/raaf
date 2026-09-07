@@ -69,16 +69,17 @@ module RAAF
         private
 
         def validate_categories
-          if categories.blank? || !categories.is_a?(Array) || categories.empty?
-            errors.add(:categories, "must be a non-empty array for categorical scores")
-          end
+          return unless categories.blank? || !categories.is_a?(Array) || categories.empty?
+
+          errors.add(:categories, "must be a non-empty array for categorical scores")
         end
 
         def validate_range
           return if min_value.nil? || max_value.nil?
-          if min_value >= max_value
-            errors.add(:max_value, "must be greater than min_value")
-          end
+
+          return unless min_value >= max_value
+
+          errors.add(:max_value, "must be greater than min_value")
         end
       end
     end

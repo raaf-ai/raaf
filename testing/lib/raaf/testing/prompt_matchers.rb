@@ -17,7 +17,9 @@
 #
 # @since 0.1.0
 module RAAF
+
   module Testing
+
     module PromptMatchers
 
       # Only define matchers if RSpec is available
@@ -338,10 +340,10 @@ module RAAF
           failure_message do
             if @contract_error
               "Expected prompt to have context variable #{@variable_name.inspect}, but got " \
-              "contract error: #{@contract_error.message}"
+                "contract error: #{@contract_error.message}"
             elsif @expected_value
               "Expected context variable #{@variable_name.inspect} to have value " \
-              "#{@expected_value.inspect}, but got #{@actual_value.inspect}"
+                "#{@expected_value.inspect}, but got #{@actual_value.inspect}"
             else
               "Expected prompt to have context variable #{@variable_name.inspect}, but it doesn't exist"
             end
@@ -363,5 +365,7 @@ module RAAF
       end
 
     end
+
   end
+
 end

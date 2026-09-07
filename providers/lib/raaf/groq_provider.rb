@@ -106,7 +106,7 @@ module RAAF
         }
 
         # Add tools if provided (Groq supports function calling on select models)
-        if tools && !tools.empty?
+        if tools.present?
           if model.include?("tool-use")
             body[:tools] = prepare_tools(tools)
             body[:tool_choice] = kwargs[:tool_choice] if kwargs[:tool_choice]

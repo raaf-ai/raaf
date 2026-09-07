@@ -3,10 +3,13 @@
 require_relative "base_store"
 
 module RAAF
+
   module Memory
+
     # Base class for vector database implementations
     # Provides semantic search capabilities using embeddings
     class VectorStore < BaseStore
+
       attr_reader :embedding_model, :embedding_provider
 
       def initialize(embedding_model: "text-embedding-ada-002", embedding_provider: nil, **options)
@@ -140,6 +143,7 @@ module RAAF
           Array.new(1536) { rand(-1.0..1.0) }
         end
       end
+
     end
 
     # Example implementation hints for specific vector databases
@@ -169,5 +173,7 @@ module RAAF
     # class ChromaStore < VectorStore
     #   # Chroma implementation
     # end
+
   end
+
 end

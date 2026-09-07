@@ -51,7 +51,7 @@ module RAAF
         def comparator_instructions
           <<~INSTRUCTIONS
             You are an expert evaluator comparing two AI-generated outputs.
-            
+
             Analyze the outputs and provide:
             1. Semantic similarity score (0.0 to 1.0)
             2. Coherence score (0.0 to 1.0)
@@ -60,7 +60,7 @@ module RAAF
             5. Tone consistency score (0.0 to 1.0)
             6. Factuality score (0.0 to 1.0)
             7. Brief reasoning for your assessment
-            
+
             Return your analysis in JSON format.
           INSTRUCTIONS
         end
@@ -76,7 +76,7 @@ module RAAF
 
         def parse_comparison_result(result)
           content = result.messages.last[:content] || result.messages.last["content"]
-          
+
           # Try to extract JSON from the response
           json_match = content.match(/\{.*\}/m)
           if json_match

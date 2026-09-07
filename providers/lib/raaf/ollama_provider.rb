@@ -99,7 +99,7 @@ module RAAF
         }
 
         # Add tools if provided
-        body[:tools] = prepare_tools(tools) if tools && !tools.empty?
+        body[:tools] = prepare_tools(tools) if tools.present?
 
         # Add optional parameters
         options = build_options(kwargs)
@@ -127,7 +127,7 @@ module RAAF
         }
 
         # Add tools if provided
-        body[:tools] = prepare_tools(tools) if tools && !tools.empty?
+        body[:tools] = prepare_tools(tools) if tools.present?
 
         # Add optional parameters
         options = build_options(kwargs)
@@ -224,11 +224,11 @@ module RAAF
 
             # Merge normalized usage with Ollama-specific metadata
             (normalized_usage || {}).merge({
-              "total_duration" => ollama_response["total_duration"],
-              "load_duration" => ollama_response["load_duration"],
-              "prompt_eval_count" => ollama_response["prompt_eval_count"],
-              "eval_count" => ollama_response["eval_count"]
-            })
+                                             "total_duration" => ollama_response["total_duration"],
+                                             "load_duration" => ollama_response["load_duration"],
+                                             "prompt_eval_count" => ollama_response["prompt_eval_count"],
+                                             "eval_count" => ollama_response["eval_count"]
+                                           })
           end
         }
       end
@@ -302,11 +302,13 @@ module RAAF
               content = parsed["message"]["content"]
               accumulated_content += content
 
-              yield({
-                type: "content",
-                content: content,
-                accumulated_content: accumulated_content
-              }) if block_given? && !content.empty?
+              if block_given? && !content.empty?
+                yield({
+                  type: "content",
+                  content: content,
+                  accumulated_content: accumulated_content
+                })
+              end
             end
 
             # Handle tool calls streaming
@@ -314,11 +316,13 @@ module RAAF
               tool_calls = parsed["message"]["tool_calls"]
               accumulated_tool_calls.concat(tool_calls)
 
-              yield({
-                type: "tool_calls",
-                tool_calls: tool_calls,
-                accumulated_tool_calls: accumulated_tool_calls
-              }) if block_given?
+              if block_given?
+                yield({
+                  type: "tool_calls",
+                  tool_calls: tool_calls,
+                  accumulated_tool_calls: accumulated_tool_calls
+                })
+              end
             end
 
             # Handle final chunk with metadata
@@ -341,11 +345,11 @@ module RAAF
 
               # Merge normalized usage with Ollama-specific metadata
               final_usage = (normalized_usage || {}).merge({
-                "total_duration" => parsed["total_duration"],
-                "load_duration" => parsed["load_duration"],
-                "prompt_eval_count" => parsed["prompt_eval_count"],
-                "eval_count" => parsed["eval_count"]
-              })
+                                                             "total_duration" => parsed["total_duration"],
+                                                             "load_duration" => parsed["load_duration"],
+                                                             "prompt_eval_count" => parsed["prompt_eval_count"],
+                                                             "eval_count" => parsed["eval_count"]
+                                                           })
 
               final_metadata = {
                 model: parsed["model"],
@@ -353,11 +357,13 @@ module RAAF
                 usage: final_usage
               }
 
-              yield({
-                type: "finish",
-                finish_reason: final_metadata[:finish_reason],
-                usage: final_metadata[:usage]
-              }) if block_given?
+              if block_given?
+                yield({
+                  type: "finish",
+                  finish_reason: final_metadata[:finish_reason],
+                  usage: final_metadata[:usage]
+                })
+              end
             end
           rescue JSON::ParserError => e
             log_warn("Failed to parse streaming chunk: #{e.message}",

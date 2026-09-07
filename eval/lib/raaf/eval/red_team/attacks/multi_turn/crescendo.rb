@@ -32,7 +32,7 @@ module RAAF
           #   )
           #
           class CrescendoAttack < Attack
-            DEFAULT_STEPS = 6  # Crescendo typically uses more steps than linear
+            DEFAULT_STEPS = 6 # Crescendo typically uses more steps than linear
 
             # Emotional framing strategies
             EMOTIONAL_FRAMES = [
@@ -59,7 +59,7 @@ module RAAF
             end
 
             def deterministic?
-              false  # Highly context-dependent and LLM-powered
+              false # Highly context-dependent and LLM-powered
             end
 
             # Execute crescendo jailbreaking conversation
@@ -131,7 +131,7 @@ module RAAF
 
               steps_text = llm_generator.call(generation_prompt)
               parse_llm_steps(steps_text, num_steps)
-            rescue StandardError => e
+            rescue StandardError
               generate_steps_heuristically(baseline_input, num_steps, emotional_frame)
             end
 

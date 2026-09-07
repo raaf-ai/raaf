@@ -39,18 +39,20 @@ module RAAF
           return "agent" if span.respond_to?(:agent_name)
           return "tool" if span.respond_to?(:tool_name)
           return "handoff" if span.respond_to?(:target_agent)
+
           "response"
         end
 
         def extract_parameters(span)
           return {} unless span.respond_to?(:parameters)
+
           span.parameters || {}
         end
 
         def extract_messages(span, direction)
           method_name = "#{direction}_messages"
           return [] unless span.respond_to?(method_name)
-          
+
           messages = span.send(method_name) || []
           messages.map do |msg|
             {
@@ -65,7 +67,7 @@ module RAAF
 
         def extract_tool_calls(span)
           return [] unless span.respond_to?(:tool_calls)
-          
+
           tool_calls = span.tool_calls || []
           tool_calls.map do |tc|
             {
@@ -80,7 +82,7 @@ module RAAF
 
         def extract_handoffs(span)
           return [] unless span.respond_to?(:handoffs)
-          
+
           handoffs = span.handoffs || []
           handoffs.map do |h|
             {
@@ -93,11 +95,13 @@ module RAAF
 
         def extract_context(span)
           return {} unless span.respond_to?(:context_variables)
+
           span.context_variables || {}
         end
 
         def extract_provider_details(span)
           return {} unless span.respond_to?(:provider_details)
+
           span.provider_details || {}
         end
 
@@ -114,6 +118,7 @@ module RAAF
 
         def extract_error_info(span)
           return nil unless span.respond_to?(:error) && span.error
+
           {
             message: span.error[:message] || span.error["message"],
             type: span.error[:type] || span.error["type"],

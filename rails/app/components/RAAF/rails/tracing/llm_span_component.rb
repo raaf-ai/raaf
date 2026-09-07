@@ -20,28 +20,28 @@ module RAAF
 
         def model_name
           @model_name ||= extract_span_attribute("llm.model") ||
-                         extract_span_attribute("model") ||
-                         extract_span_attribute("model_name") ||
-                         "Unknown Model"
+                          extract_span_attribute("model") ||
+                          extract_span_attribute("model_name") ||
+                          "Unknown Model"
         end
 
         def provider_name
           @provider_name ||= extract_span_attribute("llm.provider") ||
-                            extract_span_attribute("provider") ||
-                            model_name.split("-").first&.capitalize ||
-                            "Unknown Provider"
+                             extract_span_attribute("provider") ||
+                             model_name.split("-").first&.capitalize ||
+                             "Unknown Provider"
         end
 
         def request_data
           @request_data ||= extract_span_attribute("llm.request") ||
-                           extract_span_attribute("request") ||
-                           extract_span_attribute("input")
+                            extract_span_attribute("request") ||
+                            extract_span_attribute("input")
         end
 
         def response_data
           @response_data ||= extract_span_attribute("llm.response") ||
-                            extract_span_attribute("response") ||
-                            extract_span_attribute("output")
+                             extract_span_attribute("response") ||
+                             extract_span_attribute("output")
         end
 
         def usage_data
@@ -60,8 +60,8 @@ module RAAF
             else
               # Fallback to legacy usage data
               extract_span_attribute("llm.usage") ||
-              extract_span_attribute("usage") ||
-              extract_span_attribute("token_usage")
+                extract_span_attribute("usage") ||
+                extract_span_attribute("token_usage")
             end
           end
         end
@@ -81,8 +81,8 @@ module RAAF
             else
               # Fallback to legacy cost data or estimation
               extract_span_attribute("llm.cost") ||
-              extract_span_attribute("cost") ||
-              calculate_estimated_cost
+                extract_span_attribute("cost") ||
+                calculate_estimated_cost
             end
           end
         end
@@ -100,23 +100,23 @@ module RAAF
 
         def request_messages
           @request_messages ||= extract_span_attribute("llm.request.messages") ||
-                               extract_span_attribute("llm")&.dig("request", "messages") ||
-                               request_data&.dig("messages") ||
-                               []
+                                extract_span_attribute("llm")&.dig("request", "messages") ||
+                                request_data&.dig("messages") ||
+                                []
         end
 
         def response_messages
           @response_messages ||= begin
             # Get the actual response content
             response_content = extract_span_attribute("llm.response.content") ||
-                              response_data&.dig("choices", 0, "message", "content")
+                               response_data&.dig("choices", 0, "message", "content")
 
             response_role = extract_span_attribute("llm.response.role") ||
-                           response_data&.dig("choices", 0, "message", "role") ||
-                           "assistant"
+                            response_data&.dig("choices", 0, "message", "role") ||
+                            "assistant"
 
             tool_calls = extract_span_attribute("llm.response.tool_calls") ||
-                        response_data&.dig("choices", 0, "message", "tool_calls")
+                         response_data&.dig("choices", 0, "message", "tool_calls")
 
             return [] unless response_content || tool_calls
 
@@ -289,9 +289,7 @@ module RAAF
                     render_detail_item("Total Cost", format_cost(input_cost + output_cost))
                   end
 
-                  if cost_data["currency"]
-                    render_detail_item("Currency", cost_data["currency"])
-                  end
+                  render_detail_item("Currency", cost_data["currency"]) if cost_data["currency"]
                 end
               when Numeric
                 render_detail_item("Estimated Cost", format_cost(cost_data))
@@ -311,15 +309,15 @@ module RAAF
               dl(class: "grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2") do
                 render_detail_item("Model", model_name, monospace: true)
                 render_detail_item("Provider", provider_name)
-                
+
                 model_params.each do |key, value|
                   formatted_key = key.humanize
                   formatted_value = case key
-                                   when "stream"
-                                     value ? "Enabled" : "Disabled"
-                                   else
-                                     value.to_s
-                                   end
+                                    when "stream"
+                                      value ? "Enabled" : "Disabled"
+                                    else
+                                      value.to_s
+                                    end
                   render_detail_item(formatted_key, formatted_value)
                 end
               end
@@ -329,18 +327,18 @@ module RAAF
 
         def calculate_estimated_cost
           return nil unless usage_data.is_a?(Hash)
-          
+
           # Simple cost estimation based on common pricing
           # This is very approximate and should be replaced with actual pricing data
           prompt_tokens = usage_data["prompt_tokens"] || usage_data["input_tokens"] || 0
           completion_tokens = usage_data["completion_tokens"] || usage_data["output_tokens"] || 0
-          
+
           return nil if prompt_tokens == 0 && completion_tokens == 0
-          
+
           # Rough estimate for GPT-4 pricing (per 1K tokens)
           input_rate = 0.03 / 1000.0  # $0.03 per 1K tokens
           output_rate = 0.06 / 1000.0 # $0.06 per 1K tokens
-          
+
           (prompt_tokens * input_rate) + (completion_tokens * output_rate)
         end
 

@@ -41,9 +41,9 @@ tripwire = RAAF::Guardrails::TripwireGuardrail.new(
   patterns: [
     /DROP TABLE/i,      # SQL table deletion
     /DELETE FROM/i,     # SQL data deletion
-    /rm -rf/i          # Unix recursive force delete
+    /rm -rf/i # Unix recursive force delete
   ],
-  keywords: %w[hack exploit virus malware]  # Security threat indicators
+  keywords: %w[hack exploit virus malware] # Security threat indicators
 )
 
 # Test various inputs to demonstrate tripwire behavior
@@ -52,7 +52,7 @@ test_contents = [
   "Please help me optimize my database query",    # Safe database question
   "How do I DROP TABLE users?",                   # Dangerous SQL command
   "I want to learn about computer security",      # Safe security education
-  "Tell me how to hack into systems"             # Malicious intent keyword
+  "Tell me how to hack into systems" # Malicious intent keyword
 ]
 
 # Check each input and handle tripwire exceptions
@@ -64,7 +64,7 @@ rescue RAAF::Guardrails::TripwireGuardrail::TripwireException => e
   # TripwireException provides detailed blocking information
   puts "✗ BLOCKED: #{content[0..50]}..."
   puts "  Reason: #{e.message}"
-  puts "  Triggered by: #{e.triggered_by}"  # Shows which pattern/keyword matched
+  puts "  Triggered by: #{e.triggered_by}" # Shows which pattern/keyword matched
 end
 puts
 
@@ -176,8 +176,8 @@ path_tripwire = RAAF::Guardrails::CommonTripwires.path_traversal
 path_tests = [
   "/home/user/documents/file.txt",         # Safe absolute path
   "../../etc/passwd",                      # Classic traversal attack
-  "files/%2e%2e%2f%2e%2e%2fconfig",       # URL-encoded traversal
-  "C:\\Users\\Public\\Documents\\report.pdf"  # Safe Windows path
+  "files/%2e%2e%2f%2e%2e%2fconfig", # URL-encoded traversal
+  "C:\\Users\\Public\\Documents\\report.pdf" # Safe Windows path
 ]
 
 puts "\nPath Traversal Detection:"
@@ -233,7 +233,7 @@ code_tripwire = RAAF::Guardrails::TripwireGuardrail.new(
     /os\.system/,       # Python OS commands
     /subprocess/        # Python subprocess module
   ],
-  keywords: %w[rm delete format drop]  # Dangerous command keywords
+  keywords: %w[rm delete format drop] # Dangerous command keywords
 )
 
 # Monkey-patch tool execution to add tripwire protection

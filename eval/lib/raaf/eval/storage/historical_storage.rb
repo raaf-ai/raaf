@@ -19,7 +19,7 @@ module RAAF
       # This class is maintained for backward compatibility during the transition
       # to the new continuous evaluation system. All methods emit deprecation warnings.
       class HistoricalStorage
-        DEPRECATION_MESSAGE = <<~MSG.freeze
+        DEPRECATION_MESSAGE = <<~MSG
           [DEPRECATION WARNING] RAAF::Eval::Storage::HistoricalStorage is deprecated.
 
           The DSL-based history configuration has been replaced with database-driven

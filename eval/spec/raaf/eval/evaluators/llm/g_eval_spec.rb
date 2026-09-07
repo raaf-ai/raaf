@@ -11,9 +11,9 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::GEval do
 
   describe "initialization" do
     it "requires at least one evaluation criterion" do
-      expect {
+      expect do
         described_class.new(criteria: [])
-      }.to raise_error(ArgumentError, /At least one evaluation criterion is required/)
+      end.to raise_error(ArgumentError, /At least one evaluation criterion is required/)
     end
 
     it "accepts array of criterion descriptions" do
@@ -154,7 +154,7 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::GEval do
       accuracy_score = criteria_eval.find { |c| c[:criterion] == :accuracy }[:score]
       grammar_score = criteria_eval.find { |c| c[:criterion] == :grammar }[:score]
 
-      expected_score = (accuracy_score * 2.0 + grammar_score * 1.0) / 3.0
+      expected_score = ((accuracy_score * 2.0) + (grammar_score * 1.0)) / 3.0
 
       expect(result[:score]).to be_within(0.01).of(expected_score)
     end
@@ -209,17 +209,17 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::GEval do
 
     it "raises error when field_context value is nil" do
       # FieldContext with nil data will raise FieldNotFoundError
-      expect {
+      expect do
         RAAF::Eval::DSL::FieldContext.new(:output, nil)
-      }.to raise_error(RAAF::Eval::DSL::FieldNotFoundError)
+      end.to raise_error(RAAF::Eval::DSL::FieldNotFoundError)
     end
 
     it "handles empty output gracefully" do
       empty_context = RAAF::Eval::DSL::FieldContext.new(:output, { output: "" })
 
-      expect {
+      expect do
         evaluator.evaluate(empty_context)
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 
@@ -276,15 +276,13 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::GEval do
     it "result works with standard label matchers" do
       result = evaluator.evaluate(field_context)
 
-      expect(result[:label]).to satisfy { |label| ["good", "average", "bad"].include?(label) }
+      expect(result[:label]).to(satisfy { |label| %w[good average bad].include?(label) })
     end
 
     it "result works with threshold matchers" do
       result = evaluator.evaluate(field_context)
 
-      if result[:score] >= 0.85
-        expect(result).to meet_quality_threshold(0.85)
-      end
+      expect(result).to meet_quality_threshold(0.85) if result[:score] >= 0.85
     end
   end
 end

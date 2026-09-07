@@ -36,18 +36,17 @@ module RAAF
 
         let(:mock_span) do
           double("Span",
-            span_id: "handoff_span_123",
-            trace_id: "trace_456", 
-            parent_id: "parent_789",
-            name: "Agent.handoff",
-            kind: "handoff",
-            status: "success",
-            start_time: Time.parse("2025-09-25 10:00:00 UTC"),
-            end_time: Time.parse("2025-09-25 10:00:00.850 UTC"),
-            duration_ms: 850,
-            span_attributes: base_span_attributes,
-            depth: 2
-          )
+                 span_id: "handoff_span_123",
+                 trace_id: "trace_456",
+                 parent_id: "parent_789",
+                 name: "Agent.handoff",
+                 kind: "handoff",
+                 status: "success",
+                 start_time: Time.parse("2025-09-25 10:00:00 UTC"),
+                 end_time: Time.parse("2025-09-25 10:00:00.850 UTC"),
+                 duration_ms: 850,
+                 span_attributes: base_span_attributes,
+                 depth: 2)
         end
 
         let(:component) { described_class.new(span: mock_span) }
@@ -139,10 +138,10 @@ module RAAF
             before do
               allow(mock_span).to receive(:status).and_return("error")
               allow(mock_span).to receive(:span_attributes).and_return({
-                "handoff.source_agent" => "Agent1",
-                "handoff.target_agent" => "Agent2",
-                "handoff.success" => false
-              })
+                                                                         "handoff.source_agent" => "Agent1",
+                                                                         "handoff.target_agent" => "Agent2",
+                                                                         "handoff.success" => false
+                                                                       })
             end
 
             it "shows failed status in the flow" do
@@ -312,10 +311,10 @@ module RAAF
             before do
               allow(mock_span).to receive(:status).and_return("error")
               allow(mock_span).to receive(:span_attributes).and_return({
-                "handoff.source_agent" => "FailingAgent",
-                "handoff.target_agent" => "TargetAgent",
-                "error" => "Handoff failed due to agent unavailability"
-              })
+                                                                         "handoff.source_agent" => "FailingAgent",
+                                                                         "handoff.target_agent" => "TargetAgent",
+                                                                         "error" => "Handoff failed due to agent unavailability"
+                                                                       })
             end
 
             it "renders error details section" do

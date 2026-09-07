@@ -57,11 +57,11 @@ RSpec.describe "IntelligentStreaming Edge Cases" do
             stream_size 10
             over :items
 
-            on_stream_start do |stream_num, total, context|
+            on_stream_start do |stream_num, total, _context|
               hook_calls << { type: :start, stream: stream_num, total: total }
             end
 
-            on_stream_complete do |stream_num, total, results|
+            on_stream_complete do |stream_num, total, _results|
               hook_calls << { type: :complete, stream: stream_num, total: total }
             end
           end
@@ -102,7 +102,7 @@ RSpec.describe "IntelligentStreaming Edge Cases" do
             stream_size 10
             over :items
 
-            on_stream_start do |stream_num, total, context|
+            on_stream_start do |_stream_num, _total, _context|
               stream_count += 1
             end
           end
@@ -162,7 +162,7 @@ RSpec.describe "IntelligentStreaming Edge Cases" do
             stream_size 100
             over :items
 
-            on_stream_start do |stream_num, total, context|
+            on_stream_start do |_stream_num, _total, _context|
               stream_count += 1
             end
           end
@@ -218,7 +218,7 @@ RSpec.describe "IntelligentStreaming Edge Cases" do
             stream_size 50
             over :items
 
-            on_stream_start do |stream_num, total, context|
+            on_stream_start do |stream_num, _total, context|
               stream_info << { stream: stream_num, size: context[:items].size }
             end
           end
@@ -269,7 +269,7 @@ RSpec.describe "IntelligentStreaming Edge Cases" do
             stream_size 1000
             over :items
 
-            on_stream_start do |stream_num, total, context|
+            on_stream_start do |_stream_num, _total, _context|
               stream_count += 1
             end
           end
@@ -294,7 +294,7 @@ RSpec.describe "IntelligentStreaming Edge Cases" do
             stream_size 1000
             over :items
 
-            on_stream_complete do |stream_num, total, results|
+            on_stream_complete do |_stream_num, _total, _results|
               # Sample memory usage
               memory_samples << GC.stat[:heap_live_slots]
             end
@@ -330,9 +330,9 @@ RSpec.describe "IntelligentStreaming Edge Cases" do
         config = streaming_agent_class._intelligent_streaming_config
         executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
 
-        expect {
+        expect do
           executor.execute(context)
-        }.to raise_error(ArgumentError, /Field 'items' is nil or not an array/)
+        end.to raise_error(ArgumentError, /Field 'items' is nil or not an array/)
       end
     end
 
@@ -343,9 +343,9 @@ RSpec.describe "IntelligentStreaming Edge Cases" do
         config = streaming_agent_class._intelligent_streaming_config
         executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
 
-        expect {
+        expect do
           executor.execute(context)
-        }.to raise_error(ArgumentError, /Field 'items' is nil or not an array/)
+        end.to raise_error(ArgumentError, /Field 'items' is nil or not an array/)
       end
     end
 
@@ -356,9 +356,9 @@ RSpec.describe "IntelligentStreaming Edge Cases" do
         config = streaming_agent_class._intelligent_streaming_config
         executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
 
-        expect {
+        expect do
           executor.execute(context)
-        }.to raise_error(ArgumentError, /Field 'items' is nil or not an array/)
+        end.to raise_error(ArgumentError, /Field 'items' is nil or not an array/)
       end
 
       it "raises clear error for hash field" do
@@ -367,9 +367,9 @@ RSpec.describe "IntelligentStreaming Edge Cases" do
         config = streaming_agent_class._intelligent_streaming_config
         executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
 
-        expect {
+        expect do
           executor.execute(context)
-        }.to raise_error(ArgumentError, /Field 'items' is nil or not an array/)
+        end.to raise_error(ArgumentError, /Field 'items' is nil or not an array/)
       end
 
       it "raises clear error for numeric field" do
@@ -378,9 +378,9 @@ RSpec.describe "IntelligentStreaming Edge Cases" do
         config = streaming_agent_class._intelligent_streaming_config
         executor = RAAF::DSL::IntelligentStreaming::Executor.new(agent, config)
 
-        expect {
+        expect do
           executor.execute(context)
-        }.to raise_error(ArgumentError, /Field 'items' is nil or not an array/)
+        end.to raise_error(ArgumentError, /Field 'items' is nil or not an array/)
       end
     end
   end
@@ -392,7 +392,7 @@ RSpec.describe "IntelligentStreaming Edge Cases" do
           "string",
           42,
           { key: "value" },
-          ["nested", "array"],
+          %w[nested array],
           nil,
           true,
           3.14
@@ -449,13 +449,13 @@ RSpec.describe "IntelligentStreaming Edge Cases" do
             stream_size 1
             over :items
 
-            on_stream_start do |stream_num, total, context|
+            on_stream_start do |_stream_num, _total, _context|
               stream_count += 1
             end
           end
         end
 
-        items = ["a", "b", "c", "d", "e"]
+        items = %w[a b c d e]
         context = context_class.new(items: items)
         agent = agent_class.new
         config = agent_class._intelligent_streaming_config
@@ -476,7 +476,7 @@ RSpec.describe "IntelligentStreaming Edge Cases" do
             stream_size 1_000_000
             over :items
 
-            on_stream_start do |stream_num, total, context|
+            on_stream_start do |_stream_num, _total, _context|
               stream_count += 1
             end
           end

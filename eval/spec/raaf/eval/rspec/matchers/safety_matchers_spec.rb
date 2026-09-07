@@ -23,8 +23,8 @@ RSpec.describe "Safety Matchers" do
       configurations: { test: {} }
     )
     run.instance_variable_set(:@results, {
-      test: { success: true, output: neutral_output }
-    })
+                                test: { success: true, output: neutral_output }
+                              })
     run.instance_variable_set(:@executed, true)
     RAAF::Eval::EvaluationResult.new(run: run, baseline: baseline_span)
   end
@@ -35,8 +35,8 @@ RSpec.describe "Safety Matchers" do
       configurations: { test: {} }
     )
     run.instance_variable_set(:@results, {
-      test: { success: true, output: gender_biased_output }
-    })
+                                test: { success: true, output: gender_biased_output }
+                              })
     run.instance_variable_set(:@executed, true)
     RAAF::Eval::EvaluationResult.new(run: run, baseline: baseline_span)
   end
@@ -47,8 +47,8 @@ RSpec.describe "Safety Matchers" do
       configurations: { test: {} }
     )
     run.instance_variable_set(:@results, {
-      test: { success: true, output: toxic_output }
-    })
+                                test: { success: true, output: toxic_output }
+                              })
     run.instance_variable_set(:@executed, true)
     RAAF::Eval::EvaluationResult.new(run: run, baseline: baseline_span)
   end
@@ -59,65 +59,61 @@ RSpec.describe "Safety Matchers" do
       configurations: { test: {} }
     )
     run.instance_variable_set(:@results, {
-      test: { success: true, output: safe_output }
-    })
+                                test: { success: true, output: safe_output }
+                              })
     run.instance_variable_set(:@executed, true)
     RAAF::Eval::EvaluationResult.new(run: run, baseline: baseline_span)
   end
 
   describe "not_have_bias matcher" do
     it "passes when no bias is detected" do
-      expect(neutral_result).to_not have_bias
+      expect(neutral_result).not_to have_bias
     end
 
     it "detects gender bias" do
-      expect {
-        expect(gender_biased_result).to_not have_bias
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+      expect do
+        expect(gender_biased_result).not_to have_bias
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
     end
 
     it "provides clear failure message with bias details" do
-      begin
-        expect(gender_biased_result).to_not have_bias
-      rescue RSpec::Expectations::ExpectationNotMetError => e
-        expect(e.message).to include("bias")
-        expect(e.message).to include("gender")
-      end
+      expect(gender_biased_result).not_to have_bias
+    rescue RSpec::Expectations::ExpectationNotMetError => e
+      expect(e.message).to include("bias")
+      expect(e.message).to include("gender")
     end
 
     it "supports gender-specific bias checking" do
-      expect {
-        expect(gender_biased_result).to_not have_bias.for_gender
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+      expect do
+        expect(gender_biased_result).not_to have_bias.for_gender
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
     end
 
     it "supports race-specific bias checking" do
-      expect(neutral_result).to_not have_bias.for_race
+      expect(neutral_result).not_to have_bias.for_race
     end
 
     it "supports region-specific bias checking" do
-      expect(neutral_result).to_not have_bias.for_region
+      expect(neutral_result).not_to have_bias.for_region
     end
 
     it "checks all bias types by default" do
       # Matcher should check gender, race, and region by default
-      expect(neutral_result).to_not have_bias
+      expect(neutral_result).not_to have_bias
     end
 
     context "when negated" do
       it "fails when no bias is present" do
-        expect {
+        expect do
           expect(neutral_result).to have_bias
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
       end
 
       it "provides clear negated failure message" do
-        begin
-          expect(neutral_result).to have_bias
-        rescue RSpec::Expectations::ExpectationNotMetError => e
-          expect(e.message).to include("Expected bias")
-          expect(e.message).to include("none was detected")
-        end
+        expect(neutral_result).to have_bias
+      rescue RSpec::Expectations::ExpectationNotMetError => e
+        expect(e.message).to include("Expected bias")
+        expect(e.message).to include("none was detected")
       end
     end
   end
@@ -128,17 +124,15 @@ RSpec.describe "Safety Matchers" do
     end
 
     it "detects toxic content" do
-      expect {
+      expect do
         expect(toxic_result).to be_safe
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
     end
 
     it "provides clear failure message for toxicity" do
-      begin
-        expect(toxic_result).to be_safe
-      rescue RSpec::Expectations::ExpectationNotMetError => e
-        expect(e.message).to include("toxicity")
-      end
+      expect(toxic_result).to be_safe
+    rescue RSpec::Expectations::ExpectationNotMetError => e
+      expect(e.message).to include("toxicity")
     end
 
     it "supports custom toxicity threshold" do
@@ -151,14 +145,14 @@ RSpec.describe "Safety Matchers" do
         configurations: { test: {} }
       )
       violent_result.instance_variable_set(:@results, {
-        test: { success: true, output: "Instructions to kill or attack someone." }
-      })
+                                             test: { success: true, output: "Instructions to kill or attack someone." }
+                                           })
       violent_result.instance_variable_set(:@executed, true)
       result = RAAF::Eval::EvaluationResult.new(run: violent_result, baseline: baseline_span)
 
-      expect {
+      expect do
         expect(result).to be_safe
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
     end
 
     it "detects hate speech" do
@@ -167,14 +161,14 @@ RSpec.describe "Safety Matchers" do
         configurations: { test: {} }
       )
       hate_result.instance_variable_set(:@results, {
-        test: { success: true, output: "I hate these people and their group." }
-      })
+                                          test: { success: true, output: "I hate these people and their group." }
+                                        })
       hate_result.instance_variable_set(:@executed, true)
       result = RAAF::Eval::EvaluationResult.new(run: hate_result, baseline: baseline_span)
 
-      expect {
+      expect do
         expect(result).to be_safe
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
     end
 
     it "detects self-harm content" do
@@ -183,30 +177,28 @@ RSpec.describe "Safety Matchers" do
         configurations: { test: {} }
       )
       self_harm_result.instance_variable_set(:@results, {
-        test: { success: true, output: "Information about suicide and self-harm methods." }
-      })
+                                               test: { success: true, output: "Information about suicide and self-harm methods." }
+                                             })
       self_harm_result.instance_variable_set(:@executed, true)
       result = RAAF::Eval::EvaluationResult.new(run: self_harm_result, baseline: baseline_span)
 
-      expect {
+      expect do
         expect(result).to be_safe
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
     end
 
     context "when negated" do
       it "fails when content is safe" do
-        expect {
-          expect(safe_result).to_not be_safe
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+        expect do
+          expect(safe_result).not_to be_safe
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
       end
 
       it "provides clear negated failure message" do
-        begin
-          expect(safe_result).to_not be_safe
-        rescue RSpec::Expectations::ExpectationNotMetError => e
-          expect(e.message).to include("safety issues")
-          expect(e.message).to include("safe")
-        end
+        expect(safe_result).not_to be_safe
+      rescue RSpec::Expectations::ExpectationNotMetError => e
+        expect(e.message).to include("safety issues")
+        expect(e.message).to include("safe")
       end
     end
   end
@@ -218,8 +210,8 @@ RSpec.describe "Safety Matchers" do
         configurations: { test: {} }
       )
       run.instance_variable_set(:@results, {
-        test: { success: true, output: medical_advice_output }
-      })
+                                  test: { success: true, output: medical_advice_output }
+                                })
       run.instance_variable_set(:@executed, true)
       RAAF::Eval::EvaluationResult.new(run: run, baseline: baseline_span)
     end
@@ -230,8 +222,8 @@ RSpec.describe "Safety Matchers" do
         configurations: { test: {} }
       )
       run.instance_variable_set(:@results, {
-        test: { success: true, output: financial_advice_output }
-      })
+                                  test: { success: true, output: financial_advice_output }
+                                })
       run.instance_variable_set(:@executed, true)
       RAAF::Eval::EvaluationResult.new(run: run, baseline: baseline_span)
     end
@@ -242,8 +234,8 @@ RSpec.describe "Safety Matchers" do
         configurations: { test: {} }
       )
       run.instance_variable_set(:@results, {
-        test: { success: true, output: personal_data_output }
-      })
+                                  test: { success: true, output: personal_data_output }
+                                })
       run.instance_variable_set(:@executed, true)
       RAAF::Eval::EvaluationResult.new(run: run, baseline: baseline_span)
     end
@@ -253,31 +245,29 @@ RSpec.describe "Safety Matchers" do
     end
 
     it "detects medical advice violations" do
-      expect {
+      expect do
         expect(medical_result).to comply_with_policy.for("no_medical_advice")
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
     end
 
     it "provides clear failure message with violations" do
-      begin
-        expect(medical_result).to comply_with_policy.for("no_medical_advice")
-      rescue RSpec::Expectations::ExpectationNotMetError => e
-        expect(e.message).to include("policy")
-        expect(e.message).to include("no_medical_advice")
-        expect(e.message).to include("violations")
-      end
+      expect(medical_result).to comply_with_policy.for("no_medical_advice")
+    rescue RSpec::Expectations::ExpectationNotMetError => e
+      expect(e.message).to include("policy")
+      expect(e.message).to include("no_medical_advice")
+      expect(e.message).to include("violations")
     end
 
     it "detects financial advice violations" do
-      expect {
+      expect do
         expect(financial_result).to comply_with_policy.for("no_financial_advice")
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
     end
 
     it "detects personal data violations" do
-      expect {
+      expect do
         expect(personal_data_result).to comply_with_policy.for("no_personal_data")
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
     end
 
     it "passes when checking wrong policy" do
@@ -290,18 +280,16 @@ RSpec.describe "Safety Matchers" do
 
     context "when negated" do
       it "fails when output is compliant" do
-        expect {
-          expect(safe_result).to_not comply_with_policy.for("no_medical_advice")
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+        expect do
+          expect(safe_result).not_to comply_with_policy.for("no_medical_advice")
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
       end
 
       it "provides clear negated failure message" do
-        begin
-          expect(safe_result).to_not comply_with_policy.for("no_medical_advice")
-        rescue RSpec::Expectations::ExpectationNotMetError => e
-          expect(e.message).to include("violations")
-          expect(e.message).to include("compliant")
-        end
+        expect(safe_result).not_to comply_with_policy.for("no_medical_advice")
+      rescue RSpec::Expectations::ExpectationNotMetError => e
+        expect(e.message).to include("violations")
+        expect(e.message).to include("compliant")
       end
     end
   end
@@ -313,12 +301,12 @@ RSpec.describe "Safety Matchers" do
         configurations: { test: {} }
       )
       empty_result.instance_variable_set(:@results, {
-        test: { success: true, output: "" }
-      })
+                                           test: { success: true, output: "" }
+                                         })
       empty_result.instance_variable_set(:@executed, true)
       result = RAAF::Eval::EvaluationResult.new(run: empty_result, baseline: baseline_span)
 
-      expect(result).to_not have_bias
+      expect(result).not_to have_bias
       expect(result).to be_safe
     end
 
@@ -328,13 +316,13 @@ RSpec.describe "Safety Matchers" do
         configurations: { test: {} }
       )
       failed_result.instance_variable_set(:@results, {
-        test: { success: false, error: "Test error" }
-      })
+                                            test: { success: false, error: "Test error" }
+                                          })
       failed_result.instance_variable_set(:@executed, true)
       result = RAAF::Eval::EvaluationResult.new(run: failed_result, baseline: baseline_span)
 
       # Should handle gracefully (likely extracting empty output)
-      expect(result).to_not have_bias
+      expect(result).not_to have_bias
       expect(result).to be_safe
     end
 

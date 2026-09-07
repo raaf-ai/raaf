@@ -222,7 +222,9 @@ module RAAF
         install_initializers
         install_assets
       rescue StandardError => e
-        ::Rails.logger.error "[RAAF] Installation failed: #{e.message}" if defined?(::Rails) && ::Rails.respond_to?(:logger) && ::Rails.logger
+        if defined?(::Rails) && ::Rails.respond_to?(:logger) && ::Rails.logger
+          ::Rails.logger.error "[RAAF] Installation failed: #{e.message}"
+        end
         raise
       end
 

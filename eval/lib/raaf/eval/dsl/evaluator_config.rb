@@ -83,12 +83,12 @@ module RAAF
         # Define multiple evaluators for a field with combination logic
         # @param field_name [Symbol] The field name to evaluate
         # @yield Block for field evaluator DSL
-        def evaluate_field(field_name, &block)
+        def evaluate_field(field_name, &)
           field_set = FieldEvaluatorSet.new(field_name)
 
           # Create DSL context for field block
           field_dsl = FieldEvaluatorDSL.new(field_set)
-          field_dsl.instance_eval(&block)
+          field_dsl.instance_eval(&)
 
           @field_evaluator_sets[field_name] = field_set
         end
@@ -153,8 +153,8 @@ module RAAF
         #       md
         #     end
         #   end
-        def result_format(&block)
-          @field_set.result_format(&block)
+        def result_format(&)
+          @field_set.result_format(&)
         end
       end
     end

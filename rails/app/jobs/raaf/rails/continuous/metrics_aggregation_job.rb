@@ -28,13 +28,13 @@ module RAAF
         ##
         # Aggregate metrics for a specific period type
         # @param period_type [String] 'hourly', 'daily', or 'weekly'
-        def perform(period_type: 'hourly')
+        def perform(period_type: "hourly")
           case period_type
-          when 'hourly'
+          when "hourly"
             aggregate_hourly_metrics
-          when 'daily'
+          when "daily"
             aggregate_daily_metrics
-          when 'weekly'
+          when "weekly"
             aggregate_weekly_metrics
           else
             raise ArgumentError, "Invalid period_type: #{period_type}. Must be 'hourly', 'daily', or 'weekly'"
@@ -49,7 +49,7 @@ module RAAF
           start_time = 2.hours.ago.beginning_of_hour
           end_time = Time.current.end_of_hour
 
-          aggregate_for_period('hourly', start_time, end_time, 1.hour)
+          aggregate_for_period("hourly", start_time, end_time, 1.hour)
         end
 
         ##
@@ -57,11 +57,11 @@ module RAAF
         def aggregate_daily_metrics
           # Aggregate yesterday (full day)
           yesterday = 1.day.ago.beginning_of_day
-          aggregate_for_period('daily', yesterday, yesterday.end_of_day, 1.day)
+          aggregate_for_period("daily", yesterday, yesterday.end_of_day, 1.day)
 
           # Aggregate today (partial day)
           today = Time.current.beginning_of_day
-          aggregate_for_period('daily', today, Time.current.end_of_day, 1.day)
+          aggregate_for_period("daily", today, Time.current.end_of_day, 1.day)
         end
 
         ##
@@ -69,11 +69,11 @@ module RAAF
         def aggregate_weekly_metrics
           # Aggregate last week (full week)
           last_week = 1.week.ago.beginning_of_week
-          aggregate_for_period('weekly', last_week, last_week.end_of_week, 1.week)
+          aggregate_for_period("weekly", last_week, last_week.end_of_week, 1.week)
 
           # Aggregate current week (partial)
           this_week = Time.current.beginning_of_week
-          aggregate_for_period('weekly', this_week, Time.current.end_of_week, 1.week)
+          aggregate_for_period("weekly", this_week, Time.current.end_of_week, 1.week)
         end
 
         ##
@@ -85,7 +85,7 @@ module RAAF
         def aggregate_for_period(period_type, start_time, end_time, interval)
           # Get all results in the time range
           results = RAAF::Eval::Models::ContinuousEvaluationResult
-            .where(created_at: start_time..end_time)
+                    .where(created_at: start_time..end_time)
 
           # Group results by dimensions
           grouped_results = group_results_by_dimensions(results)
@@ -177,10 +177,10 @@ module RAAF
             # columns predate that vocabulary, so the mapping is spelled out here
             # rather than left to a name match that can never succeed: counting
             # 'passed'/'failed'/'warning' left every count column permanently 0.
-            passed_count: results.count { |r| r.status == 'good' },
-            warning_count: results.count { |r| r.status == 'average' },
-            failed_count: results.count { |r| r.status == 'bad' },
-            error_count: results.count { |r| r.status == 'error' },
+            passed_count: results.count { |r| r.status == "good" },
+            warning_count: results.count { |r| r.status == "average" },
+            failed_count: results.count { |r| r.status == "bad" },
+            error_count: results.count { |r| r.status == "error" },
             avg_score: calculate_average(scores),
             min_score: scores.min,
             max_score: scores.max,
@@ -194,24 +194,27 @@ module RAAF
             # metrics['cost'] is the span's own spend and belongs to the agent
             # run; evaluation_cost is written by EvaluationJob#evaluation_spend
             # from the judge's token usage.
-            total_cost: results.sum { |r| (r.metrics || {})['evaluation_cost'].to_f }
+            total_cost: results.sum { |r| (r.metrics || {})["evaluation_cost"].to_f }
           }
         end
 
         def calculate_average(values)
           return nil if values.empty?
+
           values.sum.to_f / values.size
         end
 
         def calculate_stddev(values)
           return nil if values.size < 2
+
           mean = calculate_average(values)
-          variance = values.sum { |v| (v - mean) ** 2 } / values.size
+          variance = values.sum { |v| (v - mean)**2 } / values.size
           Math.sqrt(variance)
         end
 
         def calculate_percentile(values, percentile)
           return nil if values.empty?
+
           sorted = values.sort
           index = (percentile / 100.0 * (sorted.size - 1)).round
           sorted[index]

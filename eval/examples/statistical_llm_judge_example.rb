@@ -110,14 +110,14 @@ puts "\nCalibration set saved to /tmp/math_qa_calibration.json"
 # Part 2: Calibrating a Statistical Judge
 # ============================================================================
 
-puts "\n" + "=" * 60
+puts "\n" + ("=" * 60)
 puts "Part 2: Calibrating a Statistical Judge"
 puts "=" * 60
 
 # Create a statistical judge
 judge = RAAF::Eval::LLMJudge::StatisticalJudge.new(
   model: "gpt-4o",
-  temperature: 0.0,  # Use temperature 0 for consistency
+  temperature: 0.0, # Use temperature 0 for consistency
   cache: true
 )
 
@@ -142,7 +142,7 @@ puts "  Better than random: #{judge.better_than_random?}"
 # Part 3: Bias-Corrected Evaluation
 # ============================================================================
 
-puts "\n" + "=" * 60
+puts "\n" + ("=" * 60)
 puts "Part 3: Bias-Corrected Evaluation"
 puts "=" * 60
 
@@ -166,7 +166,7 @@ puts "\nEvaluating #{test_samples.size} test samples..."
 results = judge.evaluate_batch(
   test_samples,
   criteria: criteria,
-  alpha: 0.05  # 95% confidence interval
+  alpha: 0.05 # 95% confidence interval
 )
 
 puts "\nEvaluation Results:"
@@ -194,7 +194,7 @@ puts "  Calibration negative (m0): #{ci[:sample_sizes][:calibration_m0]}"
 # Part 4: Understanding Bias Correction
 # ============================================================================
 
-puts "\n" + "=" * 60
+puts "\n" + ("=" * 60)
 puts "Part 4: Understanding Bias Correction"
 puts "=" * 60
 
@@ -228,7 +228,7 @@ puts "\nBias-corrected accuracy: #{(corrected * 100).round(1)}%"
 # Part 5: Multi-Judge Consensus (Simulated)
 # ============================================================================
 
-puts "\n" + "=" * 60
+puts "\n" + ("=" * 60)
 puts "Part 5: Multi-Judge Consensus"
 puts "=" * 60
 
@@ -266,7 +266,7 @@ EXAMPLE
 # Part 6: Bias Detection and Mitigation
 # ============================================================================
 
-puts "\n" + "=" * 60
+puts "\n" + ("=" * 60)
 puts "Part 6: Bias Detection and Mitigation"
 puts "=" * 60
 
@@ -324,7 +324,7 @@ EXAMPLE
 # Part 7: Optimal Calibration Allocation
 # ============================================================================
 
-puts "\n" + "=" * 60
+puts "\n" + ("=" * 60)
 puts "Part 7: Optimal Calibration Allocation"
 puts "=" * 60
 
@@ -358,7 +358,7 @@ EXAMPLE
 # Summary
 # ============================================================================
 
-puts "\n" + "=" * 60
+puts "\n" + ("=" * 60)
 puts "Summary"
 puts "=" * 60
 

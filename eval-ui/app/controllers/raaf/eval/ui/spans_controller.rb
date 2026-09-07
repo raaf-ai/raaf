@@ -94,7 +94,7 @@ module RAAF
           []
         end
 
-        def search_spans(query)
+        def search_spans(_query)
           # This would search Phase 1's spans
           # For now, return empty array
           []
@@ -106,7 +106,7 @@ module RAAF
             model: params[:model],
             status: params[:status],
             start_date: params[:start_date],
-            end_date: params[:end_date]
+            end_date: params[:end_date],
           }.compact
         end
       end

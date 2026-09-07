@@ -3,10 +3,14 @@
 require_relative "../logging"
 
 module RAAF
+
   module Tracing
+
     # rubocop:disable Metrics/ClassLength
     class NaturalLanguageQuery
+
       include RAAF::Logger
+
       # Natural language interface for querying tracing data
       # Supports queries like "show me slow traces from yesterday" or "find errors in customer support workflow"
 
@@ -592,7 +596,7 @@ module RAAF
         formatted
       end
 
-      def format_span_results(spans, parsed_query)
+      def format_span_results(spans, _parsed_query)
         spans.map do |span|
           {
             span_id: span.span_id,
@@ -606,7 +610,7 @@ module RAAF
         end
       end
 
-      def format_error_results(spans, parsed_query)
+      def format_error_results(spans, _parsed_query)
         spans.where(status: "error").map do |span|
           {
             span_id: span.span_id,
@@ -619,7 +623,7 @@ module RAAF
         end
       end
 
-      def format_cost_results(traces, parsed_query)
+      def format_cost_results(traces, _parsed_query)
         # This would integrate with the cost manager
         traces.map do |trace|
           {
@@ -656,7 +660,7 @@ module RAAF
         end
       end
 
-      def generate_error_suggestions(error, parsed_query)
+      def generate_error_suggestions(error, _parsed_query)
         suggestions = []
 
         case error.message
@@ -833,6 +837,7 @@ module RAAF
 
       # Query builder class
       class QueryBuilder
+
         def initialize(parsed_query)
           @parsed = parsed_query
         end
@@ -920,8 +925,12 @@ module RAAF
 
           query.limit(limit)
         end
+
       end
+
     end
     # rubocop:enable Metrics/ClassLength
+
   end
+
 end

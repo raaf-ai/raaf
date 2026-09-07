@@ -46,12 +46,12 @@ module ToolMockingHelpers
       allow(RAAF::ToolRegistry).to receive(:resolve_with_details)
         .with(tool_name)
         .and_return({
-          success: true,
-          tool_class: tool_class,
-          identifier: tool_name,
-          searched_namespaces: options[:searched_namespaces] || [],
-          suggestions: []
-        })
+                      success: true,
+                      tool_class: tool_class,
+                      identifier: tool_name,
+                      searched_namespaces: options[:searched_namespaces] || [],
+                      suggestions: []
+                    })
     else
       # Mock failed resolution
       allow(RAAF::ToolRegistry).to receive(:resolve)
@@ -61,12 +61,12 @@ module ToolMockingHelpers
       allow(RAAF::ToolRegistry).to receive(:resolve_with_details)
         .with(tool_name)
         .and_return({
-          success: false,
-          tool_class: nil,
-          identifier: tool_name,
-          searched_namespaces: options[:searched_namespaces] || ["Ai::Tools", "RAAF::Tools"],
-          suggestions: options[:with_suggestions] || []
-        })
+                      success: false,
+                      tool_class: nil,
+                      identifier: tool_name,
+                      searched_namespaces: options[:searched_namespaces] || ["Ai::Tools", "RAAF::Tools"],
+                      suggestions: options[:with_suggestions] || []
+                    })
     end
   end
 
@@ -329,7 +329,7 @@ RSpec.configure do |config|
   config.include ToolMockingHelpers
 
   # Automatically clear tool mocks after each test
-  config.after(:each) do
+  config.after do
     clear_tool_mocks! if respond_to?(:clear_tool_mocks!)
   end
 end

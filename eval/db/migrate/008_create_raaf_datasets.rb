@@ -16,7 +16,7 @@ class CreateRaafDatasets < ActiveRecord::Migration[7.0]
     end
 
     add_index :raaf_datasets, :name
-    add_index :raaf_datasets, [:name, :version], unique: true
+    add_index :raaf_datasets, %i[name version], unique: true
     add_index :raaf_datasets, :status
     add_index :raaf_datasets, :metadata, using: :gin
 
@@ -61,7 +61,7 @@ class CreateRaafDatasets < ActiveRecord::Migration[7.0]
     add_index :raaf_experiments, :status
     add_index :raaf_experiments, :agent_name
     add_index :raaf_experiments, :model
-    add_index :raaf_experiments, [:dataset_id, :status]
+    add_index :raaf_experiments, %i[dataset_id status]
     add_index :raaf_experiments, :aggregate_metrics, using: :gin
 
     # Experiment results (one per dataset item per experiment)
@@ -85,9 +85,9 @@ class CreateRaafDatasets < ActiveRecord::Migration[7.0]
 
     add_index :raaf_experiment_results, :status
     add_index :raaf_experiment_results, :result_span_id
-    add_index :raaf_experiment_results, [:experiment_id, :status]
-    add_index :raaf_experiment_results, [:experiment_id, :dataset_item_id], unique: true,
-              name: "idx_experiment_results_on_experiment_and_item"
+    add_index :raaf_experiment_results, %i[experiment_id status]
+    add_index :raaf_experiment_results, %i[experiment_id dataset_item_id], unique: true,
+                                                                           name: "idx_experiment_results_on_experiment_and_item"
     add_index :raaf_experiment_results, :scores, using: :gin
   end
 end

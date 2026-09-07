@@ -107,7 +107,6 @@ module RAAF
       #
       # @param format [Symbol] Detected format (:csv, :markdown, :json, :unknown)
       # @return [BaseMerger] Merger instance for the format
-      private
 
       def get_merger_for_format(format)
         case format
@@ -127,7 +126,6 @@ module RAAF
       #
       # @param format [Symbol] Detected format
       # @param confidence [Float] Confidence score (0.0-1.0)
-      private
 
       def log_format_detection(format, confidence)
         confidence_percent = (confidence * 100).round(1)
@@ -137,7 +135,6 @@ module RAAF
       # Log a warning message
       #
       # @param message [String] Warning message
-      private
 
       def log_warning(message)
         @logger.warn "⚠️ #{message}"
@@ -146,7 +143,6 @@ module RAAF
       # Get a default logger if Rails is not available
       #
       # @return [Logger] A basic Ruby Logger instance
-      private
 
       def default_logger
         require "logger"

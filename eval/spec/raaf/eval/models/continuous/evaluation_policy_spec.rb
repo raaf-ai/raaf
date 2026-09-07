@@ -72,8 +72,8 @@ RSpec.describe RAAF::Eval::Models::EvaluationPolicy, type: :model do
 
     it "accepts valid evaluator structure" do
       policy = build(:evaluation_policy, evaluators: [
-        { "type" => "rule_based", "name" => "token_limit", "config" => {} }
-      ])
+                       { "type" => "rule_based", "name" => "token_limit", "config" => {} }
+                     ])
       expect(policy).to be_valid
     end
   end
@@ -108,7 +108,9 @@ RSpec.describe RAAF::Eval::Models::EvaluationPolicy, type: :model do
   end
 
   describe "#matches_span?" do
-    let(:policy) { create(:evaluation_policy, agent_name: "TestAgent", environment: "production", model_pattern: "gpt-*") }
+    let(:policy) do
+      create(:evaluation_policy, agent_name: "TestAgent", environment: "production", model_pattern: "gpt-*")
+    end
 
     it "matches span with exact agent name" do
       span_data = { agent_name: "TestAgent", environment: "production", model: "gpt-4o" }
@@ -203,7 +205,7 @@ RSpec.describe RAAF::Eval::Models::EvaluationPolicy, type: :model do
       end
 
       it "increments counter correctly" do
-        expect { policy.should_sample? }.to change { policy.reload.sample_counter }
+        expect { policy.should_sample? }.to(change { policy.reload.sample_counter })
       end
     end
 
@@ -216,7 +218,9 @@ RSpec.describe RAAF::Eval::Models::EvaluationPolicy, type: :model do
     end
 
     context "with daily limit" do
-      let(:policy) { create(:evaluation_policy, sampling_mode: "all", max_daily_evaluations: 10, today_evaluation_count: 5) }
+      let(:policy) do
+        create(:evaluation_policy, sampling_mode: "all", max_daily_evaluations: 10, today_evaluation_count: 5)
+      end
 
       it "samples when under limit" do
         expect(policy.should_sample?).to be true

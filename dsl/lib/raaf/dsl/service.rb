@@ -49,7 +49,7 @@ module RAAF
     #     def call
     #       query = search_query
     #       companies = perform_search(query)
-    #       
+    #
     #       {
     #         companies: companies,
     #         metadata: { count: companies.length }
@@ -123,17 +123,17 @@ module RAAF
         @debug_enabled = debug || (defined?(::Rails) && ::Rails.respond_to?(:env) && ::Rails.env.development?) || false
         @processing_params = processing_params
         @validation_mode = validation_mode
-        
+
         # Use identical context building strategy as Agent
-        if context
-          @context = build_context_from_param(context, @debug_enabled)
-        elsif self.class.auto_context?
-          @context = build_auto_context(kwargs, @debug_enabled)
-        else
-          # Auto-context disabled, empty context
-          @context = RAAF::DSL::ContextVariables.new({}, debug: @debug_enabled)
-        end
-        
+        @context = if context
+                     build_context_from_param(context, @debug_enabled)
+                   elsif self.class.auto_context?
+                     build_auto_context(kwargs, @debug_enabled)
+                   else
+                     # Auto-context disabled, empty context
+                     RAAF::DSL::ContextVariables.new({}, debug: @debug_enabled)
+                   end
+
         validate_context!
         after_initialize if respond_to?(:after_initialize, true)
       end
@@ -151,7 +151,7 @@ module RAAF
       #   def call
       #     data = fetch_data
       #     processed = process_data(data)
-      #     
+      #
       #     {
       #       result: processed,
       #       metadata: { processed_at: Time.current }
@@ -163,7 +163,7 @@ module RAAF
       def call
         raise NotImplementedError, "#{self.class.name} must implement #call method"
       end
-      
+
       # Execute service and capture result fields for pipeline integration
       #
       # This is used by the pipeline DSL to both execute the service and
@@ -207,17 +207,13 @@ module RAAF
       #
       # @param key [Symbol] Context variable name
       # @return [Object] Context variable value
-      def get(key)
-        @context.get(key)
-      end
+      delegate :get, to: :@context
 
       # Check if context has a specific key
       #
       # @param key [Symbol] Context variable name to check
       # @return [Boolean] True if context contains the key
-      def has?(key)
-        @context.has?(key)
-      end
+      delegate :has?, to: :@context
 
       # Get all context as a hash
       #

@@ -66,36 +66,13 @@ module RAAF
         # These fixtures simulate real production-like data
 
         let(:base_time) { Time.parse("2025-09-25 10:00:00 UTC") }
-        
-        # Shared span factory method
-        def create_mock_span(kind:, attributes:, **options)
-          defaults = {
-            span_id: "span_#{SecureRandom.hex(8)}",
-            trace_id: "trace_#{SecureRandom.hex(8)}",
-            parent_id: "parent_#{SecureRandom.hex(8)}",
-            name: "Test #{kind.capitalize} Span",
-            kind: kind,
-            status: "success",
-            start_time: base_time,
-            end_time: base_time + 0.15,
-            duration_ms: 150,
-            span_attributes: attributes,
-            depth: 1,
-            children: [],
-            events: []
-          }
-          double("Span", **defaults.merge(options))
-        end
-
         # Mock trace object
         let(:mock_trace) do
           double("Trace",
-            trace_id: "trace_integration_test",
-            workflow_name: "IntegrationTestWorkflow",
-            status: "success"
-          )
+                 trace_id: "trace_integration_test",
+                 workflow_name: "IntegrationTestWorkflow",
+                 status: "success")
         end
-
         # Test fixtures for each span type with realistic data
         let(:tool_span_attributes) do
           {
@@ -128,7 +105,7 @@ module RAAF
                   {
                     "id" => "comp_456",
                     "name" => "Code Crafters LLC",
-                    "industry" => "Software Development", 
+                    "industry" => "Software Development",
                     "employees" => 42,
                     "location" => "Palo Alto, CA",
                     "website" => "https://codecrafters.io",
@@ -154,7 +131,6 @@ module RAAF
             }
           }
         end
-
         let(:agent_span_attributes) do
           {
             "agent" => {
@@ -164,11 +140,11 @@ module RAAF
               "max_turns" => 5,
               "temperature" => 0.3,
               "max_tokens" => 2000,
-              "tools" => [
-                "search_companies",
-                "enrich_prospects", 
-                "analyze_market",
-                "generate_personas"
+              "tools" => %w[
+                search_companies
+                enrich_prospects
+                analyze_market
+                generate_personas
               ]
             },
             "context" => {
@@ -202,7 +178,6 @@ module RAAF
             }
           }
         end
-
         let(:llm_span_attributes) do
           {
             "llm" => {
@@ -221,7 +196,7 @@ module RAAF
                   "content" => "You are an expert market analyst specializing in B2B software companies..."
                 },
                 {
-                  "role" => "user", 
+                  "role" => "user",
                   "content" => "Analyze the following prospects and identify key decision makers..."
                 }
               ],
@@ -236,7 +211,7 @@ module RAAF
             "response" => {
               "id" => "chatcmpl-AKj8pYXV2hGHyUvF9N7z3qZ8mL1eQ",
               "object" => "chat.completion",
-              "created" => 1727251200,
+              "created" => 1_727_251_200,
               "model" => "gpt-4o-2024-08-06",
               "choices" => [
                 {
@@ -271,7 +246,6 @@ module RAAF
             }
           }
         end
-
         let(:handoff_span_attributes) do
           {
             "handoff" => {
@@ -302,7 +276,7 @@ module RAAF
                 "market_insights" => {
                   "segment" => "mid-market_saas",
                   "key_challenges" => ["developer productivity", "AI adoption"],
-                  "messaging_themes" => ["efficiency", "innovation", "competitive_advantage"]
+                  "messaging_themes" => %w[efficiency innovation competitive_advantage]
                 },
                 "campaign_context" => {
                   "id" => "camp_789",
@@ -326,7 +300,6 @@ module RAAF
             }
           }
         end
-
         let(:guardrail_span_attributes) do
           {
             "guardrail" => {
@@ -341,18 +314,18 @@ module RAAF
                   "description" => "Detected potential PII in prospect data"
                 },
                 {
-                  "rule_id" => "CONTENT_TONE_002", 
+                  "rule_id" => "CONTENT_TONE_002",
                   "rule_name" => "Professional Tone Enforcement",
                   "severity" => "low",
                   "action" => "suggest_revision",
                   "description" => "Message tone could be more professional"
                 }
               ],
-              "passed_rules" => [
-                "SPAM_DETECTION_001",
-                "COMPLIANCE_GDPR_001",
-                "BRAND_SAFETY_001",
-                "FACTUAL_ACCURACY_001"
+              "passed_rules" => %w[
+                SPAM_DETECTION_001
+                COMPLIANCE_GDPR_001
+                BRAND_SAFETY_001
+                FACTUAL_ACCURACY_001
               ],
               "overall_result" => "pass_with_modifications"
             },
@@ -368,7 +341,7 @@ module RAAF
                 {
                   "type" => "phone",
                   "value" => "+1-***-***-5678",
-                  "action" => "redacted", 
+                  "action" => "redacted",
                   "confidence" => 0.88
                 }
               ],
@@ -390,7 +363,6 @@ module RAAF
             }
           }
         end
-
         let(:pipeline_span_attributes) do
           {
             "pipeline" => {
@@ -406,7 +378,7 @@ module RAAF
                   "success" => true
                 },
                 {
-                  "name" => "MarketScoringAgent", 
+                  "name" => "MarketScoringAgent",
                   "order" => 2,
                   "status" => "completed",
                   "duration_ms" => 1890,
@@ -416,7 +388,7 @@ module RAAF
                 {
                   "name" => "SearchTermGeneratorAgent",
                   "order" => 3,
-                  "status" => "completed", 
+                  "status" => "completed",
                   "duration_ms" => 2150,
                   "output_size_bytes" => 3102,
                   "success" => true
@@ -442,7 +414,7 @@ module RAAF
               "market_constraints" => {
                 "geographic_regions" => ["North America", "Europe"],
                 "company_size_range" => "50-500",
-                "industry_focus" => ["software", "consulting", "fintech"]
+                "industry_focus" => %w[software consulting fintech]
               }
             },
             "final_result" => {
@@ -458,7 +430,7 @@ module RAAF
               "memory_peak_mb" => 245.7,
               "cpu_time_ms" => 5230,
               "api_calls_total" => 15,
-              "context_size_bytes" => 12847,
+              "context_size_bytes" => 12_847,
               "intermediate_results" => 3,
               "data_transformations" => 8
             },
@@ -471,17 +443,16 @@ module RAAF
             }
           }
         end
-
         let(:generic_span_attributes) do
           {
             "custom_operation" => {
               "type" => "data_validation",
               "validator" => "CompanyDataValidator",
-              "rules" => [
-                "required_fields_present",
-                "email_format_valid",
-                "company_size_realistic",
-                "industry_classification_valid"
+              "rules" => %w[
+                required_fields_present
+                email_format_valid
+                company_size_realistic
+                industry_classification_valid
               ],
               "input_records" => 150,
               "validated_records" => 147,
@@ -491,7 +462,7 @@ module RAAF
             "validation_failures" => [
               {
                 "record_id" => "comp_999",
-                "field" => "employee_count", 
+                "field" => "employee_count",
                 "value" => "-5",
                 "error" => "Employee count cannot be negative"
               },
@@ -522,7 +493,6 @@ module RAAF
             }
           }
         end
-
         # Edge case fixtures
         let(:malformed_attributes) do
           {
@@ -554,11 +524,10 @@ module RAAF
             }
           }
         end
-
         let(:large_dataset_attributes) do
           {
             "massive_array" => Array.new(1000) { |i| { "id" => i, "data" => "Item #{i}" * 10 } },
-            "huge_string" => "Large content " * 10000,
+            "huge_string" => "Large content " * 10_000,
             "many_keys" => Hash[(1..500).map { |i| ["key_#{i}", "value_#{i}"] }],
             "nested_arrays" => {
               "companies" => Array.new(100) do |i|
@@ -571,12 +540,32 @@ module RAAF
           }
         end
 
+        # Shared span factory method
+        def create_mock_span(kind:, attributes:, **options)
+          defaults = {
+            span_id: "span_#{SecureRandom.hex(8)}",
+            trace_id: "trace_#{SecureRandom.hex(8)}",
+            parent_id: "parent_#{SecureRandom.hex(8)}",
+            name: "Test #{kind.capitalize} Span",
+            kind: kind,
+            status: "success",
+            start_time: base_time,
+            end_time: base_time + 0.15,
+            duration_ms: 150,
+            span_attributes: attributes,
+            depth: 1,
+            children: [],
+            events: []
+          }
+          double("Span", **defaults, **options)
+        end
+
         describe "Component Routing Integration" do
           it "routes tool spans to ToolSpanComponent" do
             span = create_mock_span(kind: "tool", attributes: tool_span_attributes)
             component = SpanDetail::Component.new(span: span, trace: mock_trace)
             output = render(component)
-            
+
             # Verify tool-specific content is rendered
             expect(output).to include("Tool Execution")
             expect(output).to include("search_companies")
@@ -590,7 +579,7 @@ module RAAF
             span = create_mock_span(kind: "agent", attributes: agent_span_attributes)
             component = SpanDetail::Component.new(span: span, trace: mock_trace)
             output = render(component)
-            
+
             expect(output).to include("Agent Execution")
             expect(output).to include("ProspectAnalysisAgent")
             expect(output).to include("gpt-4o")
@@ -602,7 +591,7 @@ module RAAF
             span = create_mock_span(kind: "llm", attributes: llm_span_attributes)
             component = SpanDetail::Component.new(span: span, trace: mock_trace)
             output = render(component)
-            
+
             expect(output).to include("LLM Request")
             expect(output).to include("gpt-4o")
             expect(output).to include("Token Usage")
@@ -613,7 +602,7 @@ module RAAF
             span = create_mock_span(kind: "handoff", attributes: handoff_span_attributes)
             component = SpanDetail::Component.new(span: span, trace: mock_trace)
             output = render(component)
-            
+
             expect(output).to include("Agent Handoff")
             expect(output).to include("ProspectAnalysisAgent")
             expect(output).to include("OutreachCopywriterAgent")
@@ -624,7 +613,7 @@ module RAAF
             span = create_mock_span(kind: "guardrail", attributes: guardrail_span_attributes)
             component = SpanDetail::Component.new(span: span, trace: mock_trace)
             output = render(component)
-            
+
             expect(output).to include("Content Safety")
             expect(output).to include("PII_DETECTION_001")
             expect(output).to include("pass_with_modifications")
@@ -634,7 +623,7 @@ module RAAF
             span = create_mock_span(kind: "pipeline", attributes: pipeline_span_attributes)
             component = SpanDetail::Component.new(span: span, trace: mock_trace)
             output = render(component)
-            
+
             expect(output).to include("Pipeline Execution")
             expect(output).to include("MarketDiscoveryPipeline")
             expect(output).to include("MarketAnalysisAgent")
@@ -645,7 +634,7 @@ module RAAF
             span = create_mock_span(kind: "unknown_type", attributes: generic_span_attributes)
             component = SpanDetail::Component.new(span: span, trace: mock_trace)
             output = render(component)
-            
+
             expect(output).to include("Unknown_type Span")
             expect(output).to include("data_validation")
           end
@@ -657,7 +646,7 @@ module RAAF
 
           it "displays universal span information for all types" do
             output = render(component)
-            
+
             # Universal header elements
             expect(output).to include("Span Detail")
             expect(output).to include(tool_span.name)
@@ -667,7 +656,7 @@ module RAAF
 
           it "displays trace and navigation links" do
             output = render(component)
-            
+
             expect(output).to include("View Trace")
             expect(output).to include("Back to Spans")
             expect(output).to include("bi-diagram-3")
@@ -676,7 +665,7 @@ module RAAF
 
           it "shows timing information consistently" do
             output = render(component)
-            
+
             expect(output).to include("150ms") # Duration
             expect(output).to include("2025-09-25") # Timestamps
           end
@@ -688,10 +677,10 @@ module RAAF
               parent_id: "parent_span_123",
               depth: 2
             )
-            
+
             component = SpanDetail::Component.new(span: span_with_parent, trace: mock_trace)
             output = render(component)
-            
+
             expect(output).to include("parent_span_123")
             expect(output).to include("2") # Depth
           end
@@ -702,23 +691,23 @@ module RAAF
             span = create_mock_span(kind: "tool", attributes: tool_span_attributes)
             component = SpanDetail::Component.new(span: span)
             output = render(component)
-            
+
             # Function details
             expect(output).to include("search_companies")
             expect(output).to include("Search for companies matching criteria")
-            
+
             # Input parameters with structure
             expect(output).to include("Ruby programming consultancy")
             expect(output).to include("Software Development")
             expect(output).to include("10-50 employees")
             expect(output).to include("San Francisco Bay Area")
-            
+
             # Output results with data
             expect(output).to include("Ruby Masters Inc")
-            expect(output).to include("Code Crafters LLC") 
+            expect(output).to include("Code Crafters LLC")
             expect(output).to include("$2M-5M")
             expect(output).to include("score")
-            
+
             # Metadata
             expect(output).to include("search_time_ms")
             expect(output).to include("api_calls")
@@ -728,23 +717,23 @@ module RAAF
             span = create_mock_span(kind: "agent", attributes: agent_span_attributes)
             component = SpanDetail::Component.new(span: span)
             output = render(component)
-            
+
             # Agent configuration
             expect(output).to include("ProspectAnalysisAgent")
             expect(output).to include("gpt-4o")
             expect(output).to include("temperature")
             expect(output).to include("0.3")
-            
+
             # Context data
             expect(output).to include("RAAF Framework")
             expect(output).to include("AI Development Tools")
             expect(output).to include("Q4 Enterprise Outreach")
-            
+
             # Execution metrics
             expect(output).to include("turns_used")
             expect(output).to include("total_tokens")
             expect(output).to include("1847")
-            
+
             # Results
             expect(output).to include("insights_generated")
             expect(output).to include("confidence_score")
@@ -754,21 +743,21 @@ module RAAF
             span = create_mock_span(kind: "llm", attributes: llm_span_attributes)
             component = SpanDetail::Component.new(span: span)
             output = render(component)
-            
+
             # Model configuration
             expect(output).to include("gpt-4o")
             expect(output).to include("temperature")
             expect(output).to include("0.7")
-            
+
             # Usage metrics
             expect(output).to include("1637") # Total tokens
             expect(output).to include("1250") # Prompt tokens
             expect(output).to include("387") # Completion tokens
-            
+
             # Cost information
             expect(output).to include("$0.03036")
             expect(output).to include("USD")
-            
+
             # Performance metrics
             expect(output).to include("2847") # Latency ms
             expect(output).to include("136.5") # Tokens per second
@@ -778,23 +767,23 @@ module RAAF
             span = create_mock_span(kind: "pipeline", attributes: pipeline_span_attributes)
             component = SpanDetail::Component.new(span: span)
             output = render(component)
-            
+
             # Pipeline overview
             expect(output).to include("MarketDiscoveryPipeline")
             expect(output).to include("3 stages")
             expect(output).to include("sequential")
-            
+
             # Stage details
             expect(output).to include("MarketAnalysisAgent")
-            expect(output).to include("MarketScoringAgent") 
+            expect(output).to include("MarketScoringAgent")
             expect(output).to include("SearchTermGeneratorAgent")
             expect(output).to include("completed")
-            
+
             # Results summary
             expect(output).to include("markets_discovered")
             expect(output).to include("847") # Total companies
             expect(output).to include("156") # Search terms
-            
+
             # Performance data
             expect(output).to include("7460") # Total duration
             expect(output).to include("245.7") # Memory peak
@@ -807,41 +796,41 @@ module RAAF
 
           it "includes Stimulus controller data attributes" do
             output = render(component)
-            
+
             expect(output).to include('data-controller="span-detail"')
-            expect(output).to include('data-span_detail_debug_value')
+            expect(output).to include("data-span_detail_debug_value")
           end
 
           it "includes toggle action data attributes for sections" do
             output = render(component)
-            
+
             # Section toggle buttons should have proper data attributes
             expect(output).to include('data-action="click->span-detail#toggleSection"')
-            expect(output).to include('data-target=')
-            expect(output).to include('data-expanded_text')
-            expect(output).to include('data-collapsed_text')
+            expect(output).to include("data-target=")
+            expect(output).to include("data-expanded_text")
+            expect(output).to include("data-collapsed_text")
           end
 
           it "includes tool-specific toggle actions" do
             output = render(component)
-            
+
             # Tool input/output toggles
-            expect(output).to include('click->span-detail#toggleToolInput')
-            expect(output).to include('click->span-detail#toggleToolOutput')
+            expect(output).to include("click->span-detail#toggleToolInput")
+            expect(output).to include("click->span-detail#toggleToolOutput")
           end
 
           it "includes copy-to-clipboard functionality" do
             output = render(component)
-            
-            expect(output).to include('click->span-detail#copyJson')
+
+            expect(output).to include("click->span-detail#copyJson")
           end
 
           it "includes collapsible attribute groups" do
             span_with_attributes = create_mock_span(kind: "agent", attributes: agent_span_attributes)
             component = SpanDetail::Component.new(span: span_with_attributes)
             output = render(component)
-            
-            expect(output).to include('click->span-detail#toggleAttributeGroup')
+
+            expect(output).to include("click->span-detail#toggleAttributeGroup")
             expect(output).to include('data-initially_collapsed="true"')
           end
         end
@@ -850,10 +839,10 @@ module RAAF
           it "handles malformed JSON gracefully" do
             span = create_mock_span(kind: "tool", attributes: malformed_attributes)
             component = SpanDetail::Component.new(span: span)
-            
+
             expect { render(component) }.not_to raise_error
             output = render(component)
-            
+
             # Should still render basic span information
             expect(output).to include("Test Tool Span")
             expect(output).to include("Tool")
@@ -863,7 +852,7 @@ module RAAF
             span = create_mock_span(kind: "generic", attributes: malformed_attributes)
             component = SpanDetail::Component.new(span: span)
             output = render(component)
-            
+
             expect(output).to include("null") # Null values displayed
             expect(output).to include("Array (0 items)") # Empty array
             expect(output).to include("Object (0 keys)") # Empty hash
@@ -873,17 +862,17 @@ module RAAF
             span = create_mock_span(kind: "generic", attributes: malformed_attributes)
             component = SpanDetail::Component.new(span: span)
             output = render(component)
-            
+
             # Should include truncation indicators
             expect(output).to include("Show More")
             expect(output).to include("Toggle")
           end
 
           it "handles unicode content properly" do
-            span = create_mock_span(kind: "generic", attributes: malformed_attributes) 
+            span = create_mock_span(kind: "generic", attributes: malformed_attributes)
             component = SpanDetail::Component.new(span: span)
             output = render(component)
-            
+
             expect(output).to include("🚀")
             expect(output).to include("人工智能代理框架")
             expect(output).to include("إطار عمل وكلاء الذكاء الاصطناعي")
@@ -893,7 +882,7 @@ module RAAF
             span = create_mock_span(kind: "generic", attributes: malformed_attributes)
             component = SpanDetail::Component.new(span: span)
             output = render(component)
-            
+
             expect(output).to include("level1")
             expect(output).to include("deeply nested value")
             expect(output).to include("Object with") # Nested object indicators
@@ -904,10 +893,10 @@ module RAAF
           it "handles large arrays efficiently" do
             span = create_mock_span(kind: "tool", attributes: large_dataset_attributes)
             component = SpanDetail::Component.new(span: span)
-            
+
             expect { render(component) }.not_to raise_error
             output = render(component)
-            
+
             # Should show truncation for large arrays
             expect(output).to include("1000 items")
             expect(output).to include("more items")
@@ -917,9 +906,9 @@ module RAAF
             span = create_mock_span(kind: "tool", attributes: large_dataset_attributes)
             component = SpanDetail::Component.new(span: span)
             output = render(component)
-            
+
             # Should not include the full massive string
-            expect(output).not_to include("Large content " * 10000)
+            expect(output).not_to include("Large content " * 10_000)
             expect(output).to include("Show More") # Truncation controls
           end
 
@@ -927,7 +916,7 @@ module RAAF
             span = create_mock_span(kind: "tool", attributes: large_dataset_attributes)
             component = SpanDetail::Component.new(span: span)
             output = render(component)
-            
+
             expect(output).to include("500 keys")
             expect(output).to include("Toggle") # Collapsible sections
           end
@@ -940,11 +929,11 @@ module RAAF
               "code" => "TOOL_ERROR_001",
               "stack_trace" => "Error in line 42..."
             }
-            
+
             span = create_mock_span(kind: "tool", attributes: tool_span_attributes, status: "error")
             component = SpanDetail::Component.new(span: span, error_details: error_details)
             output = render(component)
-            
+
             expect(output).to include("Error Details")
             expect(output).to include("Tool execution failed")
             expect(output).to include("TOOL_ERROR_001")
@@ -955,30 +944,29 @@ module RAAF
           it "handles spans with missing required attributes" do
             span = create_mock_span(kind: "tool", attributes: {})
             component = SpanDetail::Component.new(span: span)
-            
+
             expect { render(component) }.not_to raise_error
             output = render(component)
-            
+
             expect(output).to include("Unknown Tool")
           end
 
           it "handles spans with nil attributes" do
             span = double("Span",
-              span_id: "test_123",
-              trace_id: "trace_456",
-              parent_id: nil,
-              name: "Nil Attributes Span",
-              kind: "tool",
-              status: "success",
-              start_time: base_time,
-              end_time: base_time + 0.1,
-              duration_ms: 100,
-              span_attributes: nil,
-              depth: 1,
-              children: [],
-              events: []
-            )
-            
+                          span_id: "test_123",
+                          trace_id: "trace_456",
+                          parent_id: nil,
+                          name: "Nil Attributes Span",
+                          kind: "tool",
+                          status: "success",
+                          start_time: base_time,
+                          end_time: base_time + 0.1,
+                          duration_ms: 100,
+                          span_attributes: nil,
+                          depth: 1,
+                          children: [],
+                          events: [])
+
             component = SpanDetail::Component.new(span: span)
             expect { render(component) }.not_to raise_error
           end
@@ -992,10 +980,10 @@ module RAAF
               attributes: agent_span_attributes,
               children: [child_span]
             )
-            
+
             component = SpanDetail::Component.new(span: parent_span)
             output = render(component)
-            
+
             expect(output).to include("Child Spans (1)")
             expect(output).to include(child_span.name)
           end
@@ -1008,16 +996,16 @@ module RAAF
                 "data" => { "tool" => "search_companies" }
               }
             ]
-            
+
             span = create_mock_span(
               kind: "tool",
               attributes: tool_span_attributes,
               events: events
             )
-            
+
             component = SpanDetail::Component.new(span: span)
             output = render(component)
-            
+
             expect(output).to include("Events (1)")
             expect(output).to include("tool_started")
           end
@@ -1029,7 +1017,7 @@ module RAAF
 
           it "uses proper semantic HTML structure" do
             output = render(component)
-            
+
             expect(output).to include("<h1")
             expect(output).to include("<h3")
             expect(output).to include("<dl>")
@@ -1039,15 +1027,15 @@ module RAAF
 
           it "includes proper ARIA labels and descriptions" do
             output = render(component)
-            
+
             # Interactive elements should be accessible
             expect(output).to include("button")
-            # Note: Full ARIA compliance would be verified in browser tests
+            # NOTE: Full ARIA compliance would be verified in browser tests
           end
 
           it "uses descriptive text content for screen readers" do
             output = render(component)
-            
+
             expect(output).to include("Span Detail")
             expect(output).to include("Tool Execution")
             expect(output).to include("Input Parameters")
@@ -1059,18 +1047,18 @@ module RAAF
           it "maintains consistent data representation across different span types" do
             # Test that the same underlying data structures are handled consistently
             # regardless of which type-specific component processes them
-            
+
             spans = [
               create_mock_span(kind: "tool", attributes: tool_span_attributes),
               create_mock_span(kind: "agent", attributes: agent_span_attributes),
               create_mock_span(kind: "llm", attributes: llm_span_attributes),
               create_mock_span(kind: "pipeline", attributes: pipeline_span_attributes)
             ]
-            
+
             spans.each do |span|
               component = SpanDetail::Component.new(span: span, trace: mock_trace)
               output = render(component)
-              
+
               # Universal elements should be present in all
               expect(output).to include("Span Detail")
               expect(output).to include(span.span_id)
@@ -1084,7 +1072,7 @@ module RAAF
             span = create_mock_span(kind: "tool", attributes: tool_span_attributes)
             component = SpanDetail::Component.new(span: span, trace: mock_trace)
             output = render(component)
-            
+
             expect(output).to include(mock_trace.trace_id)
             expect(output).to include(mock_trace.workflow_name)
             expect(output).to include("View Trace")
@@ -1096,10 +1084,10 @@ module RAAF
           let(:component) { SpanDetail::Component.new(span: span, trace: mock_trace) }
 
           it "uses Rails path helpers correctly" do
-            # Note: In a real Rails environment, these would generate actual URLs
+            # NOTE: In a real Rails environment, these would generate actual URLs
             # Here we just verify the structure is present
             output = render(component)
-            
+
             # Should contain elements that would use Rails helpers
             expect(output).to include("href")
             expect(output).to match(/tracing.*span/) # Pattern for span paths
@@ -1108,7 +1096,7 @@ module RAAF
 
           it "integrates with Rails time formatting helpers" do
             output = render(component)
-            
+
             expect(output).to include("2025-09-25")
             expect(output).to include("10:00:00")
             expect(output).to include("UTC")

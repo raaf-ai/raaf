@@ -19,7 +19,7 @@ module RAAF
     #
     module SharedContextBuilder
       include RAAF::Logging
-      
+
       # Build context automatically from provided arguments
       #
       # This method handles the intelligent context building that looks at:
@@ -44,16 +44,16 @@ module RAAF
         builder = RAAF::DSL::ContextBuilder.new({}, debug: debug)
 
         # Ensure params has indifferent access for key checking throughout this method
-        params_with_indifferent_access = params.is_a?(ActiveSupport::HashWithIndifferentAccess) ?
-                                          params :
-                                          params.with_indifferent_access
+        params_with_indifferent_access = if params.is_a?(ActiveSupport::HashWithIndifferentAccess)
+                                           params
+                                         else
+                                           params.with_indifferent_access
+                                         end
 
         # Validate required fields are provided
         if rules[:required]
           missing_required = rules[:required].select { |field| !params_with_indifferent_access.key?(field) }
-          if missing_required.any?
-            raise ArgumentError, "Missing required context fields: #{missing_required.inspect}"
-          end
+          raise ArgumentError, "Missing required context fields: #{missing_required.inspect}" if missing_required.any?
         end
 
         # Add provided parameters (with exclusion/inclusion rules)
@@ -63,9 +63,7 @@ module RAAF
           next if rules[:include]&.any? && !rules[:include].include?(key)
 
           # Check for custom preparation method
-          if respond_to?("prepare_#{key}_for_context", true)
-            value = send("prepare_#{key}_for_context", value)
-          end
+          value = send("prepare_#{key}_for_context", value) if respond_to?("prepare_#{key}_for_context", true)
 
           builder.with(key, value)
         end
@@ -104,7 +102,7 @@ module RAAF
 
         RAAF::DSL::ContextVariables.new(builder.context.to_h, debug: debug)
       end
-      
+
       # Build context from an explicit context parameter
       #
       # This method handles cases where context is provided explicitly as a
@@ -120,26 +118,26 @@ module RAAF
         if self.class.respond_to?(:detect_duplicate_context_determination!)
           self.class.detect_duplicate_context_determination!
         end
-        
+
         # Only accept ContextVariables instances
         base_context = case context_param
-        when RAAF::DSL::ContextVariables
-          context_param.to_h
-        else
-          raise ArgumentError, "context must be RAAF::DSL::ContextVariables instance. Use RAAF::DSL::ContextVariables.new(your_hash) instead of passing raw hash."
-        end
-        
+                       when RAAF::DSL::ContextVariables
+                         context_param.to_h
+                       else
+                         raise ArgumentError, "context must be RAAF::DSL::ContextVariables instance. Use RAAF::DSL::ContextVariables.new(your_hash) instead of passing raw hash."
+                       end
+
         # Apply agent's context defaults if they don't exist in provided context
         if self.class._context_config && self.class._context_config[:context_rules]
           rules = self.class._context_config[:context_rules]
-          
+
           # Apply optional defaults (new DSL)
           if rules[:optional]
             rules[:optional].each do |key, default_value|
               base_context[key] ||= default_value.is_a?(Proc) ? default_value.call : default_value
             end
           end
-          
+
           # Apply legacy defaults for backward compatibility
           if rules[:defaults]
             rules[:defaults].each do |key, default_value|
@@ -147,10 +145,10 @@ module RAAF
             end
           end
         end
-        
+
         RAAF::DSL::ContextVariables.new(base_context, debug: debug)
       end
-      
+
       # Validate that all required context is present
       #
       # This method checks that all required context fields are available
@@ -165,46 +163,41 @@ module RAAF
 
         # Ensure context has indifferent access for consistent key checking
         context_hash = context.respond_to?(:to_h) ? context.to_h : context
-        context_with_indifferent_access = context_hash.is_a?(ActiveSupport::HashWithIndifferentAccess) ?
-                                           context_hash :
-                                           context_hash.with_indifferent_access
+        context_with_indifferent_access = if context_hash.is_a?(ActiveSupport::HashWithIndifferentAccess)
+                                            context_hash
+                                          else
+                                            context_hash.with_indifferent_access
+                                          end
 
         # Check required fields using indifferent access
         if rules[:required]
           missing_keys = rules[:required].reject { |key| context_with_indifferent_access.key?(key) }
-          if missing_keys.any?
-            raise ArgumentError, "Required context keys missing: #{missing_keys.join(', ')}"
-          end
+          raise ArgumentError, "Required context keys missing: #{missing_keys.join(', ')}" if missing_keys.any?
         end
 
         # Run validation rules if configured
-        if rules[:validations]
-          rules[:validations].each do |key, validation_config|
-            next unless context_with_indifferent_access.key?(key)
+        return unless rules[:validations]
 
-            value = context_with_indifferent_access[key]
+        rules[:validations].each do |key, validation_config|
+          next unless context_with_indifferent_access.key?(key)
 
-            # Type validation
-            if validation_config[:type]
-              expected_type = validation_config[:type]
-              unless value.is_a?(expected_type)
-                raise ArgumentError, "Context key '#{key}' must be #{expected_type}, got #{value.class}"
-              end
+          value = context_with_indifferent_access[key]
+
+          # Type validation
+          if validation_config[:type]
+            expected_type = validation_config[:type]
+            unless value.is_a?(expected_type)
+              raise ArgumentError, "Context key '#{key}' must be #{expected_type}, got #{value.class}"
             end
+          end
 
-            # Custom validation proc
-            if validation_config[:proc]
-              validation_proc = validation_config[:proc]
-              unless validation_proc.call(value)
-                raise ArgumentError, "Context key '#{key}' failed custom validation"
-              end
-            end
+          # Custom validation proc
+          if validation_config[:proc]
+            validation_proc = validation_config[:proc]
+            raise ArgumentError, "Context key '#{key}' failed custom validation" unless validation_proc.call(value)
           end
         end
       end
-      
-      private
-      
     end
   end
 end

@@ -114,9 +114,8 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Manager do
       # Mock ChainedAgent structure
       let(:chained_flow) do
         double("ChainedAgent",
-          first_agent: trigger_agent,
-          second_agent: normal_agent
-        )
+               first_agent: trigger_agent,
+               second_agent: normal_agent)
       end
 
       it "flattens and detects scopes from chained agents" do
@@ -161,18 +160,16 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Manager do
 
     it "handles ChainedAgent structure" do
       flow = double("ChainedAgent",
-        first_agent: trigger_agent,
-        second_agent: normal_agent
-      )
+                    first_agent: trigger_agent,
+                    second_agent: normal_agent)
       result = manager.flatten_flow_chain(flow)
       expect(result).to eq([trigger_agent, normal_agent])
     end
 
     it "handles deeply nested structures" do
       nested = double("Nested",
-        first_agent: [trigger_agent],
-        second_agent: double("Inner", to_a: [normal_agent, another_trigger])
-      )
+                      first_agent: [trigger_agent],
+                      second_agent: double("Inner", to_a: [normal_agent, another_trigger]))
       result = manager.flatten_flow_chain(nested)
       expect(result).to eq([trigger_agent, normal_agent, another_trigger])
     end
@@ -196,9 +193,9 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::Manager do
         stream_size: 100
       )
 
-      expect {
+      expect do
         manager.validate_scopes!([invalid_scope])
-      }.to raise_error(RAAF::DSL::IntelligentStreaming::Manager::ConfigurationError, /Invalid streaming scope/)
+      end.to raise_error(RAAF::DSL::IntelligentStreaming::Manager::ConfigurationError, /Invalid streaming scope/)
     end
 
     it "validates multiple scopes" do

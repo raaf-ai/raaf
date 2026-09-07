@@ -156,7 +156,7 @@ module RAAF
             # Extensions should register themselves when loaded
           rescue LoadError => e
             RAAF.logger.warn("Failed to load extension", file: file, error: e.message,
-                                                                          error_class: e.class.name)
+                                                         error_class: e.class.name)
           end
         end
 

@@ -7,6 +7,7 @@ require "set"
 require_relative "tracing/spans"
 
 module RAAF
+
   ##
   # Debugging System for RAAF
   #
@@ -29,7 +30,7 @@ module RAAF
   #   debugger = RAAF::Debugging::Debugger.new
   #   debugger.breakpoint("agent_run_start")
   #   debugger.enable_step_mode
-  #   
+  #
   #   debug_runner = RAAF::Debugging::DebugRunner.new(
   #     agent: agent,
   #     debugger: debugger
@@ -40,7 +41,7 @@ module RAAF
   #   debugger = RAAF::Debugging::Debugger.new
   #   debugger.watch_variable("message_count") { @conversation.length }
   #   debugger.breakpoint("tool_call:search")
-  #   
+  #
   #   # Agent execution will pause at breakpoints and show watched variables
   #   result = debug_runner.run(messages)
   #   debugger.show_performance_metrics
@@ -50,6 +51,7 @@ module RAAF
   # @since 0.1.0
   # @see RAAF::Debugging::DebugRunner For debug-enabled agent execution
   module Debugging
+
     ##
     # Enhanced debugger for agent workflows
     #
@@ -68,6 +70,7 @@ module RAAF
     #   end
     #   debugger.show_performance_metrics
     class Debugger
+
       attr_reader :breakpoints, :step_mode, :watch_variables
 
       ##
@@ -394,21 +397,13 @@ module RAAF
         debug("Debug history cleared")
       end
 
-      def debug(message)
-        @logger.debug(message)
-      end
+      delegate :debug, to: :@logger
 
-      def info(message)
-        @logger.info(message)
-      end
+      delegate :info, to: :@logger
 
-      def warn(message)
-        @logger.warn(message)
-      end
+      delegate :warn, to: :@logger
 
-      def error(message)
-        @logger.error(message)
-      end
+      delegate :error, to: :@logger
 
       private
 
@@ -552,6 +547,7 @@ module RAAF
           operations_by_type: @performance_metrics.transform_values { |stats| stats[:count] }
         }
       end
+
     end
 
     ##
@@ -574,6 +570,7 @@ module RAAF
     #     tracer: tracer
     #   )
     class DebugRunner
+
       ##
       # Initialize debug runner with agent and debugging tools
       #
@@ -635,6 +632,9 @@ module RAAF
         runner = Runner.new(agent: @agent, tracer: @tracer)
         runner.run(messages)
       end
+
     end
+
   end
+
 end

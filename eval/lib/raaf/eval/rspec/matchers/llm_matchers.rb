@@ -444,14 +444,14 @@ module RAAF
                 return false unless results.is_a?(Hash)
 
                 results.values.all? do |result|
-                  result[:label] == "good" || result[:label] == "average"
+                  %w[good average].include?(result[:label])
                 end
               end
 
               failure_message do |results|
                 failed = results.select { |_, v| v[:label] == "bad" }
                 "Expected all evaluations to pass (good or average), but #{failed.size} failed: " \
-                  "#{failed.keys.join(', ')}"
+                  "#{failed.keys.join(", ")}"
               end
             end
           end

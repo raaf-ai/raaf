@@ -188,6 +188,7 @@ module RAAF
         # @return [ActiveSupport::Duration, nil]
         def duration
           return nil unless triggered_at
+
           end_time = resolved_at || Time.current
           end_time - triggered_at
         end
@@ -197,6 +198,7 @@ module RAAF
         # @return [String]
         def duration_text
           return "Unknown" unless duration
+
           ActiveSupport::Duration.build(duration).inspect
         end
 

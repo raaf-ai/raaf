@@ -29,7 +29,7 @@ module RAAF
           if @definition.save
             render json: @definition, status: :created
           else
-            render json: { errors: @definition.errors }, status: :unprocessable_entity
+            render json: { errors: @definition.errors }, status: :unprocessable_content
           end
         end
 
@@ -39,7 +39,7 @@ module RAAF
           if @definition.update(definition_params)
             render json: @definition
           else
-            render json: { errors: @definition.errors }, status: :unprocessable_entity
+            render json: { errors: @definition.errors }, status: :unprocessable_content
           end
         end
 
@@ -52,7 +52,8 @@ module RAAF
         private
 
         def definition_params
-          params.require(:feedback_score_definition).permit(:name, :description, :score_type, :min_value, :max_value, categories: [], metadata: {})
+          params.require(:feedback_score_definition).permit(:name, :description, :score_type, :min_value, :max_value,
+                                                            categories: [], metadata: {})
         end
       end
     end

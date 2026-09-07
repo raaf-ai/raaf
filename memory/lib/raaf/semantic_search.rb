@@ -15,6 +15,7 @@ rescue LoadError
 end
 
 module RAAF
+
   ##
   # Semantic search capabilities for agents
   #
@@ -26,18 +27,18 @@ module RAAF
   # @example Basic semantic search setup
   #   # Create vector database
   #   db = SemanticSearch::VectorDatabase.new(dimension: 1536)
-  #   
+  #
   #   # Add documents with embeddings
   #   documents = ["Ruby programming", "Python development", "JavaScript frameworks"]
   #   embeddings = EmbeddingGenerator.new.generate(documents)
   #   metadata = documents.map.with_index { |doc, i| { text: doc, id: i } }
-  #   
+  #
   #   db.add(embeddings, metadata)
-  #   
+  #
   #   # Search for similar content
   #   query_embedding = EmbeddingGenerator.new.generate(["web development"])[0]
   #   results = db.search(query_embedding, k: 2)
-  #   
+  #
   #   results.each { |result| puts result[:metadata][:text] }
   #
   # @example Advanced semantic search with agent integration
@@ -46,14 +47,14 @@ module RAAF
   #     database: knowledge_db,
   #     embedding_model: "text-embedding-3-small"
   #   )
-  #   
+  #
   #   # Add to agent
   #   agent = Agent.new(
   #     name: "KnowledgeAgent",
   #     instructions: "Answer questions using the knowledge base"
   #   )
   #   agent.add_tool(search_tool)
-  #   
+  #
   #   # Agent can now perform semantic search
   #   result = agent.run("What programming languages are good for web development?")
   #
@@ -62,7 +63,7 @@ module RAAF
   #     vector_db: vector_database,
   #     keyword_indexer: SemanticSearch::KeywordIndexer.new
   #   )
-  #   
+  #
   #   # Combines semantic similarity with keyword matching
   #   results = hybrid.search(
   #     query: "machine learning algorithms",
@@ -76,7 +77,7 @@ module RAAF
   #     embedding_generator: EmbeddingGenerator.new,
   #     vector_database: db
   #   )
-  #   
+  #
   #   # Index various document types
   #   indexer.index_text("Long article content...")
   #   indexer.index_file("document.pdf")
@@ -87,6 +88,7 @@ module RAAF
   # @since 1.0.0
   #
   module SemanticSearch
+
     ##
     # Vector database for storing embeddings
     #
@@ -97,22 +99,22 @@ module RAAF
     # @example Creating and using a vector database
     #   # Create database with HNSW index for fast search
     #   db = VectorDatabase.new(dimension: 1536, index_type: :hnsw)
-    #   
+    #
     #   # Add embeddings with metadata
     #   embeddings = [
     #     [0.1, 0.2, 0.3, ...],  # 1536-dimensional vectors
     #     [0.4, 0.5, 0.6, ...],
     #     [0.7, 0.8, 0.9, ...]
     #   ]
-    #   
+    #
     #   metadata = [
     #     { title: "Document 1", category: "tech" },
     #     { title: "Document 2", category: "science" },
     #     { title: "Document 3", category: "tech" }
     #   ]
-    #   
+    #
     #   db.add(embeddings, metadata)
-    #   
+    #
     #   # Search with filtering
     #   results = db.search(
     #     query_embedding,
@@ -123,14 +125,15 @@ module RAAF
     # @example Performance comparison of index types
     #   # HNSW: Fast search, slower indexing, good for large datasets
     #   hnsw_db = VectorDatabase.new(index_type: :hnsw)
-    #   
+    #
     #   # Flat: Exact search, fast indexing, good for small datasets
     #   flat_db = VectorDatabase.new(index_type: :flat)
     #
     class VectorDatabase
+
       # @return [Integer] Dimensionality of stored vectors
       attr_reader :dimension
-      
+
       # @return [Symbol] Type of search index (:hnsw, :flat)
       attr_reader :index_type
 
@@ -294,10 +297,12 @@ module RAAF
           raise ArgumentError, "Unknown index type: #{type}"
         end
       end
+
     end
 
     # HNSW (Hierarchical Navigable Small World) index
     class HNSWIndex
+
       def initialize(dimension, m: 16, ef_construction: 200)
         @dimension = dimension
         @m = m
@@ -344,7 +349,7 @@ module RAAF
         level
       end
 
-      def search_layer(query, ef, layer)
+      def search_layer(_query, _ef, _layer)
         # Simplified HNSW search
         []
       end
@@ -352,10 +357,12 @@ module RAAF
       def update_connections(idx, vector, level)
         # Update graph connections
       end
+
     end
 
     # Simple flat index for small datasets
     class FlatIndex
+
       def initialize(dimension)
         @dimension = dimension
       end
@@ -367,10 +374,12 @@ module RAAF
       def update(index, vector)
         # No update needed for flat search
       end
+
     end
 
     # Embedding generator using OpenAI
     class EmbeddingGenerator
+
       def initialize(model: "text-embedding-3-small", client: nil)
         @model = model
         @client = client || OpenAI::Client.new
@@ -442,10 +451,12 @@ module RAAF
 
         [cached, uncached]
       end
+
     end
 
     # Document indexer for semantic search
     class DocumentIndexer
+
       attr_reader :vector_db, :embedding_generator
 
       def initialize(vector_db: nil, embedding_generator: nil)
@@ -549,10 +560,12 @@ module RAAF
           }
         end.sort_by { |r| -r[:score] }
       end
+
     end
 
     # Hybrid search combining semantic and keyword search
     class HybridSearch
+
       def initialize(semantic_indexer, keyword_indexer = nil)
         @semantic_indexer = semantic_indexer
         @keyword_indexer = keyword_indexer || KeywordIndexer.new
@@ -614,10 +627,12 @@ module RAAF
           doc
         end.sort_by { |d| -d[:combined_score] }
       end
+
     end
 
     # Simple keyword indexer using TF-IDF
     class KeywordIndexer
+
       def initialize
         @documents = []
         @index = {}
@@ -687,10 +702,12 @@ module RAAF
           @idf[term] = Math.log(n / docs.size)
         end
       end
+
     end
 
     # Semantic search agent tool
     class SemanticSearchTool < FunctionTool
+
       def initialize(indexer, name: "semantic_search", description: "Search documents using semantic similarity")
         @indexer = indexer
 
@@ -714,10 +731,12 @@ module RAAF
           }
         end
       end
+
     end
 
     # Query expansion for better search
     class QueryExpander
+
       def initialize(client: nil)
         @client = client || OpenAI::Client.new
       end
@@ -787,6 +806,9 @@ module RAAF
         alternatives = response.dig("choices", 0, "message", "content").split("\n").map(&:strip)
         [query] + alternatives
       end
+
     end
+
   end
+
 end

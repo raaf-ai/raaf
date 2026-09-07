@@ -102,7 +102,7 @@ class CodeQualityMetric < RAAF::Eval::Metrics::CustomMetric
 
   def extract_code_blocks(text)
     # Extract code blocks from markdown
-    text.scan(/```[\w]*\n(.*?)```/m).flatten
+    text.scan(/```\w*\n(.*?)```/m).flatten
   end
 
   def analyze_code_quality(code_blocks)
@@ -183,7 +183,7 @@ class TimeSensitivityMetric < RAAF::Eval::Metrics::CustomMetric
 
   def addresses_timing?(text)
     # Check if response includes dates, times, or temporal references
-    has_date = text.match?(/\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4}/)
+    has_date = text.match?(%r{\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{2,4}})
     has_time = text.match?(/\d{1,2}:\d{2}/)
     has_temporal = TIME_KEYWORDS.any? { |keyword| text.downcase.include?(keyword) }
 
@@ -305,7 +305,7 @@ class ComprehensiveQualityMetric < RAAF::Eval::Metrics::CustomMetric
     politeness_score = politeness_result[:result_score] || 0
     time_score = time_result[:result_addressed_timing] ? 100 : 0
 
-    (politeness_score * 0.6 + time_score * 0.4).round(2)
+    ((politeness_score * 0.6) + (time_score * 0.4)).round(2)
   end
 end
 

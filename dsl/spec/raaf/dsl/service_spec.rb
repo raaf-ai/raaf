@@ -240,7 +240,7 @@ RSpec.describe RAAF::DSL::Service do
     class ErrorService < described_class
       def call
         raise StandardError, "Service failed"
-      rescue => e
+      rescue StandardError => e
         { success: false, error: "Service error: #{e.message}" }
       end
     end

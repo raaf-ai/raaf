@@ -115,9 +115,9 @@ module RAAF
         # @param span [Hash] The span data
         # @yield Block with configuration DSL
         # @return [DSL::EvaluationResult] Multi-config results with comparison
-        def evaluate_multi_config(span, &block)
+        def evaluate_multi_config(span, &)
           config_dsl = ConfigurationDSL.new
-          config_dsl.instance_eval(&block)
+          config_dsl.instance_eval(&)
 
           configurations = config_dsl.configurations
           baseline_name = config_dsl.baseline_name
@@ -197,12 +197,14 @@ module RAAF
 
           # Filter field evaluator sets if only_fields is specified
           field_sets_to_evaluate = if @only_fields.present?
-            @evaluator_definition.field_evaluator_sets.select { |name, _| @only_fields.include?(name.to_sym) }
-          else
-            @evaluator_definition.field_evaluator_sets
-          end
+                                     @evaluator_definition.field_evaluator_sets.select do |name, _|
+                                       @only_fields.include?(name.to_sym)
+                                     end
+                                   else
+                                     @evaluator_definition.field_evaluator_sets
+                                   end
 
-          total_field_sets = field_sets_to_evaluate.size  # Use filtered count
+          total_field_sets = field_sets_to_evaluate.size # Use filtered count
 
           field_sets_to_evaluate.each do |field_name, evaluator_set|
             field_context = field_contexts[field_name]
@@ -217,7 +219,7 @@ module RAAF
               field_name,
               evaluator_name,
               evaluator_index,
-              total_field_sets  # Pass total field sets, not current set size
+              total_field_sets # Pass total field sets, not current set size
             )
 
             # Execute the evaluator set and time it

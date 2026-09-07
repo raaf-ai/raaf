@@ -66,17 +66,17 @@ RSpec.describe RAAF::ProviderRegistry do
     end
 
     it "accepts provider options" do
-      # Note: ResponsesProvider doesn't expose api_key in constructor
+      # NOTE: ResponsesProvider doesn't expose api_key in constructor
       # but we can verify it accepts options without error
-      expect {
+      expect do
         described_class.create(:openai, api_key: "test-key")
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "raises error for unknown provider" do
-      expect {
+      expect do
         described_class.create(:unknown_provider)
-      }.to raise_error(ArgumentError, /Unknown provider/)
+      end.to raise_error(ArgumentError, /Unknown provider/)
     end
 
     it "accepts string provider names" do
@@ -186,7 +186,7 @@ RSpec.describe RAAF::ProviderRegistry do
 
       thread_count.times do |i|
         threads << Thread.new do
-          provider_name = "custom_provider_#{i}".to_sym
+          provider_name = :"custom_provider_#{i}"
           provider_class = "CustomProvider#{i}"
 
           # Register provider
@@ -284,25 +284,23 @@ RSpec.describe RAAF::ProviderRegistry do
 
       threads = thread_count.times.map do |i|
         Thread.new do
-          begin
-            # Wait for all threads to be created
-            start_barrier.wait
+          # Wait for all threads to be created
+          start_barrier.wait
 
-            # Half the threads register new providers
-            if i.even?
-              provider_name = "mixed_provider_#{i}".to_sym
-              described_class.register(provider_name, "MixedProvider#{i}")
-            else
-              # Half the threads read the provider list
-              described_class.providers
+          # Half the threads register new providers
+          if i.even?
+            provider_name = :"mixed_provider_#{i}"
+            described_class.register(provider_name, "MixedProvider#{i}")
+          else
+            # Half the threads read the provider list
+            described_class.providers
 
-              # And some check registration status
-              described_class.registered?(:openai)
-            end
-          rescue => e
-            mutex.synchronize do
-              errors << { thread: i, error: e }
-            end
+            # And some check registration status
+            described_class.registered?(:openai)
+          end
+        rescue StandardError => e
+          mutex.synchronize do
+            errors << { thread: i, error: e }
           end
         end
       end
@@ -328,7 +326,7 @@ RSpec.describe RAAF::ProviderRegistry do
       thread_count.times do |thread_id|
         threads << Thread.new do
           registration_per_thread.times do |reg_id|
-            provider_name = "stress_provider_#{thread_id}_#{reg_id}".to_sym
+            provider_name = :"stress_provider_#{thread_id}_#{reg_id}"
             provider_class = "StressProvider#{thread_id}#{reg_id}"
 
             # Register provider
@@ -353,6 +351,7 @@ end
 
 # Helper class for synchronizing thread startup in tests
 class Barrier
+
   def initialize(count)
     @count = count
     @current = 0
@@ -370,4 +369,5 @@ class Barrier
       end
     end
   end
+
 end

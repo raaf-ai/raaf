@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-require 'ostruct'
-require 'securerandom'
-require_relative 'field_mismatch_error'
-require_relative 'pipeline_failure_error'
+require "ostruct"
+require "securerandom"
+require_relative "field_mismatch_error"
+require_relative "pipeline_failure_error"
 
 module RAAF
   module DSL
@@ -11,19 +11,18 @@ module RAAF
       # Represents a chain of two agents to be executed in sequence
       # This is the core building block of the Pipeline DSL, created when using >> operator
       #
-      # DSL Usage: 
+      # DSL Usage:
       #   Agent1 >> Agent2 creates ChainedAgent.new(Agent1, Agent2)
       #   Agent1 >> Agent2 >> Agent3 creates ChainedAgent.new(ChainedAgent.new(Agent1, Agent2), Agent3)
       #
       # Why >> operator: Chosen for its visual similarity to shell piping and data flow direction
       # Field mapping: Automatically validates that producer fields match consumer requirements
       class ChainedAgent
-
         include Logger
         include WrapperDSL
 
         attr_reader :first, :second, :pipeline_context_fields
-        
+
         def initialize(first, second, pipeline_context_fields: nil)
           @first = first
           @second = second
@@ -35,34 +34,34 @@ module RAAF
           # Defer validation until explicitly called by pipeline or user
           # This allows for flexible testing and runtime behavior
         end
-        
+
         # DSL operator: Chain this agent with the next one in sequence
         # Creates a new ChainedAgent where current chain becomes first, next_agent becomes second
-        def >>(next_agent)
-          ChainedAgent.new(self, next_agent, pipeline_context_fields: @pipeline_context_fields)
+        def >>(other)
+          ChainedAgent.new(self, other, pipeline_context_fields: @pipeline_context_fields)
         end
-        
+
         # DSL operator: Run this agent in parallel with another
         # Creates ParallelAgents wrapping both agents for concurrent execution
-        def |(parallel_agent)
-          ParallelAgents.new([self, parallel_agent])
+        def |(other)
+          ParallelAgents.new([self, other])
         end
-        
+
         # Validate with pipeline context fields provided at runtime
         # This allows the pipeline to pass its context fields after they're defined
         def validate_with_pipeline_context(pipeline_context_fields)
           @pipeline_context_fields = pipeline_context_fields if pipeline_context_fields
           @validation_proc&.call
-          
+
           # Recursively validate nested chains
           if @first.respond_to?(:validate_with_pipeline_context)
             @first.validate_with_pipeline_context(pipeline_context_fields)
           end
-          if @second.respond_to?(:validate_with_pipeline_context)
-            @second.validate_with_pipeline_context(pipeline_context_fields)
-          end
+          return unless @second.respond_to?(:validate_with_pipeline_context)
+
+          @second.validate_with_pipeline_context(pipeline_context_fields)
         end
-        
+
         def execute(context, agent_results = nil)
           # Wrap execution with before_execute/after_execute hooks
           first_name = @first.respond_to?(:name) ? @first.name : @first.class.name
@@ -70,9 +69,7 @@ module RAAF
 
           execute_with_hooks(context, :chained, first_agent: first_name, second_agent: second_name) do
             # Ensure context is ContextVariables if it's a plain Hash
-            unless context.respond_to?(:set)
-              context = RAAF::DSL::ContextVariables.new(context)
-            end
+            context = RAAF::DSL::ContextVariables.new(context) unless context.respond_to?(:set)
 
             # Execute first part
             context = execute_part(@first, context, agent_results)
@@ -89,7 +86,7 @@ module RAAF
             execute_part(@second, context, agent_results)
           end
         end
-        
+
         # Extract metadata for chained agents
         def required_fields
           # Return the requirements of the first agent in the chain
@@ -137,7 +134,7 @@ module RAAF
             true
           end
         end
-        
+
         private
 
         # Field mapping validation: Ensures producer/consumer compatibility at chain creation time
@@ -150,41 +147,41 @@ module RAAF
         def validate_field_compatibility!
           return unless @first.respond_to?(:provided_fields) && @second.respond_to?(:required_fields)
 
-          first_name = @first.respond_to?(:name) ? @first.name : @first.class.name
-          second_name = @second.respond_to?(:name) ? @second.name : @second.class.name
+          @first.respond_to?(:name) ? @first.name : @first.class.name
+          @second.respond_to?(:name) ? @second.name : @second.class.name
           provided = @first.provided_fields
           required = @second.required_fields
           missing = required - provided
-          
+
           # Check if the second agent has context defaults for missing fields
           if @second.respond_to?(:_context_config)
             agent_config = @second._context_config
             if agent_config && agent_config[:context_rules] && agent_config[:context_rules][:defaults]
               defaults = agent_config[:context_rules][:defaults]
               # Remove fields that have defaults from the missing list
-              missing = missing - defaults.keys
+              missing -= defaults.keys
             end
           end
-          
+
           return if missing.empty?
-          
+
           # Use dynamic pipeline context fields if available
           # These fields are declared in the pipeline's context block and will be available at runtime
           pipeline_provided_fields = @pipeline_context_fields
 
           # Add common generic context fields that are typically available
-          generic_context_fields = [:user, :data, :config, :options, :settings]
+          generic_context_fields = %i[user data config options settings]
           available_from_context = pipeline_provided_fields + generic_context_fields
 
           # Filter out fields that are provided by pipeline context
           non_context_missing = missing - available_from_context
 
           # Only raise error for fields that can't come from pipeline context or defaults
-          if non_context_missing.any?
-            raise FieldMismatchError.new(@first, @second, non_context_missing, available_from_context)
-          end
+          return unless non_context_missing.any?
+
+          raise FieldMismatchError.new(@first, @second, non_context_missing, available_from_context)
         end
-        
+
         def execute_part(part, context, agent_results = nil)
           case part
           when ChainedAgent
@@ -203,17 +200,15 @@ module RAAF
             execute_single_agent(part, context, agent_results)
           when Symbol
             # Method handler - look for method in pipeline instance
-            if context.respond_to?(:pipeline_instance) && context.pipeline_instance
-              if context.pipeline_instance.respond_to?(part, true)
-                context.pipeline_instance.send(part, context)
-              end
+            if context.respond_to?(:pipeline_instance) && context.pipeline_instance && context.pipeline_instance.respond_to?(part, true)
+              context.pipeline_instance.send(part, context)
             end
             context
           else
             raise "RAAF Framework Error: Unrecognized pipeline part type: #{part.class.name}. This indicates a bug in the RAAF framework - all pipeline parts must be handled explicitly."
           end
         end
-        
+
         def execute_single_agent(agent_class, context, agent_results = nil)
           agent_name = agent_class.respond_to?(:agent_name) ? agent_class.agent_name : agent_class.name
           log_debug "Executing agent: #{agent_name}"
@@ -242,12 +237,13 @@ module RAAF
               if pipeline_instance && pipeline_instance.respond_to?(:with_tracing)
 
                 # Create a proper agent-like object that can create agent spans
-                require 'ostruct'
+                require "ostruct"
 
                 # Create a minimal agent-like object with tracing capability
                 skipped_agent = Class.new do
                   include RAAF::Tracing::Traceable
-                  trace_as :agent  # This is crucial - sets the span kind to :agent
+
+                  trace_as :agent # This is crucial - sets the span kind to :agent
 
                   def initialize(name, parent_component)
                     @name = name
@@ -259,15 +255,15 @@ module RAAF
 
                 # Use the fake agent to create a proper agent span with correct hierarchy
                 skipped_agent.with_tracing(:execute,
-                                          parent_component: pipeline_instance,
-                                          agent_name: agent_name,
-                                          "agent.status" => "skipped",
-                                          "agent.skip_reason" => "requirements_not_met",
-                                          "agent.required_fields" => agent_class.required_fields.join(", "),
-                                          "agent.available_fields" => (context.respond_to?(:keys) ? context.keys.join(", ") : "unknown")) do
+                                           parent_component: pipeline_instance,
+                                           agent_name: agent_name,
+                                           "agent.status" => "skipped",
+                                           "agent.skip_reason" => "requirements_not_met",
+                                           "agent.required_fields" => agent_class.required_fields.join(", "),
+                                           "agent.available_fields" => (context.respond_to?(:keys) ? context.keys.join(", ") : "unknown")) do
                   # No-op - just create the span to show the agent was considered
                   log_debug "Created span for skipped agent: #{agent_name}"
-                  nil  # Return nil from span block
+                  nil # Return nil from span block
                 end
               else
               end
@@ -284,9 +280,7 @@ module RAAF
 
           # Pass pipeline instance as parent_component for tracing hierarchy
           pipeline_instance = context.respond_to?(:get) ? context.get(:pipeline_instance) : context[:pipeline_instance]
-          if pipeline_instance
-            agent_params[:parent_component] = pipeline_instance
-          end
+          agent_params[:parent_component] = pipeline_instance if pipeline_instance
 
           # Convert to regular hash first, then transform keys to symbols for RAAF::DSL::Agent compatibility
           regular_hash = agent_params.to_h
@@ -306,11 +300,11 @@ module RAAF
           end
 
           # Call appropriate execution method based on agent type
-          if agent.respond_to?(:call) && agent.class.superclass.name == 'RAAF::DSL::Service'
-            result = agent.call
-          else
-            result = agent.run
-          end
+          result = if agent.respond_to?(:call) && agent.class.superclass.name == "RAAF::DSL::Service"
+                     agent.call
+                   else
+                     agent.run
+                   end
 
           # Check for failure in result - propagate immediately if agent failed
           if result.is_a?(Hash) && result.key?(:success) && result[:success] == false
@@ -318,9 +312,7 @@ module RAAF
           end
 
           # Collect agent result for auto-merge if agent_results array provided
-          if agent_results && result.is_a?(Hash)
-            agent_results << result
-          end
+          agent_results << result if agent_results && result.is_a?(Hash)
 
           # Merge provided fields into context (for backward compatibility)
           # If the agent has AutoMerge enabled, the result already contains properly merged data
@@ -339,7 +331,6 @@ module RAAF
           elsif agent_class.respond_to?(:provided_fields)
             # Fallback to individual field extraction for agents without AutoMerge
             agent_class.provided_fields.each do |field|
-
               if result.is_a?(Hash) && result.key?(field)
                 field_value = result[field]
                 context = context.set(field, field_value)
@@ -352,11 +343,9 @@ module RAAF
           else
           end
 
-
           log_debug "Agent #{agent_name} execution completed"
           context
         end
-
       end
     end
   end

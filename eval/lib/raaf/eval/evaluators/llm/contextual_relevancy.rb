@@ -54,19 +54,18 @@ module RAAF
 
             # Determine label based on score
             label = calculate_label(score,
-                                   good_threshold: good_threshold,
-                                   average_threshold: average_threshold)
+                                    good_threshold: good_threshold,
+                                    average_threshold: average_threshold)
 
             # Build result hash
             build_result(score, label, good_threshold, average_threshold,
-              evaluated_field: field_context.field_name.to_sym,
-              method: "contextual_relevancy",
-              query: query,
-              context_preview: truncate_text(context, 200),
-              context_length: context.length,
-              relevancy_reasoning: reasoning,
-              evaluation_note: relevancy_note(score, good_threshold, average_threshold)
-            )
+                         evaluated_field: field_context.field_name.to_sym,
+                         method: "contextual_relevancy",
+                         query: query,
+                         context_preview: truncate_text(context, 200),
+                         context_length: context.length,
+                         relevancy_reasoning: reasoning,
+                         evaluation_note: relevancy_note(score, good_threshold, average_threshold))
           end
 
           private
@@ -83,8 +82,6 @@ module RAAF
             when String
               # If field_context is for query field directly
               field_context.field_name.to_s == "query" ? value : nil
-            else
-              nil
             end
           end
 
@@ -100,12 +97,12 @@ module RAAF
               format_context(ctx)
             when Array
               # Array of documents - join them
-              value.map { |doc| doc.is_a?(Hash) ? (doc[:content] || doc["content"] || doc.to_s) : doc.to_s }.join("\n\n")
+              value.map do |doc|
+                doc.is_a?(Hash) ? (doc[:content] || doc["content"] || doc.to_s) : doc.to_s
+              end.join("\n\n")
             when String
               # If field_context is for context field directly
               field_context.field_name.to_s == "context" ? value : nil
-            else
-              nil
             end
           end
 
@@ -114,7 +111,9 @@ module RAAF
           def format_context(context)
             case context
             when Array
-              context.map { |doc| doc.is_a?(Hash) ? (doc[:content] || doc["content"] || doc.to_s) : doc.to_s }.join("\n\n")
+              context.map do |doc|
+                doc.is_a?(Hash) ? (doc[:content] || doc["content"] || doc.to_s) : doc.to_s
+              end.join("\n\n")
             when String
               context
             when Hash
@@ -190,9 +189,9 @@ module RAAF
             reasoning = "Contextual Relevancy Analysis:\n\n"
             reasoning += "Query: \"#{truncate_text(query, 100)}\"\n"
             reasoning += "Context: \"#{truncate_text(context, 150)}...\"\n\n"
-            reasoning += "Meaningful Keywords: #{keywords_to_match.join(', ')}\n"
+            reasoning += "Meaningful Keywords: #{keywords_to_match.join(", ")}\n"
             reasoning += "Keyword Coverage: #{(coverage * 100).round}% (#{overlap.size}/#{keywords_to_match.size} keywords found)\n"
-            reasoning += "Overlapping Terms: #{overlap.take(5).join(', ')}#{overlap.size > 5 ? '...' : ''}\n\n"
+            reasoning += "Overlapping Terms: #{overlap.take(5).join(", ")}#{"..." if overlap.size > 5}\n\n"
 
             case score
             when 0.75..Float::INFINITY

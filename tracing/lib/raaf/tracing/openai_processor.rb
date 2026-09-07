@@ -8,7 +8,9 @@ require_relative "version"
 require_relative "base_processor"
 
 module RAAF
+
   module Tracing
+
     # Processor that sends spans to OpenAI's traces ingestion endpoint
     #
     # OpenAIProcessor is responsible for:
@@ -48,6 +50,7 @@ module RAAF
     #   runner = RAAF::Runner.new(agent: agent)
     #   runner.run(messages)  # Traces sent automatically
     class OpenAIProcessor < BaseProcessor
+
       # Creates a new OpenAI processor
       #
       # @param api_key [String, nil] OpenAI API key. Defaults to OPENAI_API_KEY env var
@@ -118,7 +121,7 @@ module RAAF
         ensure_span_finished(span)
 
         # Call the base processor's on_span_end for standard processing
-        super(span) if defined?(super)
+        super if defined?(super)
       end
 
       # Exports a batch of spans to OpenAI
@@ -134,7 +137,7 @@ module RAAF
         spans.each { |span| ensure_span_finished(span) unless span.is_a?(Hash) }
 
         # Call the base class export method for standard processing
-        super(spans)
+        super
       end
 
       protected
@@ -153,20 +156,21 @@ module RAAF
           # Check if span has been running too long (more than 5 minutes)
           if span.respond_to?(:start_time) && span.start_time
             duration = Time.now.utc - span.start_time
-            max_duration = 5 * 60  # 5 minutes
+            max_duration = 5 * 60 # 5 minutes
 
             if duration > max_duration
-              span.set_status(:error, description: "Auto-finished by OpenAI processor: exceeded #{max_duration}s duration")
+              span.set_status(:error,
+                              description: "Auto-finished by OpenAI processor: exceeded #{max_duration}s duration")
               log_warn("Auto-finishing stuck span for OpenAI export",
-                      processor: "OpenAI",
-                      span_id: span.span_id,
-                      duration_seconds: duration.round(2))
-            else
-              span.set_status(:ok)
-              log_debug("Auto-finishing unfinished span for OpenAI export",
                        processor: "OpenAI",
                        span_id: span.span_id,
                        duration_seconds: duration.round(2))
+            else
+              span.set_status(:ok)
+              log_debug("Auto-finishing unfinished span for OpenAI export",
+                        processor: "OpenAI",
+                        span_id: span.span_id,
+                        duration_seconds: duration.round(2))
             end
           else
             span.set_status(:ok)
@@ -175,9 +179,13 @@ module RAAF
           span.finish(end_time: Time.now.utc)
         rescue StandardError => e
           log_error("Failed to auto-finish span for OpenAI export: #{e.message}",
-                   processor: "OpenAI",
-                   span_id: (span.span_id rescue "unknown"),
-                   error_class: e.class.name)
+                    processor: "OpenAI",
+                    span_id: begin
+                      span.span_id
+                    rescue StandardError
+                      "unknown"
+                    end,
+                    error_class: e.class.name)
         end
       end
 
@@ -200,9 +208,7 @@ module RAAF
         @current_trace_id ||= trace_id
 
         # Handle trace spans specially - extract workflow name
-        if kind == :trace && attributes["trace.workflow_name"]
-          @workflow_name = attributes["trace.workflow_name"]
-        end
+        @workflow_name = attributes["trace.workflow_name"] if kind == :trace && attributes["trace.workflow_name"]
 
         true
       end
@@ -295,7 +301,7 @@ module RAAF
                    output_type: attributes["agent.output_type"] || "str"
                  }
 
-                 # Note: All skip-related metadata (status, skip_reason, required_fields, available_fields)
+                 # NOTE: All skip-related metadata (status, skip_reason, required_fields, available_fields)
                  # is excluded from OpenAI API payload per user requirement.
                  # This metadata is maintained in the local ActiveRecord database only.
 
@@ -496,11 +502,11 @@ module RAAF
 
         # Fields to exclude entirely to reduce payload size
         excluded_prefixes = [
-          'pipeline.initial_context',
-          'pipeline.final_result',
-          'pipeline.result_keys',
-          'agent.dialogue',
-          'tool.large_output'
+          "pipeline.initial_context",
+          "pipeline.final_result",
+          "pipeline.result_keys",
+          "agent.dialogue",
+          "tool.large_output"
         ]
 
         attributes.each do |key, value|
@@ -517,26 +523,26 @@ module RAAF
 
               str_value = v.to_s
               # Truncate large values
-              if str_value.length > max_value_size
-                result[nested_key] = str_value[0...max_value_size] + "...[truncated]"
-              else
-                result[nested_key] = str_value
-              end
+              result[nested_key] = if str_value.length > max_value_size
+                                     str_value[0...max_value_size] + "...[truncated]"
+                                   else
+                                     str_value
+                                   end
             end
           when Array
             arr_str = value.inspect
-            if arr_str.length > max_value_size
-              result[key] = arr_str[0...max_value_size] + "...[truncated]"
-            else
-              result[key] = arr_str
-            end
+            result[key] = if arr_str.length > max_value_size
+                            arr_str[0...max_value_size] + "...[truncated]"
+                          else
+                            arr_str
+                          end
           else
             str_value = value.to_s
-            if str_value.length > max_value_size
-              result[key] = str_value[0...max_value_size] + "...[truncated]"
-            else
-              result[key] = str_value
-            end
+            result[key] = if str_value.length > max_value_size
+                            str_value[0...max_value_size] + "...[truncated]"
+                          else
+                            str_value
+                          end
           end
         end
         result
@@ -574,15 +580,15 @@ module RAAF
 
             filtered_data = {}
             data.each do |key, value|
-              if essential_fields.any? { |field| key.to_s.start_with?(field) }
-                # Truncate even essential field values if too large
-                value_str = value.to_s
-                if value_str.length > 200
-                  filtered_data[key] = value_str[0...200] + "...[truncated]"
-                else
-                  filtered_data[key] = value_str
-                end
-              end
+              next unless essential_fields.any? { |field| key.to_s.start_with?(field) }
+
+              # Truncate even essential field values if too large
+              value_str = value.to_s
+              filtered_data[key] = if value_str.length > 200
+                                     value_str[0...200] + "...[truncated]"
+                                   else
+                                     value_str
+                                   end
             end
 
             sanitized[:span_data][:data] = filtered_data
@@ -628,16 +634,12 @@ module RAAF
         if sanitized[:span_data] && sanitized[:span_data][:type] == "function"
           if sanitized[:span_data][:input]
             input_str = sanitized[:span_data][:input].to_s
-            if input_str.length > 500
-              sanitized[:span_data][:input] = input_str[0...500] + "...[truncated]"
-            end
+            sanitized[:span_data][:input] = input_str[0...500] + "...[truncated]" if input_str.length > 500
           end
 
           if sanitized[:span_data][:output]
             output_str = sanitized[:span_data][:output].to_s
-            if output_str.length > 500
-              sanitized[:span_data][:output] = output_str[0...500] + "...[truncated]"
-            end
+            sanitized[:span_data][:output] = output_str[0...500] + "...[truncated]" if output_str.length > 500
           end
         end
 
@@ -674,7 +676,6 @@ module RAAF
                   error_class: e.class.name)
         nil
       end
-
 
       # Sends spans to the OpenAI traces API
       #
@@ -715,12 +716,16 @@ module RAAF
         # Calculate trace end time from the latest span end time
         trace_ended_at = nil
         if spans.any?
-          latest_end_time = spans.map { |span|
+          latest_end_time = spans.map do |span|
             # Extract end time from the span data
-            if span.is_a?(Hash) && span.dig(:ended_at)
-              Time.parse(span[:ended_at]) rescue nil
+            next unless span.is_a?(Hash) && span.dig(:ended_at)
+
+            begin
+              Time.parse(span[:ended_at])
+            rescue StandardError
+              nil
             end
-          }.compact.max
+          end.compact.max
 
           trace_ended_at = latest_end_time&.utc&.strftime("%Y-%m-%dT%H:%M:%S.%6N+00:00")
         end
@@ -731,12 +736,12 @@ module RAAF
           workflow_name: @workflow_name,
           group_id: nil,
           metadata: nil
-          # Note: OpenAI API doesn't accept 'ended_at' field in trace objects
+          # NOTE: OpenAI API doesn't accept 'ended_at' field in trace objects
         }
 
         log_debug("[OpenAI Processor] Sending trace with #{spans.size} spans",
-                 processor: "OpenAI", trace_id: @current_trace_id,
-                 spans_count: spans.size, trace_ended_at: trace_ended_at || "not_set")
+                  processor: "OpenAI", trace_id: @current_trace_id,
+                  spans_count: spans.size, trace_ended_at: trace_ended_at || "not_set")
         payload_items << trace_data
 
         # Then add each span as a separate item, but ensure they don't exceed size limits
@@ -800,7 +805,7 @@ module RAAF
 
         if response.code.start_with?("2")
           log_debug("Successfully sent traces to OpenAI", processor: "OpenAI")
-          if response.body && !response.body.empty?
+          if response.body.present?
             begin
               result = JSON.parse(response.body)
               log_debug_http("OpenAI response data", processor: "OpenAI", data: result.inspect)
@@ -836,6 +841,7 @@ module RAAF
         if obj.is_a?(Hash) || obj.is_a?(Array)
           object_id = obj.object_id
           return "[CIRCULAR_REFERENCE]" if visited.include?(object_id)
+
           visited = visited.dup.add(object_id)
         end
 
@@ -868,12 +874,17 @@ module RAAF
           time_value.utc.strftime("%Y-%m-%dT%H:%M:%S.%6N+00:00")
         when String
           # Try to parse the string and format it properly
-          parsed_time = Time.parse(time_value) rescue nil
+          parsed_time = begin
+            Time.parse(time_value)
+          rescue StandardError
+            nil
+          end
           parsed_time&.utc&.strftime("%Y-%m-%dT%H:%M:%S.%6N+00:00")
-        else
-          nil
         end
       end
+
     end
+
   end
+
 end

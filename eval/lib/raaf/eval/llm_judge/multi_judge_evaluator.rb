@@ -185,13 +185,13 @@ module RAAF
             votes = collect_votes(sample[:input], sample[:output], criteria)
             result = aggregate_votes(votes, strategy: @default_strategy)
 
-            if result[:agreement_rate] < disagreement_threshold
-              flagged << {
-                sample: sample,
-                result: result,
-                reason: "Low agreement: #{(result[:agreement_rate] * 100).round(1)}%"
-              }
-            end
+            next unless result[:agreement_rate] < disagreement_threshold
+
+            flagged << {
+              sample: sample,
+              result: result,
+              reason: "Low agreement: #{(result[:agreement_rate] * 100).round(1)}%"
+            }
           end
 
           flagged
@@ -215,7 +215,7 @@ module RAAF
               agreements = all_votes.count do |votes|
                 votes[i][:passed] == votes[j][:passed]
               end
-              pairwise_agreements << agreements.to_f / samples.size
+              pairwise_agreements << (agreements.to_f / samples.size)
             end
           end
 
@@ -266,9 +266,7 @@ module RAAF
                       end
 
           # For unanimous strategy, consensus follows majority direction
-          if strategy == :unanimous
-            consensus = positive_votes == total_votes
-          end
+          consensus = positive_votes == total_votes if strategy == :unanimous
 
           {
             consensus: consensus,
@@ -292,9 +290,9 @@ module RAAF
           # Weight by calibration quality (sensitivity + specificity)
           weights = @judges.map do |judge|
             if judge.calibrated?
-              judge.sensitivity + judge.specificity - 1  # Higher = better
+              judge.sensitivity + judge.specificity - 1 # Higher = better
             else
-              1.0  # Default weight for uncalibrated judges
+              1.0 # Default weight for uncalibrated judges
             end
           end
 
@@ -344,7 +342,7 @@ module RAAF
             n_negative = k - n_positive
 
             # Proportion of agreement for this sample
-            (n_positive * (n_positive - 1) + n_negative * (n_negative - 1)).to_f / (k * (k - 1))
+            ((n_positive * (n_positive - 1)) + (n_negative * (n_negative - 1))).to_f / (k * (k - 1))
           end
 
           # Mean observed agreement
@@ -355,10 +353,10 @@ module RAAF
           p_positive = total_positive.to_f / (n * k)
           p_negative = 1 - p_positive
 
-          p_e = p_positive ** 2 + p_negative ** 2
+          p_e = (p_positive**2) + (p_negative**2)
 
           # Kappa
-          return 1.0 if (1 - p_e).abs < 0.0001  # Perfect agreement case
+          return 1.0 if (1 - p_e).abs < 0.0001 # Perfect agreement case
 
           (p_bar - p_e) / (1 - p_e)
         end

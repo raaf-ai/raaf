@@ -8,5 +8,6 @@ pin "@hotwired/turbo-rails", to: "https://cdn.jsdelivr.net/npm/@hotwired/turbo-r
 
 # Stimulus controllers
 pin "raaf/eval/ui/controllers/monaco_editor_controller", to: "raaf/eval/ui/controllers/monaco_editor_controller.js"
-pin "raaf/eval/ui/controllers/evaluation_progress_controller", to: "raaf/eval/ui/controllers/evaluation_progress_controller.js"
+pin "raaf/eval/ui/controllers/evaluation_progress_controller",
+    to: "raaf/eval/ui/controllers/evaluation_progress_controller.js"
 pin "raaf/eval/ui/controllers/form_validation_controller", to: "raaf/eval/ui/controllers/form_validation_controller.js"

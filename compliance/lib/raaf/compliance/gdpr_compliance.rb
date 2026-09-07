@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Compliance
+
     ##
     # GDPR (General Data Protection Regulation) compliance implementation
     #
@@ -9,6 +11,7 @@ module RAAF
     # consent management, data minimization, purpose limitation, and breach notification.
     #
     class GDPRCompliance
+
       include RAAF::Logging
 
       # @return [Boolean] Consent required
@@ -35,7 +38,8 @@ module RAAF
       # @param storage_limitation [Boolean] Enable storage limitation
       # @param breach_notification_hours [Integer] Hours for breach notification
       #
-      def initialize(consent_required: true, data_minimization: true, purpose_limitation: true, storage_limitation: true, breach_notification_hours: 72)
+      def initialize(consent_required: true, data_minimization: true, purpose_limitation: true,
+                     storage_limitation: true, breach_notification_hours: 72)
         @consent_required = consent_required
         @data_minimization = data_minimization
         @purpose_limitation = purpose_limitation
@@ -57,7 +61,7 @@ module RAAF
       #
       def handle_erasure_request(user_id:, reason: "user_request", verification_method: "email_verification")
         log_info("Processing erasure request", user_id: user_id, reason: reason)
-        
+
         # Verify user identity
         unless verify_user_identity(user_id, verification_method)
           return {
@@ -66,7 +70,7 @@ module RAAF
             user_id: user_id
           }
         end
-        
+
         # Check if erasure is legally required
         unless erasure_required?(user_id, reason)
           return {
@@ -76,10 +80,10 @@ module RAAF
             reason: reason
           }
         end
-        
+
         # Perform erasure
         erasure_result = perform_user_erasure(user_id)
-        
+
         # Log erasure activity
         @audit_trail.log_compliance_event(
           event_type: "data_erasure",
@@ -93,7 +97,7 @@ module RAAF
             erasure_result: erasure_result
           }
         )
-        
+
         {
           success: true,
           user_id: user_id,
@@ -112,7 +116,7 @@ module RAAF
       #
       def export_user_data(user_id:, format: :json, verification_method: "email_verification")
         log_info("Processing data portability request", user_id: user_id, format: format)
-        
+
         # Verify user identity
         unless verify_user_identity(user_id, verification_method)
           return {
@@ -121,7 +125,7 @@ module RAAF
             user_id: user_id
           }
         end
-        
+
         # Check if user has right to portability
         unless portability_applies?(user_id)
           return {
@@ -130,11 +134,11 @@ module RAAF
             user_id: user_id
           }
         end
-        
+
         # Export user data
         user_data = collect_user_data(user_id)
         exported_data = format_user_data(user_data, format)
-        
+
         # Log portability activity
         @audit_trail.log_compliance_event(
           event_type: "data_portability",
@@ -148,7 +152,7 @@ module RAAF
             data_size: exported_data.bytesize
           }
         )
-        
+
         {
           success: true,
           user_id: user_id,
@@ -167,7 +171,7 @@ module RAAF
       #
       def handle_access_request(user_id:, verification_method: "email_verification")
         log_info("Processing access request", user_id: user_id)
-        
+
         # Verify user identity
         unless verify_user_identity(user_id, verification_method)
           return {
@@ -176,7 +180,7 @@ module RAAF
             user_id: user_id
           }
         end
-        
+
         # Collect information about processing
         processing_info = {
           purposes: get_processing_purposes(user_id),
@@ -187,7 +191,7 @@ module RAAF
           automated_processing: get_automated_processing_info(user_id),
           third_country_transfers: get_third_country_transfers(user_id)
         }
-        
+
         # Log access activity
         @audit_trail.log_compliance_event(
           event_type: "data_access_request",
@@ -200,7 +204,7 @@ module RAAF
             processing_info: processing_info
           }
         )
-        
+
         {
           success: true,
           user_id: user_id,
@@ -219,7 +223,7 @@ module RAAF
       #
       def handle_rectification_request(user_id:, corrections:, verification_method: "email_verification")
         log_info("Processing rectification request", user_id: user_id)
-        
+
         # Verify user identity
         unless verify_user_identity(user_id, verification_method)
           return {
@@ -228,7 +232,7 @@ module RAAF
             user_id: user_id
           }
         end
-        
+
         # Validate corrections
         validation_result = validate_corrections(corrections)
         unless validation_result[:valid]
@@ -239,10 +243,10 @@ module RAAF
             validation_errors: validation_result[:errors]
           }
         end
-        
+
         # Apply corrections
         rectification_result = apply_corrections(user_id, corrections)
-        
+
         # Log rectification activity
         @audit_trail.log_compliance_event(
           event_type: "data_rectification",
@@ -256,7 +260,7 @@ module RAAF
             rectification_result: rectification_result
           }
         )
-        
+
         {
           success: true,
           user_id: user_id,
@@ -276,7 +280,7 @@ module RAAF
       #
       def handle_restriction_request(user_id:, reason:, verification_method: "email_verification")
         log_info("Processing restriction request", user_id: user_id, reason: reason)
-        
+
         # Verify user identity
         unless verify_user_identity(user_id, verification_method)
           return {
@@ -285,7 +289,7 @@ module RAAF
             user_id: user_id
           }
         end
-        
+
         # Check if restriction is justified
         unless restriction_justified?(user_id, reason)
           return {
@@ -295,10 +299,10 @@ module RAAF
             reason: reason
           }
         end
-        
+
         # Apply restriction
         restriction_result = apply_processing_restriction(user_id, reason)
-        
+
         # Log restriction activity
         @audit_trail.log_compliance_event(
           event_type: "processing_restriction",
@@ -312,7 +316,7 @@ module RAAF
             restriction_result: restriction_result
           }
         )
-        
+
         {
           success: true,
           user_id: user_id,
@@ -332,7 +336,7 @@ module RAAF
       #
       def handle_objection_request(user_id:, processing_purpose:, verification_method: "email_verification")
         log_info("Processing objection request", user_id: user_id, processing_purpose: processing_purpose)
-        
+
         # Verify user identity
         unless verify_user_identity(user_id, verification_method)
           return {
@@ -341,7 +345,7 @@ module RAAF
             user_id: user_id
           }
         end
-        
+
         # Check if objection is valid
         unless objection_valid?(user_id, processing_purpose)
           return {
@@ -351,7 +355,7 @@ module RAAF
             processing_purpose: processing_purpose
           }
         end
-        
+
         # Check for compelling legitimate interests
         if compelling_legitimate_interests?(user_id, processing_purpose)
           return {
@@ -361,10 +365,10 @@ module RAAF
             processing_purpose: processing_purpose
           }
         end
-        
+
         # Stop processing
         objection_result = stop_processing_for_purpose(user_id, processing_purpose)
-        
+
         # Log objection activity
         @audit_trail.log_compliance_event(
           event_type: "processing_objection",
@@ -378,7 +382,7 @@ module RAAF
             objection_result: objection_result
           }
         )
-        
+
         {
           success: true,
           user_id: user_id,
@@ -397,42 +401,30 @@ module RAAF
       #
       def verify_processing_lawfulness(user_id:, processing_purpose:)
         log_info("Verifying processing lawfulness", user_id: user_id, processing_purpose: processing_purpose)
-        
+
         # Check all legal bases
         legal_bases = []
-        
+
         # Article 6(1)(a) - Consent
-        if @consent_manager.has_valid_consent?(user_id, processing_purpose)
-          legal_bases << :consent
-        end
-        
+        legal_bases << :consent if @consent_manager.has_valid_consent?(user_id, processing_purpose)
+
         # Article 6(1)(b) - Contract
-        if contract_necessity?(user_id, processing_purpose)
-          legal_bases << :contract
-        end
-        
+        legal_bases << :contract if contract_necessity?(user_id, processing_purpose)
+
         # Article 6(1)(c) - Legal obligation
-        if legal_obligation?(processing_purpose)
-          legal_bases << :legal_obligation
-        end
-        
+        legal_bases << :legal_obligation if legal_obligation?(processing_purpose)
+
         # Article 6(1)(d) - Vital interests
-        if vital_interests?(user_id, processing_purpose)
-          legal_bases << :vital_interests
-        end
-        
+        legal_bases << :vital_interests if vital_interests?(user_id, processing_purpose)
+
         # Article 6(1)(e) - Public task
-        if public_task?(processing_purpose)
-          legal_bases << :public_task
-        end
-        
+        legal_bases << :public_task if public_task?(processing_purpose)
+
         # Article 6(1)(f) - Legitimate interests
-        if legitimate_interests?(user_id, processing_purpose)
-          legal_bases << :legitimate_interests
-        end
-        
+        legal_bases << :legitimate_interests if legitimate_interests?(user_id, processing_purpose)
+
         lawful = legal_bases.any?
-        
+
         # Log lawfulness check
         @audit_trail.log_compliance_event(
           event_type: "lawfulness_verification",
@@ -446,7 +438,7 @@ module RAAF
             lawful: lawful
           }
         )
-        
+
         {
           lawful: lawful,
           legal_bases: legal_bases,
@@ -465,11 +457,11 @@ module RAAF
       #
       def consent_required_for_processing?(user_id:, processing_purpose:)
         return false unless @consent_required
-        
+
         # Check if other legal bases apply
         lawfulness = verify_processing_lawfulness(user_id: user_id, processing_purpose: processing_purpose)
         other_bases = lawfulness[:legal_bases] - [:consent]
-        
+
         # Consent required if no other legal bases
         other_bases.empty?
       end
@@ -483,14 +475,14 @@ module RAAF
       #
       def generate_compliance_report(start_date:, end_date:)
         log_info("Generating GDPR compliance report", start_date: start_date, end_date: end_date)
-        
+
         # Get relevant audit records
         audit_records = @audit_trail.query(
           start_date: start_date,
           end_date: end_date,
           compliance_tags: [:gdpr]
         )
-        
+
         # Analyze records
         report = {
           report_period: {
@@ -505,7 +497,7 @@ module RAAF
           lawfulness_checks: analyze_lawfulness_checks(audit_records),
           generated_at: Time.current.iso8601
         }
-        
+
         # Log report generation
         @audit_trail.log_compliance_event(
           event_type: "compliance_report",
@@ -518,7 +510,7 @@ module RAAF
             report_summary: report
           }
         )
-        
+
         report
       end
 
@@ -545,7 +537,7 @@ module RAAF
 
       private
 
-      def verify_user_identity(user_id, verification_method)
+      def verify_user_identity(_user_id, verification_method)
         # In a real implementation, this would verify user identity
         # through various methods (email, phone, etc.)
         case verification_method
@@ -577,7 +569,7 @@ module RAAF
         end
       end
 
-      def perform_user_erasure(user_id)
+      def perform_user_erasure(_user_id)
         # Perform actual data erasure
         # This would integrate with various data stores
         {
@@ -593,7 +585,7 @@ module RAAF
         # Must be based on consent or contract
         consent_basis = @consent_manager.has_valid_consent?(user_id, "data_processing")
         contract_basis = contract_necessity?(user_id, "data_processing")
-        
+
         consent_basis || contract_basis
       end
 
@@ -622,32 +614,32 @@ module RAAF
         end
       end
 
-      def get_processing_purposes(user_id)
+      def get_processing_purposes(_user_id)
         # Get all processing purposes for user
-        ["customer_support", "service_improvement", "legal_compliance"]
+        %w[customer_support service_improvement legal_compliance]
       end
 
-      def get_data_categories(user_id)
+      def get_data_categories(_user_id)
         # Get categories of personal data
-        ["identity", "contact", "conversation", "preferences"]
+        %w[identity contact conversation preferences]
       end
 
-      def get_data_recipients(user_id)
+      def get_data_recipients(_user_id)
         # Get recipients of personal data
-        ["internal_staff", "ai_service_providers", "analytics_providers"]
+        %w[internal_staff ai_service_providers analytics_providers]
       end
 
-      def get_retention_period(user_id)
+      def get_retention_period(_user_id)
         # Get retention period for user data
         "7 years from last interaction"
       end
 
-      def get_data_source(user_id)
+      def get_data_source(_user_id)
         # Get source of personal data
         "directly_from_user"
       end
 
-      def get_automated_processing_info(user_id)
+      def get_automated_processing_info(_user_id)
         # Get automated processing information
         {
           automated_decision_making: true,
@@ -658,7 +650,7 @@ module RAAF
         }
       end
 
-      def get_third_country_transfers(user_id)
+      def get_third_country_transfers(_user_id)
         # Get third country transfer information
         {
           transfers_occur: false,
@@ -671,7 +663,7 @@ module RAAF
       def validate_corrections(corrections)
         # Validate correction data
         errors = []
-        
+
         corrections.each do |field, value|
           case field
           when :email
@@ -680,7 +672,7 @@ module RAAF
             errors << "Invalid phone format" unless valid_phone?(value)
           end
         end
-        
+
         {
           valid: errors.empty?,
           errors: errors
@@ -692,14 +684,14 @@ module RAAF
         corrections.each do |field, value|
           update_user_field(user_id, field, value)
         end
-        
+
         {
           updated_fields: corrections.keys,
           update_time: Time.current.iso8601
         }
       end
 
-      def restriction_justified?(user_id, reason)
+      def restriction_justified?(_user_id, reason)
         # Check if restriction is justified
         case reason
         when "accuracy_contested"
@@ -715,7 +707,7 @@ module RAAF
         end
       end
 
-      def apply_processing_restriction(user_id, reason)
+      def apply_processing_restriction(_user_id, reason)
         # Apply processing restriction
         {
           restricted_processing: true,
@@ -724,7 +716,7 @@ module RAAF
         }
       end
 
-      def objection_valid?(user_id, processing_purpose)
+      def objection_valid?(_user_id, processing_purpose)
         # Check if objection is valid
         case processing_purpose
         when "marketing"
@@ -738,7 +730,7 @@ module RAAF
         end
       end
 
-      def compelling_legitimate_interests?(user_id, processing_purpose)
+      def compelling_legitimate_interests?(_user_id, processing_purpose)
         # Check for compelling legitimate interests
         case processing_purpose
         when "fraud_prevention"
@@ -750,7 +742,7 @@ module RAAF
         end
       end
 
-      def stop_processing_for_purpose(user_id, processing_purpose)
+      def stop_processing_for_purpose(_user_id, processing_purpose)
         # Stop processing for specific purpose
         {
           processing_stopped: true,
@@ -759,7 +751,7 @@ module RAAF
         }
       end
 
-      def contract_necessity?(user_id, processing_purpose)
+      def contract_necessity?(_user_id, processing_purpose)
         # Check if processing is necessary for contract
         case processing_purpose
         when "service_delivery"
@@ -783,7 +775,7 @@ module RAAF
         end
       end
 
-      def vital_interests?(user_id, processing_purpose)
+      def vital_interests?(_user_id, processing_purpose)
         # Check if processing protects vital interests
         case processing_purpose
         when "emergency_response"
@@ -807,7 +799,7 @@ module RAAF
         end
       end
 
-      def legitimate_interests?(user_id, processing_purpose)
+      def legitimate_interests?(_user_id, processing_purpose)
         # Check if processing is for legitimate interests
         case processing_purpose
         when "service_improvement"
@@ -819,14 +811,14 @@ module RAAF
         end
       end
 
-      def has_other_legal_bases?(user_id)
+      def has_other_legal_bases?(_user_id)
         # Check if there are other legal bases besides consent
         false # Simplified implementation
       end
 
       def analyze_data_subject_requests(audit_records)
         requests = audit_records.select { |r| r[:event_type].to_s.include?("data_") }
-        
+
         {
           total_requests: requests.size,
           by_type: requests.group_by { |r| r[:event_type] }.transform_values(&:size),
@@ -837,7 +829,7 @@ module RAAF
 
       def analyze_data_breaches(audit_records)
         breaches = audit_records.select { |r| r[:event_type] == "data_breach" }
-        
+
         {
           total_breaches: breaches.size,
           by_severity: breaches.group_by { |r| r[:severity] }.transform_values(&:size),
@@ -847,7 +839,7 @@ module RAAF
 
       def analyze_processing_activities(audit_records)
         activities = audit_records.select { |r| r[:event_type] == "processing_activity" }
-        
+
         {
           total_activities: activities.size,
           by_purpose: activities.group_by { |r| r[:metadata][:purpose] }.transform_values(&:size),
@@ -857,7 +849,7 @@ module RAAF
 
       def analyze_lawfulness_checks(audit_records)
         checks = audit_records.select { |r| r[:event_type] == "lawfulness_verification" }
-        
+
         {
           total_checks: checks.size,
           lawful_processing: checks.count { |r| r[:metadata][:lawful] },
@@ -886,7 +878,7 @@ module RAAF
           notification_time = breach[:metadata][:notification_time]
           notification_time && notification_time < 72.hours.from_now
         end
-        
+
         {
           compliant_notifications: compliant,
           total_notifications: breaches.size,
@@ -902,17 +894,17 @@ module RAAF
         phone.match?(/\A\+?[1-9]\d{1,14}\z/)
       end
 
-      def get_personal_data(user_id)
+      def get_personal_data(_user_id)
         # Get personal data for user
         {}
       end
 
-      def get_conversation_data(user_id)
+      def get_conversation_data(_user_id)
         # Get conversation data for user
         {}
       end
 
-      def get_user_preferences(user_id)
+      def get_user_preferences(_user_id)
         # Get user preferences
         {}
       end
@@ -928,6 +920,9 @@ module RAAF
           csv << [key, value.to_s]
         end
       end
+
     end
+
   end
+
 end

@@ -6,7 +6,6 @@ require_relative "web_search_prompt"
 
 # Example agent demonstrating web search capabilities
 class WebSearchAgent < RAAF::DSL::Agent
-
   agent_name "web_search_agent"
 
   # Basic web search with default settings
@@ -37,7 +36,6 @@ end
 
 # Example agent with custom web search configuration
 class NewsAgent < RAAF::DSL::Agent
-
   agent_name "news_agent"
 
   # Use detailed search for comprehensive news analysis
@@ -66,7 +64,6 @@ end
 
 # Example agent using preset configurations
 class TechAgent < RAAF::DSL::Agent
-
   agent_name "tech_agent"
 
   # Use detailed search preset configuration for tech research

@@ -200,7 +200,7 @@ RSpec.describe RAAF::DSL do
 
     it "skips problematic constants" do
       # Mock constants method to include Pipeline
-      allow(described_class).to receive(:constants).and_return([:Pipeline, :Agent, :Service])
+      allow(described_class).to receive(:constants).and_return(%i[Pipeline Agent Service])
 
       # Should not attempt to load Pipeline
       expect(described_class).not_to receive(:const_get).with(:Pipeline)
@@ -214,7 +214,7 @@ RSpec.describe RAAF::DSL do
       # Mock constants method to include a problematic constant
       allow(described_class).to receive(:constants).and_return([:ProblematicConstant])
       allow(described_class).to receive(:const_get).with(:ProblematicConstant)
-        .and_raise(NameError.new("Mock error"))
+                                                   .and_raise(NameError.new("Mock error"))
 
       # Should warn but not raise
       expect { described_class.eager_load! }.not_to raise_error
@@ -292,7 +292,7 @@ RSpec.describe RAAF::DSL do
   describe "examples from documentation" do
     it "supports basic agent definition pattern" do
       # Test that the documented pattern works
-      expect {
+      expect do
         Class.new(RAAF::DSL::Agent) do
           agent_name "MyAgent"
 
@@ -316,7 +316,7 @@ RSpec.describe RAAF::DSL do
             # Mock schema definition
           end
         end
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 end

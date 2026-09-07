@@ -63,7 +63,10 @@ module RAAF
             raise ArgumentError, "expected_output is required" unless expected_output
 
             actual_output = options[:actual_output] || field_context.value
-            raise ArgumentError, "actual_output cannot be empty" if actual_output.nil? || actual_output.to_s.strip.empty?
+            if actual_output.nil? || actual_output.to_s.strip.empty?
+              raise ArgumentError,
+                    "actual_output cannot be empty"
+            end
 
             # Optional context
             required_steps = options[:required_steps] || []
@@ -81,22 +84,21 @@ module RAAF
 
             score = evaluation[:score]
             label = calculate_label(score,
-                                   good_threshold: good_threshold,
-                                   average_threshold: average_threshold)
+                                    good_threshold: good_threshold,
+                                    average_threshold: average_threshold)
 
             build_result(score, label, good_threshold, average_threshold,
-              evaluated_field: field_context.field_name,
-              method: "llm_judge",
-              task_description: task_description,
-              expected_output: expected_output,
-              actual_output: truncate_text(actual_output.to_s, 500),
-              required_steps_provided: !required_steps.empty?,
-              required_steps_count: required_steps.size,
-              execution_trace_provided: !execution_trace.nil?,
-              completion_analysis: evaluation[:analysis],
-              completion_percentage: (score * 100).round,
-              evaluation_note: task_completion_note(score, good_threshold, average_threshold)
-            )
+                         evaluated_field: field_context.field_name,
+                         method: "llm_judge",
+                         task_description: task_description,
+                         expected_output: expected_output,
+                         actual_output: truncate_text(actual_output.to_s, 500),
+                         required_steps_provided: !required_steps.empty?,
+                         required_steps_count: required_steps.size,
+                         execution_trace_provided: !execution_trace.nil?,
+                         completion_analysis: evaluation[:analysis],
+                         completion_percentage: (score * 100).round,
+                         evaluation_note: task_completion_note(score, good_threshold, average_threshold))
           end
 
           private
@@ -110,9 +112,10 @@ module RAAF
           # @param execution_trace [Hash, String] Execution trace
           # @param model [String, nil] LLM model for judging
           # @return [Hash] Evaluation with :score and :analysis
-          def llm_judge_task_completion(task_description:, expected_output:, actual_output:, required_steps:, execution_trace:, model: nil)
+          def llm_judge_task_completion(task_description:, expected_output:, actual_output:, required_steps:,
+                                        execution_trace:, model: nil)
             # Build evaluation prompt
-            prompt = build_task_completion_prompt(
+            build_task_completion_prompt(
               task_description,
               expected_output,
               actual_output,
@@ -139,7 +142,8 @@ module RAAF
           # @param required_steps [Array<String>] Required steps
           # @param execution_trace [Hash, String] Execution trace
           # @return [String] Evaluation prompt
-          def build_task_completion_prompt(task_description, expected_output, actual_output, required_steps, execution_trace)
+          def build_task_completion_prompt(task_description, expected_output, actual_output, required_steps,
+                                           execution_trace)
             prompt = <<~PROMPT
               You are an expert AI agent evaluator. Your task is to assess whether an AI agent
               successfully completed its assigned task.
@@ -235,7 +239,11 @@ module RAAF
               score: score.round(2),
               analysis: {
                 goal_achieved: score >= 0.70,
-                output_quality: score >= 0.85 ? "high" : (score >= 0.65 ? "medium" : "low"),
+                output_quality: if score >= 0.85
+                                  "high"
+                                else
+                                  (score >= 0.65 ? "medium" : "low")
+                                end,
                 completeness: "#{(base_score * 100).round}% of expected elements present",
                 steps_completed: required_steps.any? ? "#{required_steps.size}/#{required_steps.size} steps addressed" : "N/A",
                 issues_found: score < 0.85 ? ["some expected elements missing or incomplete"] : [],
@@ -267,6 +275,7 @@ module RAAF
           # @return [String] Truncated text
           def truncate_text(text, max_length)
             return text if text.length <= max_length
+
             "#{text[0...max_length - 3]}..."
           end
         end

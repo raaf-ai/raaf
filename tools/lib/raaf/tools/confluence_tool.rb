@@ -6,9 +6,12 @@ require "json"
 require "base64"
 
 module RAAF
+
   module Tools
+
     # Confluence integration tool for managing pages, spaces, and content
     class ConfluenceTool
+
       attr_reader :name, :description
 
       def initialize(url:, username:, api_token:, name: "confluence", description: nil, **config)
@@ -662,6 +665,9 @@ module RAAF
           { success: true, message: "Demo mode: #{action} completed" }
         end
       end
+
     end
+
   end
+
 end

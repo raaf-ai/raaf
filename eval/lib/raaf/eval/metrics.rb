@@ -88,7 +88,7 @@ module RAAF
           output_tokens = usage[:output_tokens] || usage[:completion_tokens] || 0
 
           pricing = model_pricing(model)
-          (input_tokens * pricing[:input] + output_tokens * pricing[:output]) / 1_000_000.0
+          ((input_tokens * pricing[:input]) + (output_tokens * pricing[:output])) / 1_000_000.0
         end
 
         def model_pricing(model)

@@ -58,7 +58,7 @@ module RAAF
     #
     def used_tools?(agent)
       tools = @agent_to_tools[agent]
-      !tools.nil? && !tools.empty?
+      tools.present?
     end
 
     ##
@@ -104,9 +104,7 @@ module RAAF
     #
     # @return [void]
     #
-    def clear
-      @agent_to_tools.clear
-    end
+    delegate :clear, to: :@agent_to_tools
 
     ##
     # Get summary of tool usage across all agents

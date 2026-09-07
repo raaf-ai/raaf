@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Perplexity
+
     ##
     # Common constants and validation methods for Perplexity integration
     #
@@ -18,6 +20,7 @@ module RAAF
     #   RAAF::Perplexity::Common.validate_schema_support("sonar")      # => raises ArgumentError
     #
     module Common
+
       # All supported Perplexity models
       SUPPORTED_MODELS = %w[
         sonar
@@ -54,7 +57,7 @@ module RAAF
 
         raise ArgumentError,
               "Model '#{model}' is not supported. " \
-              "Supported models: #{SUPPORTED_MODELS.join(', ')}"
+              "Supported models: #{SUPPORTED_MODELS.join(", ")}"
       end
 
       ##
@@ -71,7 +74,7 @@ module RAAF
         return if SCHEMA_SUPPORTED_MODELS.include?(model)
 
         raise ArgumentError,
-              "JSON schema (response_format) is only supported on #{SCHEMA_SUPPORTED_MODELS.join(', ')}. " \
+              "JSON schema (response_format) is only supported on #{SCHEMA_SUPPORTED_MODELS.join(", ")}. " \
               "Current model: #{model}"
       end
 
@@ -88,8 +91,11 @@ module RAAF
 
         raise ArgumentError,
               "Invalid recency filter '#{filter}'. " \
-              "Supported: #{RECENCY_FILTERS.join(', ')}"
+              "Supported: #{RECENCY_FILTERS.join(", ")}"
       end
+
     end
+
   end
+
 end

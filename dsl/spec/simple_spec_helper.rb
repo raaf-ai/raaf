@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Coverage measurement
-require_relative 'coverage_helper'
+require_relative "coverage_helper"
 
 require "bundler/setup"
 

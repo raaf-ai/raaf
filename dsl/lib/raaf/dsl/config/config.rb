@@ -175,7 +175,7 @@ module RAAF
         # Load configuration from YAML file
         def load_config
           config_path = if defined?(Rails) && Rails.respond_to?(:root) && Rails.root
-                          Rails.root.join("config", "ai_agents.yml")
+                          Rails.root.join("config/ai_agents.yml")
                         else
                           config_file = RAAF::DSL.configuration.config_file
                           # If config_file is already an absolute path, use it as-is

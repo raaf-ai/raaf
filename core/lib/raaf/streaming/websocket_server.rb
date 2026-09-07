@@ -391,9 +391,7 @@ module RAAF
       ##
       # Close client connection
       #
-      def close
-        @websocket.close
-      end
+      delegate :close, to: :@websocket
 
       ##
       # Check if client is alive

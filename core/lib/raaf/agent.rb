@@ -103,6 +103,7 @@ module RAAF
 
     # Include Traceable for proper span hierarchy
     include RAAF::Tracing::Traceable
+
     trace_as :agent
 
     ##
@@ -241,7 +242,7 @@ module RAAF
       @model_settings = ModelSettings.from_hash(options[:model_settings]) if options[:model_settings]
       @context = options[:context]
       @on_handoff = options[:on_handoff]
-      
+
       # JSON processing and schema validation options
       @json_repair = options.fetch(:json_repair, false)
       @normalize_keys = options.fetch(:normalize_keys, false)
@@ -1109,7 +1110,7 @@ module RAAF
                             else
                               # Create an AgentOutputSchema from the type with new JSON processing options
                               AgentOutputSchema.new(
-                                @output_type, 
+                                @output_type,
                                 strict_json_schema: true,
                                 json_repair: @json_repair,
                                 normalize_keys: @normalize_keys,
@@ -1279,8 +1280,6 @@ module RAAF
         parameters: parameters
       )
     end
-
-
 
   end
 

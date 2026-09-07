@@ -22,8 +22,8 @@ RSpec.describe "Performance Matchers" do
       configurations: { test: {} }
     )
     run.instance_variable_set(:@results, {
-      test: { success: true, usage: eval_usage, latency_ms: 550 }
-    })
+                                test: { success: true, usage: eval_usage, latency_ms: 550 }
+                              })
     run.instance_variable_set(:@executed, true)
     RAAF::Eval::EvaluationResult.new(run: run, baseline: baseline_span)
   end
@@ -45,9 +45,9 @@ RSpec.describe "Performance Matchers" do
       let(:eval_usage) { { input_tokens: 500, output_tokens: 500 } }
 
       it "fails with clear message" do
-        expect {
+        expect do
           expect(evaluation_result).to use_tokens.within(10).percent_of(:baseline)
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /token usage/i)
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError, /token usage/i)
       end
     end
   end
@@ -70,9 +70,9 @@ RSpec.describe "Performance Matchers" do
       end
 
       it "fails with clear message" do
-        expect {
+        expect do
           expect(evaluation_result[:test]).to complete_within(1).seconds
-        }.to raise_error(RSpec::Expectations::ExpectationNotMetError, /completion/i)
+        end.to raise_error(RSpec::Expectations::ExpectationNotMetError, /completion/i)
       end
     end
   end

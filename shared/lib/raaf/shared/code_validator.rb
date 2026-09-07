@@ -49,7 +49,7 @@ module RAAF
         puts "=" * 50
 
         validate_environment
-        
+
         case config[:validation_mode]
         when :examples_only
           find_and_validate_examples
@@ -60,7 +60,7 @@ module RAAF
           find_and_validate_examples
           validate_markdown_examples if config[:validate_markdown]
         end
-        
+
         generate_report
 
         exit_code
@@ -116,7 +116,7 @@ module RAAF
 
           # Test mode - use dummy API keys
           test_mode: ENV.fetch("RAAF_TEST_MODE", "false") == "true",
-          
+
           # Validation mode: :all (default), :examples_only, :documentation_only
           validation_mode: :all,
 
@@ -330,10 +330,11 @@ module RAAF
       def build_execution_command(file_path)
         # Build require paths
         require_args = config[:require_paths].map { |path| "-I #{path}" }.join(" ")
-        
+
         # Add all RAAF gem paths to support cross-gem dependencies
-        raaf_root = File.expand_path("../../../../../..", __FILE__)
-        raaf_gems = %w[core providers tracing memory tools guardrails dsl rails streaming analytics compliance debug mcp misc shared testing]
+        raaf_root = File.expand_path("../../../../..", __dir__)
+        raaf_gems = %w[core providers tracing memory tools guardrails dsl rails streaming analytics compliance debug
+                       mcp misc shared testing]
         raaf_paths = raaf_gems.map { |gem| File.join(raaf_root, gem, "lib") }
                               .select { |path| File.directory?(path) }
                               .map { |path| "-I #{Shellwords.escape(path)}" }
@@ -379,7 +380,7 @@ module RAAF
         else
           # Get the first line of the error for cleaner display
           error_msg = stderr.lines.first&.strip || "Unknown error"
-          
+
           {
             status: :failed,
             file: filename,
@@ -395,10 +396,10 @@ module RAAF
 
         # Find all markdown files in the gem directory
         markdown_files = Dir.glob(File.join(gem_dir, "**/*.md")).sort
-        
+
         # Exclude vendor and other directories we shouldn't validate
         markdown_files.reject! { |f| f.include?("/vendor/") || f.include?("/node_modules/") || f.include?("/tmp/") }
-        
+
         if markdown_files.empty?
           puts "  ℹ️  No markdown files found"
           return
@@ -548,19 +549,20 @@ module RAAF
 
       def prepare_markdown_code_for_execution(code)
         # Get all RAAF gem paths
-        raaf_root = File.expand_path("../../../../../..", __FILE__)
-        raaf_gems = %w[core providers tracing memory tools guardrails dsl rails streaming analytics compliance debug mcp misc shared testing]
+        raaf_root = File.expand_path("../../../../..", __dir__)
+        raaf_gems = %w[core providers tracing memory tools guardrails dsl rails streaming analytics compliance debug
+                       mcp misc shared testing]
         raaf_paths = raaf_gems.map { |gem| File.join(raaf_root, gem, "lib") }
                               .select { |path| File.directory?(path) }
-        
+
         # Add all RAAF lib paths to $LOAD_PATH
         load_path_setup = raaf_paths.map { |path| "$LOAD_PATH.unshift(#{path.inspect})" }.join("\n")
-        
+
         <<~RUBY
           # Markdown example validation
           ENV["RAAF_TEST_MODE"] = "true"
           ENV["OPENAI_API_KEY"] ||= "test-key"
-          
+
           # Add all RAAF gem paths to load path
           #{load_path_setup}
 
@@ -724,10 +726,8 @@ module RAAF
         puts "⏭️  Skipped:  #{results[:skipped].length}"
         puts "⚠️  Warnings: #{results[:warnings].length}"
         puts "📋 Total:    #{total}"
-        
-        if config[:validation_mode] != :all
-          puts "🎯 Mode:     #{config[:validation_mode].to_s.gsub('_', ' ')}"
-        end
+
+        puts "🎯 Mode:     #{config[:validation_mode].to_s.gsub("_", " ")}" if config[:validation_mode] != :all
         puts
 
         show_failure_details

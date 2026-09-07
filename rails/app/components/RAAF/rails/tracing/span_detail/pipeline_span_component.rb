@@ -10,7 +10,7 @@ module RAAF
         class PipelineSpanComponent < RAAF::Rails::Tracing::SpanDetailBase
           def initialize(span:, **options)
             @span = span
-            super(span: span, **options)
+            super
           end
 
           def view_template
@@ -62,12 +62,12 @@ module RAAF
 
           def render_pipeline_status_badge
             color_classes = case pipeline_status.to_s.downcase
-                           when "success", "completed" then "bg-green-100 text-green-800 border-green-200"
-                           when "failed", "error" then "bg-red-100 text-red-800 border-red-200"
-                           when "running", "in_progress" then "bg-blue-100 text-blue-800 border-blue-200"
-                           when "paused", "waiting" then "bg-yellow-100 text-yellow-800 border-yellow-200"
-                           else "bg-gray-100 text-gray-800 border-gray-200"
-                           end
+                            when "success", "completed" then "bg-green-100 text-green-800 border-green-200"
+                            when "failed", "error" then "bg-red-100 text-red-800 border-red-200"
+                            when "running", "in_progress" then "bg-blue-100 text-blue-800 border-blue-200"
+                            when "paused", "waiting" then "bg-yellow-100 text-yellow-800 border-yellow-200"
+                            else "bg-gray-100 text-gray-800 border-gray-200"
+                            end
 
             span(class: "px-3 py-1 text-sm font-medium rounded-full border #{color_classes}") do
               pipeline_status.to_s.titleize
@@ -110,16 +110,12 @@ module RAAF
                   h5(class: "text-sm font-medium text-gray-900") { stage_name }
                   div(class: "flex items-center gap-2") do
                     render_stage_status_badge(stage_status)
-                    if stage_duration
-                      render_duration_badge(stage_duration)
-                    end
+                    render_duration_badge(stage_duration) if stage_duration
                   end
                 end
 
                 # Stage details
-                if stage.is_a?(Hash)
-                  render_stage_details(stage, index)
-                end
+                render_stage_details(stage, index) if stage.is_a?(Hash)
               end
             end
           end
@@ -127,12 +123,12 @@ module RAAF
           def render_stage_indicator(status, number)
             base_classes = "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
             color_classes = case status.to_s.downcase
-                           when "success", "completed" then "bg-green-500 text-white"
-                           when "failed", "error" then "bg-red-500 text-white"
-                           when "running", "in_progress" then "bg-blue-500 text-white animate-pulse"
-                           when "pending", "waiting" then "bg-gray-300 text-gray-600"
-                           else "bg-yellow-500 text-white"
-                           end
+                            when "success", "completed" then "bg-green-500 text-white"
+                            when "failed", "error" then "bg-red-500 text-white"
+                            when "running", "in_progress" then "bg-blue-500 text-white animate-pulse"
+                            when "pending", "waiting" then "bg-gray-300 text-gray-600"
+                            else "bg-yellow-500 text-white"
+                            end
 
             div(class: "#{base_classes} #{color_classes}") do
               if status.to_s.downcase == "running"
@@ -145,12 +141,12 @@ module RAAF
 
           def render_stage_status_badge(status)
             color_classes = case status.to_s.downcase
-                           when "success", "completed" then "bg-green-100 text-green-800"
-                           when "failed", "error" then "bg-red-100 text-red-800"
-                           when "running", "in_progress" then "bg-blue-100 text-blue-800"
-                           when "pending", "waiting" then "bg-gray-100 text-gray-800"
-                           else "bg-yellow-100 text-yellow-800"
-                           end
+                            when "success", "completed" then "bg-green-100 text-green-800"
+                            when "failed", "error" then "bg-red-100 text-red-800"
+                            when "running", "in_progress" then "bg-blue-100 text-blue-800"
+                            when "pending", "waiting" then "bg-gray-100 text-gray-800"
+                            else "bg-yellow-100 text-yellow-800"
+                            end
 
             span(class: "px-2 py-1 text-xs font-medium rounded #{color_classes}") do
               status.to_s.upcase
@@ -219,12 +215,12 @@ module RAAF
                   end
                   if step["input"] || step[:input]
                     div(class: "text-xs text-blue-700") do
-                      "Input: #{truncate_data(step["input"] || step[:input])}"
+                      "Input: #{truncate_data(step['input'] || step[:input])}"
                     end
                   end
                   if step["output"] || step[:output]
                     div(class: "text-xs text-blue-700") do
-                      "Output: #{truncate_data(step["output"] || step[:output])}"
+                      "Output: #{truncate_data(step['output'] || step[:output])}"
                     end
                   end
                 else
@@ -284,14 +280,17 @@ module RAAF
               render_collapsible_header("Execution Summary", "execution-summary", "bi-speedometer2")
               div(id: "execution-summary-content", class: "p-4 border-t border-gray-200") do
                 div(class: "grid grid-cols-2 md:grid-cols-4 gap-4") do
-                  render_metric_card("Agents", execution_metrics["total_agents_executed"] || 0, "bi-cpu", "text-blue-600")
-                  render_metric_card("Success", execution_metrics["successful_agents"] || 0, "bi-check-circle", "text-green-600")
+                  render_metric_card("Agents", execution_metrics["total_agents_executed"] || 0, "bi-cpu",
+                                     "text-blue-600")
+                  render_metric_card("Success", execution_metrics["successful_agents"] || 0, "bi-check-circle",
+                                     "text-green-600")
                   render_metric_card("Failed", execution_metrics["failed_agents"] || 0, "bi-x-circle", "text-red-600")
-                  render_metric_card("Total Time", format_duration(execution_metrics["total_execution_time_ms"] || 0), "bi-clock", "text-purple-600")
+                  render_metric_card("Total Time", format_duration(execution_metrics["total_execution_time_ms"] || 0),
+                                     "bi-clock", "text-purple-600")
                 end
                 if execution_metrics["average_agent_time_ms"] && execution_metrics["average_agent_time_ms"] > 0
                   div(class: "mt-4 text-sm text-gray-600") do
-                    "Average agent execution time: #{format_duration(execution_metrics["average_agent_time_ms"])}"
+                    "Average agent execution time: #{format_duration(execution_metrics['average_agent_time_ms'])}"
                   end
                 end
               end
@@ -343,10 +342,10 @@ module RAAF
 
           def render_execution_step(step, index)
             status_color = case step["status"]&.downcase
-                          when "completed" then "bg-green-100 border-green-200 text-green-800"
-                          when "failed" then "bg-red-100 border-red-200 text-red-800"
-                          else "bg-gray-100 border-gray-200 text-gray-800"
-                          end
+                           when "completed" then "bg-green-100 border-green-200 text-green-800"
+                           when "failed" then "bg-red-100 border-red-200 text-red-800"
+                           else "bg-gray-100 border-gray-200 text-gray-800"
+                           end
 
             div(class: "flex items-start gap-4 p-3 rounded-lg border #{status_color}") do
               # Step number
@@ -363,18 +362,12 @@ module RAAF
                   end
                 end
 
-                if step["agent_class"]
-                  div(class: "text-xs opacity-75 mb-2") { step["agent_class"] }
-                end
+                div(class: "text-xs opacity-75 mb-2") { step["agent_class"] } if step["agent_class"]
 
                 if step["input_summary"] || step["output_summary"]
                   div(class: "text-xs space-y-1") do
-                    if step["input_summary"]
-                      div { "Input: #{truncate_data(step["input_summary"])}" }
-                    end
-                    if step["output_summary"]
-                      div { "Output: #{truncate_data(step["output_summary"])}" }
-                    end
+                    div { "Input: #{truncate_data(step['input_summary'])}" } if step["input_summary"]
+                    div { "Output: #{truncate_data(step['output_summary'])}" } if step["output_summary"]
                   end
                 end
               end
@@ -393,11 +386,11 @@ module RAAF
 
             if ms < 1000
               "#{ms.round}ms"
-            elsif ms < 60000
+            elsif ms < 60_000
               "#{(ms / 1000.0).round(1)}s"
             else
-              minutes = (ms / 60000).to_i
-              seconds = ((ms % 60000) / 1000.0).round(1)
+              minutes = (ms / 60_000).to_i
+              seconds = ((ms % 60_000) / 1000.0).round(1)
               "#{minutes}m #{seconds}s"
             end
           end
@@ -458,7 +451,9 @@ module RAAF
                 when Numeric
                   span(class: "font-mono") { value.to_s }
                 when TrueClass, FalseClass
-                  span(class: "font-mono px-1 py-0.5 text-xs rounded #{value ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}") { value.to_s }
+                  span(class: "font-mono px-1 py-0.5 text-xs rounded #{value ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}") do
+                    value.to_s
+                  end
                 when Array
                   span(class: "text-gray-500 italic") { "Array (#{value.length} items)" }
                 when Hash
@@ -473,24 +468,24 @@ module RAAF
           # Data extraction methods
           def pipeline_name
             @pipeline_name ||= @span.span_attributes&.dig("pipeline.name") ||
-                              @span.span_attributes&.dig("pipeline_name") ||
-                              @span.span_attributes&.dig("component.name") ||
-                              @span.name ||
-                              "Unknown Pipeline"
+                               @span.span_attributes&.dig("pipeline_name") ||
+                               @span.span_attributes&.dig("component.name") ||
+                               @span.name ||
+                               "Unknown Pipeline"
           end
 
           def pipeline_status
             @pipeline_status ||= @span.span_attributes&.dig("result.execution_status") ||
-                                @span.span_attributes&.dig("status") ||
-                                @span.status ||
-                                "unknown"
+                                 @span.span_attributes&.dig("status") ||
+                                 @span.status ||
+                                 "unknown"
           end
 
           def pipeline_stages
             @pipeline_stages ||= @span.span_attributes&.dig("pipeline", "stages") ||
-                                @span.span_attributes&.dig("stages") ||
-                                @span.span_attributes&.dig("steps") ||
-                                []
+                                 @span.span_attributes&.dig("stages") ||
+                                 @span.span_attributes&.dig("steps") ||
+                                 []
           end
 
           def total_stages
@@ -499,16 +494,16 @@ module RAAF
 
           def data_flow
             @data_flow ||= @span.span_attributes&.dig("pipeline", "data_flow") ||
-                          @span.span_attributes&.dig("data_flow") ||
-                          @span.span_attributes&.dig("flow")
+                           @span.span_attributes&.dig("data_flow") ||
+                           @span.span_attributes&.dig("flow")
           end
 
           def pipeline_metadata
             @pipeline_metadata ||= begin
               metadata = @span.span_attributes&.dig("pipeline", "metadata") ||
-                        @span.span_attributes&.dig("metadata") ||
-                        {}
-              
+                         @span.span_attributes&.dig("metadata") ||
+                         {}
+
               # Add computed metadata
               metadata = metadata.merge({
                 "total_duration_ms" => @span.duration_ms,
@@ -516,15 +511,15 @@ module RAAF
                 "end_time" => format_timestamp(@span.end_time),
                 "trace_id" => @span.trace_id
               }.compact)
-              
+
               metadata
             end
           end
 
           def step_results
             @step_results ||= @span.span_attributes&.dig("pipeline", "results") ||
-                             @span.span_attributes&.dig("results") ||
-                             @span.span_attributes&.dig("step_results")
+                              @span.span_attributes&.dig("results") ||
+                              @span.span_attributes&.dig("step_results")
           end
 
           # Enhanced data extraction methods using collector data structure
@@ -576,27 +571,28 @@ module RAAF
 
           def debug_mode?
             @span.span_attributes&.dig("debug") == true ||
-            ENV["RAAF_DEBUG"] == "true" ||
-            ::Rails.env.development?
+              ENV["RAAF_DEBUG"] == "true" ||
+              ::Rails.env.development?
           end
 
           def truncate_data(data)
             return "" if data.nil?
-            
+
             str = data.is_a?(String) ? data : data.to_s
             str.length > 50 ? "#{str[0, 50]}..." : str
           end
 
           def truncate(text, length: 100)
             return text unless text.is_a?(String) && text.length > length
+
             "#{text[0, length]}..."
           end
 
           def extract_short_pipeline_name
             name = pipeline_name
             # Extract just the class name from full namespaced name
-            if name.include?('::')
-              name.split('::').last
+            if name.include?("::")
+              name.split("::").last
             else
               name
             end
@@ -605,15 +601,14 @@ module RAAF
           def inferred_flow
             # Try to infer flow from pipeline name
             name = pipeline_name
-            if name.include?('MarketDiscovery')
+            if name.include?("MarketDiscovery")
               "Market Analysis → Scoring → Search Terms"
-            elsif name.include?('Discovery')
+            elsif name.include?("Discovery")
               "Discovery Pipeline"
             else
               nil
             end
           end
-
         end
       end
     end

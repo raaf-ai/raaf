@@ -6,7 +6,8 @@ module RAAF
       # Reusable component for displaying recent evaluation results
       # Can be used on policy show page and span detail page
       class RecentResultsPanel < RAAF::Rails::Tracing::BaseComponent
-        def initialize(results:, title: "Recent Results", view_all_path: nil, limit: 5, show_evaluator: true, embedded: false)
+        def initialize(results:, title: "Recent Results", view_all_path: nil, limit: 5, show_evaluator: true,
+                       embedded: false)
           @results = results
           @title = title
           @view_all_path = view_all_path
@@ -19,7 +20,8 @@ module RAAF
 
         def view_template
           if @results.empty?
-            return nil if @embedded  # Don't show anything in embedded mode when empty
+            return nil if @embedded # Don't show anything in embedded mode when empty
+
             return render_empty_state
           end
 
@@ -110,15 +112,11 @@ module RAAF
                 div(class: "flex items-center gap-2") do
                   span(class: "font-medium text-gray-900") { display_name }
                   render_result_status_badge(result)
-                  if result.score
-                    span(class: "text-sm text-gray-600") { "Score: #{format_score(result.score)}" }
-                  end
+                  span(class: "text-sm text-gray-600") { "Score: #{format_score(result.score)}" } if result.score
                 end
 
                 # Description if available
-                if description.present?
-                  p(class: "mt-1 text-xs text-gray-500") { description }
-                end
+                p(class: "mt-1 text-xs text-gray-500") { description } if description.present?
 
                 # Evaluator name and time
                 span(class: "text-xs text-gray-400") do
@@ -191,12 +189,12 @@ module RAAF
 
         def render_badge(text, color)
           color_classes = case color
-                         when "green" then "bg-green-100 text-green-800"
-                         when "yellow" then "bg-yellow-100 text-yellow-800"
-                         when "red" then "bg-red-100 text-red-800"
-                         when "orange" then "bg-orange-100 text-orange-800"
-                         else "bg-gray-100 text-gray-800"
-                         end
+                          when "green" then "bg-green-100 text-green-800"
+                          when "yellow" then "bg-yellow-100 text-yellow-800"
+                          when "red" then "bg-red-100 text-red-800"
+                          when "orange" then "bg-orange-100 text-orange-800"
+                          else "bg-gray-100 text-gray-800"
+                          end
 
           span(class: "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium #{color_classes}") do
             text
@@ -205,6 +203,7 @@ module RAAF
 
         def format_score(score)
           return "N/A" unless score
+
           "#{(score.to_f * 100).round(1)}%"
         end
 

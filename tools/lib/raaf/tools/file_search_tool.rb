@@ -14,7 +14,9 @@ require "raaf/function_tool"
 # @author RAAF (Ruby AI Agents Factory) Team
 # @since 0.1.0
 module RAAF
+
   module Tools
+
     ##
     # Hosted file search tool for OpenAI API
     #
@@ -38,6 +40,7 @@ module RAAF
     #
     # @see https://platform.openai.com/docs/assistants/tools/file-search OpenAI File Search documentation
     class HostedFileSearchTool
+
       attr_reader :file_ids, :ranking_options
 
       ##
@@ -91,6 +94,7 @@ module RAAF
           }.compact
         }
       end
+
     end
 
     ##
@@ -130,6 +134,7 @@ module RAAF
     #   # Agent will call: search_files(query: "def initialize", search_type: "content")
     #   # Returns: Formatted results with file paths, line numbers, and context
     class FileSearchTool < FunctionTool
+
       ##
       # Initialize local file search tool
       #
@@ -378,6 +383,9 @@ module RAAF
           summary
         end
       end
+
     end
+
   end
+
 end

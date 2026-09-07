@@ -48,12 +48,11 @@ RSpec.describe "Tool Execution Integration Tests" do
   class CustomCalculatorTool
     def call(expression:)
       # Simple calculator (using eval is just for testing)
-      begin
-        result = eval(expression) # rubocop:disable Security/Eval
-        { success: true, result: result, expression: expression }
-      rescue StandardError => e
-        { success: false, error: e.message }
-      end
+
+      result = eval(expression) # rubocop:disable Security/Eval
+      { success: true, result: result, expression: expression }
+    rescue StandardError => e
+      { success: false, error: e.message }
     end
 
     def name
@@ -143,17 +142,17 @@ RSpec.describe "Tool Execution Integration Tests" do
       it "validates required parameters" do
         agent = agent_class.new
 
-        expect {
+        expect do
           agent.execute_tool("perplexity_search", model: "sonar") # Missing query
-        }.to raise_error(ArgumentError, /Missing required parameter: query/)
+        end.to raise_error(ArgumentError, /Missing required parameter: query/)
       end
 
       it "validates parameter types" do
         agent = agent_class.new
 
-        expect {
+        expect do
           agent.execute_tool("perplexity_search", query: 123) # Wrong type
-        }.to raise_error(ArgumentError, /Parameter query must be a string/)
+        end.to raise_error(ArgumentError, /Parameter query must be a string/)
       end
     end
 
@@ -290,9 +289,9 @@ RSpec.describe "Tool Execution Integration Tests" do
       it "re-raises tool execution errors" do
         agent = agent_class.new
 
-        expect {
+        expect do
           agent.execute_tool("failing_tool", param: "value")
-        }.to raise_error(StandardError, /Simulated tool failure/)
+        end.to raise_error(StandardError, /Simulated tool failure/)
       end
 
       it "logs error before re-raising" do
@@ -320,9 +319,7 @@ RSpec.describe "Tool Execution Integration Tests" do
         @name = name
       end
 
-      def name
-        @name
-      end
+      attr_reader :name
 
       def dsl_wrapped?
         true
@@ -544,18 +541,20 @@ RSpec.describe "Tool Execution Integration Tests" do
 
           tool_execution { enable_metadata true }
 
-          def build_instructions; "Fast tools"; end
+          def build_instructions = "Fast tools"
+
           def build_schema
             { type: "object", properties: { r: { type: "string" } }, required: ["r"], additionalProperties: false }
           end
 
           attr_accessor :test_tools
-          def tools; @test_tools || []; end
+
+          def tools = @test_tools || []
         end
 
         fast_tool = Class.new do
-          def call(x:); { success: true, result: x }; end
-          def name; "fast_tool"; end
+          def call(x:) = { success: true, result: x }
+          def name = "fast_tool"
         end.new
 
         agent = agent_class.new
@@ -573,13 +572,15 @@ RSpec.describe "Tool Execution Integration Tests" do
 
           tool_execution { enable_metadata true }
 
-          def build_instructions; "Slow tools"; end
+          def build_instructions = "Slow tools"
+
           def build_schema
             { type: "object", properties: { r: { type: "string" } }, required: ["r"], additionalProperties: false }
           end
 
           attr_accessor :test_tools
-          def tools; @test_tools || []; end
+
+          def tools = @test_tools || []
         end
 
         slow_tool = Class.new do
@@ -587,7 +588,8 @@ RSpec.describe "Tool Execution Integration Tests" do
             sleep(sleep_ms / 1000.0)
             { success: true, result: "done" }
           end
-          def name; "slow_tool"; end
+
+          def name = "slow_tool"
         end.new
 
         agent = agent_class.new
@@ -666,9 +668,7 @@ RSpec.describe "Tool Execution Integration Tests" do
         @tool = MockPerplexityTool.new
       end
 
-      def name
-        @tool.name
-      end
+      delegate :name, to: :@tool
 
       def call(**args)
         # New pattern: Just call the tool
@@ -676,9 +676,7 @@ RSpec.describe "Tool Execution Integration Tests" do
         @tool.call(**args)
       end
 
-      def tool_definition
-        @tool.tool_definition
-      end
+      delegate :tool_definition, to: :@tool
     end
 
     context "comparing old and new patterns" do
@@ -701,13 +699,15 @@ RSpec.describe "Tool Execution Integration Tests" do
             enable_metadata true
           end
 
-          def build_instructions; "Modern agent"; end
+          def build_instructions = "Modern agent"
+
           def build_schema
             { type: "object", properties: { m: { type: "string" } }, required: ["m"], additionalProperties: false }
           end
 
           attr_accessor :test_tools
-          def tools; @test_tools || []; end
+
+          def tools = @test_tools || []
         end
 
         agent = agent_class.new

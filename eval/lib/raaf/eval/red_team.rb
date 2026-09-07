@@ -5,9 +5,9 @@ require_relative "red_team/attack"
 require_relative "red_team/rt_test_case"
 require_relative "red_team/risk_assessment"
 require_relative "red_team/red_teamer"
-require_relative "red_team/vulnerabilities"  # Load all vulnerability implementations
-require_relative "red_team/attacks"  # Load all attack implementations
-require_relative "red_team/matchers"  # Load RSpec matchers
+require_relative "red_team/vulnerabilities" # Load all vulnerability implementations
+require_relative "red_team/attacks" # Load all attack implementations
+require_relative "red_team/matchers" # Load RSpec matchers
 
 module RAAF
   module Eval

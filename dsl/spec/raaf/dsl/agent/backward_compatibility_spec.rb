@@ -17,7 +17,7 @@ RSpec.describe RAAF::DSL::Agent, "backward compatibility" do
     it "supports run method" do
       agent = TestAgents::BasicTestAgent.new(context: RAAF::DSL::ContextVariables.new)
       expect(agent).to respond_to(:run)
-      # Note: call method not implemented in current version
+      # NOTE: call method not implemented in current version
     end
   end
 end

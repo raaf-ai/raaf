@@ -18,7 +18,7 @@ RSpec.describe "LLM Evaluators" do
 
       it "evaluates against criteria" do
         result = evaluator.evaluate(field_context, criteria: criteria)
-        
+
         expect(result).to have_key(:label)
         expect(result).to have_key(:score)
         expect(result[:details][:criteria]).to eq(criteria)
@@ -32,7 +32,7 @@ RSpec.describe "LLM Evaluators" do
 
       it "fails without criteria parameter" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:score]).to eq(0.0)
         expect(result[:message]).to include("requires :criteria")
@@ -45,7 +45,7 @@ RSpec.describe "LLM Evaluators" do
 
       it "penalizes brevity" do
         result = evaluator.evaluate(field_context, criteria: criteria)
-        
+
         expect(result[:score]).to be < 0.7
         expect(result[:details][:reasoning]).to include("brief")
       end
@@ -56,17 +56,17 @@ RSpec.describe "LLM Evaluators" do
     let(:evaluator) { described_class.new }
 
     context "with high-quality content" do
-      let(:result) do 
-        { 
-          output: "The solution involves multiple steps. First, we analyze the problem. 
+      let(:result) do
+        {
+          output: "The solution involves multiple steps. First, we analyze the problem.
                    Second, we develop a strategy. Third, we implement the solution.
-                   Finally, we verify the results. This approach ensures completeness." 
+                   Finally, we verify the results. This approach ensures completeness."
         }
       end
 
       it "passes quality threshold" do
         result = evaluator.evaluate(field_context, min_score: 0.6)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to be > 0.6
         expect(result[:details][:dimensions]).to include(:accuracy, :completeness, :coherence)
@@ -74,7 +74,7 @@ RSpec.describe "LLM Evaluators" do
 
       it "identifies strengths" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:details][:strengths]).not_to be_empty
       end
     end
@@ -84,14 +84,14 @@ RSpec.describe "LLM Evaluators" do
 
       it "fails quality threshold" do
         result = evaluator.evaluate(field_context, min_score: 0.7)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 0.7
       end
 
       it "identifies weaknesses" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:details][:weaknesses]).not_to be_empty
       end
     end
@@ -101,7 +101,7 @@ RSpec.describe "LLM Evaluators" do
 
       it "scores zero for empty content" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:score]).to eq(0.0)
         expect(result[:label]).to eq("bad")
       end
@@ -119,11 +119,11 @@ RSpec.describe "LLM Evaluators" do
           criteria: {
             clarity: {
               weight: 2.0,
-              required_elements: ["clear", "understanding"]
+              required_elements: %w[clear understanding]
             },
             evidence: {
               weight: 1.0,
-              required_elements: ["evidence", "supporting"]
+              required_elements: %w[evidence supporting]
             }
           }
         }
@@ -131,7 +131,7 @@ RSpec.describe "LLM Evaluators" do
 
       it "evaluates against rubric criteria" do
         result = evaluator.evaluate(field_context, rubric: rubric)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to be > 0.7
         expect(result[:details][:rubric_scores]).to have_key(:clarity)
@@ -140,7 +140,7 @@ RSpec.describe "LLM Evaluators" do
 
       it "applies weights correctly" do
         result = evaluator.evaluate(field_context, rubric: rubric)
-        
+
         expect(result[:details][:rubric_criteria]).to include(:clarity, :evidence)
       end
     end
@@ -152,7 +152,7 @@ RSpec.describe "LLM Evaluators" do
           passing_score: 0.8,
           criteria: {
             completeness: {
-              required_elements: ["introduction", "body", "conclusion"]
+              required_elements: %w[introduction body conclusion]
             }
           }
         }
@@ -160,7 +160,7 @@ RSpec.describe "LLM Evaluators" do
 
       it "returns label 'bad' when below passing score" do
         result = evaluator.evaluate(field_context, rubric: rubric)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 0.8
       end
@@ -171,7 +171,7 @@ RSpec.describe "LLM Evaluators" do
 
       it "fails without rubric parameter" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:score]).to eq(0.0)
         expect(result[:message]).to include("requires :rubric")
@@ -197,7 +197,7 @@ RSpec.describe "LLM Evaluators" do
 
       it "determines appropriate level" do
         result = evaluator.evaluate(field_context, rubric: rubric)
-        
+
         expect(result[:details][:rubric_scores][:depth]).to be > 0.5
       end
     end

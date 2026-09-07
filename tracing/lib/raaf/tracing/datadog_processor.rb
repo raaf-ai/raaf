@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Tracing
+
     ##
     # Datadog processor for sending traces to Datadog APM
     #
@@ -23,6 +25,7 @@ module RAAF
     #   )
     #
     class DatadogProcessor
+
       # @return [String] Service name for Datadog
       attr_reader :service_name
 
@@ -45,8 +48,8 @@ module RAAF
       # @param agent_host [String] Datadog agent host
       # @param agent_port [Integer] Datadog agent port
       #
-      def initialize(service_name: "ruby-ai-agents-factory", 
-                     env: "development", 
+      def initialize(service_name: "ruby-ai-agents-factory",
+                     env: "development",
                      version: "1.0.0",
                      tags: {},
                      agent_host: "localhost",
@@ -78,31 +81,29 @@ module RAAF
       private
 
       def setup_datadog
-        begin
-          require 'datadog'
-          
-          Datadog.configure do |c|
-            c.service = @service_name
-            c.env = @env
-            c.version = @version
-            c.agent.host = @agent_host
-            c.agent.port = @agent_port
-            
-            # Configure tracing
-            c.tracing.enabled = true
-            c.tracing.analytics.enabled = true
-            
-            # Set default tags
-            @tags.each { |k, v| c.tags[k.to_s] = v.to_s }
-          end
-        rescue LoadError
-          raise "ddtrace gem is required for DatadogProcessor. Add 'gem \"ddtrace\"' to your Gemfile."
+        require "datadog"
+
+        Datadog.configure do |c|
+          c.service = @service_name
+          c.env = @env
+          c.version = @version
+          c.agent.host = @agent_host
+          c.agent.port = @agent_port
+
+          # Configure tracing
+          c.tracing.enabled = true
+          c.tracing.analytics.enabled = true
+
+          # Set default tags
+          @tags.each { |k, v| c.tags[k.to_s] = v.to_s }
         end
+      rescue LoadError
+        raise "ddtrace gem is required for DatadogProcessor. Add 'gem \"ddtrace\"' to your Gemfile."
       end
 
       def create_datadog_span(span)
         tracer = Datadog::Tracing.tracer
-        
+
         # Create span
         dd_span = tracer.trace(
           span.name,
@@ -117,9 +118,7 @@ module RAAF
         dd_span.finish(span.end_time)
 
         # Set error if present
-        if span.error
-          dd_span.set_error(span.error)
-        end
+        dd_span.set_error(span.error) if span.error
 
         # Set metadata as tags
         span.metadata.each do |key, value|
@@ -164,9 +163,7 @@ module RAAF
         end
 
         # Add tool information
-        if span.metadata["tool_name"]
-          tags["tool.name"] = span.metadata["tool_name"]
-        end
+        tags["tool.name"] = span.metadata["tool_name"] if span.metadata["tool_name"]
 
         tags
       end
@@ -174,7 +171,7 @@ module RAAF
       def send_to_datadog(dd_span)
         # Span is automatically sent to Datadog when finished
         # Additional custom metrics can be sent here
-        
+
         # Send custom metrics
         if dd_span.get_tag("usage.total_tokens")
           Datadog::Statsd.histogram(
@@ -191,10 +188,13 @@ module RAAF
           tags: [
             "service:#{@service_name}",
             "env:#{@env}",
-            "span_type:#{dd_span.get_tag('span.type')}"
+            "span_type:#{dd_span.get_tag("span.type")}"
           ]
         )
       end
+
     end
+
   end
+
 end

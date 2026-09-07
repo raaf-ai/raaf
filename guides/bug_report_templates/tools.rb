@@ -26,11 +26,11 @@ RSpec.describe "RAAF Tools Bug Report" do
       instructions: "You can calculate sums using the provided tool",
       model: "gpt-4o-mini"
     )
-    
+
     agent.add_tool(method(:calculate_sum))
-    
+
     expect(agent.tools).to have_key(:calculate_sum)
-    
+
     # Test tool execution directly if needed
     result = calculate_sum(a: 2, b: 3)
     expect(result).to eq(5)
@@ -39,6 +39,7 @@ RSpec.describe "RAAF Tools Bug Report" do
   it "handles tool errors" do
     def divide_numbers(dividend:, divisor:)
       raise ArgumentError, "Cannot divide by zero" if divisor == 0
+
       dividend / divisor
     end
 
@@ -47,9 +48,9 @@ RSpec.describe "RAAF Tools Bug Report" do
       instructions: "You can divide numbers using the provided tool",
       model: "gpt-4o-mini"
     )
-    
+
     agent.add_tool(method(:divide_numbers))
-    
+
     # Test error handling
     expect { divide_numbers(dividend: 10, divisor: 0) }.to raise_error(ArgumentError)
   end
@@ -60,7 +61,7 @@ RSpec.describe "RAAF Tools Bug Report" do
         id: user_id,
         name: "Test User",
         email: "test@example.com",
-        roles: ["user", "tester"],
+        roles: %w[user tester],
         created_at: Time.now
       }
     end
@@ -70,9 +71,9 @@ RSpec.describe "RAAF Tools Bug Report" do
       instructions: "You can get user information using the provided tool",
       model: "gpt-4o-mini"
     )
-    
+
     agent.add_tool(method(:get_user_info))
-    
+
     result = get_user_info(user_id: 123)
     expect(result[:id]).to eq(123)
     expect(result).to be_a(Hash)
@@ -102,9 +103,9 @@ RSpec.describe "RAAF Tools Bug Report" do
       instructions: "You can get weather information using the provided tool",
       model: "gpt-4o-mini"
     )
-    
+
     agent.add_tool(weather_tool.method(:get_weather))
-    
+
     result = weather_tool.get_weather(location: "Tokyo")
     expect(result[:location]).to eq("Tokyo")
     expect(result[:api_key_used]).to eq("test_key")

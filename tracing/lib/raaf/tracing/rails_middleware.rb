@@ -7,7 +7,9 @@ require_relative "spans"
 require_relative "trace_provider"
 
 module RAAF
+
   module Tracing
+
     # Rails middleware for automatic RAAF tracing integration.
     #
     # This middleware creates request-level trace boundaries for Rails applications,
@@ -83,7 +85,7 @@ module RAAF
     #   # config/initializers/raaf_tracing.rb
     #   tracer = RAAF::Tracing::SpanTracer.new
     #   tracer.add_processor(MyCustomProcessor.new)
-    #   
+    #
     #   Rails.application.configure do
     #     config.middleware.use RAAF::Tracing::RailsMiddleware, tracer: tracer
     #   end
@@ -95,6 +97,7 @@ module RAAF
     #   end
     #
     class RailsMiddleware
+
       # Initialize the Rails middleware with optional tracer configuration.
       #
       # @param app [Object] The Rack application
@@ -118,27 +121,27 @@ module RAAF
         return @app.call(env) if skip_tracing?(env)
 
         request_tracer = @tracer || TraceProvider.tracer
-        
+
         # Use TracingRegistry to set request-scoped tracer context
         TracingRegistry.with_tracer(request_tracer) do
           # Create request span with Rails-specific metadata
           request_span = create_request_span(env, request_tracer)
-          
+
           begin
             # Process the request within the tracing context
             status, headers, body = @app.call(env)
-            
+
             # Update span with response information
             update_span_with_response(request_span, env, status, headers)
-            
+
             [status, headers, body]
           rescue Exception => e
             # Mark span as error and re-raise
             request_span.set_status(:error, description: e.message)
             request_span.add_event("request.error", {
-              "error.type" => e.class.name,
-              "error.message" => e.message
-            })
+                                     "error.type" => e.class.name,
+                                     "error.message" => e.message
+                                   })
             raise
           ensure
             # Always finish the request span
@@ -155,7 +158,7 @@ module RAAF
       # @return [Boolean] true if tracing should be skipped
       def skip_tracing?(env)
         path_info = env["PATH_INFO"] || ""
-        
+
         # Skip common non-business logic endpoints
         path_info.start_with?("/assets/") ||
           path_info.start_with?("/health") ||
@@ -170,27 +173,27 @@ module RAAF
       # @return [Span] Created request span
       def create_request_span(env, tracer)
         request = build_request_object(env)
-        
+
         span = tracer.agent_span(
           "rails.request",
           trace_id: generate_trace_id(env),
           parent_id: nil # Request spans are root spans
         )
-        
+
         # Add basic HTTP attributes
         span.set_attribute("http.method", request.request_method)
         span.set_attribute("http.url", request.url)
         span.set_attribute("http.user_agent", request.user_agent) if request.user_agent
         span.set_attribute("http.remote_addr", request.remote_ip) if request.remote_ip
-        
+
         # Add Rails-specific attributes
         add_rails_attributes(span, env)
-        
+
         # Add request start event
         span.add_event("request.start", {
-          "request.size" => env["CONTENT_LENGTH"]&.to_i || 0
-        })
-        
+                         "request.size" => env["CONTENT_LENGTH"]&.to_i || 0
+                       })
+
         span
       end
 
@@ -203,20 +206,20 @@ module RAAF
       def update_span_with_response(span, env, status, headers)
         # Set HTTP status
         span.set_attribute("http.status_code", status)
-        
+
         # Set span status based on HTTP status
         if status >= 400
           span.set_status(:error, description: "HTTP #{status}")
         else
           span.set_status(:ok)
         end
-        
+
         # Add response metadata
         span.add_event("request.complete", {
-          "response.status" => status,
-          "response.content_type" => headers["Content-Type"] || headers["content-type"]
-        })
-        
+                         "response.status" => status,
+                         "response.content_type" => headers["Content-Type"] || headers["content-type"]
+                       })
+
         # Add Rails routing information if available
         add_routing_info(span, env)
       end
@@ -227,14 +230,12 @@ module RAAF
       # @param env [Hash] Rack environment hash
       def add_rails_attributes(span, env)
         # Rails request ID for log correlation
-        if env["action_dispatch.request_id"]
-          span.set_attribute("rails.request_id", env["action_dispatch.request_id"])
-        end
-        
+        span.set_attribute("rails.request_id", env["action_dispatch.request_id"]) if env["action_dispatch.request_id"]
+
         # Session information (if available and safe)
-        if env["rack.session"] && env["rack.session"]["session_id"]
-          span.set_attribute("rails.session_id", env["rack.session"]["session_id"])
-        end
+        return unless env["rack.session"] && env["rack.session"]["session_id"]
+
+        span.set_attribute("rails.session_id", env["rack.session"]["session_id"])
       end
 
       # Add routing information to span after request processing.
@@ -248,12 +249,12 @@ module RAAF
           span.set_attribute("http.controller", controller.class.name)
           span.set_attribute("http.action", controller.action_name)
         end
-        
+
         # Route pattern if available
-        if env["action_dispatch.route"] && env["action_dispatch.route"].path
-          route_spec = env["action_dispatch.route"].path.spec.to_s
-          span.set_attribute("http.route", route_spec) unless route_spec.empty?
-        end
+        return unless env["action_dispatch.route"] && env["action_dispatch.route"].path
+
+        route_spec = env["action_dispatch.route"].path.spec.to_s
+        span.set_attribute("http.route", route_spec) unless route_spec.empty?
       end
 
       # Generate or extract trace ID for the request.
@@ -263,10 +264,10 @@ module RAAF
       def generate_trace_id(env)
         # Use Rails request ID as basis if available
         request_id = env["action_dispatch.request_id"]
-        
+
         if request_id && request_id.match?(/\A[a-f0-9-]+\z/)
           # Convert Rails UUID format to trace format
-          "trace_#{request_id.gsub('-', '')}"
+          "trace_#{request_id.gsub("-", "")}"
         else
           # Generate new trace ID
           "trace_#{SecureRandom.hex(16)}"
@@ -297,17 +298,15 @@ module RAAF
         port = env["SERVER_PORT"]
         path = env["PATH_INFO"] || "/"
         query = env["QUERY_STRING"]
-        
+
         url = "#{scheme}://#{host}"
-        
+
         # Add port if not standard
-        if port && ((scheme == "http" && port != "80") || (scheme == "https" && port != "443"))
-          url << ":#{port}"
-        end
-        
+        url << ":#{port}" if port && ((scheme == "http" && port != "80") || (scheme == "https" && port != "443"))
+
         url << path
-        url << "?#{query}" if query && !query.empty?
-        
+        url << "?#{query}" if query.present?
+
         url
       end
 
@@ -321,6 +320,9 @@ module RAAF
           env["HTTP_X_REAL_IP"] ||
           env["REMOTE_ADDR"]
       end
+
     end
+
   end
+
 end

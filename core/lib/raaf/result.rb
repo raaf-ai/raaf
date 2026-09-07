@@ -683,9 +683,7 @@ module RAAF
     # @param index [Integer] Index of result to retrieve
     # @return [Result, nil] Result at the given index
     #
-    def [](index)
-      @results[index]
-    end
+    delegate :[], to: :@results
 
     def to_h
       super.merge({

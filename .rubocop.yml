@@ -1,3 +1,17 @@
+# Cop plugins are loaded process-wide as soon as any config in the tree declares
+# them, so the root config has to declare them too. Without this, a repo-wide run
+# registers the RSpec/Rails cops via core/.rubocop.yml and friends, then crashes
+# on every root-governed file because their default settings were never merged in.
+plugins:
+  - rubocop-rspec
+  - rubocop-rake
+  - rubocop-rails
+
+# Only rails/ and eval-ui/ are Rails code; they enable the department in their
+# own configs.
+Rails:
+  Enabled: false
+
 AllCops:
   TargetRubyVersion: 3.2
   NewCops: enable
@@ -59,7 +73,7 @@ Metrics/BlockNesting:
 
 # Allow reasonable collection sizes
 Metrics/CollectionLiteralLength:
-  LengthThreshold: 50  # Increased for model lists and command arrays
+  Max: 50  # Increased for model lists and command arrays
 
 # Disable some style cops that are overly strict for this codebase
 Style/FrozenStringLiteralComment:

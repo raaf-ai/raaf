@@ -153,7 +153,7 @@ RSpec.describe "RAAF::Pipeline intelligent streaming integration" do
                             deep_intel_with_logging >>
                             scoring
 
-        pipeline = pipeline_class.new(execution_log: execution_log)
+        pipeline_class.new(execution_log: execution_log)
 
         # When pipeline.run is called with streaming scopes
         # it should execute in batches of 100
@@ -187,7 +187,7 @@ RSpec.describe "RAAF::Pipeline intelligent streaming integration" do
         # Test that results from multiple streams are merged properly
         pipeline_class.flow company_discovery >> quick_fit_analyzer >> deep_intel >> scoring
 
-        pipeline = pipeline_class.new
+        pipeline_class.new
 
         # This would test the actual merging logic when implemented
         # Results from all streams should be combined appropriately
@@ -210,9 +210,9 @@ RSpec.describe "RAAF::Pipeline intelligent streaming integration" do
         end
 
         pipeline_class.flow company_discovery >>
-                           quick_fit_analyzer >>
-                           (deep_intel | parallel_agent) >>
-                           scoring
+                            quick_fit_analyzer >>
+                            (deep_intel | parallel_agent) >>
+                            scoring
 
         pipeline = pipeline_class.new
         scopes = pipeline.streaming_scopes
@@ -243,8 +243,8 @@ RSpec.describe "RAAF::Pipeline intelligent streaming integration" do
           default :max_results, 100
         end
 
-        pipeline = pipeline_class.new(search_terms: ["CTO", "DevOps"])
-        expect(pipeline.context[:search_terms]).to eq(["CTO", "DevOps"])
+        pipeline = pipeline_class.new(search_terms: %w[CTO DevOps])
+        expect(pipeline.context[:search_terms]).to eq(%w[CTO DevOps])
         expect(pipeline.context[:max_results]).to eq(100)
       end
     end
@@ -263,7 +263,7 @@ RSpec.describe "RAAF::Pipeline intelligent streaming integration" do
 
         pipeline_class.flow company_discovery >> error_agent >> scoring
 
-        pipeline = pipeline_class.new
+        pipeline_class.new
 
         # Should handle the error appropriately
         # Partial results should be preserved
@@ -278,13 +278,13 @@ RSpec.describe "RAAF::Pipeline intelligent streaming integration" do
           agent_name "StreamingWithHooks"
           model "gpt-4o"
           intelligent_streaming stream_size: 100, over: :companies do
-            on_stream_start { |num, total, data| start_log << "Stream #{num}/#{total}" }
+            on_stream_start { |num, total, _data| start_log << "Stream #{num}/#{total}" }
           end
         end
 
         pipeline_class.flow company_discovery >> streaming_with_hooks >> scoring
 
-        pipeline = pipeline_class.new(start_log: start_log)
+        pipeline_class.new(start_log: start_log)
 
         # When executed, hooks should fire
         # Verify start_log contains expected entries
@@ -297,13 +297,13 @@ RSpec.describe "RAAF::Pipeline intelligent streaming integration" do
           agent_name "StreamingWithHooks"
           model "gpt-4o"
           intelligent_streaming stream_size: 100, over: :companies, incremental: true do
-            on_stream_complete { |num, total, results| complete_log << "Complete #{num}/#{total}" }
+            on_stream_complete { |num, total, _results| complete_log << "Complete #{num}/#{total}" }
           end
         end
 
         pipeline_class.flow company_discovery >> streaming_with_hooks >> scoring
 
-        pipeline = pipeline_class.new(complete_log: complete_log)
+        pipeline_class.new(complete_log: complete_log)
 
         # When executed, complete hooks should fire after each stream
       end

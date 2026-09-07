@@ -49,10 +49,10 @@ module RAAF
               analysis = result[:details][:completion_analysis]
               issues = analysis[:issues_found] || []
               "Expected task to be completed successfully, but goal was not achieved. " \
-                "Issues: #{issues.join(', ')}"
+                "Issues: #{issues.join(", ")}"
             end
 
-            failure_message_when_negated do |result|
+            failure_message_when_negated do |_result|
               "Expected task to not be completed, but goal was achieved"
             end
           end
@@ -68,7 +68,7 @@ module RAAF
               steps_completed = analysis[:steps_completed]
 
               # Parse "4/4 steps addressed" format
-              if steps_completed =~ /(\d+)\/(\d+)/
+              if steps_completed =~ %r{(\d+)/(\d+)}
                 completed = ::Regexp.last_match(1).to_i
                 total = ::Regexp.last_match(2).to_i
                 completed == total
@@ -83,7 +83,7 @@ module RAAF
               "Expected all required steps to be completed, but got: #{steps}"
             end
 
-            failure_message_when_negated do |result|
+            failure_message_when_negated do |_result|
               "Expected some steps to be incomplete, but all steps were completed"
             end
           end
@@ -141,7 +141,7 @@ module RAAF
               "Expected valid task completion result, but found issues:\n#{issues.map { |i| "  - #{i}" }.join("\n")}"
             end
 
-            failure_message_when_negated do |result|
+            failure_message_when_negated do |_result|
               "Expected invalid task completion result, but result structure was valid"
             end
           end
@@ -187,7 +187,7 @@ module RAAF
               "Expected tools to be used correctly, but analysis shows: #{analysis}"
             end
 
-            failure_message_when_negated do |result|
+            failure_message_when_negated do |_result|
               "Expected tools to be used incorrectly, but they were used appropriately"
             end
           end
@@ -207,7 +207,7 @@ module RAAF
               "Expected appropriate tool selection, but got: #{selection}"
             end
 
-            failure_message_when_negated do |result|
+            failure_message_when_negated do |_result|
               "Expected inappropriate tool selection, but selection was appropriate"
             end
           end
@@ -227,7 +227,7 @@ module RAAF
               "Expected valid tool parameters, but got: #{params}"
             end
 
-            failure_message_when_negated do |result|
+            failure_message_when_negated do |_result|
               "Expected invalid tool parameters, but parameters were valid"
             end
           end
@@ -245,7 +245,7 @@ module RAAF
 
             failure_message do |result|
               issues = result[:details][:issues_found] || []
-              "Expected at most #{max_issues} tool usage issues, but found #{issues.size}: #{issues.join(', ')}"
+              "Expected at most #{max_issues} tool usage issues, but found #{issues.size}: #{issues.join(", ")}"
             end
 
             failure_message_when_negated do |result|
@@ -291,7 +291,9 @@ module RAAF
                 issues << "Missing available_tools_count" unless details[:available_tools_count].is_a?(Integer)
                 issues << "Missing tools_used_count" unless details[:tools_used_count].is_a?(Integer)
                 issues << "Missing tool_selection_analysis" unless details[:tool_selection_analysis].is_a?(String)
-                issues << "Missing parameter_correctness_analysis" unless details[:parameter_correctness_analysis].is_a?(String)
+                unless details[:parameter_correctness_analysis].is_a?(String)
+                  issues << "Missing parameter_correctness_analysis"
+                end
                 issues << "Missing sequence_analysis" unless details[:sequence_analysis].is_a?(String)
                 issues << "Missing output_handling_analysis" unless details[:output_handling_analysis].is_a?(String)
                 issues << "Missing overall_reasoning" unless details[:overall_reasoning].is_a?(String)
@@ -300,7 +302,7 @@ module RAAF
               "Expected valid tool correctness result, but found issues:\n#{issues.map { |i| "  - #{i}" }.join("\n")}"
             end
 
-            failure_message_when_negated do |result|
+            failure_message_when_negated do |_result|
               "Expected invalid tool correctness result, but result structure was valid"
             end
           end
@@ -323,13 +325,13 @@ module RAAF
               format("%.0f%%", value * 100)
             end
 
-            failure_message do |result|
+            failure_message do |_result|
               "Expected task completion to be better than baseline, " \
                 "but got #{format_percent(@result_score)} vs #{format_percent(@baseline_score)} " \
                 "(#{format_percent(@improvement)} change)"
             end
 
-            failure_message_when_negated do |result|
+            failure_message_when_negated do |_result|
               "Expected task completion to not be better than baseline, " \
                 "but got #{format_percent(@result_score)} vs #{format_percent(@baseline_score)} " \
                 "(#{format_percent(@improvement)} improvement)"
@@ -354,13 +356,13 @@ module RAAF
               format("%.0f%%", value * 100)
             end
 
-            failure_message do |result|
+            failure_message do |_result|
               "Expected tool usage to be better than baseline, " \
                 "but got #{format_percent(@result_score)} vs #{format_percent(@baseline_score)} " \
                 "(#{format_percent(@improvement)} change)"
             end
 
-            failure_message_when_negated do |result|
+            failure_message_when_negated do |_result|
               "Expected tool usage to not be better than baseline, " \
                 "but got #{format_percent(@result_score)} vs #{format_percent(@baseline_score)} " \
                 "(#{format_percent(@improvement)} improvement)"

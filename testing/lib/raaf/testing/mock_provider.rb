@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Testing
+
     ##
     # Mock provider for testing AI agents
     #
@@ -9,6 +11,7 @@ module RAAF
     # without making actual API calls. Useful for consistent, fast testing.
     #
     class MockProvider
+
       include RAAF::Logging
 
       # @return [String] Default response when no specific response is configured
@@ -42,7 +45,8 @@ module RAAF
       # @param failure_rate [Float] Failure rate (0.0-1.0)
       # @param usage_tracking [Boolean] Whether to track usage
       #
-      def initialize(default_response: "I'm a test agent.", response_delay: 0.1, failure_rate: 0.0, usage_tracking: true)
+      def initialize(default_response: "I'm a test agent.", response_delay: 0.1, failure_rate: 0.0,
+                     usage_tracking: true)
         @default_response = default_response
         @response_delay = response_delay
         @failure_rate = failure_rate
@@ -56,7 +60,7 @@ module RAAF
           average_response_time: 0.0
         }
         @request_history = []
-        
+
         @@class_mutex.synchronize do
           @@instances << self
         end
@@ -125,7 +129,7 @@ module RAAF
       #
       def process_request(messages, **options)
         start_time = Time.current
-        
+
         # Track request
         @usage_stats[:total_requests] += 1
         @request_history << {
@@ -145,30 +149,30 @@ module RAAF
 
         # Extract user message
         user_message = extract_user_message(messages)
-        
+
         # Find matching response
         response_content = find_matching_response(user_message)
-        
+
         # Build response
         response = build_response(response_content, user_message, options)
-        
+
         # Track success
         @usage_stats[:successful_requests] += 1
-        
+
         # Update timing statistics
         response_time = Time.current - start_time
         update_timing_stats(response_time)
-        
+
         # Add timing to response
         response[:metadata] ||= {}
         response[:metadata][:response_time] = response_time
-        
+
         log_debug("Mock provider response", {
-          input: user_message,
-          output: response_content,
-          response_time: response_time
-        })
-        
+                    input: user_message,
+                    output: response_content,
+                    response_time: response_time
+                  })
+
         response
       end
 
@@ -238,29 +242,30 @@ module RAAF
       def stream_request(messages, **options, &block)
         response = process_request(messages, **options)
         content = response[:content] || response["content"]
-        
+
         # Split content into chunks
         chunks = split_into_chunks(content)
-        
+
         # Yield each chunk with delay
         chunks.each_with_index do |chunk, index|
           sleep(@response_delay / chunks.size) if @response_delay > 0
-          
+
           chunk_data = {
             content: chunk,
             index: index,
             total_chunks: chunks.size,
             finished: index == chunks.size - 1
           }
-          
+
           yield(chunk_data) if block_given?
         end
-        
+
         response.merge(streaming: true, chunks: chunks)
       end
 
       # Class methods
       class << self
+
         ##
         # Get all provider instances
         #
@@ -319,7 +324,7 @@ module RAAF
 
           @@class_mutex.synchronize do
             total_stats[:provider_count] = @@instances.size
-            
+
             @@instances.each do |provider|
               stats = provider.stats
               total_stats[:total_requests] += stats[:total_requests]
@@ -330,10 +335,10 @@ module RAAF
           end
 
           total_stats[:success_rate] = if total_stats[:total_requests] > 0
-                                        total_stats[:successful_requests].to_f / total_stats[:total_requests]
-                                      else
-                                        0.0
-                                      end
+                                         total_stats[:successful_requests].to_f / total_stats[:total_requests]
+                                       else
+                                         0.0
+                                       end
 
           total_stats
         end
@@ -366,17 +371,18 @@ module RAAF
             @@instances.sum { |provider| provider.responses.size }
           end
         end
+
       end
 
       private
 
       def extract_user_message(messages)
         return "" unless messages.is_a?(Array) && messages.any?
-        
+
         # Find the last user message
         user_message = messages.reverse.find { |m| m[:role] == "user" || m["role"] == "user" }
         return "" unless user_message
-        
+
         user_message[:content] || user_message["content"] || ""
       end
 
@@ -384,13 +390,13 @@ module RAAF
         # Check instance responses first
         matching_response = find_response_match(@responses, input)
         return matching_response if matching_response
-        
+
         # Check global responses (with synchronization)
         @@class_mutex.synchronize do
           matching_response = find_response_match(@@global_responses, input)
           return matching_response if matching_response
         end
-        
+
         # Return default response
         @default_response
       end
@@ -404,7 +410,7 @@ module RAAF
             return extract_response_content(response) if input.match?(pattern)
           end
         end
-        
+
         nil
       end
 
@@ -424,12 +430,10 @@ module RAAF
         input_tokens = estimate_tokens(user_message)
         output_tokens = estimate_tokens(content)
         total_tokens = input_tokens + output_tokens
-        
+
         # Update usage tracking
-        if @usage_tracking
-          @usage_stats[:total_tokens] += total_tokens
-        end
-        
+        @usage_stats[:total_tokens] += total_tokens if @usage_tracking
+
         # Build response structure
         response = {
           messages: [
@@ -448,50 +452,48 @@ module RAAF
             max_tokens: options[:max_tokens] || 1000
           }
         }
-        
+
         # Add any additional metadata from response config
-        if @responses.find { |k, v| v.is_a?(Hash) && v[:metadata] }
-          _, response_config = @responses.find { |k, v| v.is_a?(Hash) && v[:metadata] }
-          if response_config && response_config[:metadata]
-            response[:metadata].merge!(response_config[:metadata])
-          end
+        if @responses.find { |_k, v| v.is_a?(Hash) && v[:metadata] }
+          _, response_config = @responses.find { |_k, v| v.is_a?(Hash) && v[:metadata] }
+          response[:metadata].merge!(response_config[:metadata]) if response_config && response_config[:metadata]
         end
-        
+
         response
       end
 
       def estimate_tokens(text)
         # Simple token estimation (roughly 4 characters per token)
         return 0 if text.nil? || text.empty?
-        
+
         (text.length / 4.0).ceil
       end
 
       def calculate_success_rate
         return 0.0 if @usage_stats[:total_requests] == 0
-        
+
         @usage_stats[:successful_requests].to_f / @usage_stats[:total_requests]
       end
 
       def update_timing_stats(response_time)
         current_avg = @usage_stats[:average_response_time]
         request_count = @usage_stats[:total_requests]
-        
+
         # Calculate new average
         @usage_stats[:average_response_time] = if request_count == 1
-                                                response_time
-                                              else
-                                                (current_avg * (request_count - 1) + response_time) / request_count
-                                              end
+                                                 response_time
+                                               else
+                                                 ((current_avg * (request_count - 1)) + response_time) / request_count
+                                               end
       end
 
       def split_into_chunks(content, chunk_size = 10)
         return [content] if content.length <= chunk_size
-        
+
         chunks = []
         words = content.split
         current_chunk = []
-        
+
         words.each do |word|
           if current_chunk.join(" ").length + word.length + 1 <= chunk_size
             current_chunk << word
@@ -500,10 +502,13 @@ module RAAF
             current_chunk = [word]
           end
         end
-        
+
         chunks << current_chunk.join(" ") unless current_chunk.empty?
         chunks
       end
+
     end
+
   end
+
 end

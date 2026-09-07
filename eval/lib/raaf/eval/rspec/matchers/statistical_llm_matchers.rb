@@ -84,11 +84,13 @@ module RAAF
 
             failure_message do
               ci = @results[:confidence_interval]
-              "Expected bias-corrected accuracy above #{@threshold}, but got:\n" \
-                "  Point estimate: #{format('%.3f', @results[:bias_corrected_accuracy])}\n" \
-                "  #{((ci[:confidence_level]) * 100).round}% CI: [#{format('%.3f', ci[:lower])}, #{format('%.3f', ci[:upper])}]\n" \
-                "  Sensitivity: #{format('%.3f', @results[:calibration][:sensitivity])}\n" \
-                "  Specificity: #{format('%.3f', @results[:calibration][:specificity])}"
+              "Expected bias-corrected accuracy above #{@threshold}, but got:\n  " \
+                "Point estimate: #{format("%.3f", @results[:bias_corrected_accuracy])}\n  " \
+                "#{(ci[:confidence_level] * 100).round}% CI: [#{format("%.3f",
+                                                                       ci[:lower])}, #{format("%.3f",
+                                                                                              ci[:upper])}]\n  " \
+                "Sensitivity: #{format("%.3f", @results[:calibration][:sensitivity])}\n  " \
+                "Specificity: #{format("%.3f", @results[:calibration][:specificity])}"
             end
 
             description do
@@ -150,11 +152,11 @@ module RAAF
               new_ci = @new_results[:confidence_interval]
               baseline_ci = @baseline_results[:confidence_interval]
 
-              "Expected statistically significant improvement, but confidence intervals overlap:\n" \
-                "  New:      #{format('%.3f', @new_results[:bias_corrected_accuracy])} " \
-                "[#{format('%.3f', new_ci[:lower])}, #{format('%.3f', new_ci[:upper])}]\n" \
-                "  Baseline: #{format('%.3f', @baseline_results[:bias_corrected_accuracy])} " \
-                "[#{format('%.3f', baseline_ci[:lower])}, #{format('%.3f', baseline_ci[:upper])}]"
+              "Expected statistically significant improvement, but confidence intervals overlap:\n  " \
+                "New:      #{format("%.3f", @new_results[:bias_corrected_accuracy])} " \
+                "[#{format("%.3f", new_ci[:lower])}, #{format("%.3f", new_ci[:upper])}]\n  " \
+                "Baseline: #{format("%.3f", @baseline_results[:bias_corrected_accuracy])} " \
+                "[#{format("%.3f", baseline_ci[:lower])}, #{format("%.3f", baseline_ci[:upper])}]"
             end
           end
 
@@ -206,10 +208,10 @@ module RAAF
 
             failure_message do
               votes = @result[:individual_votes].map { |v| "#{v[:judge]}: #{v[:passed]}" }.join(", ")
-              "Expected consensus with agreement >= #{@min_agreement || 0.5}, but:\n" \
-                "  Consensus: #{@result[:consensus]}\n" \
-                "  Agreement rate: #{format('%.2f', @result[:agreement_rate])}\n" \
-                "  Votes: #{votes}"
+              "Expected consensus with agreement >= #{@min_agreement || 0.5}, but:\n  " \
+                "Consensus: #{@result[:consensus]}\n  " \
+                "Agreement rate: #{format("%.2f", @result[:agreement_rate])}\n  " \
+                "Votes: #{votes}"
             end
           end
 
@@ -261,10 +263,10 @@ module RAAF
             end
 
             failure_message do
-              "Position bias detected in comparison:\n" \
-                "  Forward result: #{@result[:forward_result][:prefers_first] ? 'prefers first' : 'prefers second'}\n" \
-                "  Reverse result: #{@result[:reverse_result][:prefers_first] ? 'prefers first' : 'prefers second'}\n" \
-                "  Results are inconsistent, indicating position bias"
+              "Position bias detected in comparison:\n  " \
+                "Forward result: #{@result[:forward_result][:prefers_first] ? "prefers first" : "prefers second"}\n  " \
+                "Reverse result: #{@result[:reverse_result][:prefers_first] ? "prefers first" : "prefers second"}\n  " \
+                "Results are inconsistent, indicating position bias"
             end
           end
 
@@ -314,10 +316,10 @@ module RAAF
             end
 
             failure_message do
-              "Expected judge to be consistent, but:\n" \
-                "  Agreement rate: #{format('%.2f', @result[:agreement_rate])}\n" \
-                "  Confidence variance: #{format('%.4f', @result[:confidence_variance])}\n" \
-                "  Passed ratio: #{format('%.2f', @result[:passed_ratio])}"
+              "Expected judge to be consistent, but:\n  " \
+                "Agreement rate: #{format("%.2f", @result[:agreement_rate])}\n  " \
+                "Confidence variance: #{format("%.4f", @result[:confidence_variance])}\n  " \
+                "Passed ratio: #{format("%.2f", @result[:passed_ratio])}"
             end
           end
 
@@ -356,9 +358,9 @@ module RAAF
               elsif !@judge.better_than_random?
                 "Judge is not better than random (sensitivity + specificity <= 1.0)"
               else
-                "Calibration quality below threshold:\n" \
-                  "  Sensitivity: #{format('%.3f', @judge.sensitivity)} (min: #{@min_sensitivity || 'none'})\n" \
-                  "  Specificity: #{format('%.3f', @judge.specificity)} (min: #{@min_specificity || 'none'})"
+                "Calibration quality below threshold:\n  " \
+                  "Sensitivity: #{format("%.3f", @judge.sensitivity)} (min: #{@min_sensitivity || "none"})\n  " \
+                  "Specificity: #{format("%.3f", @judge.specificity)} (min: #{@min_specificity || "none"})"
               end
             end
           end
@@ -386,10 +388,10 @@ module RAAF
             end
 
             failure_message do
-              "Length bias detected:\n" \
-                "  Correlation: #{format('%.3f', @analysis[:correlation])}\n" \
-                "  Direction: #{@analysis[:bias_direction]}\n" \
-                "  Strength: #{@analysis[:bias_strength]}"
+              "Length bias detected:\n  " \
+                "Correlation: #{format("%.3f", @analysis[:correlation])}\n  " \
+                "Direction: #{@analysis[:bias_direction]}\n  " \
+                "Strength: #{@analysis[:bias_strength]}"
             end
           end
 
@@ -435,11 +437,11 @@ module RAAF
             end
 
             failure_message do
-              "Inter-rater reliability below threshold:\n" \
-                "  Fleiss' Kappa: #{format('%.3f', @reliability[:fleiss_kappa])} " \
-                "(min: #{@min_kappa || 'none'})\n" \
-                "  Mean pairwise agreement: #{format('%.3f', @reliability[:mean_pairwise_agreement])} " \
-                "(min: #{@min_agreement || 'none'})"
+              "Inter-rater reliability below threshold:\n  " \
+                "Fleiss' Kappa: #{format("%.3f", @reliability[:fleiss_kappa])} " \
+                "(min: #{@min_kappa || "none"})\n  " \
+                "Mean pairwise agreement: #{format("%.3f", @reliability[:mean_pairwise_agreement])} " \
+                "(min: #{@min_agreement || "none"})"
             end
           end
         end

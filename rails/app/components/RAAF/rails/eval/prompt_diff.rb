@@ -29,12 +29,16 @@ module RAAF
             div(class: "bg-white shadow rounded-lg p-4") do
               h3(class: "text-sm font-medium text-gray-500 mb-2") { "Version #{@diff[:from][:version]}" }
               span(class: "text-xs text-gray-400") { "Model: #{@diff[:from][:model] || 'N/A'}" }
-              pre(class: "mt-2 bg-red-50 rounded p-3 text-sm text-gray-800 whitespace-pre-wrap overflow-x-auto") { @diff[:from][:content] }
+              pre(class: "mt-2 bg-red-50 rounded p-3 text-sm text-gray-800 whitespace-pre-wrap overflow-x-auto") do
+                @diff[:from][:content]
+              end
             end
             div(class: "bg-white shadow rounded-lg p-4") do
               h3(class: "text-sm font-medium text-gray-500 mb-2") { "Version #{@diff[:to][:version]}" }
               span(class: "text-xs text-gray-400") { "Model: #{@diff[:to][:model] || 'N/A'}" }
-              pre(class: "mt-2 bg-green-50 rounded p-3 text-sm text-gray-800 whitespace-pre-wrap overflow-x-auto") { @diff[:to][:content] }
+              pre(class: "mt-2 bg-green-50 rounded p-3 text-sm text-gray-800 whitespace-pre-wrap overflow-x-auto") do
+                @diff[:to][:content]
+              end
             end
           end
 

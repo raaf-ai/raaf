@@ -45,8 +45,8 @@ RSpec.describe "SearchAgent Simple Evaluation", :evaluation do
   it "maintains quality with higher temperature" do
     # Evaluate the span with modified temperature
     result = evaluate_span("span_123")
-      .with_configuration(temperature: 0.9)
-      .run
+             .with_configuration(temperature: 0.9)
+             .run
 
     # Assert quality is maintained
     expect(result).to maintain_quality.within(30).percent
@@ -57,8 +57,8 @@ RSpec.describe "SearchAgent Simple Evaluation", :evaluation do
 
   it "maintains quality with lower temperature" do
     result = evaluate_span("span_123")
-      .with_configuration(temperature: 0.3)
-      .run
+             .with_configuration(temperature: 0.3)
+             .run
 
     expect(result).to maintain_quality
     expect(result).to have_similar_output_to(:baseline)
@@ -66,6 +66,4 @@ RSpec.describe "SearchAgent Simple Evaluation", :evaluation do
 end
 
 # Run the example
-if __FILE__ == $PROGRAM_NAME
-  require "rspec/autorun"
-end
+require "rspec/autorun" if __FILE__ == $PROGRAM_NAME

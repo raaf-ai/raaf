@@ -71,9 +71,9 @@ module RAAF
           end
 
           deleted += RAAF::Eval::Models::ContinuousEvaluationResult
-            .where(evaluation_policy_id: [ nil ] + policies_without_retention_ids)
-            .where("created_at < ?", default_period.ago)
-            .delete_all
+                     .where(evaluation_policy_id: [nil] + policies_without_retention_ids)
+                     .where("created_at < ?", default_period.ago)
+                     .delete_all
 
           RAAF.logger.info "[ContinuousEval] Deleted #{deleted} evaluation results (per-policy retention_days, default #{default_period.inspect})"
           deleted
@@ -94,14 +94,15 @@ module RAAF
           end
 
           finished_deleted += RAAF::Eval::Models::EvaluationQueueItem
-            .where(evaluation_policy_id: [ nil ] + policies_without_retention_ids, status: %w[completed partial])
-            .where("completed_at < ?", retention[:queue_items_completed].ago)
-            .delete_all
+                              .where(evaluation_policy_id: [nil] + policies_without_retention_ids, status: %w[completed
+                                                                                                              partial])
+                              .where("completed_at < ?", retention[:queue_items_completed].ago)
+                              .delete_all
 
           failed_deleted = RAAF::Eval::Models::EvaluationQueueItem
-            .where(status: %w[failed cancelled])
-            .where("completed_at < ?", retention[:queue_items_failed].ago)
-            .delete_all
+                           .where(status: %w[failed cancelled])
+                           .where("completed_at < ?", retention[:queue_items_failed].ago)
+                           .delete_all
 
           total = finished_deleted + failed_deleted
           RAAF.logger.info "[ContinuousEval] Deleted #{total} queue items (#{finished_deleted} finished, #{failed_deleted} failed)"
@@ -123,12 +124,12 @@ module RAAF
 
         def policies_with_retention
           @policies_with_retention ||= RAAF::Eval::Models::EvaluationPolicy
-            .where.not(retention_days: nil).to_a
+                                       .where.not(retention_days: nil).to_a
         end
 
         def policies_without_retention_ids
           @policies_without_retention_ids ||= RAAF::Eval::Models::EvaluationPolicy
-            .where(retention_days: nil).pluck(:id)
+                                              .where(retention_days: nil).pluck(:id)
         end
 
         ##
@@ -147,9 +148,9 @@ module RAAF
           cutoff = retention_period.ago
 
           deleted = RAAF::Eval::Models::EvaluationAlert
-            .where(status: 'resolved')
-            .where("resolved_at < ?", cutoff)
-            .delete_all
+                    .where(status: "resolved")
+                    .where("resolved_at < ?", cutoff)
+                    .delete_all
 
           RAAF.logger.info "[ContinuousEval] Deleted #{deleted} resolved alerts older than #{retention_period.inspect}"
           deleted
@@ -168,25 +169,25 @@ module RAAF
           # Clean hourly metrics
           hourly_cutoff = retention[:metrics_hourly].ago
           hourly_deleted = RAAF::Eval::Models::EvaluationMetric
-            .where(period_type: 'hourly')
-            .where("period_start < ?", hourly_cutoff)
-            .delete_all
+                           .where(period_type: "hourly")
+                           .where("period_start < ?", hourly_cutoff)
+                           .delete_all
           total_deleted += hourly_deleted
 
           # Clean daily metrics
           daily_cutoff = retention[:metrics_daily].ago
           daily_deleted = RAAF::Eval::Models::EvaluationMetric
-            .where(period_type: 'daily')
-            .where("period_start < ?", daily_cutoff)
-            .delete_all
+                          .where(period_type: "daily")
+                          .where("period_start < ?", daily_cutoff)
+                          .delete_all
           total_deleted += daily_deleted
 
           # Clean weekly metrics
           weekly_cutoff = retention[:metrics_weekly].ago
           weekly_deleted = RAAF::Eval::Models::EvaluationMetric
-            .where(period_type: 'weekly')
-            .where("period_start < ?", weekly_cutoff)
-            .delete_all
+                           .where(period_type: "weekly")
+                           .where("period_start < ?", weekly_cutoff)
+                           .delete_all
           total_deleted += weekly_deleted
 
           RAAF.logger.info "[ContinuousEval] Deleted #{total_deleted} metrics (hourly: #{hourly_deleted}, daily: #{daily_deleted}, weekly: #{weekly_deleted})"

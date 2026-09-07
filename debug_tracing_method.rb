@@ -1,13 +1,14 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require_relative 'tracing/lib/raaf-tracing'
+require_relative "tracing/lib/raaf-tracing"
 
 puts "🔍 Testing tracing method discovery..."
 
 # Create a simple test class
 class TestAgent
   include RAAF::Tracing::Traceable
+
   trace_as :agent
 
   def initialize(name: "TestAgent")
@@ -43,10 +44,10 @@ begin
     "test result"
   end
   puts "🔍 with_tracing completed successfully"
-rescue => e
+rescue StandardError => e
   puts "❌ with_tracing failed: #{e.message}"
   puts "❌ Error class: #{e.class}"
-  puts "❌ Backtrace: #{e.backtrace.first(3).join(', ')}"
+  puts "❌ Backtrace: #{e.backtrace.first(3).join(", ")}"
 end
 
 puts "Done testing"

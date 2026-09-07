@@ -117,7 +117,7 @@ RSpec.describe RAAF::Models::HuggingFaceProvider do
 
     it "validates model format" do
       expect { provider.perform_chat_completion(messages: messages, model: "invalid-model") }
-        .to raise_error(ArgumentError, /must use format: org\/model-name/)
+        .to raise_error(ArgumentError, %r{must use format: org/model-name})
     end
 
     it "logs warning for unverified models" do
@@ -244,7 +244,7 @@ RSpec.describe RAAF::Models::HuggingFaceProvider do
 
     it "validates model format" do
       expect { provider.perform_stream_completion(messages: messages, model: "invalid") }
-        .to raise_error(ArgumentError, /must use format: org\/model-name/)
+        .to raise_error(ArgumentError, %r{must use format: org/model-name})
     end
 
     it "yields content chunks" do
@@ -332,7 +332,7 @@ RSpec.describe RAAF::Models::HuggingFaceProvider do
 
       it "rejects models without org prefix" do
         expect { provider.send(:validate_model, "just-model-name") }
-          .to raise_error(ArgumentError, /must use format: org\/model-name/)
+          .to raise_error(ArgumentError, %r{must use format: org/model-name})
       end
 
       it "logs warning for unverified models" do

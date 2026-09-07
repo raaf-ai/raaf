@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe "Results Browsing", type: :feature, js: true do
+RSpec.describe "Results Browsing", :js, type: :feature do
   # These tests verify the user workflow for browsing and analyzing
   # continuous evaluation results through the RAAF Rails dashboard UI.
 
@@ -320,7 +320,7 @@ RSpec.describe "Results Browsing", type: :feature, js: true do
         scores: { "accuracy" => 0.9, "completeness" => 0.85 },
         metrics: { "latency_ms" => 1500, "tokens" => 450, "cost" => 0.025 },
         reasoning: "Response demonstrates high accuracy with minor completeness gaps",
-        details: { "criteria_met" => ["factual", "coherent"], "criteria_missed" => ["exhaustive"] },
+        details: { "criteria_met" => %w[factual coherent], "criteria_missed" => ["exhaustive"] },
         evaluation_duration_ms: 2300
       )
     end

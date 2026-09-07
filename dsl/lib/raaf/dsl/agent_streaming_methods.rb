@@ -120,9 +120,7 @@ module RAAF
             )
 
             # Apply configuration block if provided
-            if block_given?
-              config.instance_eval(&block)
-            end
+            config.instance_eval(&block) if block_given?
 
             # Store configuration
             @_intelligent_streaming_config = config

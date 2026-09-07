@@ -23,7 +23,9 @@ RSpec.describe RAAF::Guardrails do
       end
 
       it "raises error for invalid guardrail function" do
-        expect { described_class.new("not_callable") }.to raise_error(ArgumentError, "Guardrail function must respond to :call")
+        expect do
+          described_class.new("not_callable")
+        end.to raise_error(ArgumentError, "Guardrail function must respond to :call")
       end
 
       it "generates name from function if not provided" do
@@ -70,7 +72,9 @@ RSpec.describe RAAF::Guardrails do
       end
 
       it "raises error for invalid guardrail function" do
-        expect { described_class.new("not_callable") }.to raise_error(ArgumentError, "Guardrail function must respond to :call")
+        expect do
+          described_class.new("not_callable")
+        end.to raise_error(ArgumentError, "Guardrail function must respond to :call")
       end
     end
 

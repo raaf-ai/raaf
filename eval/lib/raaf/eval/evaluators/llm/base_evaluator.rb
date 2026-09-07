@@ -82,10 +82,10 @@ module RAAF
                     "good_threshold (#{good}) must be > average_threshold (#{avg})"
             end
 
-            unless (0.0..1.0).cover?(good) && (0.0..1.0).cover?(avg)
-              raise ArgumentError,
-                    "Thresholds must be between 0.0 and 1.0, got good: #{good}, avg: #{avg}"
-            end
+            return if (0.0..1.0).cover?(good) && (0.0..1.0).cover?(avg)
+
+            raise ArgumentError,
+                  "Thresholds must be between 0.0 and 1.0, got good: #{good}, avg: #{avg}"
           end
 
           # Build standardized result hash with threshold metadata
@@ -124,6 +124,7 @@ module RAAF
           def label_from_score(score, good_threshold, average_threshold)
             return "good (≥#{good_threshold})" if score >= good_threshold
             return "average (≥#{average_threshold})" if score >= average_threshold
+
             "bad (<#{average_threshold})"
           end
         end

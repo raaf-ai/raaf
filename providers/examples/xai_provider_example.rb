@@ -314,7 +314,7 @@ schema = {
           description: "Overall assessment summary"
         }
       },
-      required: ["rating", "strengths", "improvements", "summary"],
+      required: %w[rating strengths improvements summary],
       additionalProperties: false
     }
   }
@@ -330,7 +330,7 @@ structured_response = provider.chat_completion(
 )
 
 puts "Structured output:"
-puts JSON.pretty_generate(JSON.parse(structured_response.dig('choices', 0, 'message', 'content')))
+puts JSON.pretty_generate(JSON.parse(structured_response.dig("choices", 0, "message", "content")))
 puts
 
 # ============================================================================

@@ -237,9 +237,8 @@ module RAAF
       # Use JsonRepair if enabled for fault-tolerant parsing
       if @json_repair
         repaired = RAAF::JsonRepair.repair(json_str)
-        unless repaired
-          raise Errors::ModelBehaviorError, "Unable to parse JSON even with repair: #{json_str}"
-        end
+        raise Errors::ModelBehaviorError, "Unable to parse JSON even with repair: #{json_str}" unless repaired
+
         # Convert back to JSON string for consistent parsing below
         json_str = repaired.is_a?(String) ? repaired : repaired.to_json
       end
@@ -248,9 +247,7 @@ module RAAF
         parsed = Utils.parse_json(json_str)
 
         # Apply schema validation with key normalization if enabled
-        if @normalize_keys && !plain_text?
-          parsed = apply_schema_normalization(parsed)
-        end
+        parsed = apply_schema_normalization(parsed) if @normalize_keys && !plain_text?
 
         if @is_wrapped
           raise Errors::ModelBehaviorError, "Expected a Hash, got #{parsed.class} for JSON: #{json_str}" unless parsed.is_a?(Hash)
@@ -275,15 +272,15 @@ module RAAF
     # Apply schema normalization using SchemaValidator if we have schema information
     def apply_schema_normalization(parsed)
       return parsed unless @normalize_keys
-      
+
       # Try to get JSON schema for key normalization
       schema_hash = json_schema_for_normalization
       return parsed unless schema_hash
-      
+
       # Use SchemaValidator to normalize keys
       validator = RAAF::SchemaValidator.new(schema_hash, mode: @validation_mode)
       validator.normalize_data_keys(parsed)
-    rescue StandardError => e
+    rescue StandardError
       # If normalization fails, log and return original data
       # This ensures we don't break existing functionality
       parsed
@@ -292,19 +289,18 @@ module RAAF
     # Extract a simplified JSON schema for key normalization
     def json_schema_for_normalization
       return nil if plain_text?
-      
+
       # For Hash types or structured outputs, try to extract schema properties
       if @output_type == Hash || @output_type.nil?
         # For generic Hash, we don't have specific field information
         # This could be enhanced to use response_format from Agent if available
         return nil
       end
-      
+
       # For custom classes, we could introspect to build a schema
       # For now, return nil to avoid complexity
       nil
     end
-
 
     def configure_schema
       if plain_text?
@@ -404,7 +400,7 @@ module RAAF
         klass.attributes.each do |name, type|
           properties[name.to_s] = type_to_json_schema(type)
         end
-      elsif klass.instance_methods.include?(:to_h)
+      elsif klass.method_defined?(:to_h)
         # Classes with to_h method
         begin
           instance = klass.new

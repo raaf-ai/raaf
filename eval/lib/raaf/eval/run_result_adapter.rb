@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'securerandom'
+require "securerandom"
 
 module RAAF
   module Eval
@@ -61,9 +61,9 @@ module RAAF
         def validate_input!(run_result)
           raise ArgumentError, "run_result cannot be nil" if run_result.nil?
 
-          unless run_result.is_a?(RAAF::RunResult)
-            raise ArgumentError, "Expected RAAF::RunResult, got #{run_result.class}"
-          end
+          return if run_result.is_a?(RAAF::RunResult)
+
+          raise ArgumentError, "Expected RAAF::RunResult, got #{run_result.class}"
         end
 
         ##
@@ -130,7 +130,7 @@ module RAAF
           # Extract parameters from agent instance
           params = {}
 
-          [:temperature, :max_tokens, :top_p, :frequency_penalty, :presence_penalty].each do |param|
+          %i[temperature max_tokens top_p frequency_penalty presence_penalty].each do |param|
             value = agent.instance_variable_get("@#{param}")
             params[param] = value if value
           end
@@ -197,7 +197,10 @@ module RAAF
 
           # Execution metadata
           metadata[:turns] = run_result.turns if run_result.turns
-          metadata[:tool_results] = run_result.tool_results if run_result.tool_results && !run_result.tool_results.empty?
+          if run_result.tool_results && !run_result.tool_results.empty?
+            metadata[:tool_results] =
+              run_result.tool_results
+          end
 
           # Compact to remove nil values
           metadata.compact

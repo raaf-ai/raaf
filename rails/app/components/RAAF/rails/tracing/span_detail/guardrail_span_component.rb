@@ -43,11 +43,11 @@ module RAAF
 
           def render_security_status_badge
             color_classes = case filter_status.to_s.downcase
-                           when "blocked", "denied" then "bg-red-100 text-red-800 border-red-200"
-                           when "allowed", "passed" then "bg-green-100 text-green-800 border-green-200"
-                           when "flagged", "warning" then "bg-yellow-100 text-yellow-800 border-yellow-200"
-                           else "bg-gray-100 text-gray-800 border-gray-200"
-                           end
+                            when "blocked", "denied" then "bg-red-100 text-red-800 border-red-200"
+                            when "allowed", "passed" then "bg-green-100 text-green-800 border-green-200"
+                            when "flagged", "warning" then "bg-yellow-100 text-yellow-800 border-yellow-200"
+                            else "bg-gray-100 text-gray-800 border-gray-200"
+                            end
 
             span(class: "px-3 py-1 text-sm font-medium rounded-full border #{color_classes}") do
               filter_status.to_s.titleize
@@ -119,11 +119,11 @@ module RAAF
             return unless status
 
             color_classes = case status.to_s.downcase
-                           when "pass", "allowed" then "bg-green-100 text-green-800"
-                           when "fail", "blocked" then "bg-red-100 text-red-800"
-                           when "warn", "flagged" then "bg-yellow-100 text-yellow-800"
-                           else "bg-gray-100 text-gray-800"
-                           end
+                            when "pass", "allowed" then "bg-green-100 text-green-800"
+                            when "fail", "blocked" then "bg-red-100 text-red-800"
+                            when "warn", "flagged" then "bg-yellow-100 text-yellow-800"
+                            else "bg-gray-100 text-gray-800"
+                            end
 
             span(class: "px-2 py-1 text-xs font-medium rounded #{color_classes}") do
               status.to_s.upcase
@@ -133,10 +133,10 @@ module RAAF
           def render_confidence_score(score)
             score_val = score.is_a?(Numeric) ? score : score.to_f
             color_classes = case score_val
-                           when 0.0..0.3 then "text-green-700"
-                           when 0.3..0.7 then "text-yellow-700"
-                           else "text-red-700"
-                           end
+                            when 0.0..0.3 then "text-green-700"
+                            when 0.3..0.7 then "text-yellow-700"
+                            else "text-red-700"
+                            end
 
             span(class: "font-mono text-sm #{color_classes}") do
               "#{(score_val * 100).round(1)}%"
@@ -183,7 +183,8 @@ module RAAF
 
           def render_blocked_content
             div(class: "bg-red-50 border border-red-200 rounded-lg shadow") do
-              render_collapsible_header("Blocked Content", "blocked-content", "bi-exclamation-triangle", expanded: false)
+              render_collapsible_header("Blocked Content", "blocked-content", "bi-exclamation-triangle",
+                                        expanded: false)
               div(id: "blocked-content-content", class: "p-4 border-t border-red-200 hidden") do
                 div(class: "bg-red-100 p-3 rounded border border-red-200 mb-3") do
                   p(class: "text-xs text-red-700 font-medium mb-2") { "⚠️ SENSITIVE CONTENT - Handle with care" }
@@ -252,7 +253,9 @@ module RAAF
                 when Numeric
                   span(class: "font-mono") { value.to_s }
                 when TrueClass, FalseClass
-                  span(class: "font-mono px-1 py-0.5 text-xs rounded #{value ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}") { value.to_s }
+                  span(class: "font-mono px-1 py-0.5 text-xs rounded #{value ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}") do
+                    value.to_s
+                  end
                 when Array
                   span(class: "text-gray-500 italic") { "Array (#{value.length} items)" }
                 when Hash
@@ -267,48 +270,48 @@ module RAAF
           # Data extraction methods
           def filter_name
             @filter_name ||= @span.span_attributes&.dig("guardrail", "filter_name") ||
-                            @span.span_attributes&.dig("filter", "name") ||
-                            @span.name ||
-                            "Unknown Filter"
+                             @span.span_attributes&.dig("filter", "name") ||
+                             @span.name ||
+                             "Unknown Filter"
           end
 
           def filter_status
             @filter_status ||= @span.span_attributes&.dig("guardrail", "status") ||
-                              @span.span_attributes&.dig("filter", "status") ||
-                              @span.status ||
-                              "unknown"
+                               @span.span_attributes&.dig("filter", "status") ||
+                               @span.status ||
+                               "unknown"
           end
 
           def filter_results
             @filter_results ||= @span.span_attributes&.dig("guardrail", "results") ||
-                               @span.span_attributes&.dig("filter", "results") ||
-                               @span.span_attributes&.dig("results") ||
-                               {}
+                                @span.span_attributes&.dig("filter", "results") ||
+                                @span.span_attributes&.dig("results") ||
+                                {}
           end
 
           def security_reasoning
             @security_reasoning ||= @span.span_attributes&.dig("guardrail", "reasoning") ||
-                                   @span.span_attributes&.dig("filter", "reasoning") ||
-                                   @span.span_attributes&.dig("security_reasoning") ||
-                                   @span.span_attributes&.dig("reasoning")
+                                    @span.span_attributes&.dig("filter", "reasoning") ||
+                                    @span.span_attributes&.dig("security_reasoning") ||
+                                    @span.span_attributes&.dig("reasoning")
           end
 
           def policy_applied
             @policy_applied ||= @span.span_attributes&.dig("guardrail", "policy") ||
-                               @span.span_attributes&.dig("policy") ||
-                               @span.span_attributes&.dig("security_policy")
+                                @span.span_attributes&.dig("policy") ||
+                                @span.span_attributes&.dig("security_policy")
           end
 
           def blocked_content
             @blocked_content ||= @span.span_attributes&.dig("guardrail", "blocked_content") ||
-                                @span.span_attributes&.dig("blocked_content") ||
-                                @span.span_attributes&.dig("filtered_content")
+                                 @span.span_attributes&.dig("blocked_content") ||
+                                 @span.span_attributes&.dig("filtered_content")
           end
 
           def debug_mode?
             @span.span_attributes&.dig("debug") == true ||
-            ENV["RAAF_DEBUG"] == "true" ||
-            ::Rails.env.development?
+              ENV["RAAF_DEBUG"] == "true" ||
+              ::Rails.env.development?
           end
 
           def format_json_display(data)
@@ -333,12 +336,14 @@ module RAAF
 
           def truncate(text, length: 100)
             return text unless text.is_a?(String) && text.length > length
+
             "#{text[0, length]}..."
           end
 
           def simple_format(text)
             return "" unless text.is_a?(String)
-            text.gsub(/\n/, "<br>").html_safe
+
+            text.gsub("\n", "<br>").html_safe
           end
         end
       end

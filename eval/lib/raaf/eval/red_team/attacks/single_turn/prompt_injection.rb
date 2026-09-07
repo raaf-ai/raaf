@@ -54,7 +54,7 @@ module RAAF
             end
 
             def deterministic?
-              false  # LLM-powered, non-deterministic
+              false # LLM-powered, non-deterministic
             end
 
             # Execute prompt injection attack

@@ -5,11 +5,11 @@ require "raaf/dsl/errors"
 
 RSpec.describe RAAF::DSL::ToolResolutionError do
   describe "#initialize" do
+    subject(:error) { described_class.new(identifier, searched_namespaces, suggestions) }
+
     let(:identifier) { :web_search }
     let(:searched_namespaces) { ["RAAF::Tools", "Ai::Tools", "RAAF::Tools::Basic"] }
     let(:suggestions) { ["Did you mean: :web_searcher?", "Did you mean: :search_web?", "Try: tool WebSearchTool"] }
-
-    subject(:error) { described_class.new(identifier, searched_namespaces, suggestions) }
 
     it "creates an error with the correct identifier" do
       expect(error.identifier).to eq(identifier)
@@ -118,23 +118,23 @@ RSpec.describe RAAF::DSL::ToolResolutionError do
     before do
       # Stub ToolRegistry to simulate resolution failure
       allow(RAAF::ToolRegistry).to receive(:resolve_with_details).and_return({
-        success: false,
-        identifier: :missing_tool,
-        searched_namespaces: ["RAAF::Tools", "Ai::Tools"],
-        suggestions: ["Did you mean: :existing_tool?"]
-      })
+                                                                               success: false,
+                                                                               identifier: :missing_tool,
+                                                                               searched_namespaces: ["RAAF::Tools", "Ai::Tools"],
+                                                                               suggestions: ["Did you mean: :existing_tool?"]
+                                                                             })
     end
 
     it "can be raised with data from ToolRegistry" do
       result = RAAF::ToolRegistry.resolve_with_details(:missing_tool)
 
-      expect {
+      expect do
         raise described_class.new(
           result[:identifier],
           result[:searched_namespaces],
           result[:suggestions]
         )
-      }.to raise_error(described_class) do |error|
+      end.to raise_error(described_class) do |error|
         expect(error.message).to include("❌ Tool not found: missing_tool")
         expect(error.message).to include("RAAF::Tools")
         expect(error.message).to include("Did you mean: :existing_tool?")

@@ -67,7 +67,7 @@ end
 token_avg_ms = (token_time.real * 1000) / iterations
 puts "Total time: #{(token_time.real * 1000).round(2)}ms"
 puts "Average per calculation: #{token_avg_ms.round(3)}ms"
-puts "Status: #{token_avg_ms < 10 ? '✓ PASS' : '✗ FAIL'} (target: <10ms)"
+puts "Status: #{token_avg_ms < 10 ? "✓ PASS" : "✗ FAIL"} (target: <10ms)"
 puts "Throughput: #{(iterations / token_time.real).round(2)} calculations/sec"
 
 # Show sample result
@@ -92,7 +92,7 @@ end
 latency_avg_ms = (latency_time.real * 1000) / iterations
 puts "Total time: #{(latency_time.real * 1000).round(2)}ms"
 puts "Average per calculation: #{latency_avg_ms.round(3)}ms"
-puts "Status: #{latency_avg_ms < 10 ? '✓ PASS' : '✗ FAIL'} (target: <10ms)"
+puts "Status: #{latency_avg_ms < 10 ? "✓ PASS" : "✗ FAIL"} (target: <10ms)"
 puts "Throughput: #{(iterations / latency_time.real).round(2)} calculations/sec"
 
 # Show sample result
@@ -117,7 +117,7 @@ end
 accuracy_avg_ms = (accuracy_time.real * 1000) / iterations
 puts "Total time: #{(accuracy_time.real * 1000).round(2)}ms"
 puts "Average per calculation: #{accuracy_avg_ms.round(3)}ms"
-puts "Status: #{accuracy_avg_ms < 50 ? '✓ PASS' : '✗ FAIL'} (target: <50ms)"
+puts "Status: #{accuracy_avg_ms < 50 ? "✓ PASS" : "✗ FAIL"} (target: <50ms)"
 puts "Throughput: #{(iterations / accuracy_time.real).round(2)} calculations/sec"
 
 # Show sample result
@@ -142,7 +142,7 @@ end
 structural_avg_ms = (structural_time.real * 1000) / iterations
 puts "Total time: #{(structural_time.real * 1000).round(2)}ms"
 puts "Average per calculation: #{structural_avg_ms.round(3)}ms"
-puts "Status: #{structural_avg_ms < 10 ? '✓ PASS' : '✗ FAIL'} (target: <10ms)"
+puts "Status: #{structural_avg_ms < 10 ? "✓ PASS" : "✗ FAIL"} (target: <10ms)"
 puts "Throughput: #{(iterations / structural_time.real).round(2)} calculations/sec"
 
 # Show sample result
@@ -159,8 +159,8 @@ puts "-" * 50
 statistical_analyzer = RAAF::Eval::Metrics::StatisticalAnalyzer.new
 
 # Create sample data for statistical analysis
-baseline_metrics = Array.new(30) { { tokens: 100 + rand(20), latency: 1500 + rand(500) } }
-result_metrics = Array.new(30) { { tokens: 95 + rand(15), latency: 1300 + rand(400) } }
+baseline_metrics = Array.new(30) { { tokens: rand(100..119), latency: rand(1500..1999) } }
+result_metrics = Array.new(30) { { tokens: rand(95..109), latency: rand(1300..1699) } }
 
 statistical_iterations = 100
 
@@ -173,14 +173,22 @@ end
 statistical_avg_ms = (statistical_time.real * 1000) / statistical_iterations
 puts "Total time: #{(statistical_time.real * 1000).round(2)}ms"
 puts "Average per analysis: #{statistical_avg_ms.round(3)}ms"
-puts "Status: #{statistical_avg_ms < 100 ? '✓ PASS' : '✗ FAIL'} (target: <100ms)"
+puts "Status: #{statistical_avg_ms < 100 ? "✓ PASS" : "✗ FAIL"} (target: <100ms)"
 puts "Throughput: #{(statistical_iterations / statistical_time.real).round(2)} analyses/sec"
 
 # Show sample result
 sample_result = statistical_analyzer.analyze(baseline_metrics, result_metrics)
 puts "\nSample result:"
-puts "  Token confidence interval: #{sample_result[:tokens][:confidence_interval]}" rescue puts "  (calculation pending)"
-puts "  Latency p-value: #{sample_result[:latency][:p_value]}" rescue puts "  (calculation pending)"
+begin
+  puts "  Token confidence interval: #{sample_result[:tokens][:confidence_interval]}"
+rescue StandardError
+  puts "  (calculation pending)"
+end
+begin
+  puts "  Latency p-value: #{sample_result[:latency][:p_value]}"
+rescue StandardError
+  puts "  (calculation pending)"
+end
 
 # Benchmark 6: All Metrics Combined
 puts "\n\nBenchmark 6: All Quantitative Metrics Combined"
@@ -200,7 +208,7 @@ end
 combined_avg_ms = (combined_time.real * 1000) / combined_iterations
 puts "Total time: #{(combined_time.real * 1000).round(2)}ms"
 puts "Average per full evaluation: #{combined_avg_ms.round(3)}ms"
-puts "Status: #{combined_avg_ms < 500 ? '✓ PASS' : '✗ FAIL'} (target: <500ms)"
+puts "Status: #{combined_avg_ms < 500 ? "✓ PASS" : "✗ FAIL"} (target: <500ms)"
 puts "Throughput: #{(combined_iterations / combined_time.real).round(2)} evaluations/sec"
 
 # Benchmark 7: Batch Metrics Calculation
@@ -228,7 +236,7 @@ batch_sizes.each do |size|
   puts "  Total time: #{total_ms.round(2)}ms"
   puts "  Average per evaluation: #{avg_ms.round(3)}ms"
   puts "  Throughput: #{(size / batch_time.real).round(2)} evaluations/sec"
-  puts "  Status: #{avg_ms < 500 ? '✓ PASS' : '✗ FAIL'}"
+  puts "  Status: #{avg_ms < 500 ? "✓ PASS" : "✗ FAIL"}"
 end
 
 # Benchmark 8: AI Comparator (Simulated)
@@ -247,9 +255,9 @@ simulated_api_latencies.each_with_index do |latency, idx|
   puts "  Run #{idx + 1}: #{total}ms (#{latency}ms API + #{overhead}ms overhead)"
 end
 
-avg_ai_latency = (simulated_api_latencies.sum + 50 * simulated_api_latencies.length) / simulated_api_latencies.length
+avg_ai_latency = (simulated_api_latencies.sum + (50 * simulated_api_latencies.length)) / simulated_api_latencies.length
 puts "\nAverage AI comparator time: #{avg_ai_latency}ms"
-puts "Status: #{avg_ai_latency < 5000 ? '✓ PASS' : '✗ FAIL'} (target: <5000ms)"
+puts "Status: #{avg_ai_latency < 5000 ? "✓ PASS" : "✗ FAIL"} (target: <5000ms)"
 
 # Benchmark 9: Custom Metrics
 puts "\n\nBenchmark 9: Custom Metrics"
@@ -283,7 +291,7 @@ end
 
 custom_avg_ms = (custom_time.real * 1000) / custom_iterations
 puts "Custom metric calculation time: #{custom_avg_ms.round(3)}ms"
-puts "Status: #{custom_avg_ms < 10 ? '✓ PASS' : '✗ FAIL'} (target: <10ms for simple metrics)"
+puts "Status: #{custom_avg_ms < 10 ? "✓ PASS" : "✗ FAIL"} (target: <10ms for simple metrics)"
 puts "Throughput: #{(custom_iterations / custom_time.real).round(2)} calculations/sec"
 
 # Performance Summary
@@ -314,4 +322,4 @@ puts "  - Monitor AI comparator costs and implement rate limiting if needed"
 
 # Check if all targets met
 all_passed = metrics_performance.values.all? { |data| data[:time] < data[:target] }
-puts "\n#{all_passed ? '✓' : '✗'} Overall: #{all_passed ? 'All performance targets met!' : 'Some targets not met'}"
+puts "\n#{all_passed ? "✓" : "✗"} Overall: #{all_passed ? "All performance targets met!" : "Some targets not met"}"

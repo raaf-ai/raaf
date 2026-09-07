@@ -3,8 +3,11 @@
 require_relative "base_collector"
 
 module RAAF
+
   module Tracing
+
     module SpanCollectors
+
       # Comprehensive collector for Core RAAF::Agent components that captures complete
       # dialog information, conversation flow, tool executions, and agent metadata.
       # This collector provides deep visibility into agent behavior and interactions.
@@ -49,6 +52,7 @@ module RAAF
       # @since 1.0.0
       # @author RAAF Team
       class AgentCollector < BaseCollector
+
         # Basic agent identification attributes - extracted directly from agent properties
         span :name, :model
 
@@ -59,7 +63,7 @@ module RAAF
 
         # Model settings - temperature, max_tokens, top_p, and other LLM parameters
         # Core Agent stores these as instance variables with accessor methods
-        span temperature: ->(comp) do
+        span temperature: lambda { |comp|
           if comp.respond_to?(:temperature)
             comp.temperature || "N/A"
           elsif comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
@@ -68,9 +72,9 @@ module RAAF
           else
             "N/A"
           end
-        end
+        }
 
-        span max_tokens: ->(comp) do
+        span max_tokens: lambda { |comp|
           if comp.respond_to?(:max_tokens)
             comp.max_tokens || "N/A"
           elsif comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
@@ -78,9 +82,9 @@ module RAAF
           else
             "N/A"
           end
-        end
+        }
 
-        span top_p: ->(comp) do
+        span top_p: lambda { |comp|
           if comp.respond_to?(:top_p)
             comp.top_p || "N/A"
           elsif comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
@@ -88,9 +92,9 @@ module RAAF
           else
             "N/A"
           end
-        end
+        }
 
-        span frequency_penalty: ->(comp) do
+        span frequency_penalty: lambda { |comp|
           if comp.respond_to?(:frequency_penalty)
             comp.frequency_penalty || "N/A"
           elsif comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
@@ -98,9 +102,9 @@ module RAAF
           else
             "N/A"
           end
-        end
+        }
 
-        span presence_penalty: ->(comp) do
+        span presence_penalty: lambda { |comp|
           if comp.respond_to?(:presence_penalty)
             comp.presence_penalty || "N/A"
           elsif comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
@@ -108,53 +112,57 @@ module RAAF
           else
             "N/A"
           end
-        end
+        }
 
-        span tool_choice: ->(comp) do
+        span tool_choice: lambda { |comp|
           if comp.respond_to?(:tool_choice) && comp.tool_choice
             comp.tool_choice.is_a?(Hash) ? JSON.generate(comp.tool_choice) : comp.tool_choice.to_s
           else
             "N/A"
           end
-        end
+        }
 
-        span parallel_tool_calls: ->(comp) do
+        span parallel_tool_calls: lambda { |comp|
           if comp.respond_to?(:model_settings) && comp.model_settings.respond_to?(:[])
             parallel = comp.model_settings[:parallel_tool_calls] || comp.model_settings["parallel_tool_calls"]
-            parallel.nil? ? "N/A" : (parallel ? "Enabled" : "Disabled")
+            if parallel.nil?
+              "N/A"
+            else
+              (parallel ? "Enabled" : "Disabled")
+            end
           else
             "N/A"
           end
-        end
+        }
 
-        span response_format: ->(comp) do
+        span response_format: lambda { |comp|
           if comp.respond_to?(:response_format) && comp.response_format
             comp.response_format.is_a?(Hash) ? JSON.generate(comp.response_format) : comp.response_format.to_s
           else
             "N/A"
           end
-        end
+        }
 
-        span model_settings_json: ->(comp) do
+        span model_settings_json: lambda { |comp|
           if comp.respond_to?(:model_settings) && comp.model_settings
             JSON.generate(comp.model_settings)
           else
             "{}"
           end
-        end
+        }
 
         # Workflow and execution context detection
-        span workflow_name: ->(comp) do
+        span workflow_name: lambda { |_comp|
           job_span = Thread.current[:raaf_job_span]
           job_span&.class&.name
-        end
+        }
 
         # DSL metadata extraction for agents with trace_metadata support
-        span dsl_metadata: ->(comp) do
+        span dsl_metadata: lambda { |comp|
           if comp.respond_to?(:trace_metadata) && comp.trace_metadata&.any?
             comp.trace_metadata.map { |k, v| "#{k}:#{v}" }.join(",")
           end
-        end
+        }
 
         # ============================================================================
         # STATIC AGENT CONFIGURATION
@@ -163,13 +171,13 @@ module RAAF
 
         # System instructions that define the agent's role and behavior
         # @return [String] The agent's system prompt or default message
-        span system_instructions: ->(comp) do
+        span system_instructions: lambda { |comp|
           if comp.respond_to?(:instructions) && comp.instructions
             comp.instructions.strip
           else
             "No system instructions"
           end
-        end
+        }
 
         # ============================================================================
         # DYNAMIC CONVERSATION DATA COLLECTION
@@ -184,7 +192,7 @@ module RAAF
         # @return [Hash] Result-specific attributes including conversation data
         def collect_result(component, result)
           # Start with base result attributes
-          attrs = super(component, result)
+          attrs = super
 
           # Extract conversation data from the RunResult (not the agent)
           if result
@@ -195,7 +203,8 @@ module RAAF
             # Initial user prompt that started the conversation
             user_message = messages.find { |msg| msg[:role] == "user" || msg["role"] == "user" }
             if user_message
-              attrs["#{component_prefix}.initial_user_prompt"] = user_message[:content] || user_message["content"] || "No content"
+              attrs["#{component_prefix}.initial_user_prompt"] =
+                user_message[:content] || user_message["content"] || "No content"
             else
               attrs["#{component_prefix}.initial_user_prompt"] = "No user message found"
             end
@@ -204,7 +213,8 @@ module RAAF
             assistant_messages = messages.select { |msg| (msg[:role] || msg["role"]) == "assistant" }
             if assistant_messages.any?
               last_response = assistant_messages.last
-              attrs["#{component_prefix}.final_agent_response"] = last_response[:content] || last_response["content"] || "No content"
+              attrs["#{component_prefix}.final_agent_response"] =
+                last_response[:content] || last_response["content"] || "No content"
             else
               attrs["#{component_prefix}.final_agent_response"] = "No agent response found"
             end
@@ -229,12 +239,12 @@ module RAAF
             attrs["#{component_prefix}.final_agent_response"] = "No result available"
             attrs["#{component_prefix}.tool_executions"] = "[]"
             attrs["#{component_prefix}.conversation_stats"] = JSON.generate({
-              total_messages: 0,
-              user_messages: 0,
-              assistant_messages: 0,
-              tool_calls: 0,
-              has_system_message: false
-            })
+                                                                              total_messages: 0,
+                                                                              user_messages: 0,
+                                                                              assistant_messages: 0,
+                                                                              tool_calls: 0,
+                                                                              has_system_message: false
+                                                                            })
           end
 
           attrs
@@ -272,20 +282,18 @@ module RAAF
           # Check if agent has last execution result
           if agent.respond_to?(:last_run_result) && agent.last_run_result
             result = agent.last_run_result
-            if result.respond_to?(:messages) && result.messages
-              messages = result.messages
-            end
+            messages = result.messages if result.respond_to?(:messages) && result.messages
           end
 
           # Fallback: Check for messages in instance variables
           if messages.empty?
-            [:@last_messages, :@messages, :@conversation, :@last_execution_messages].each do |var|
-              if agent.instance_variable_defined?(var)
-                potential_messages = agent.instance_variable_get(var)
-                if potential_messages.is_a?(Array) && potential_messages.any?
-                  messages = potential_messages
-                  break
-                end
+            %i[@last_messages @messages @conversation @last_execution_messages].each do |var|
+              next unless agent.instance_variable_defined?(var)
+
+              potential_messages = agent.instance_variable_get(var)
+              if potential_messages.is_a?(Array) && potential_messages.any?
+                messages = potential_messages
+                break
               end
             end
           end
@@ -293,8 +301,8 @@ module RAAF
           # Fallback: Check Thread.current for execution context
           if messages.empty?
             thread_messages = Thread.current[:agent_execution_messages] ||
-                            Thread.current[:current_conversation] ||
-                            Thread.current[:raaf_messages]
+                              Thread.current[:current_conversation] ||
+                              Thread.current[:raaf_messages]
             messages = thread_messages if thread_messages.is_a?(Array)
           end
 
@@ -334,20 +342,18 @@ module RAAF
           # Check if agent has last execution result with tool_results
           if agent.respond_to?(:last_run_result) && agent.last_run_result
             result = agent.last_run_result
-            if result.respond_to?(:tool_results) && result.tool_results
-              tool_data = result.tool_results
-            end
+            tool_data = result.tool_results if result.respond_to?(:tool_results) && result.tool_results
           end
 
           # Fallback: Check for tool data in instance variables
           if tool_data.empty?
-            [:@tool_results, :@last_tool_calls, :@tool_executions].each do |var|
-              if agent.instance_variable_defined?(var)
-                potential_tools = agent.instance_variable_get(var)
-                if potential_tools.is_a?(Array) && potential_tools.any?
-                  tool_data = potential_tools
-                  break
-                end
+            %i[@tool_results @last_tool_calls @tool_executions].each do |var|
+              next unless agent.instance_variable_defined?(var)
+
+              potential_tools = agent.instance_variable_get(var)
+              if potential_tools.is_a?(Array) && potential_tools.any?
+                tool_data = potential_tools
+                break
               end
             end
           end
@@ -369,13 +375,13 @@ module RAAF
               end
 
               # Check for tool responses
-              if (message[:role] || message["role"]) == "tool"
-                tool_data << {
-                  name: message[:name] || message["name"] || "unknown",
-                  result: message[:content] || message["content"] || "No result",
-                  tool_call_id: message[:tool_call_id] || message["tool_call_id"] || "unknown"
-                }
-              end
+              next unless (message[:role] || message["role"]) == "tool"
+
+              tool_data << {
+                name: message[:name] || message["name"] || "unknown",
+                result: message[:content] || message["content"] || "No result",
+                tool_call_id: message[:tool_call_id] || message["tool_call_id"] || "unknown"
+              }
             end
           end
 
@@ -411,9 +417,7 @@ module RAAF
           tool_data = []
 
           # Get tool results from RunResult
-          if result.respond_to?(:tool_results) && result.tool_results
-            tool_data.concat(Array(result.tool_results))
-          end
+          tool_data.concat(Array(result.tool_results)) if result.respond_to?(:tool_results) && result.tool_results
 
           # Also extract tool calls from messages
           if result.respond_to?(:messages) && result.messages
@@ -431,19 +435,23 @@ module RAAF
               end
 
               # Check for tool responses
-              if (message[:role] || message["role"]) == "tool"
-                tool_data << {
-                  name: message[:name] || message["name"] || "unknown",
-                  result: message[:content] || message["content"] || "No result",
-                  tool_call_id: message[:tool_call_id] || message["tool_call_id"] || "unknown"
-                }
-              end
+              next unless (message[:role] || message["role"]) == "tool"
+
+              tool_data << {
+                name: message[:name] || message["name"] || "unknown",
+                result: message[:content] || message["content"] || "No result",
+                tool_call_id: message[:tool_call_id] || message["tool_call_id"] || "unknown"
+              }
             end
           end
 
           tool_data
         end
+
       end
+
     end
+
   end
+
 end

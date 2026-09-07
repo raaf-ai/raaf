@@ -17,9 +17,9 @@ if defined?(Rails::Generators)
         run_generator ["TestAgent"]
 
         assert_file "app/ai/agents/test_agent.rb" do |content|
-          expect(content).to match(/class TestAgent < RAAF::DSL::Agents::Base/)
-          expect(content).to match(/agent_name "TestAgent"/)
-          expect(content).to match(/include RAAF::DSL::AgentDsl/)
+          expect(content).to include("class TestAgent < RAAF::DSL::Agents::Base")
+          expect(content).to include('agent_name "TestAgent"')
+          expect(content).to include("include RAAF::DSL::AgentDsl")
         end
       end
 
@@ -27,9 +27,9 @@ if defined?(Rails::Generators)
         run_generator ["TestAgent"]
 
         assert_file "app/ai/prompts/test_agent.rb" do |content|
-          expect(content).to match(/class TestAgent < RAAF::DSL::Prompts::Base/)
-          expect(content).to match(/def system/)
-          expect(content).to match(/def user/)
+          expect(content).to include("class TestAgent < RAAF::DSL::Prompts::Base")
+          expect(content).to include("def system")
+          expect(content).to include("def user")
         end
       end
 
@@ -37,13 +37,13 @@ if defined?(Rails::Generators)
         run_generator ["Content::AnalysisAgent"]
 
         assert_file "app/ai/agents/content/analysis_agent.rb" do |content|
-          expect(content).to match(/module Content/)
-          expect(content).to match(/class AnalysisAgent < RAAF::DSL::Agents::Base/)
+          expect(content).to include("module Content")
+          expect(content).to include("class AnalysisAgent < RAAF::DSL::Agents::Base")
         end
 
         assert_file "app/ai/prompts/content/analysis_agent.rb" do |content|
-          expect(content).to match(/module Content/)
-          expect(content).to match(/class AnalysisAgent < RAAF::DSL::Prompts::Base/)
+          expect(content).to include("module Content")
+          expect(content).to include("class AnalysisAgent < RAAF::DSL::Prompts::Base")
         end
       end
     end

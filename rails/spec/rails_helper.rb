@@ -5,7 +5,7 @@ require_relative "spec_helper"
 # Load Capybara for feature specs
 begin
   require "capybara/rspec"
-  require "capybara/rails" if defined?(::Rails)
+  require "capybara/rails" if defined?(Rails)
 rescue LoadError
   # Capybara not available in minimal test environments
 end
@@ -143,306 +143,296 @@ RSpec.configure do |config|
 end
 
 # Model aliases for specs (using mock models from spec_helper)
-EvaluationPolicy = Class.new(ActiveRecord::Base) do
-  class << self
-    attr_accessor :records
+unless defined?(EvaluationPolicy)
+  EvaluationPolicy = Class.new(ActiveRecord::Base) do
+    class << self
+      attr_accessor :records
 
-    def table_name
-      "raaf_evaluation_policies"
+      def table_name
+        "raaf_evaluation_policies"
+      end
+
+      def create!(attrs = {})
+        @records ||= []
+        record = new(attrs)
+        record.instance_variable_set(:@id, @records.length + 1)
+        record.instance_variable_set(:@created_at, Time.current)
+        record.instance_variable_set(:@updated_at, Time.current)
+        @records << record
+        record
+      end
+
+      def find(id)
+        @records&.find { |r| r.id == id.to_i }
+      end
+
+      def last
+        @records&.last
+      end
+
+      def all
+        @records || []
+      end
+
+      def count
+        @records&.length || 0
+      end
     end
 
-    def create!(attrs = {})
-      @records ||= []
-      record = new(attrs)
-      record.instance_variable_set(:@id, @records.length + 1)
-      record.instance_variable_set(:@created_at, Time.current)
-      record.instance_variable_set(:@updated_at, Time.current)
-      @records << record
-      record
+    attr_accessor :name, :description, :agent_name, :environment, :model_pattern, :version_pattern,
+                  :sampling_mode, :sample_rate, :sample_every_n, :max_daily_evaluations,
+                  :today_evaluation_count, :priority, :queue_name, :max_concurrent_evaluations,
+                  :max_retries, :retention_days, :retention_count, :evaluators, :metadata, :active
+
+    def initialize(attrs = {})
+      attrs.each { |k, v| send("#{k}=", v) if respond_to?("#{k}=") }
+      @active = true if @active.nil?
+      @evaluators ||= []
     end
 
-    def find(id)
-      @records&.find { |r| r.id == id.to_i }
-    end
+    attr_reader :id
 
-    def last
-      @records&.last
-    end
+    attr_reader :created_at
 
-    def all
-      @records || []
-    end
+    attr_reader :updated_at
 
-    def count
-      @records&.length || 0
-    end
-  end
-
-  attr_accessor :name, :description, :agent_name, :environment, :model_pattern, :version_pattern,
-                :sampling_mode, :sample_rate, :sample_every_n, :max_daily_evaluations,
-                :today_evaluation_count, :priority, :queue_name, :max_concurrent_evaluations,
-                :max_retries, :retention_days, :retention_count, :evaluators, :metadata, :active
-
-  def initialize(attrs = {})
-    attrs.each { |k, v| send("#{k}=", v) if respond_to?("#{k}=") }
-    @active = true if @active.nil?
-    @evaluators ||= []
-  end
-
-  def id
-    @id
-  end
-
-  def created_at
-    @created_at
-  end
-
-  def updated_at
-    @updated_at
-  end
-
-  def reload
-    self
-  end
-
-  def update!(attrs)
-    attrs.each { |k, v| send("#{k}=", v) if respond_to?("#{k}=") }
-    @updated_at = Time.current
-    true
-  end
-
-  def update(attrs)
-    update!(attrs)
-  rescue StandardError
-    false
-  end
-
-  def save!
-    @id ||= (self.class.records&.length || 0) + 1
-    @created_at ||= Time.current
-    @updated_at = Time.current
-    self.class.records ||= []
-    self.class.records << self unless self.class.records.include?(self)
-    true
-  end
-
-  def save
-    save!
-  rescue StandardError
-    false
-  end
-
-  def destroy
-    self.class.records&.delete(self)
-    true
-  end
-
-  def dup
-    self.class.new(
-      name: name,
-      description: description,
-      agent_name: agent_name,
-      environment: environment,
-      model_pattern: model_pattern,
-      version_pattern: version_pattern,
-      sampling_mode: sampling_mode,
-      sample_rate: sample_rate,
-      sample_every_n: sample_every_n,
-      max_daily_evaluations: max_daily_evaluations,
-      priority: priority,
-      queue_name: queue_name,
-      max_concurrent_evaluations: max_concurrent_evaluations,
-      max_retries: max_retries,
-      retention_days: retention_days,
-      retention_count: retention_count,
-      evaluators: evaluators&.dup,
-      metadata: metadata&.dup,
-      active: active
-    )
-  end
-
-  def evaluation_results
-    EvaluationResult.where(evaluation_policy_id: id)
-  end
-
-  def today_stats
-    { total: 10, passed: 8, failed: 2 }
-  end
-end unless defined?(EvaluationPolicy)
-
-EvaluationQueue = Class.new(ActiveRecord::Base) do
-  class << self
-    attr_accessor :records
-
-    def table_name
-      "raaf_evaluation_queue"
-    end
-
-    def create!(attrs = {})
-      @records ||= []
-      record = new(attrs)
-      record.instance_variable_set(:@id, @records.length + 1)
-      record.instance_variable_set(:@created_at, Time.current)
-      record.instance_variable_set(:@updated_at, Time.current)
-      @records << record
-      record
-    end
-
-    def find(id)
-      @records&.find { |r| r.id == id.to_i }
-    end
-
-    def all
-      @records || []
-    end
-
-    def count
-      @records&.length || 0
-    end
-  end
-
-  attr_accessor :evaluation_policy, :evaluation_policy_id, :span_id, :trace_id, :status,
-                :priority, :attempts, :max_attempts, :scheduled_at, :started_at,
-                :completed_at, :next_retry_at, :error_message, :error_class, :metadata
-
-  def initialize(attrs = {})
-    attrs.each { |k, v| send("#{k}=", v) if respond_to?("#{k}=") }
-    @status ||= 'pending'
-    @attempts ||= 0
-    @max_attempts ||= 3
-  end
-
-  def id
-    @id
-  end
-
-  def created_at
-    @created_at
-  end
-
-  def updated_at
-    @updated_at
-  end
-
-  def reload
-    self
-  end
-
-  def update!(attrs)
-    attrs.each { |k, v| send("#{k}=", v) if respond_to?("#{k}=") }
-    @updated_at = Time.current
-    true
-  end
-end unless defined?(EvaluationQueue)
-
-EvaluationResult = Class.new(ActiveRecord::Base) do
-  class << self
-    attr_accessor :records
-
-    def table_name
-      "raaf_evaluation_results"
-    end
-
-    def create!(attrs = {})
-      @records ||= []
-      record = new(attrs)
-      record.instance_variable_set(:@id, @records.length + 1)
-      record.instance_variable_set(:@created_at, Time.current)
-      @records << record
-      record
-    end
-
-    def find(id)
-      @records&.find { |r| r.id == id.to_i }
-    end
-
-    def all
-      @records || []
-    end
-
-    def count
-      @records&.length || 0
-    end
-
-    def average(_field)
-      0.85
-    end
-
-    def distinct
+    def reload
       self
     end
 
-    def pluck(field)
-      @records&.map { |r| r.send(field) }&.compact&.uniq || []
+    def update!(attrs)
+      attrs.each { |k, v| send("#{k}=", v) if respond_to?("#{k}=") }
+      @updated_at = Time.current
+      true
     end
 
-    def first
-      @records&.first
-    end
-  end
-
-  attr_accessor :evaluation_queue, :evaluation_policy, :evaluation_policy_id, :span_id, :trace_id,
-                :agent_name, :model, :provider, :environment, :evaluator_name, :evaluator_type,
-                :evaluator_version, :status, :score, :scores, :metrics, :reasoning, :details,
-                :evaluation_duration_ms
-
-  def initialize(attrs = {})
-    attrs.each { |k, v| send("#{k}=", v) if respond_to?("#{k}=") }
-    @status ||= 'passed'
-  end
-
-  def id
-    @id
-  end
-
-  def created_at
-    @created_at
-  end
-end unless defined?(EvaluationResult)
-
-EvaluationMetric = Class.new(ActiveRecord::Base) do
-  class << self
-    attr_accessor :records
-
-    def table_name
-      "raaf_evaluation_metrics"
+    def update(attrs)
+      update!(attrs)
+    rescue StandardError
+      false
     end
 
-    def create!(attrs = {})
-      @records ||= []
-      record = new(attrs)
-      record.instance_variable_set(:@id, @records.length + 1)
-      @records << record
-      record
+    def save!
+      @id ||= (self.class.records&.length || 0) + 1
+      @created_at ||= Time.current
+      @updated_at = Time.current
+      self.class.records ||= []
+      self.class.records << self unless self.class.records.include?(self)
+      true
     end
 
-    def find(id)
-      @records&.find { |r| r.id == id.to_i }
+    def save
+      save!
+    rescue StandardError
+      false
     end
 
-    def all
-      @records || []
+    def destroy
+      self.class.records&.delete(self)
+      true
+    end
+
+    def dup
+      self.class.new(
+        name: name,
+        description: description,
+        agent_name: agent_name,
+        environment: environment,
+        model_pattern: model_pattern,
+        version_pattern: version_pattern,
+        sampling_mode: sampling_mode,
+        sample_rate: sample_rate,
+        sample_every_n: sample_every_n,
+        max_daily_evaluations: max_daily_evaluations,
+        priority: priority,
+        queue_name: queue_name,
+        max_concurrent_evaluations: max_concurrent_evaluations,
+        max_retries: max_retries,
+        retention_days: retention_days,
+        retention_count: retention_count,
+        evaluators: evaluators&.dup,
+        metadata: metadata&.dup,
+        active: active
+      )
+    end
+
+    def evaluation_results
+      EvaluationResult.where(evaluation_policy_id: id)
+    end
+
+    def today_stats
+      { total: 10, passed: 8, failed: 2 }
     end
   end
+end
 
-  attr_accessor :agent_name, :environment, :model, :evaluator_name, :period_type,
-                :period_start, :period_end, :total_evaluations, :passed_count, :failed_count,
-                :warning_count, :error_count, :avg_score, :min_score, :max_score,
-                :stddev_score, :p50_score, :p90_score, :p95_score, :score_distribution,
-                :avg_evaluation_duration_ms, :total_evaluation_cost, :additional_metrics
+unless defined?(EvaluationQueue)
+  EvaluationQueue = Class.new(ActiveRecord::Base) do
+    class << self
+      attr_accessor :records
 
-  def initialize(attrs = {})
-    attrs.each { |k, v| send("#{k}=", v) if respond_to?("#{k}=") }
+      def table_name
+        "raaf_evaluation_queue"
+      end
+
+      def create!(attrs = {})
+        @records ||= []
+        record = new(attrs)
+        record.instance_variable_set(:@id, @records.length + 1)
+        record.instance_variable_set(:@created_at, Time.current)
+        record.instance_variable_set(:@updated_at, Time.current)
+        @records << record
+        record
+      end
+
+      def find(id)
+        @records&.find { |r| r.id == id.to_i }
+      end
+
+      def all
+        @records || []
+      end
+
+      def count
+        @records&.length || 0
+      end
+    end
+
+    attr_accessor :evaluation_policy, :evaluation_policy_id, :span_id, :trace_id, :status,
+                  :priority, :attempts, :max_attempts, :scheduled_at, :started_at,
+                  :completed_at, :next_retry_at, :error_message, :error_class, :metadata
+
+    def initialize(attrs = {})
+      attrs.each { |k, v| send("#{k}=", v) if respond_to?("#{k}=") }
+      @status ||= "pending"
+      @attempts ||= 0
+      @max_attempts ||= 3
+    end
+
+    attr_reader :id
+
+    attr_reader :created_at
+
+    attr_reader :updated_at
+
+    def reload
+      self
+    end
+
+    def update!(attrs)
+      attrs.each { |k, v| send("#{k}=", v) if respond_to?("#{k}=") }
+      @updated_at = Time.current
+      true
+    end
   end
+end
 
-  def id
-    @id
+unless defined?(EvaluationResult)
+  EvaluationResult = Class.new(ActiveRecord::Base) do
+    class << self
+      attr_accessor :records
+
+      def table_name
+        "raaf_evaluation_results"
+      end
+
+      def create!(attrs = {})
+        @records ||= []
+        record = new(attrs)
+        record.instance_variable_set(:@id, @records.length + 1)
+        record.instance_variable_set(:@created_at, Time.current)
+        @records << record
+        record
+      end
+
+      def find(id)
+        @records&.find { |r| r.id == id.to_i }
+      end
+
+      def all
+        @records || []
+      end
+
+      def count
+        @records&.length || 0
+      end
+
+      def average(_field)
+        0.85
+      end
+
+      def distinct
+        self
+      end
+
+      def pluck(field)
+        @records&.map { |r| r.send(field) }&.compact&.uniq || []
+      end
+
+      def first
+        @records&.first
+      end
+    end
+
+    attr_accessor :evaluation_queue, :evaluation_policy, :evaluation_policy_id, :span_id, :trace_id,
+                  :agent_name, :model, :provider, :environment, :evaluator_name, :evaluator_type,
+                  :evaluator_version, :status, :score, :scores, :metrics, :reasoning, :details,
+                  :evaluation_duration_ms
+
+    def initialize(attrs = {})
+      attrs.each { |k, v| send("#{k}=", v) if respond_to?("#{k}=") }
+      @status ||= "passed"
+    end
+
+    attr_reader :id
+
+    attr_reader :created_at
   end
-end unless defined?(EvaluationMetric)
+end
+
+unless defined?(EvaluationMetric)
+  EvaluationMetric = Class.new(ActiveRecord::Base) do
+    class << self
+      attr_accessor :records
+
+      def table_name
+        "raaf_evaluation_metrics"
+      end
+
+      def create!(attrs = {})
+        @records ||= []
+        record = new(attrs)
+        record.instance_variable_set(:@id, @records.length + 1)
+        @records << record
+        record
+      end
+
+      def find(id)
+        @records&.find { |r| r.id == id.to_i }
+      end
+
+      def all
+        @records || []
+      end
+    end
+
+    attr_accessor :agent_name, :environment, :model, :evaluator_name, :period_type,
+                  :period_start, :period_end, :total_evaluations, :passed_count, :failed_count,
+                  :warning_count, :error_count, :avg_score, :min_score, :max_score,
+                  :stddev_score, :p50_score, :p90_score, :p95_score, :score_distribution,
+                  :avg_evaluation_duration_ms, :total_evaluation_cost, :additional_metrics
+
+    def initialize(attrs = {})
+      attrs.each { |k, v| send("#{k}=", v) if respond_to?("#{k}=") }
+    end
+
+    attr_reader :id
+  end
+end
 
 # Clear records between tests
 RSpec.configure do |config|
-  config.before(:each) do
+  config.before do
     EvaluationPolicy.records = []
     EvaluationQueue.records = []
     EvaluationResult.records = []

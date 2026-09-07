@@ -39,9 +39,7 @@ module RAAF
         def check(output, check_prompt)
           cache_key = generate_cache_key("check", output, check_prompt)
 
-          if @cache_enabled && @cache.key?(cache_key)
-            return @cache[cache_key]
-          end
+          return @cache[cache_key] if @cache_enabled && @cache.key?(cache_key)
 
           result = execute_check(output, check_prompt)
 
@@ -65,9 +63,7 @@ module RAAF
         def check_criteria(output, criteria)
           cache_key = generate_cache_key("criteria", output, criteria.to_s)
 
-          if @cache_enabled && @cache.key?(cache_key)
-            return @cache[cache_key]
-          end
+          return @cache[cache_key] if @cache_enabled && @cache.key?(cache_key)
 
           result = execute_criteria_check(output, criteria)
 
@@ -91,9 +87,7 @@ module RAAF
         def judge_single(output, prompt)
           cache_key = generate_cache_key("judge_single", output, prompt)
 
-          if @cache_enabled && @cache.key?(cache_key)
-            return @cache[cache_key]
-          end
+          return @cache[cache_key] if @cache_enabled && @cache.key?(cache_key)
 
           result = execute_judgment(output, nil, prompt)
 
@@ -117,9 +111,7 @@ module RAAF
         def judge(output, target, prompt)
           cache_key = generate_cache_key("judge", output, target, prompt)
 
-          if @cache_enabled && @cache.key?(cache_key)
-            return @cache[cache_key]
-          end
+          return @cache[cache_key] if @cache_enabled && @cache.key?(cache_key)
 
           result = execute_judgment(output, target, prompt)
 
@@ -227,7 +219,7 @@ module RAAF
           begin
             result = runner.run(prompt, temperature: @temperature)
             result.messages.last[:content]
-          rescue StandardError => e
+          rescue StandardError
             attempts += 1
             retry if attempts <= @retry_count
             raise

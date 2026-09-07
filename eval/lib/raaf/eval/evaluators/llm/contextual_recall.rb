@@ -24,7 +24,7 @@ module RAAF
 
           DEFAULT_GOOD_THRESHOLD = 0.75
           DEFAULT_AVERAGE_THRESHOLD = 0.50
-          RELEVANCE_THRESHOLD = 0.60  # Threshold for considering a document relevant
+          RELEVANCE_THRESHOLD = 0.60 # Threshold for considering a document relevant
 
           ##
           # Evaluate contextual recall
@@ -49,7 +49,10 @@ module RAAF
             # Validate required fields
             raise ArgumentError, "Query cannot be empty" if query.nil? || query.strip.empty?
             raise ArgumentError, "Retrieved context cannot be empty" if retrieved_docs.nil? || retrieved_docs.empty?
-            raise ArgumentError, "Available/ground truth context cannot be empty" if available_docs.nil? || available_docs.empty?
+            if available_docs.nil? || available_docs.empty?
+              raise ArgumentError,
+                    "Available/ground truth context cannot be empty"
+            end
 
             # Perform recall calculation
             score, reasoning, doc_analysis = calculate_recall(
@@ -62,24 +65,23 @@ module RAAF
 
             # Determine label based on score
             label = calculate_label(score,
-                                   good_threshold: good_threshold,
-                                   average_threshold: average_threshold)
+                                    good_threshold: good_threshold,
+                                    average_threshold: average_threshold)
 
             # Build result hash
             build_result(score, label, good_threshold, average_threshold,
-              evaluated_field: field_context.field_name.to_sym,
-              method: "contextual_recall",
-              query: query,
-              retrieved_count: doc_analysis[:retrieved_count],
-              available_count: doc_analysis[:available_count],
-              relevant_count: doc_analysis[:relevant_count],
-              retrieved_relevant_count: doc_analysis[:retrieved_relevant_count],
-              missed_relevant_count: doc_analysis[:missed_relevant_count],
-              document_analysis: doc_analysis[:documents],
-              recall_reasoning: reasoning,
-              relevance_threshold: relevance_threshold,
-              evaluation_note: recall_note(score, good_threshold, average_threshold)
-            )
+                         evaluated_field: field_context.field_name.to_sym,
+                         method: "contextual_recall",
+                         query: query,
+                         retrieved_count: doc_analysis[:retrieved_count],
+                         available_count: doc_analysis[:available_count],
+                         relevant_count: doc_analysis[:relevant_count],
+                         retrieved_relevant_count: doc_analysis[:retrieved_relevant_count],
+                         missed_relevant_count: doc_analysis[:missed_relevant_count],
+                         document_analysis: doc_analysis[:documents],
+                         recall_reasoning: reasoning,
+                         relevance_threshold: relevance_threshold,
+                         evaluation_note: recall_note(score, good_threshold, average_threshold))
           end
 
           private
@@ -94,8 +96,6 @@ module RAAF
               value[:query] || value["query"] || value[:input] || value["input"]
             when String
               field_context.field_name.to_s == "query" ? value : nil
-            else
-              nil
             end
           end
 
@@ -114,8 +114,6 @@ module RAAF
               value.map { |doc| extract_document_content(doc) }
             when String
               field_context.field_name.to_s == "retrieved_context" ? [value] : nil
-            else
-              nil
             end
           end
 
@@ -145,8 +143,6 @@ module RAAF
               docs.empty? ? [context.strip] : docs
             when Hash
               [extract_document_content(context)]
-            else
-              nil
             end
           end
 
@@ -278,16 +274,16 @@ module RAAF
 
             reasoning += "Document Analysis:\n"
             doc_analysis[:documents].each do |doc|
-              case doc[:status]
-              when "retrieved_relevant"
-                reasoning += "  ✓ RETRIEVED & RELEVANT (Doc #{doc[:index] + 1}): #{doc[:relevance_score]}\n"
-              when "missed_relevant"
-                reasoning += "  ✗ MISSED & RELEVANT (Doc #{doc[:index] + 1}): #{doc[:relevance_score]}\n"
-              when "retrieved_irrelevant"
-                reasoning += "  ⚠ RETRIEVED & IRRELEVANT (Doc #{doc[:index] + 1}): #{doc[:relevance_score]}\n"
-              else
-                reasoning += "  - NOT RETRIEVED & IRRELEVANT (Doc #{doc[:index] + 1}): #{doc[:relevance_score]}\n"
-              end
+              reasoning += case doc[:status]
+                           when "retrieved_relevant"
+                             "  ✓ RETRIEVED & RELEVANT (Doc #{doc[:index] + 1}): #{doc[:relevance_score]}\n"
+                           when "missed_relevant"
+                             "  ✗ MISSED & RELEVANT (Doc #{doc[:index] + 1}): #{doc[:relevance_score]}\n"
+                           when "retrieved_irrelevant"
+                             "  ⚠ RETRIEVED & IRRELEVANT (Doc #{doc[:index] + 1}): #{doc[:relevance_score]}\n"
+                           else
+                             "  - NOT RETRIEVED & IRRELEVANT (Doc #{doc[:index] + 1}): #{doc[:relevance_score]}\n"
+                           end
               reasoning += "    \"#{doc[:content]}...\"\n"
             end
 

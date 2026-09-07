@@ -29,6 +29,7 @@ RSpec.describe RAAF::RetryHandler do
       result = handler.with_retry(:test_operation) do
         attempts += 1
         raise Net::ReadTimeout, "timeout" if attempts < 3
+
         "success"
       end
 
@@ -153,6 +154,7 @@ RSpec.describe RAAF::RetryHandler do
         handler.with_retry(:test_operation) do
           attempts += 1
           raise Net::ReadTimeout, "timeout" if attempts < 2
+
           "success"
         end
       end
@@ -164,14 +166,22 @@ RSpec.describe RAAF::RetryHandler do
 
     it "tracks failures by error type" do
       # Rate limit error
-      handler.with_retry(:test_operation) do
-        raise StandardError, "Rate limit exceeded"
-      end rescue nil
+      begin
+        handler.with_retry(:test_operation) do
+          raise StandardError, "Rate limit exceeded"
+        end
+      rescue StandardError
+        nil
+      end
 
       # Timeout error
-      handler.with_retry(:test_operation) do
-        raise StandardError, "Connection timeout"
-      end rescue nil
+      begin
+        handler.with_retry(:test_operation) do
+          raise StandardError, "Connection timeout"
+        end
+      rescue StandardError
+        nil
+      end
 
       stats = handler.retry_stats
       expect(stats[:by_error_type][:rate_limit]).to be > 0
@@ -185,9 +195,13 @@ RSpec.describe RAAF::RetryHandler do
       end
 
       # 1 failed operation (all retries exhausted)
-      handler.with_retry(:test_operation) do
-        raise Net::ReadTimeout, "timeout"
-      end rescue nil
+      begin
+        handler.with_retry(:test_operation) do
+          raise Net::ReadTimeout, "timeout"
+        end
+      rescue StandardError
+        nil
+      end
 
       stats = handler.retry_stats
       # Failure rate should be proportional
@@ -203,6 +217,7 @@ RSpec.describe RAAF::RetryHandler do
           handler.with_retry("operation_#{i}") do
             attempts += 1
             raise Net::ReadTimeout, "timeout" if attempts < 2
+
             "success"
           end
         end

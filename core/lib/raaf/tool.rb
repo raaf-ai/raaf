@@ -9,13 +9,14 @@ end
 # ToolRegistry is now in raaf-dsl gem
 # Try to require from raaf-dsl first, then fall back to local location for backward compatibility
 begin
-  require "raaf/tool_registry"  # raaf-dsl location
+  require "raaf/tool_registry" # raaf-dsl location
 rescue LoadError
   # Fall back to local location if raaf-dsl not available
   require_relative "tool_registry"
 end
 
 module RAAF
+
   # Unified base class for all RAAF tools
   #
   # This class provides the foundation for all tools in the RAAF framework,
@@ -33,16 +34,18 @@ module RAAF
   # @example Tool with configuration
   #   class SearchTool < RAAF::Tool
   #     configure name: "web_search", description: "Search the web"
-  #     
+  #
   #     def call(query:, max_results: 10)
   #       # Search implementation
   #     end
   #   end
   #
   class Tool
+
     include RAAF::Logger
 
     class << self
+
       # Configure tool-level settings
       #
       # @param name [String] Explicit tool name
@@ -57,8 +60,8 @@ module RAAF
       # Define parameters explicitly
       #
       # @yield Block for parameter definition
-      def parameters(&block)
-        @parameter_builder = ParameterBuilder.new(&block)
+      def parameters(&)
+        @parameter_builder = ParameterBuilder.new(&)
       end
 
       # Hook called when a class inherits from Tool
@@ -87,13 +90,11 @@ module RAAF
 
       # Check if tool is enabled by default
       def tool_enabled?
-        @configured_enabled.nil? ? true : @configured_enabled
+        @configured_enabled.nil? || @configured_enabled
       end
 
       # Get parameter builder if defined
-      def parameter_builder
-        @parameter_builder
-      end
+      attr_reader :parameter_builder
 
       private
 
@@ -114,11 +115,12 @@ module RAAF
         class_name = name.split("::").last.gsub(/Tool$/, "")
         # Convert to human-readable format
         words = class_name
-          .gsub(/([A-Z]+)([A-Z][a-z])/, '\1 \2')
-          .gsub(/([a-z\d])([A-Z])/, '\1 \2')
-          .downcase
+                .gsub(/([A-Z]+)([A-Z][a-z])/, '\1 \2')
+                .gsub(/([a-z\d])([A-Z])/, '\1 \2')
+                .downcase
         "Tool for #{words} operations"
       end
+
     end
 
     # Initialize a new tool instance
@@ -160,6 +162,7 @@ module RAAF
     # @return [Boolean] Whether tool is enabled
     def enabled?
       return @options[:enabled] if @options.key?(:enabled)
+
       self.class.tool_enabled?
     end
 
@@ -182,7 +185,7 @@ module RAAF
     # @return [FunctionTool] Compatible FunctionTool instance
     def to_function_tool
       log_debug_tools("Converting to FunctionTool", tool_name: name)
-      
+
       FunctionTool.new(
         method(:call),
         name: name,
@@ -211,9 +214,7 @@ module RAAF
     # Build parameter schema from method signature or explicit definition
     def build_parameters
       # Use explicit parameters if defined
-      if self.class.parameter_builder
-        return self.class.parameter_builder.build
-      end
+      return self.class.parameter_builder.build if self.class.parameter_builder
 
       # Extract from method signature
       extract_parameters_from_method
@@ -240,12 +241,12 @@ module RAAF
             type: infer_type(name),
             description: "#{name} parameter"
           }
-          
+
           # Try to get default value
           begin
             # This is a simplified approach; getting actual defaults requires more work
             properties[name][:description] += " (optional)"
-          rescue
+          rescue StandardError
             # Ignore errors in getting defaults
           end
         end
@@ -275,10 +276,11 @@ module RAAF
 
     # Parameter builder for explicit parameter definition
     class ParameterBuilder
-      def initialize(&block)
+
+      def initialize(&)
         @properties = {}
         @required = []
-        instance_eval(&block) if block_given?
+        instance_eval(&) if block_given?
       end
 
       def property(name, type: "string", description: nil, enum: nil, **options)
@@ -301,6 +303,9 @@ module RAAF
           additionalProperties: false
         }
       end
+
     end
+
   end
+
 end

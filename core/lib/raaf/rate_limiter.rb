@@ -3,6 +3,7 @@
 require "concurrent"
 
 module RAAF
+
   # RateLimiter - Shared rate limiting across all RAAF agents and providers
   #
   # Prevents concurrent agents from exceeding provider rate limits by implementing
@@ -31,6 +32,7 @@ module RAAF
   #   )
   #
   class RateLimiter
+
     include RAAF::Logger
 
     # Provider-specific rate limits (free tier defaults)
@@ -83,9 +85,7 @@ module RAAF
         elapsed = Time.now - start_time
         remaining_time = max_wait_seconds - elapsed
 
-        if remaining_time <= 0
-          raise "Rate limit acquisition timeout after #{elapsed.round(1)}s for #{provider}"
-        end
+        raise "Rate limit acquisition timeout after #{elapsed.round(1)}s for #{provider}" if remaining_time <= 0
 
         wait_time = calculate_wait_time
         # Don't sleep longer than our remaining time budget
@@ -185,6 +185,7 @@ module RAAF
 
     # Memory-based storage backend (default)
     class MemoryStorage
+
       def initialize
         @cache = Concurrent::Map.new
       end
@@ -197,13 +198,13 @@ module RAAF
         @cache[key] = value
       end
 
-      def delete(key)
-        @cache.delete(key)
-      end
+      delegate :delete, to: :@cache
+
     end
 
     # Redis-based storage backend (for distributed rate limiting)
     class RedisStorage
+
       def initialize(redis: nil)
         require "redis"
         @redis = redis || Redis.new
@@ -222,25 +223,28 @@ module RAAF
       def delete(key)
         @redis.del(key)
       end
+
     end
 
     # Rails.cache-based storage backend
     class RailsCacheStorage
+
       def initialize(cache: nil)
         @cache = cache || (defined?(Rails) ? Rails.cache : raise("Rails not available"))
       end
 
-      def fetch(key)
-        @cache.fetch(key) { yield }
+      def fetch(key, &)
+        @cache.fetch(key, &)
       end
 
       def write(key, value, expires_in: nil)
         @cache.write(key, value, expires_in: expires_in)
       end
 
-      def delete(key)
-        @cache.delete(key)
-      end
+      delegate :delete, to: :@cache
+
     end
+
   end
+
 end

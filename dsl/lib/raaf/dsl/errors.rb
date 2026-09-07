@@ -8,7 +8,7 @@ module RAAF
     # Raised when parsing AI response data fails
     class ParseError < Error
       def initialize(message = "Failed to parse AI response")
-        super(message)
+        super
       end
     end
 
@@ -27,7 +27,7 @@ module RAAF
     # Raised when schema validation fails
     class SchemaError < ValidationError
       def initialize(message = "Response does not match expected schema")
-        super(message)
+        super
       end
     end
 
@@ -35,7 +35,7 @@ module RAAF
     # Used by continuation configuration and other configuration validators
     class InvalidConfigurationError < Error
       def initialize(message = "Configuration is invalid")
-        super(message)
+        super
       end
     end
 
@@ -43,7 +43,7 @@ module RAAF
     # Used for errors that occur during continuation execution
     class ContinuationError < Error
       def initialize(message = "Continuation operation failed")
-        super(message)
+        super
       end
     end
 
@@ -70,15 +70,15 @@ module RAAF
       def build_error_message
         # Convert identifier to appropriate format for display
         tool_name = identifier.to_s
-        tool_class_name = tool_name.split('_').map(&:capitalize).join
+        tool_class_name = tool_name.split("_").map(&:capitalize).join
         tool_class_name += "Tool" unless tool_class_name.end_with?("Tool")
 
         # Format suggestions or provide default message
         formatted_suggestions = if @suggestions.empty?
-          ["(No suggestions available)"]
-        else
-          @suggestions
-        end
+                                  ["(No suggestions available)"]
+                                else
+                                  @suggestions
+                                end
 
         # Format namespace list
         namespace_list = @searched_namespaces.empty? ? "(none)" : @searched_namespaces.join(", ")
@@ -111,5 +111,5 @@ module RAAF
   SchemaError = DSL::SchemaError
   InvalidConfigurationError = DSL::InvalidConfigurationError
   ContinuationError = DSL::ContinuationError
-  # Note: ToolResolutionError is DSL-specific, not exposed at RAAF level
+  # NOTE: ToolResolutionError is DSL-specific, not exposed at RAAF level
 end

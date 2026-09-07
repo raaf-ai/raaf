@@ -18,7 +18,7 @@ RSpec.describe "Performance Evaluators" do
 
       it "returns label 'good' when under threshold" do
         result = evaluator.evaluate(field_context, max_increase_pct: 15)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to be > 0.5
         expect(result[:details][:percentage_change]).to eq(10.0)
@@ -27,7 +27,7 @@ RSpec.describe "Performance Evaluators" do
 
       it "returns label 'bad' when over threshold" do
         result = evaluator.evaluate(field_context, max_increase_pct: 5)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 1.0
       end
@@ -38,7 +38,7 @@ RSpec.describe "Performance Evaluators" do
 
       it "returns passing result with no baseline" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to eq(1.0)
         expect(result[:message]).to include("No baseline")
@@ -55,7 +55,7 @@ RSpec.describe "Performance Evaluators" do
 
       it "returns label 'good' when under threshold" do
         result = evaluator.evaluate(field_context, max_ms: 2000)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to be > 0.5
         expect(result[:message]).to include("1500ms")
@@ -63,7 +63,7 @@ RSpec.describe "Performance Evaluators" do
 
       it "returns label 'bad' when over threshold" do
         result = evaluator.evaluate(field_context, max_ms: 1000)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 1.0
       end
@@ -74,7 +74,7 @@ RSpec.describe "Performance Evaluators" do
 
       it "fails with invalid value" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:score]).to eq(0.0)
         expect(result[:message]).to include("Invalid")
@@ -91,7 +91,7 @@ RSpec.describe "Performance Evaluators" do
 
       it "returns label 'good' when above minimum" do
         result = evaluator.evaluate(field_context, min_tps: 10)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to be > 0.7
         expect(result[:message]).to include("15.5")
@@ -99,7 +99,7 @@ RSpec.describe "Performance Evaluators" do
 
       it "returns label 'bad' when below minimum" do
         result = evaluator.evaluate(field_context, min_tps: 20)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 1.0
       end
@@ -110,7 +110,7 @@ RSpec.describe "Performance Evaluators" do
 
       it "fails with zero value" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:score]).to eq(0.0)
       end

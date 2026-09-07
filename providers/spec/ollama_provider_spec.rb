@@ -89,8 +89,8 @@ RSpec.describe RAAF::Models::OllamaProvider do
         },
         "done" => true,
         "done_reason" => "stop",
-        "total_duration" => 5000000000,
-        "load_duration" => 2000000000,
+        "total_duration" => 5_000_000_000,
+        "load_duration" => 2_000_000_000,
         "prompt_eval_count" => 10,
         "eval_count" => 15
       }
@@ -103,8 +103,8 @@ RSpec.describe RAAF::Models::OllamaProvider do
           "prompt_tokens" => 10,
           "completion_tokens" => 15,
           "total_tokens" => 25,
-          "total_duration" => 5000000000,
-          "load_duration" => 2000000000,
+          "total_duration" => 5_000_000_000,
+          "load_duration" => 2_000_000_000,
           "prompt_eval_count" => 10,
           "eval_count" => 15
         },
@@ -135,8 +135,8 @@ RSpec.describe RAAF::Models::OllamaProvider do
 
     it "preserves Ollama-specific metadata in usage object" do
       result = provider.perform_chat_completion(messages: messages, model: model)
-      expect(result["usage"]["total_duration"]).to eq(5000000000)
-      expect(result["usage"]["load_duration"]).to eq(2000000000)
+      expect(result["usage"]["total_duration"]).to eq(5_000_000_000)
+      expect(result["usage"]["load_duration"]).to eq(2_000_000_000)
       expect(result["usage"]["prompt_eval_count"]).to eq(10)
       expect(result["usage"]["eval_count"]).to eq(15)
     end
@@ -175,10 +175,10 @@ RSpec.describe RAAF::Models::OllamaProvider do
 
     it "includes stop sequences parameter when provided" do
       expect(provider).to receive(:make_request).with(
-        hash_including(options: hash_including(stop: ["END", "STOP"]))
+        hash_including(options: hash_including(stop: %w[END STOP]))
       ).and_return(mock_ollama_response)
 
-      provider.perform_chat_completion(messages: messages, model: model, stop: ["END", "STOP"])
+      provider.perform_chat_completion(messages: messages, model: model, stop: %w[END STOP])
     end
 
     it "builds request body correctly" do
@@ -331,7 +331,7 @@ RSpec.describe RAAF::Models::OllamaProvider do
         }
 
         parsed = provider.send(:parse_tool_calls, no_id_response)
-        expect(parsed[0]["id"]).to match(/^[0-9a-f-]{36}$/)  # UUID format
+        expect(parsed[0]["id"]).to match(/^[0-9a-f-]{36}$/) # UUID format
       end
     end
   end
@@ -442,8 +442,8 @@ RSpec.describe RAAF::Models::OllamaProvider do
 
         tool_chunks = chunks.select { |c| c[:type] == "tool_calls" }
         tool_chunks.each do |chunk|
-          expect(chunk[:tool_calls]).to be_an(Array)  # Incremental
-          expect(chunk[:accumulated_tool_calls]).to be_an(Array)  # Accumulated
+          expect(chunk[:tool_calls]).to be_an(Array) # Incremental
+          expect(chunk[:accumulated_tool_calls]).to be_an(Array) # Accumulated
         end
       end
     end

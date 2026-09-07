@@ -6,7 +6,9 @@ require "uri"
 require "raaf/function_tool"
 
 module RAAF
+
   module Tools
+
     ##
     # OpenAI hosted web search tool - matches Python specification exactly
     #
@@ -39,6 +41,7 @@ module RAAF
     # Reference: https://github.com/openai/openai-agents-python
     # Uses OpenAI Responses API for actual web search functionality
     class WebSearchTool < FunctionTool
+
       # OpenAI Responses API endpoint for web search
       BASE_URL = "https://api.openai.com/v1/responses"
 
@@ -350,6 +353,9 @@ module RAAF
 
         size
       end
+
     end
+
   end
+
 end

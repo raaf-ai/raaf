@@ -61,16 +61,14 @@ test_scenarios = [
 
 test_scenarios.each_with_index do |scenario, index|
   puts "Scenario #{index + 1}: #{scenario[:query]}"
-  
+
   result = runner.run(scenario[:query])
-  
+
   puts "Final Response: #{result.messages.last[:content]}"
-  
+
   # Show which agent handled the request
-  if result.final_agent
-    puts "Handled by: #{result.final_agent.name}"
-  end
-  
+  puts "Handled by: #{result.final_agent.name}" if result.final_agent
+
   puts
 end
 

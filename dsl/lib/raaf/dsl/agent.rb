@@ -13,7 +13,7 @@ require_relative "context_configuration"
 require_relative "pipelineable"
 # AgentDsl and AgentHooks functionality consolidated into Agent class
 require_relative "data_merger"
-# Note: Old AgentPipeline class removed - use RAAF::Pipeline from pipeline_dsl/pipeline.rb
+# NOTE: Old AgentPipeline class removed - use RAAF::Pipeline from pipeline_dsl/pipeline.rb
 require_relative "hooks/hook_context"
 require_relative "hooks/agent_hooks"
 require_relative "auto_merge"
@@ -29,7 +29,7 @@ module RAAF
     # This class provides a complete agent implementation with consolidated DSL functionality:
     # - Declarative agent configuration
     # - Prompt class support with validation
-    # - Agent hooks for lifecycle events  
+    # - Agent hooks for lifecycle events
     # - Built-in retry and circuit breaker patterns
     # - Schema building and context management
     #
@@ -43,7 +43,7 @@ module RAAF
     #   class MarketAnalysis < RAAF::DSL::Agent
     #     agent_name "MarketAnalysisAgent"
     #     prompt_class MarketAnalysisPrompt
-    #     
+    #
     #     on_start { |agent| puts "Starting analysis..." }
     #     on_end :log_completion
     #   end
@@ -62,7 +62,6 @@ module RAAF
 
       # Configuration DSL methods - consolidated from AgentDsl and AgentHooks
       class << self
-
         def _tools_config
           # Use Concurrent::Array for thread-safe array operations
           # This ensures configuration persists across threads (e.g., in background jobs)
@@ -119,7 +118,6 @@ module RAAF
           @_prompt_config = value.is_a?(Concurrent::Hash) ? value : Concurrent::Hash.new(value)
         end
 
-
         def _auto_discovery_config
           # Use Concurrent::Hash for thread-safe hash operations
           # This ensures configuration persists across threads
@@ -166,14 +164,14 @@ module RAAF
 
           # Enable auto-transform by default with standard patterns
           subclass._auto_discovery_config = Concurrent::Hash.new({
-            patterns: %w[
-              process_*_from_data
-              build_*_metadata
-              extract_*_from_data
-            ],
-            exclude: [],
-            enabled: true
-          })
+                                                                   patterns: %w[
+                                                                     process_*_from_data
+                                                                     build_*_metadata
+                                                                     extract_*_from_data
+                                                                   ],
+                                                                   exclude: [],
+                                                                   enabled: true
+                                                                 })
 
           # Initialize hooks for subclass
           hooks = {}
@@ -201,7 +199,6 @@ module RAAF
             _context_config[:model] || "gpt-4o"
           end
         end
-
 
         def max_turns(turns = nil)
           if turns
@@ -451,7 +448,6 @@ module RAAF
           auto_merge
         end
 
-
         # Agent Hooks functionality (consolidated from AgentHooks)
         HOOK_TYPES = %i[
           on_start
@@ -486,9 +482,7 @@ module RAAF
           end
         end
 
-        def _agent_hooks=(value)
-          @_agent_hooks = value
-        end
+        attr_writer :_agent_hooks
 
         # Hook registration methods
         def on_start(method_name = nil, &block)
@@ -581,7 +575,6 @@ module RAAF
         end
 
         private
-
 
         def inferred_agent_name
           name.to_s
@@ -680,8 +673,6 @@ module RAAF
           end
         end
 
-        public  # Make tool_execution public (needed for DSL usage)
-
         # Configure tool execution interceptor conveniences
         #
         # This DSL method allows configuring validation, logging, metadata injection,
@@ -713,8 +704,6 @@ module RAAF
         #   self.tool_execution_config = config.to_h
         # end
 
-        private  # Make methods after tool_execution private again
-
         # Set or get retry count for this agent (used by pipeline wrappers)
         #
         # @param count [Integer, nil] Number of retry attempts
@@ -737,20 +726,19 @@ module RAAF
           }
         end
 
-
         # Define user prompt
         def user_prompt(prompt = nil, &block)
-          if block_given?
-            self._user_prompt_block = block
-          else
-            self._user_prompt_block = ->(_) { prompt }
-          end
+          self._user_prompt_block = if block_given?
+                                      block
+                                    else
+                                      ->(_) { prompt }
+                                    end
         end
 
         # Configure retry behavior
         def retry_on(error_type, max_attempts: 3, backoff: :linear, delay: 1)
           self._retry_config ||= {}
-          self._retry_config[error_type] = {
+          _retry_config[error_type] = {
             max_attempts: max_attempts,
             backoff: backoff,
             delay: delay
@@ -766,8 +754,7 @@ module RAAF
           }
         end
 
-        public  # Make continuation methods public
-
+        public # Make continuation methods public
 
         # Enable automatic continuation support for this agent
         #
@@ -798,7 +785,7 @@ module RAAF
         # @return [Class] Returns the class for method chaining
         def enable_continuation(options = {})
           # Ensure continuation module is loaded
-          require_relative '../continuation/config'
+          require_relative "../continuation/config"
 
           # Create and validate configuration
           config = RAAF::Continuation::Config.new(options)
@@ -893,18 +880,18 @@ module RAAF
           _context_config[:max_turns]
         end
 
-        private  # Restore private visibility
+        private # Restore private visibility
 
         # Context DSL method - bridges between new ContextConfiguration and legacy _required_context_keys
         def context(options = {}, &block)
           if block_given?
             # Call the ContextConfiguration method
-            super(options, &block)
+            super
 
             # Bridge to legacy _required_context_keys for backward compatibility with inheritance
             if _context_config[:context_rules] && _context_config[:context_rules][:required]
               # Merge with parent's required keys rather than overriding
-              parent_keys = self._required_context_keys || []
+              parent_keys = _required_context_keys || []
               new_keys = _context_config[:context_rules][:required] || []
               self._required_context_keys = (parent_keys + new_keys).uniq
             end
@@ -916,15 +903,12 @@ module RAAF
         # Context validation DSL method
         def validates_context(key, type: nil, presence: nil, format: nil)
           self._validation_rules ||= {}
-          self._validation_rules[key.to_sym] = {
+          _validation_rules[key.to_sym] = {
             type: type,
             presence: presence,
             format: format
           }.compact
         end
-
-
-
 
         # Result transformation DSL - defines how to transform AI responses
         # into structured, validated data formats
@@ -953,11 +937,11 @@ module RAAF
           self._result_transformations = ResultTransformBuilder.new(&block).build
         end
 
-        # Note: log_events and track_metrics DSL methods were removed as they were not implemented.
+        # NOTE: log_events and track_metrics DSL methods were removed as they were not implemented.
         # Use Rails.logger or RAAF.logger directly for logging needs.
 
         # Conditional execution DSL - defines when agents should run
-        # 
+        #
         # @example Simple conditions
         #   class EnrichmentAgent < RAAF::DSL::Agent
         #     run_if do
@@ -974,7 +958,7 @@ module RAAF
         #         context_value :company_size, greater_than: 100
         #         context_has_any :decision_makers, :influencers
         #       end
-        #       
+        #
         #       none_of do
         #         context_value :industry, equals: "government"
         #         previous_agent_failed
@@ -996,14 +980,14 @@ module RAAF
         # @example Automatic discovery
         #   class EnrichmentAgent < RAAF::DSL::Agent
         #     enable_auto_discovery patterns: %w[process_* build_* compute_*]
-        #     
+        #
         #     private
-        #     
+        #
         #     # These methods are automatically discovered and registered
         #     def process_companies_from_data(data)
         #       # Processing logic
         #     end
-        #     
+        #
         #     def build_enrichment_metadata(data)
         #       # Metadata building logic
         #     end
@@ -1020,11 +1004,11 @@ module RAAF
         # @example Using default auto-transform (result processing only)
         #   class MyAgent < RAAF::DSL::Agent
         #     # Auto-transform is ON by default for result processing methods:
-        #     
+        #
         #     def process_companies_from_data(data)
         #       # Used in result_transform field declarations
         #     end
-        #     
+        #
         #     def build_search_metadata(data)
         #       # Used in result_transform field declarations
         #     end
@@ -1050,7 +1034,7 @@ module RAAF
               build_*_metadata
               extract_*_from_data
             ]
-            
+
             self._auto_discovery_config = {
               patterns: transform_patterns,
               exclude: exclude,
@@ -1058,39 +1042,34 @@ module RAAF
             }
           end
         end
-        
+
         # Legacy method for backward compatibility
         def enable_auto_discovery(patterns: %w[process_*_from_data build_*_metadata], exclude: [])
           auto_transform(:on, patterns: patterns, exclude: exclude)
         end
 
-
-        protected
-
-        private
-
         def pattern_to_regex(pattern)
           # Convert glob pattern to regex
-          regex_string = pattern.gsub('*', '.*')
+          regex_string = pattern.gsub("*", ".*")
           /^#{regex_string}$/
         end
 
         def derive_field_name_from_method(method_name)
           # Apply common transformations to derive field names
           field_name = method_name.dup
-          
+
           # Remove common prefixes
-          field_name = field_name.gsub(/^(process_|build_|compute_|calculate_|generate_)/, '')
-          
+          field_name = field_name.gsub(/^(process_|build_|compute_|calculate_|generate_)/, "")
+
           # Remove common suffixes
-          field_name = field_name.gsub(/(_from_data|_metadata|_result)$/, '')
-          
+          field_name = field_name.gsub(/(_from_data|_metadata|_result)$/, "")
+
           # Handle special cases
           case field_name
           when /^(.+)_companies$/
-            $1 + '_companies'
+            ::Regexp.last_match(1) + "_companies"
           when /^(.+)_analysis$/
-            $1 + '_analysis'
+            ::Regexp.last_match(1) + "_analysis"
           else
             field_name
           end
@@ -1101,59 +1080,58 @@ module RAAF
           def initialize
             @rules = {}
           end
-          
+
           # New DSL methods
           def required(*fields)
             @rules[:required] ||= []
             @rules[:required].concat(fields.map(&:to_sym))
           end
-          
+
           def optional(**fields_with_defaults)
             @rules[:optional] ||= {}
             fields_with_defaults.each do |field, default_value|
               @rules[:optional][field.to_sym] = default_value
             end
           end
-          
+
           def output(*fields)
             @rules[:output] ||= []
             @rules[:output].concat(fields.map(&:to_sym))
           end
-          
+
           def computed(field_name, method_name = nil)
             @rules[:computed] ||= {}
-            method_name ||= "compute_#{field_name}".to_sym
+            method_name ||= :"compute_#{field_name}"
             @rules[:computed][field_name.to_sym] = method_name.to_sym
           end
-          
+
           # Keep existing methods for backward compatibility and other functionality
           def exclude(*keys)
             @rules[:exclude] ||= []
             @rules[:exclude].concat(keys)
           end
-          
+
           def include(*keys)
             @rules[:include] ||= []
             @rules[:include].concat(keys)
           end
-          
+
           def validate(key, type: nil, with: nil)
             @rules[:validations] ||= {}
             @rules[:validations][key] = { type: type, proc: with }
           end
-          
+
           def to_h
             @rules
           end
         end
-
       end # End of class << self
 
       # Additional class attributes for agent functionality
       class << self
         attr_accessor :_required_context_keys, :_validation_rules, :_schema_definition, :_user_prompt_block,
-                     :_retry_config, :_circuit_breaker_config, :_result_transformations,
-                     :_execution_conditions
+                      :_retry_config, :_circuit_breaker_config, :_result_transformations,
+                      :_execution_conditions
       end
 
       # Instance attributes
@@ -1174,24 +1152,22 @@ module RAAF
         @circuit_breaker_state = :closed
         @circuit_breaker_failures = 0
         @circuit_breaker_last_failure = nil
-        @pipeline_schema = nil  # Will be set by pipeline if agent is part of one
+        @pipeline_schema = nil # Will be set by pipeline if agent is part of one
         @parent_component = parent_component
 
         # Log parent_component status for tracing hierarchy
-        if @parent_component
-          log_debug "Received parent_component: #{@parent_component.class.name}"
-        end
+        log_debug "Received parent_component: #{@parent_component.class.name}" if @parent_component
 
         # If context provided explicitly, use it (backward compatible)
-        if context
-          @context = build_context_from_param(context, @debug_enabled)
-        elsif self.class.auto_context?
-          # Auto-build from kwargs
-          @context = build_auto_context(kwargs, @debug_enabled)
-        else
-          # Auto-context disabled, empty context
-          @context = RAAF::DSL::ContextVariables.new({}, debug: @debug_enabled)
-        end
+        @context = if context
+                     build_context_from_param(context, @debug_enabled)
+                   elsif self.class.auto_context?
+                     # Auto-build from kwargs
+                     build_auto_context(kwargs, @debug_enabled)
+                   else
+                     # Auto-context disabled, empty context
+                     RAAF::DSL::ContextVariables.new({}, debug: @debug_enabled)
+                   end
 
         # Setup provider instance if configured
         @provider = setup_provider
@@ -1204,32 +1180,29 @@ module RAAF
         # setup_context_configuration  # REMOVED: Empty method causing method_missing conflicts
         # setup_logging_and_metrics    # REMOVED: Empty method causing method_missing conflicts
 
-        if @debug_enabled
-          log_debug("Agent initialized",
-                    agent_class: self.class.name,
-                    context_size: @context.size,
-                    context_keys: @context.keys.inspect,
-                    auto_context: self.class.auto_context?,
-                    provider: @provider ? @provider.class.name : "none",
-                    category: :context)
-        end
+        return unless @debug_enabled
+
+        log_debug("Agent initialized",
+                  agent_class: self.class.name,
+                  context_size: @context.size,
+                  context_keys: @context.keys.inspect,
+                  auto_context: self.class.auto_context?,
+                  provider: @provider ? @provider.class.name : "none",
+                  category: :context)
       end
-      
+
       # Inject pipeline schema from pipeline (called by pipeline execution)
       def inject_pipeline_schema(schema_block)
         @pipeline_schema = schema_block
       end
 
       # Context access through dynamic methods - update/set methods removed
-      
-      def has?(key)
-        @context.has?(key)
-      end
-      
+
+      delegate :has?, to: :@context
+
       def context_keys
         @context.keys
       end
-      
 
       # Instance-level convenience methods for accessing continuation metadata
       # These methods provide easy access to continuation status and metadata from runner results
@@ -1252,9 +1225,7 @@ module RAAF
       # Check if continuation is enabled for this agent
       #
       # @return [Boolean] true if continuation is enabled, false otherwise
-      def continuation_enabled?
-        self.class.continuation_enabled?
-      end
+      delegate :continuation_enabled?, to: :class
 
       # Get continuation metadata from the last run
       #
@@ -1331,9 +1302,7 @@ module RAAF
       #
       # @return [Object, nil] The provider instance if configured
       #
-      def provider
-        @provider
-      end
+      attr_reader :provider
 
       # Execute agent with incremental processing logic
       #
@@ -1390,9 +1359,9 @@ module RAAF
 
           # Accumulate usage from this batch
           if agent_result[:usage].is_a?(Hash)
-            accumulated_usage[:input_tokens] += (agent_result[:usage][:input_tokens] || 0)
-            accumulated_usage[:output_tokens] += (agent_result[:usage][:output_tokens] || 0)
-            accumulated_usage[:total_tokens] += (agent_result[:usage][:total_tokens] || 0)
+            accumulated_usage[:input_tokens] += agent_result[:usage][:input_tokens] || 0
+            accumulated_usage[:output_tokens] += agent_result[:usage][:output_tokens] || 0
+            accumulated_usage[:total_tokens] += agent_result[:usage][:total_tokens] || 0
 
             # Preserve output_tokens_details if present (for reasoning tokens)
             if agent_result[:usage][:output_tokens_details]
@@ -1427,7 +1396,8 @@ module RAAF
         declared_output_fields = context_rules&.dig(:output) || []
         declared_output_fields.each do |field|
           field_sym = field.to_sym
-          next if field_sym == output_field.to_sym  # Already included above
+          next if field_sym == output_field.to_sym # Already included above
+
           value = @context[field_sym]
           result[field_sym] = value unless value.nil?
         end
@@ -1513,12 +1483,12 @@ module RAAF
 
           # Fire DSL hook: on_validation_failed
           fire_dsl_hook(:on_validation_failed, {
-            error: error.message,
-            error_type: error.is_a?(RAAF::DSL::SchemaError) ? "schema_validation" : "data_validation",
-            field: error.respond_to?(:field) ? error.field : nil,
-            value: error.respond_to?(:value) ? error.value : nil,
-            expected_type: error.respond_to?(:expected_type) ? error.expected_type : nil
-          })
+                          error: error.message,
+                          error_type: error.is_a?(RAAF::DSL::SchemaError) ? "schema_validation" : "data_validation",
+                          field: error.respond_to?(:field) ? error.field : nil,
+                          value: error.respond_to?(:value) ? error.value : nil,
+                          expected_type: error.respond_to?(:expected_type) ? error.expected_type : nil
+                        })
 
           { success: false, error: error.message, error_type: "validation_error" }
         elsif error.is_a?(ArgumentError) && error.message.include?("context")
@@ -1526,9 +1496,9 @@ module RAAF
 
           # Fire DSL hook: on_validation_failed
           fire_dsl_hook(:on_validation_failed, {
-            error: error.message,
-            error_type: "context_validation"
-          })
+                          error: error.message,
+                          error_type: "context_validation"
+                        })
 
           { success: false, error: error.message, error_type: "validation_error" }
         else
@@ -1543,14 +1513,13 @@ module RAAF
 
         config = self.class._circuit_breaker_config
 
-        if @circuit_breaker_state == :open
-          if Time.current - @circuit_breaker_last_failure > config[:reset_timeout]
-            @circuit_breaker_state = :half_open
-            log_info "🔄 [#{self.class.name}] Circuit breaker transitioning to half-open"
-          else
-            raise CircuitBreakerOpenError, "Circuit breaker is open due to repeated failures"
-          end
+        return unless @circuit_breaker_state == :open
+        unless Time.current - @circuit_breaker_last_failure > config[:reset_timeout]
+          raise CircuitBreakerOpenError, "Circuit breaker is open due to repeated failures"
         end
+
+        @circuit_breaker_state = :half_open
+        log_info "🔄 [#{self.class.name}] Circuit breaker transitioning to half-open"
       end
 
       def reset_circuit_breaker!
@@ -1568,48 +1537,45 @@ module RAAF
         @circuit_breaker_failures += 1
         @circuit_breaker_last_failure = Time.current
 
-        if @circuit_breaker_failures >= config[:threshold]
-          @circuit_breaker_state = :open
-          log_error "🚫 [#{self.class.name}] Circuit breaker opened after #{@circuit_breaker_failures} failures"
-        end
+        return unless @circuit_breaker_failures >= config[:threshold]
+
+        @circuit_breaker_state = :open
+        log_error "🚫 [#{self.class.name}] Circuit breaker opened after #{@circuit_breaker_failures} failures"
       end
 
       def execute_with_retry(&block)
-        attempts = 0
-        max_attempts = 1  # Default no retry
+        attempts = 0 # Default no retry
 
         begin
           attempts += 1
           yield
-        rescue => e
+        rescue StandardError => e
           retry_config = find_retry_config(e)
 
-          if retry_config && attempts < retry_config[:max_attempts]
-            delay = calculate_retry_delay(retry_config, attempts)
+          raise unless retry_config && attempts < retry_config[:max_attempts]
 
-            log_warn "🔄 [#{self.class.name}] Retrying in #{delay}s (attempt #{attempts}/#{retry_config[:max_attempts]}): #{e.message}"
+          delay = calculate_retry_delay(retry_config, attempts)
 
-            sleep(delay)
-            retry
-          else
-            raise
-          end
+          log_warn "🔄 [#{self.class.name}] Retrying in #{delay}s (attempt #{attempts}/#{retry_config[:max_attempts]}): #{e.message}"
+
+          sleep(delay)
+          retry
         end
       end
 
       def process_raaf_result(raaf_result)
         # Handle different RAAF result formats automatically
         base_result = if raaf_result.is_a?(Hash) && raaf_result[:success] && raaf_result[:results]
-          # New RAAF format
-          extract_result_data(raaf_result[:results])
-        elsif raaf_result.is_a?(Hash)
-          # Direct hash result
-          extract_hash_result(raaf_result)
-        else
-          # Unknown format
-          log_warn "🤔 [#{self.class.name}] Unknown result format: #{raaf_result.class}"
-          { success: true, data: raaf_result }
-        end
+                        # New RAAF format
+                        extract_result_data(raaf_result[:results])
+                      elsif raaf_result.is_a?(Hash)
+                        # Direct hash result
+                        extract_hash_result(raaf_result)
+                      else
+                        # Unknown format
+                        log_warn "🤔 [#{self.class.name}] Unknown result format: #{raaf_result.class}"
+                        { success: true, data: raaf_result }
+                      end
 
         # Preserve metadata from the original raaf_result (e.g., search_results from Perplexity)
         if raaf_result.is_a?(Hash) && raaf_result.key?(:metadata)
@@ -1627,17 +1593,17 @@ module RAAF
 
         # Apply result transformations if configured, or auto-generate them for output fields
         final_result = if self.class._result_transformations
-          apply_result_transformations(base_result)
-        else
-          # Automatically extract output fields if they are declared but no transformations exist
-          generate_auto_transformations_for_output_fields(base_result)
-        end
+                         apply_result_transformations(base_result)
+                       else
+                         # Automatically extract output fields if they are declared but no transformations exist
+                         generate_auto_transformations_for_output_fields(base_result)
+                       end
 
         # Fire DSL hook: on_result_ready - After all transformations complete
         fire_dsl_hook(:on_result_ready, {
-          raw_result: base_result,
-          processed_result: final_result
-        })
+                        raw_result: base_result,
+                        processed_result: final_result
+                      })
 
         final_result
       end
@@ -1674,9 +1640,7 @@ module RAAF
               error_message += "Searched namespaces: #{result[:searched_namespaces].join(', ')}
 "
 
-              if result[:suggestions].any?
-                error_message += "Did you mean? #{result[:suggestions].join(', ')}"
-              end
+              error_message += "Did you mean? #{result[:suggestions].join(', ')}" if result[:suggestions].any?
 
               raise ArgumentError, error_message
             end
@@ -1688,11 +1652,10 @@ module RAAF
             # Log successful resolution in debug mode
             if @debug_enabled
               log_debug("Tool resolved",
-                       identifier: identifier,
-                       tool_class: tool_class.name,
-                       category: :tools)
+                        identifier: identifier,
+                        tool_class: tool_class.name,
+                        category: :tools)
             end
-
           rescue StandardError => e
             RAAF.logger.error "❌ [Agent] Failed to resolve tool '#{identifier}': #{e.message}"
             raise
@@ -1733,21 +1696,19 @@ module RAAF
 
         # Execute each registered hook for this type
         self.class._agent_hooks[hook_name].each do |hook|
-          begin
-            if hook.is_a?(Proc)
-              # Use instance_exec to execute block in agent's context with keyword arguments
-              # This allows hook blocks to use clean keyword syntax: |param1:, param2:, **|
-              instance_exec(**symbol_keyed_data, &hook)
-            elsif hook.is_a?(Symbol)
-              # Call method with keyword arguments
-              send(hook, **symbol_keyed_data)
-            end
-          rescue StandardError => e
-            # Enhanced error logging with hook context
-            log_error "❌ [#{self.class.name}] Hook #{hook_name} failed: #{e.message}"
-            log_debug "Hook data", data: normalized_data.except(:context, :agent)
-            log_debug "Error details", error: e.class.name, backtrace: e.backtrace.first(5)
+          if hook.is_a?(Proc)
+            # Use instance_exec to execute block in agent's context with keyword arguments
+            # This allows hook blocks to use clean keyword syntax: |param1:, param2:, **|
+            instance_exec(**symbol_keyed_data, &hook)
+          elsif hook.is_a?(Symbol)
+            # Call method with keyword arguments
+            send(hook, **symbol_keyed_data)
           end
+        rescue StandardError => e
+          # Enhanced error logging with hook context
+          log_error "❌ [#{self.class.name}] Hook #{hook_name} failed: #{e.message}"
+          log_debug "Hook data", data: normalized_data.except(:context, :agent)
+          log_debug "Error details", error: e.class.name, backtrace: e.backtrace.first(5)
         end
       end
 
@@ -1762,26 +1723,26 @@ module RAAF
 
         # Pricing per 1M tokens (approximate, as of 2025)
         pricing = case model.to_s.downcase
-        when /gpt-4o-mini/
-          { input: 0.15, output: 0.60 }
-        when /gpt-4o/
-          { input: 2.50, output: 10.00 }
-        when /gpt-4-turbo/, /gpt-4-1106/
-          { input: 10.00, output: 30.00 }
-        when /gpt-4/, /gpt-4-0613/
-          { input: 30.00, output: 60.00 }
-        when /gpt-3.5-turbo/
-          { input: 0.50, output: 1.50 }
-        when /claude-3-5-sonnet/,  /claude-3\.5-sonnet/
-          { input: 3.00, output: 15.00 }
-        when /claude-3-sonnet/, /claude-3-opus/
-          { input: 3.00, output: 15.00 }
-        when /claude-3-haiku/
-          { input: 0.25, output: 1.25 }
-        else
-          # Default pricing for unknown models
-          { input: 1.00, output: 2.00 }
-        end
+                  when /gpt-4o-mini/
+                    { input: 0.15, output: 0.60 }
+                  when /gpt-4o/
+                    { input: 2.50, output: 10.00 }
+                  when /gpt-4-turbo/, /gpt-4-1106/
+                    { input: 10.00, output: 30.00 }
+                  when /gpt-4/, /gpt-4-0613/
+                    { input: 30.00, output: 60.00 }
+                  when /gpt-3.5-turbo/
+                    { input: 0.50, output: 1.50 }
+                  when /claude-3-5-sonnet/, /claude-3\.5-sonnet/
+                    { input: 3.00, output: 15.00 }
+                  when /claude-3-sonnet/, /claude-3-opus/
+                    { input: 3.00, output: 15.00 }
+                  when /claude-3-haiku/
+                    { input: 0.25, output: 1.25 }
+                  else
+                    # Default pricing for unknown models
+                    { input: 1.00, output: 2.00 }
+                  end
 
         input_cost = (input_tokens / 1_000_000.0) * pricing[:input]
         output_cost = (output_tokens / 1_000_000.0) * pricing[:output]
@@ -1792,12 +1753,12 @@ module RAAF
       def run_with_timeout(timeout_seconds, context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
         agent_name = self.class._context_config&.dig(:name) || self.class.name
         log_info "⏰ [#{agent_name}] Starting execution with #{timeout_seconds}s timeout"
-        
+
         begin
           Timeout.timeout(timeout_seconds) do
             run_without_timeout(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker, skip_retries: skip_retries, previous_result: previous_result)
           end
-        rescue Timeout::Error => e
+        rescue Timeout::Error
           log_error "⏰ [#{agent_name}] Execution timed out after #{timeout_seconds} seconds"
           {
             workflow_status: "timeout",
@@ -1811,13 +1772,11 @@ module RAAF
 
       def run_without_timeout(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
         # Validate prompt context early if configured
-        if self.class._context_config[:validate_prompt_context] != false
-          validate_prompt_context!
-        end
-        
+        validate_prompt_context! if self.class._context_config[:validate_prompt_context] != false
+
         # Validate computed fields early to catch context reference errors
         validate_computed_fields!
-        
+
         # Check execution conditions first
         if self.class._execution_conditions
           resolved_context = resolve_run_context(context || input_context_variables)
@@ -1868,8 +1827,7 @@ module RAAF
 
             log_info "✅ [#{agent_name}] Execution completed successfully"
             result
-
-          rescue => e
+          rescue StandardError => e
             handle_smart_error(e)
           ensure
             # CRITICAL: Always flush traces, even on error
@@ -1878,7 +1836,7 @@ module RAAF
           end
         end
       end
-      
+
       # Validate prompt context requirements using dry-run
       def validate_prompt_context!
         prompt_spec = determine_prompt_spec
@@ -1887,35 +1845,32 @@ module RAAF
         begin
           # Try to create prompt instance for validation
           prompt_instance = case prompt_spec
-                           when Class
-                             # Pass context as keyword arguments with optional defaults merged
-                             context_hash = @context.respond_to?(:to_h) ? @context.to_h : @context
-                             context_with_defaults = merge_optional_defaults(context_hash)
-                             prompt_spec.new(**context_with_defaults)
-                           when String, Symbol
-                             # Try to resolve and instantiate with optional defaults merged
-                             klass = Object.const_get(prompt_spec.to_s)
-                             context_hash = @context.respond_to?(:to_h) ? @context.to_h : @context
-                             context_with_defaults = merge_optional_defaults(context_hash)
-                             klass.new(**context_with_defaults)
-                           else
-                             prompt_spec
-                           end
-          
+                            when Class
+                              # Pass context as keyword arguments with optional defaults merged
+                              context_hash = @context.respond_to?(:to_h) ? @context.to_h : @context
+                              context_with_defaults = merge_optional_defaults(context_hash)
+                              prompt_spec.new(**context_with_defaults)
+                            when String, Symbol
+                              # Try to resolve and instantiate with optional defaults merged
+                              klass = Object.const_get(prompt_spec.to_s)
+                              context_hash = @context.respond_to?(:to_h) ? @context.to_h : @context
+                              context_with_defaults = merge_optional_defaults(context_hash)
+                              klass.new(**context_with_defaults)
+                            else
+                              prompt_spec
+                            end
+
           # Run dry validation if available
-          if prompt_instance.respond_to?(:dry_run_validation!)
-            prompt_instance.dry_run_validation!
-          end
-          
+          prompt_instance.dry_run_validation! if prompt_instance.respond_to?(:dry_run_validation!)
+
           # NEW: Validate prompt methods can be called without context errors
           validate_prompt_methods!(prompt_instance)
-          
+
           true
-          
         rescue RAAF::DSL::Error => e
           # Re-raise validation errors with agent context
           raise RAAF::DSL::Error,
-            "Prompt validation failed for agent #{self.class.name}:
+                "Prompt validation failed for agent #{self.class.name}:
 #{e.message}"
         rescue StandardError => e
           # Log but don't fail on other errors (like missing prompt class)
@@ -1934,41 +1889,43 @@ module RAAF
       # @raise [RAAF::DSL::Error] if validation fails
       def validate_prompt_methods!(prompt_instance)
         return true unless prompt_instance
-        
+
         # Validate system prompt method
         if prompt_instance.respond_to?(:system)
           begin
             prompt_instance.system
           rescue NameError => e
-            if e.message.include?("undefined variable") || e.message.include?("undefined local variable or method")
-              handle_prompt_validation_error("system", e, prompt_instance.class.name)
-            else
-              # Re-raise other NameErrors as they might be legitimate method issues
+            unless e.message.include?("undefined variable") || e.message.include?("undefined local variable or method")
               raise
             end
+
+            handle_prompt_validation_error("system", e, prompt_instance.class.name)
+
+          # Re-raise other NameErrors as they might be legitimate method issues
           rescue StandardError => e
             # Log but don't fail on other errors during dry-run (e.g., nil method calls)
             log_debug "Prompt system method dry-run warning: #{e.class.name}: #{e.message}"
           end
         end
-        
+
         # Validate user prompt method
         if prompt_instance.respond_to?(:user)
           begin
             prompt_instance.user
           rescue NameError => e
-            if e.message.include?("undefined variable") || e.message.include?("undefined local variable or method")
-              handle_prompt_validation_error("user", e, prompt_instance.class.name)
-            else
-              # Re-raise other NameErrors as they might be legitimate method issues
+            unless e.message.include?("undefined variable") || e.message.include?("undefined local variable or method")
               raise
             end
+
+            handle_prompt_validation_error("user", e, prompt_instance.class.name)
+
+          # Re-raise other NameErrors as they might be legitimate method issues
           rescue StandardError => e
             # Log but don't fail on other errors during dry-run
             log_debug "Prompt user method dry-run warning: #{e.class.name}: #{e.message}"
           end
         end
-        
+
         true
       end
 
@@ -1985,18 +1942,18 @@ module RAAF
 
         # Get available context for helpful error message
         available_context = if @context.respond_to?(:keys)
-                             @context.keys
-                           elsif @context.respond_to?(:to_h)
-                             @context.to_h.keys
-                           else
-                             ["context object: #{@context.class.name}"]
-                           end
+                              @context.keys
+                            elsif @context.respond_to?(:to_h)
+                              @context.to_h.keys
+                            else
+                              ["context object: #{@context.class.name}"]
+                            end
 
         raise RAAF::DSL::Error,
-          "Failed to validate #{method_name} prompt method in #{prompt_class_name}: " \
-          "references undefined variable '#{problem_var}'. " \
-          "Available context variables: #{available_context.join(', ')}. " \
-          "This usually indicates an error in the prompt's #{method_name} method or missing required context."
+              "Failed to validate #{method_name} prompt method in #{prompt_class_name}: " \
+              "references undefined variable '#{problem_var}'. " \
+              "Available context variables: #{available_context.join(', ')}. " \
+              "This usually indicates an error in the prompt's #{method_name} method or missing required context."
       end
 
       # Merge optional context defaults into provided context
@@ -2034,50 +1991,49 @@ module RAAF
       # @raise [RAAF::DSL::Error] if validation fails
       def validate_computed_fields!
         return true unless self.class._result_transformations
-        
+
         transformations = self.class._result_transformations
         precheck_data = { "test" => "value", :test => :value }
-        
+
         transformations.each do |field_name, field_config|
           next unless field_config[:computed]
-          
+
           method_name = field_config[:computed]
           next unless respond_to?(method_name, true)
 
           begin
             # Attempt dry-run with mock data
             send(method_name, precheck_data)
-            
           rescue NameError => e
-            if e.message.include?("undefined variable") || e.message.include?("undefined local variable or method")
-              # Extract the problematic variable name
-              variable_match = e.message.match(/`([^']+)'/)
-              problem_var = variable_match ? variable_match[1] : "unknown"
-              
-              # Get available context for helpful error message
-              available_context = if @context.respond_to?(:keys)
-                                   @context.keys
-                                 elsif @context.respond_to?(:to_h)
-                                   @context.to_h.keys
-                                 else
-                                   ["context object: #{@context.class.name}"]
-                                 end
-              
-              raise RAAF::DSL::Error,
-                "Computed field '#{field_name}' (method: #{method_name}) references undefined variable '#{problem_var}'. " \
-                "Available context variables: #{available_context.join(', ')}"
-            else
-              # Re-raise other NameErrors as they might be legitimate method issues
+            unless e.message.include?("undefined variable") || e.message.include?("undefined local variable or method")
               raise
             end
-            
+
+            # Extract the problematic variable name
+            variable_match = e.message.match(/`([^']+)'/)
+            problem_var = variable_match ? variable_match[1] : "unknown"
+
+            # Get available context for helpful error message
+            available_context = if @context.respond_to?(:keys)
+                                  @context.keys
+                                elsif @context.respond_to?(:to_h)
+                                  @context.to_h.keys
+                                else
+                                  ["context object: #{@context.class.name}"]
+                                end
+
+            raise RAAF::DSL::Error,
+                  "Computed field '#{field_name}' (method: #{method_name}) references undefined variable '#{problem_var}'. " \
+                  "Available context variables: #{available_context.join(', ')}"
+
+          # Re-raise other NameErrors as they might be legitimate method issues
           rescue StandardError => e
             # Log but don't fail on other errors during dry-run
             # These might be legitimate errors that only occur with real data
             log_debug "Computed field '#{field_name}' dry-run warning: #{e.class.name}: #{e.message}"
           end
         end
-        
+
         true
       end
 
@@ -2086,26 +2042,24 @@ module RAAF
         agent = new(**context)
         agent.validate_prompt_context!
       end
-      
+
       public
-      
+
       # Validate this agent for pipeline use (implements Pipelineable interface)
       #
       # Agents validate both their required context fields and their prompt context.
       # This provides comprehensive validation for pipeline compatibility.
       #
-      # @param context [Hash] Context to validate against  
+      # @param context [Hash] Context to validate against
       # @return [Boolean] true if validation passes
       # @raise [RAAF::DSL::Error] if validation fails
       def validate_for_pipeline(context)
         # First validate basic required context fields (from Pipelineable)
         validate_required_context_fields(context)
-        
+
         # Then validate prompt-specific context if this agent has prompts
-        if self.class._context_config[:validate_prompt_context] != false
-          validate_prompt_context!
-        end
-        
+        validate_prompt_context! if self.class._context_config[:validate_prompt_context] != false
+
         true
       end
 
@@ -2124,19 +2078,19 @@ module RAAF
       # RAAF DSL method - build system instructions using resolver system
       def build_instructions
         base_instructions = build_base_instructions
-        
+
         # Append schema instructions if in tolerant or partial mode
         schema_def = build_schema
         if schema_def && schema_def.is_a?(Hash) && schema_def[:config]
           validation_mode = schema_def[:config][:mode]
-          if [:tolerant, :partial].include?(validation_mode)
+          if %i[tolerant partial].include?(validation_mode)
             schema_instructions = build_schema_instructions(schema_def)
             return "#{base_instructions}
 
 #{schema_instructions}"
           end
         end
-        
+
         base_instructions
       end
 
@@ -2163,7 +2117,7 @@ module RAAF
 
         if prompt_spec.nil?
           error_message += "No prompt class configured and could not infer one. " \
-                          "Expected to find prompt class at: #{infer_prompt_class_name_string}"
+                           "Expected to find prompt class at: #{infer_prompt_class_name_string}"
         else
           log_debug "Found prompt spec", spec_class: prompt_spec.class.name, spec_value: prompt_spec.inspect
 
@@ -2173,19 +2127,18 @@ module RAAF
           if resolved_prompt
             system_message = resolved_prompt.messages.find { |m| m[:role] == "system" }
             log_debug "System message found", found: !!system_message
-            if system_message
-              return system_message[:content]
-            else
-              error_message += "Prompt was resolved but no system message found. " \
-                              "Check your prompt class has a 'system' method that returns content."
-            end
+            return system_message[:content] if system_message
+
+            error_message += "Prompt was resolved but no system message found. " \
+                             "Check your prompt class has a 'system' method that returns content."
+
           else
             error_message += "No resolver could handle the prompt specification. " \
-                            "Tried: #{DSL.prompt_resolvers.resolvers.map(&:name).join(', ')}. " \
-                            "Check prompt class exists and context variables are valid."
+                             "Tried: #{DSL.prompt_resolvers.resolvers.map(&:name).join(', ')}. " \
+                             "Check prompt class exists and context variables are valid."
           end
         end
-        
+
         raise RAAF::DSL::Error, error_message
       end
 
@@ -2195,7 +2148,7 @@ module RAAF
         config = schema_def[:config]
         required = schema[:required] || []
         properties = schema[:properties] || {}
-        
+
         instructions = "
 ## Response Format Requirements
 
@@ -2206,28 +2159,26 @@ module RAAF
         instructions += "```json
 {
 "
-        
+
         properties.each do |name, field_config|
           req_marker = required.include?(name.to_s) ? " (REQUIRED)" : " (optional)"
           type_str = field_config[:type] || "any"
-          
+
           # Add enum information if available
-          if field_config[:enum]
-            type_str += " (one of: #{field_config[:enum].join(', ')})"
-          end
-          
+          type_str += " (one of: #{field_config[:enum].join(', ')})" if field_config[:enum]
+
           # Add default value information
           if field_config[:default]
             default_str = field_config[:default].is_a?(String) ? "\"#{field_config[:default]}\"" : field_config[:default]
             type_str += " (default: #{default_str})"
           end
-          
+
           instructions += "  \"#{name}\": <#{type_str}>#{req_marker}"
           instructions += field_config[:description] ? " // #{field_config[:description]}" : ""
           instructions += ",
 "
         end
-        
+
         instructions = instructions.chomp(",
 ") + "
 "
@@ -2235,7 +2186,7 @@ module RAAF
 ```
 
 "
-        
+
         # Add validation-specific guidance
         case config[:mode]
         when :tolerant
@@ -2259,12 +2210,12 @@ module RAAF
           instructions += "- Focus on providing accurate data for the fields you do include
 "
         end
-        
+
         instructions += "
 **Important:** Ensure your response is valid JSON that can be parsed. " \
                        "If you're unsure about a field value, it's better to omit optional fields " \
                        "than to include invalid data."
-        
+
         instructions
       end
 
@@ -2310,29 +2261,29 @@ module RAAF
           log_debug "Found configured prompt class", class: self.class._prompt_config[:class]
           return self.class._prompt_config[:class]
         end
-        
+
         # Ensure resolvers are initialized before trying to resolve prompts
         DSL.ensure_prompt_resolvers_initialized!
-        
+
         # Try to infer prompt class by convention (e.g., Ai::Agents::MyAgent -> Ai::Prompts::MyAgent)
         inferred_prompt_class = infer_prompt_class_name
         if inferred_prompt_class
           log_debug "Trying inferred prompt class", class: inferred_prompt_class.name
           return inferred_prompt_class
         end
-        
+
         # Try multiple naming conventions for prompt class inference
         alternative_prompt_class = try_alternative_prompt_conventions
         if alternative_prompt_class
           log_debug "Found alternative prompt class", class: alternative_prompt_class.name
           return alternative_prompt_class
         end
-        
+
         # Try to infer from agent name (e.g., MyAgent -> "my_agent.md")
         agent_name_file = agent_name.underscore
         log_debug "Trying to infer prompt from agent name", agent_name: agent_name_file
         return agent_name_file if agent_name_file
-        
+
         log_debug "No prompt spec found for agent", agent_class: self.class.name
         nil
       end
@@ -2346,12 +2297,12 @@ module RAAF
         return nil if agent_class_name.nil?
 
         # Replace "Agents" with "Prompts" in the module path
-        prompt_class_name = agent_class_name.gsub(/::Agents::/, "::Prompts::")
-        
-        log_debug "Inferring prompt class", 
-                  agent_class: agent_class_name, 
+        prompt_class_name = agent_class_name.gsub("::Agents::", "::Prompts::")
+
+        log_debug "Inferring prompt class",
+                  agent_class: agent_class_name,
                   inferred_prompt_class: prompt_class_name
-        
+
         # In Rails environments, use constantize directly which handles autoloading
         # In non-Rails environments, fall back to the original behavior
         begin
@@ -2363,16 +2314,16 @@ module RAAF
             if Object.const_defined?(prompt_class_name)
               prompt_class_name.constantize
             else
-              log_debug "Inferred prompt class not found", 
-                        class: prompt_class_name, 
+              log_debug "Inferred prompt class not found",
+                        class: prompt_class_name,
                         error: "Class does not exist"
               nil
             end
           end
         rescue NameError => e
           # Class doesn't exist - this is expected when no prompt class is defined
-          log_debug "Inferred prompt class not found", 
-                    class: prompt_class_name, 
+          log_debug "Inferred prompt class not found",
+                    class: prompt_class_name,
                     error: e.message
           nil
         rescue StandardError => e
@@ -2382,11 +2333,12 @@ module RAAF
           raise e.class, "Error loading prompt class #{prompt_class_name}: #{e.message}", e.backtrace
         end
       end
-      
+
       def infer_prompt_class_name_string
         agent_class_name = self.class.name
         return nil if agent_class_name.nil?
-        agent_class_name.gsub(/::Agents::/, "::Prompts::")
+
+        agent_class_name.gsub("::Agents::", "::Prompts::")
       end
 
       # Try alternative prompt naming conventions for better auto-discovery
@@ -2398,25 +2350,25 @@ module RAAF
         return nil if agent_class_name.nil?
 
         # Extract the final class name (e.g., "Analysis" from "Ai::Agents::Market::Analysis")
-        final_class_name = agent_class_name.split("::").last
-        
+        agent_class_name.split("::").last
+
         alternative_patterns = [
           # Pattern: Same namespace as agent but under Prompts
           # Ai::Agents::Market::Analysis -> Ai::Prompts::Market::Analysis
-          agent_class_name.gsub(/::Agents::/, "::Prompts::"),
-          
+          agent_class_name.gsub("::Agents::", "::Prompts::"),
+
           # Pattern: Directly under Ai::Prompts with category
-          # Ai::Agents::Market::Analysis -> Ai::Prompts::MarketAnalysis  
+          # Ai::Agents::Market::Analysis -> Ai::Prompts::MarketAnalysis
           "Ai::Prompts::#{agent_class_name.split('::')[2..-1].join}",
-          
+
           # Pattern: Under parent module's prompts
           # Ai::Agents::Market::Analysis -> Ai::Agents::Market::Prompts::Analysis
-          agent_class_name.gsub(/::([^:]+)$/, "::Prompts::\\1"),
+          agent_class_name.gsub(/::([^:]+)$/, "::Prompts::\\1")
         ]
-        
+
         alternative_patterns.each do |pattern|
           log_debug "Trying alternative prompt pattern", pattern: pattern
-          
+
           begin
             if defined?(Rails) && Rails.respond_to?(:application)
               # Use Rails constantize for proper autoloading/eager loading
@@ -2430,7 +2382,7 @@ module RAAF
               if Object.const_defined?(pattern)
                 prompt_class = pattern.constantize
                 if prompt_class.is_a?(Class)
-                  log_debug "Found alternative prompt class", class: prompt_class.name  
+                  log_debug "Found alternative prompt class", class: prompt_class.name
                   return prompt_class
                 end
               end
@@ -2443,7 +2395,7 @@ module RAAF
             # Continue to next pattern
           end
         end
-        
+
         log_debug "No alternative prompt patterns found", agent_class: agent_class_name
         nil
       end
@@ -2494,7 +2446,7 @@ module RAAF
       def build_templated_instructions
         template = self.class.instruction_template
         return template unless template.include?("{{")
-        
+
         # Simple variable substitution
         result = template.dup
         @context.to_h.each do |key, value|
@@ -2521,43 +2473,42 @@ module RAAF
       def build_schema
         log_debug("Building schema", category: :agents, agent_class: self.class.name)
         log_debug("Pipeline schema present?", category: :agents, present: @pipeline_schema.present?)
-        
+
         # First check if pipeline schema is available
         if @pipeline_schema
           log_debug("Using schema from pipeline", category: :agents, agent_class: self.class.name)
-          
+
           schema_result = @pipeline_schema.call
-          log_debug("Pipeline schema structure", category: :agents, 
-                    structure: schema_result.inspect[0..800])
+          log_debug("Pipeline schema structure", category: :agents,
+                                                 structure: schema_result.inspect[0..800])
           if schema_result.is_a?(Hash) && schema_result[:config]
             log_debug("Validation mode", category: :agents, mode: schema_result[:config][:mode])
           end
           if schema_result.is_a?(Hash) && schema_result[:schema] && schema_result[:schema][:properties]
-            log_debug("Schema properties", category: :agents, 
-                      properties: schema_result[:schema][:properties].keys.inspect)
+            log_debug("Schema properties", category: :agents,
+                                           properties: schema_result[:schema][:properties].keys.inspect)
           end
-          
+
           return schema_result
         end
-        
+
         # Next check if agent has directly defined schema
         if self.class._schema_definition
           log_debug("Using agent-defined schema", category: :agents, agent_class: self.class.name)
           return self.class._schema_definition
         end
-        
+
         # Check if prompt class has a schema
         prompt_spec = determine_prompt_spec
         if prompt_spec && prompt_spec.respond_to?(:has_schema?) && prompt_spec.has_schema?
           log_debug("Using schema from prompt class", category: :agents, prompt_class: prompt_spec.name)
           return prompt_spec.get_schema
         end
-        
+
         # Fall back to default schema
         log_debug("Using default schema", category: :agents, agent_class: self.class.name)
         default_schema
       end
-
 
       # Agent configuration methods
       def agent_name
@@ -2565,8 +2516,8 @@ module RAAF
       end
 
       def model_name
-        self.class._context_config&.dig(:model) || 
-          RAAF::DSL::Config.model_for(agent_name) || 
+        self.class._context_config&.dig(:model) ||
+          RAAF::DSL::Config.model_for(agent_name) ||
           "gpt-4o"
       end
 
@@ -2579,14 +2530,14 @@ module RAAF
       def max_tokens
         self.class._context_config&.dig(:max_tokens) ||
           RAAF::DSL::Config.max_tokens_for(agent_name) ||
-          nil  # No default - let provider use its default
+          nil # No default - let provider use its default
       end
 
       # Instance accessor for temperature (randomness control)
       def temperature
         self.class._context_config&.dig(:temperature) ||
           RAAF::DSL::Config.temperature_for(agent_name) ||
-          nil  # No default - let provider use its default
+          nil # No default - let provider use its default
       end
 
       # Instance accessor for top_p (nucleus sampling)
@@ -2619,7 +2570,6 @@ module RAAF
         self.class._context_config&.dig(:parallel_tool_calls) || nil
       end
 
-
       def instructions
         build_instructions
       end
@@ -2633,9 +2583,9 @@ module RAAF
           tool_list = build_tools_from_config
 
           # Convert DSL tools to FunctionTool instances for RAAF compatibility
-          converted = tool_list.map { |tool|
+          converted = tool_list.map do |tool|
             convert_to_function_tool(tool)
-          }.compact
+          end.compact
           converted
         end
 
@@ -2692,7 +2642,7 @@ module RAAF
 
       def response_format
         log_debug("Building response format", category: :agents, agent_name: agent_name)
-        
+
         # Check if unstructured output is requested
         if self.class._context_config&.dig(:output_format) == :unstructured
           log_debug("Unstructured output requested, returning nil", category: :agents)
@@ -2707,23 +2657,29 @@ module RAAF
         end
 
         # Extract validation mode from schema definition
-        validation_mode = schema_def.is_a?(Hash) && schema_def[:config] ? 
-                         schema_def[:config][:mode] : :strict
-        
+        validation_mode = if schema_def.is_a?(Hash) && schema_def[:config]
+                            schema_def[:config][:mode]
+                          else
+                            :strict
+                          end
+
         log_debug("Schema validation mode", category: :agents, mode: validation_mode)
-        log_debug("Using structured output?", category: :agents, 
-                  structured: validation_mode == :strict)
-        
+        log_debug("Using structured output?", category: :agents,
+                                              structured: validation_mode == :strict)
+
         # In tolerant/partial mode, don't use OpenAI response_format
         # Let the agent return flexible JSON and validate on our side
-        if [:tolerant, :partial].include?(validation_mode)
+        if %i[tolerant partial].include?(validation_mode)
           log_debug("Tolerant/partial mode - not using OpenAI structured output", category: :agents)
           return nil
         end
-        
+
         # Strict mode uses OpenAI response_format (backward compatible)
-        schema_data = schema_def.is_a?(Hash) && schema_def[:schema] ?
-                     schema_def[:schema] : schema_def
+        schema_data = if schema_def.is_a?(Hash) && schema_def[:schema]
+                        schema_def[:schema]
+                      else
+                        schema_def
+                      end
 
         # Process schema through StrictSchema for OpenAI strict mode compliance
         if validation_mode == :strict && schema_data
@@ -2732,9 +2688,9 @@ module RAAF
 
         if schema_data
           log_debug("Schema being sent to OpenAI", category: :agents,
-                    schema: schema_data.inspect[0..500])
+                                                   schema: schema_data.inspect[0..500])
         end
-        
+
         response_format_obj = {
           type: "json_schema",
           json_schema: {
@@ -2743,7 +2699,7 @@ module RAAF
             schema: schema_data
           }
         }
-        
+
         log_debug("Final response_format object created", category: :agents)
         response_format_obj
       end
@@ -2776,15 +2732,15 @@ module RAAF
       # Context validation method - needs to be public for pipeline validation
       def validate_context!
         # Validate required context keys from the _required_context_keys class method
-        if self.class._required_context_keys
-          missing_keys = self.class._required_context_keys.reject do |key|
-            @context.has?(key)
-          end
+        return unless self.class._required_context_keys
 
-          if missing_keys.any?
-            raise ArgumentError, "Required context keys missing: #{missing_keys.join(', ')}"
-          end
+        missing_keys = self.class._required_context_keys.reject do |key|
+          @context.has?(key)
         end
+
+        return unless missing_keys.any?
+
+        raise ArgumentError, "Required context keys missing: #{missing_keys.join(', ')}"
       end
 
       # Find retry configuration for a given error
@@ -2845,7 +2801,7 @@ module RAAF
 
         case config[:backoff]
         when :exponential
-          base_delay * (2 ** (attempt - 1))
+          base_delay * (2**(attempt - 1))
         when :linear
           base_delay * attempt
         else
@@ -2872,17 +2828,19 @@ module RAAF
 
         # Fire DSL hook: on_prompt_generated - After prompts are generated
         fire_dsl_hook(:on_prompt_generated, {
-          system_prompt: openai_agent.instructions,
-          user_prompt: user_prompt
-        })
+                        system_prompt: openai_agent.instructions,
+                        user_prompt: user_prompt
+                      })
 
         log_debug "Executing agent #{self.class.name} with prompt length: #{user_prompt.to_s.length}"
 
         # Create RAAF runner and delegate execution
         runner_params = { agent: openai_agent }
-        runner_params[:provider] = @provider if @provider  # Pass agent's provider if configured
+        runner_params[:provider] = @provider if @provider # Pass agent's provider if configured
         runner_params[:stop_checker] = stop_checker if stop_checker
-        runner_params[:http_timeout] = self.class._context_config[:http_timeout] if self.class._context_config[:http_timeout]
+        if self.class._context_config[:http_timeout]
+          runner_params[:http_timeout] = self.class._context_config[:http_timeout]
+        end
         runner_params[:parent_component] = @parent_component if @parent_component
 
         runner = RAAF::Runner.new(**runner_params)
@@ -2901,12 +2859,12 @@ module RAAF
         if run_result.respond_to?(:usage) && run_result.usage
           usage = run_result.usage
           fire_dsl_hook(:on_tokens_counted, {
-            input_tokens: usage[:input_tokens] || usage["input_tokens"],
-            output_tokens: usage[:output_tokens] || usage["output_tokens"],
-            total_tokens: usage[:total_tokens] || usage["total_tokens"],
-            estimated_cost: calculate_estimated_cost(usage, openai_agent.model),
-            model: openai_agent.model
-          })
+                          input_tokens: usage[:input_tokens] || usage["input_tokens"],
+                          output_tokens: usage[:output_tokens] || usage["output_tokens"],
+                          total_tokens: usage[:total_tokens] || usage["total_tokens"],
+                          estimated_cost: calculate_estimated_cost(usage, openai_agent.model),
+                          model: openai_agent.model
+                        })
         end
 
         # Transform result to expected DSL format
@@ -2955,15 +2913,15 @@ module RAAF
 
         # Extract usage data from run_result if available
         usage_data = if run_result.respond_to?(:usage)
-          log_info "🔍 [#{self.class.name}::transform_ai_result] run_result.usage = #{run_result.usage.inspect}"
-          run_result.usage
-        elsif run_result.is_a?(Hash) && (run_result[:usage] || run_result['usage'])
-          log_info "🔍 [#{self.class.name}::transform_ai_result] run_result hash usage = #{(run_result[:usage] || run_result['usage']).inspect}"
-          run_result[:usage] || run_result['usage']
-        else
-          log_warn "⚠️ [#{self.class.name}::transform_ai_result] No usage data found in run_result! Class: #{run_result.class.name}"
-          nil
-        end
+                       log_info "🔍 [#{self.class.name}::transform_ai_result] run_result.usage = #{run_result.usage.inspect}"
+                       run_result.usage
+                     elsif run_result.is_a?(Hash) && (run_result[:usage] || run_result["usage"])
+                       log_info "🔍 [#{self.class.name}::transform_ai_result] run_result hash usage = #{(run_result[:usage] || run_result['usage']).inspect}"
+                       run_result[:usage] || run_result["usage"]
+                     else
+                       log_warn "⚠️ [#{self.class.name}::transform_ai_result] No usage data found in run_result! Class: #{run_result.class.name}"
+                       nil
+                     end
 
         # Build result in expected DSL format
         result_hash = {
@@ -2994,13 +2952,9 @@ module RAAF
         transformations = self.class._result_transformations
         transformed_result = base_result.dup
         transformations.each do |field, transformation|
-          begin
-            if transformation.respond_to?(:call)
-              transformed_result[field] = transformation.call(base_result)
-            end
-          rescue => e
-            # Continue with other transformations
-          end
+          transformed_result[field] = transformation.call(base_result) if transformation.respond_to?(:call)
+        rescue StandardError
+          # Continue with other transformations
         end
 
         transformed_result
@@ -3018,17 +2972,14 @@ module RAAF
 
         output_fields.each do |field_name|
           field_data = source_data[field_name] ||
-                      source_data[field_name.to_s] ||
-                      source_data[field_name.to_sym]
+                       source_data[field_name.to_s] ||
+                       source_data[field_name.to_sym]
 
-          if field_data
-            base_result[field_name] = field_data
-          end
+          base_result[field_name] = field_data if field_data
         end
 
         base_result
       end
-
 
       # Convert tool instance to function tool
       def convert_to_function_tool(tool_instance)
@@ -3041,9 +2992,7 @@ module RAAF
         # These are provider-level settings (e.g., google_search for Gemini grounding)
         if tool_instance.is_a?(Hash)
           grounding_keys = [:google_search, :google_search_retrieval, "google_search", "google_search_retrieval"]
-          if (tool_instance.keys & grounding_keys).any?
-            return tool_instance
-          end
+          return tool_instance if (tool_instance.keys & grounding_keys).any?
         end
 
         # If tool has a function_tool method, use it
@@ -3058,16 +3007,16 @@ module RAAF
           # Try to get function tool parameters and description from class methods
           klass = tool_instance.class
           params = if klass.respond_to?(:function_tool_parameters)
-            klass.function_tool_parameters
-          else
-            # Default: infer from call method signature
-            {}
-          end
+                     klass.function_tool_parameters
+                   else
+                     # Default: infer from call method signature
+                     {}
+                   end
           desc = if klass.respond_to?(:function_tool_description)
-            klass.function_tool_description
-          else
-            "Tool: #{klass.name}"
-          end
+                   klass.function_tool_description
+                 else
+                   "Tool: #{klass.name}"
+                 end
 
           ft = RAAF::FunctionTool.new(
             tool_instance.method(:call),
@@ -3113,7 +3062,7 @@ module RAAF
       # @return [Boolean] true if validation is enabled
       # Temporarily disabled - ToolExecutionConfig removed
       def validation_enabled?
-        true  # Default to enabled
+        true # Default to enabled
         # self.class.tool_execution_config[:enable_validation]
       end
 
@@ -3122,7 +3071,7 @@ module RAAF
       # @return [Boolean] true if logging is enabled
       # Temporarily disabled - ToolExecutionConfig removed
       def logging_enabled?
-        true  # Default to enabled
+        true # Default to enabled
         # self.class.tool_execution_config[:enable_logging]
       end
 
@@ -3131,7 +3080,7 @@ module RAAF
       # @return [Boolean] true if metadata is enabled
       # Temporarily disabled - ToolExecutionConfig removed
       def metadata_enabled?
-        true  # Default to enabled
+        true # Default to enabled
         # self.class.tool_execution_config[:enable_metadata]
       end
 
@@ -3140,7 +3089,7 @@ module RAAF
       # @return [Boolean] true if argument logging is enabled
       # Temporarily disabled - ToolExecutionConfig removed
       def log_arguments?
-        true  # Default to enabled
+        true # Default to enabled
         # self.class.tool_execution_config[:log_arguments]
       end
 
@@ -3149,7 +3098,7 @@ module RAAF
       # @return [Integer] Truncation length for logs
       # Temporarily disabled - ToolExecutionConfig removed
       def truncate_logs_at
-        100  # Default value
+        100 # Default value
         # self.class.tool_execution_config[:truncate_logs]
       end
 
@@ -3165,9 +3114,7 @@ module RAAF
         return false unless tool
 
         # Don't double-intercept DSL tools that already have conveniences
-        if tool.respond_to?(:dsl_wrapped?) && tool.dsl_wrapped?
-          return false
-        end
+        return false if tool.respond_to?(:dsl_wrapped?) && tool.dsl_wrapped?
 
         # Check if tool execution features are enabled
         tool_execution_enabled?
@@ -3203,9 +3150,9 @@ module RAAF
 
         # Metadata injection from ToolMetadata module
         # Only inject metadata for Hash results when metadata is enabled
-        if metadata_enabled? && result.is_a?(Hash)
-          inject_metadata!(result, tool, duration_ms)
-        end
+        return unless metadata_enabled? && result.is_a?(Hash)
+
+        inject_metadata!(result, tool, duration_ms)
       end
 
       # Handle tool execution errors
@@ -3240,12 +3187,12 @@ module RAAF
       def build_context_from_param(context_param, debug = nil)
         # Only accept ContextVariables instances
         base_context = case context_param
-        when RAAF::DSL::ContextVariables
-          context_param.to_h
-        else
-          raise ArgumentError, "context must be RAAF::DSL::ContextVariables instance. Use RAAF::DSL::ContextVariables.new(your_hash) instead of passing raw hash."
-        end
-        
+                       when RAAF::DSL::ContextVariables
+                         context_param.to_h
+                       else
+                         raise ArgumentError, "context must be RAAF::DSL::ContextVariables instance. Use RAAF::DSL::ContextVariables.new(your_hash) instead of passing raw hash."
+                       end
+
         # Apply agent's context defaults if they don't exist in provided context
         if self.class._context_config && self.class._context_config[:context_rules] && self.class._context_config[:context_rules][:defaults]
           defaults = self.class._context_config[:context_rules][:defaults]
@@ -3253,52 +3200,50 @@ module RAAF
             base_context[key] ||= value.is_a?(Proc) ? value.call : value
           end
         end
-        
+
         final_context = RAAF::DSL::ContextVariables.new(base_context, debug: debug)
         @context = final_context
-        
+
         # NEW: Create dynamic methods for all context variables
         define_context_accessors(final_context.keys)
-        
+
         final_context
       end
-      
+
       # Build context automatically from keyword arguments
       def build_auto_context(params, debug = nil)
         require_relative "core/context_builder"
-        
+
         log_debug "Building auto context for #{self.class.name}"
-        
+
         rules = self.class._context_config[:context_rules] || {}
         builder = RAAF::DSL::ContextBuilder.new({}, debug: debug)
-        
+
         # Ensure params has indifferent access for key checking throughout this method
-        params_with_indifferent_access = params.is_a?(ActiveSupport::HashWithIndifferentAccess) ? 
-                                          params : 
-                                          params.with_indifferent_access
-        
+        params_with_indifferent_access = if params.is_a?(ActiveSupport::HashWithIndifferentAccess)
+                                           params
+                                         else
+                                           params.with_indifferent_access
+                                         end
+
         # Validate required fields are provided
         if rules[:required]
           missing_required = rules[:required].select { |field| !params_with_indifferent_access.key?(field) }
-          if missing_required.any?
-            raise ArgumentError, "Missing required context fields: #{missing_required.inspect}"
-          end
+          raise ArgumentError, "Missing required context fields: #{missing_required.inspect}" if missing_required.any?
         end
-        
+
         # Add provided parameters (with exclusion/inclusion rules for backward compatibility)
         params.each do |key, value|
           # Apply exclusion rules
           next if rules[:exclude]&.include?(key)
           next if rules[:include]&.any? && !rules[:include].include?(key)
-          
+
           # Check for custom preparation method
-          if respond_to?("prepare_#{key}_for_context", true)
-            value = send("prepare_#{key}_for_context", value)
-          end
-          
+          value = send("prepare_#{key}_for_context", value) if respond_to?("prepare_#{key}_for_context", true)
+
           builder.with(key, value)
         end
-        
+
         # Add optional fields with defaults (new DSL)
         if rules[:optional]
           rules[:optional].each do |key, default_value|
@@ -3308,7 +3253,7 @@ module RAAF
             end
           end
         end
-        
+
         # Add output fields as nil (new DSL)
         if rules[:output]
           rules[:output].each do |key|
@@ -3317,7 +3262,7 @@ module RAAF
             builder.with(key, nil) unless params_with_indifferent_access.key?(key)
           end
         end
-        
+
         # Apply legacy default values for backward compatibility
         if rules[:defaults]
           rules[:defaults].each do |key, default_value|
@@ -3327,13 +3272,13 @@ module RAAF
             end
           end
         end
-        
+
         # Make static context available to computed methods
         @context = builder.current_context
-        
+
         # Add computed context values from build_*_context methods (legacy)
         add_computed_context(builder)
-        
+
         # Add computed fields (new DSL) - after basic context is available
         if rules[:computed]
           rules[:computed].each do |field_name, method_name|
@@ -3348,25 +3293,25 @@ module RAAF
             end
           end
         end
-        
+
         # Final build with all values
         final_context = builder.build
         @context = final_context
-        
+
         log_debug "Final context built for #{self.class.name} with #{final_context.keys.size} keys"
-        
+
         # NEW: Create dynamic methods for all context variables
         define_context_accessors(final_context.keys)
-        
+
         final_context
       end
-      
+
       # Add computed context values from build_*_context methods
       def add_computed_context(builder)
         # Find all methods matching build_*_context pattern
         methods = self.class.instance_methods(false) + self.class.private_instance_methods(false)
         computed_methods = methods.grep(/^build_(.+)_context$/)
-        
+
         computed_methods.each do |method|
           context_key = method.to_s.match(/^build_(.+)_context$/)[1].to_sym
           if respond_to?(method, true)
@@ -3375,16 +3320,14 @@ module RAAF
           end
         end
       end
-      
+
       # Define dynamic getter and setter methods for context variables
       # This enables natural Ruby assignment syntax: results = value
       def define_context_accessors(context_keys)
         context_keys.each do |key|
           # Skip creating singleton accessor if instance method already exists
           # This prevents shadowing real methods like 'provider', 'agent_name', etc.
-          if self.class.method_defined?(key) || self.class.private_method_defined?(key)
-            next
-          end
+          next if self.class.method_defined?(key) || self.class.private_method_defined?(key)
 
           # Remove any existing methods to avoid warnings (check if method exists first)
           begin
@@ -3414,7 +3357,7 @@ module RAAF
         # Track what we've defined for debugging
         @defined_context_keys = context_keys
       end
-      
+
       # Setup provider instance based on agent configuration
       #
       # @return [Object, nil] Provider instance or nil if not configured
@@ -3450,7 +3393,7 @@ module RAAF
 
           begin
             RAAF::ProviderRegistry.create(provider_name, **provider_opts)
-          rescue => e
+          rescue StandardError => e
             log_error("Failed to create provider",
                       provider: provider_name,
                       error: e.message,
@@ -3458,20 +3401,17 @@ module RAAF
             nil
           end
         else
-          nil  # No provider configured
+          nil # No provider configured
         end
       end
 
       # Check if agent has any smart features configured
       def has_smart_features?
         self.class._retry_config.present? ||
-        self.class._circuit_breaker_config.present? ||
-        self.class._required_context_keys.present? ||
-        self.class._validation_rules.present?
+          self.class._circuit_breaker_config.present? ||
+          self.class._required_context_keys.present? ||
+          self.class._validation_rules.present?
       end
-      
-
-
 
       # Capture initial dialog state
       def capture_initial_dialog_state(span, run_context)
@@ -3502,9 +3442,9 @@ module RAAF
         end
 
         # Prompt class info
-        if self.class.prompt_class
-          span.set_attribute("dialog.prompt_class", self.class.prompt_class.name)
-        end
+        return unless self.class.prompt_class
+
+        span.set_attribute("dialog.prompt_class", self.class.prompt_class.name)
       end
 
       # Capture final dialog state from LLM execution
@@ -3530,14 +3470,14 @@ module RAAF
         end
 
         # Token usage
-        if run_result.respond_to?(:usage) && run_result.usage
-          usage = run_result.usage
-          span.set_attribute("dialog.total_tokens", {
-            prompt_tokens: usage[:prompt_tokens] || 0,
-            completion_tokens: usage[:completion_tokens] || 0,
-            total_tokens: usage[:total_tokens] || 0
-          })
-        end
+        return unless run_result.respond_to?(:usage) && run_result.usage
+
+        usage = run_result.usage
+        span.set_attribute("dialog.total_tokens", {
+                             prompt_tokens: usage[:prompt_tokens] || 0,
+                             completion_tokens: usage[:completion_tokens] || 0,
+                             total_tokens: usage[:total_tokens] || 0
+                           })
       end
 
       # Capture final agent result
@@ -3551,39 +3491,49 @@ module RAAF
 
         # Success indicators
         span.set_attribute("agent.workflow_status", result[:workflow_status]) if result[:workflow_status]
-        if result[:error]
-          span.set_attribute("agent.error_message", result[:error])
-        end
+        return unless result[:error]
+
+        span.set_attribute("agent.error_message", result[:error])
       end
 
       # Calculate input data size
       def calculate_input_size
         return 0 unless @context
+
         context_data = @context.respond_to?(:to_h) ? @context.to_h : @context
-        context_data.to_s.length rescue 0
+        begin
+          context_data.to_s.length
+        rescue StandardError
+          0
+        end
       end
 
       # Calculate output data size
       def calculate_output_size(result)
         return 0 unless result
-        result.to_s.length rescue 0
+
+        begin
+          result.to_s.length
+        rescue StandardError
+          0
+        end
       end
 
       # Extract tool calls from conversation messages
       def extract_tool_calls_from_messages(messages)
         tool_calls = []
         messages.each do |msg|
-          if msg[:role] == "assistant" && msg[:content]
-            # Look for function call patterns in content
-            # This is a simplified extraction - real implementation would depend on message format
-            content = msg[:content].to_s
-            if content.include?("function_call") || content.include?("tool_call")
-              tool_calls << {
-                message_content: content[0..200], # First 200 chars
-                timestamp: msg[:timestamp]
-              }
-            end
-          end
+          next unless msg[:role] == "assistant" && msg[:content]
+
+          # Look for function call patterns in content
+          # This is a simplified extraction - real implementation would depend on message format
+          content = msg[:content].to_s
+          next unless content.include?("function_call") || content.include?("tool_call")
+
+          tool_calls << {
+            message_content: content[0..200], # First 200 chars
+            timestamp: msg[:timestamp]
+          }
         end
         tool_calls
       end
@@ -3595,15 +3545,15 @@ module RAAF
         redacted = {}
         data.each do |key, value|
           key_str = key.to_s.downcase
-          if sensitive_dialog_key?(key_str)
-            redacted[key] = "[REDACTED]"
-          elsif value.is_a?(Hash)
-            redacted[key] = redact_sensitive_dialog_data(value)
-          elsif value.is_a?(Array) && value.any? { |v| v.is_a?(Hash) }
-            redacted[key] = value.map { |v| v.is_a?(Hash) ? redact_sensitive_dialog_data(v) : v }
-          else
-            redacted[key] = value
-          end
+          redacted[key] = if sensitive_dialog_key?(key_str)
+                            "[REDACTED]"
+                          elsif value.is_a?(Hash)
+                            redact_sensitive_dialog_data(value)
+                          elsif value.is_a?(Array) && value.any? { |v| v.is_a?(Hash) }
+                            value.map { |v| v.is_a?(Hash) ? redact_sensitive_dialog_data(v) : v }
+                          else
+                            value
+                          end
         end
         redacted
       end
@@ -3640,14 +3590,11 @@ module RAAF
         sensitive_patterns.any? { |pattern| key.include?(pattern) }
       end
 
-
       def validate_context_rules!
         self.class._validation_rules.each do |key, rules|
           value = @context.get(key)
-          
-          if rules[:presence] && value.nil?
-            raise ArgumentError, "Context key '#{key}' is required but missing"
-          end
+
+          raise ArgumentError, "Context key '#{key}' is required but missing" if rules[:presence] && value.nil?
 
           if rules[:presence].is_a?(Array) && value.respond_to?(:[])
             missing_attrs = rules[:presence].reject { |attr| value[attr].present? }
@@ -3668,19 +3615,17 @@ module RAAF
       end
 
       def setup_logging_and_metrics
-        # Note: log_events and track_metrics DSL methods were removed as they were not implemented.
+        # NOTE: log_events and track_metrics DSL methods were removed as they were not implemented.
       end
-
 
       # Check if agent should execute based on defined conditions
       def should_execute?(context, previous_result)
         # Skip execution conditions during pipeline validation
         return true if @validation_mode
         return true unless self.class._execution_conditions
-        
+
         self.class._execution_conditions.evaluate(context, previous_result)
       end
-
 
       # Create a span for skipped agents to make them visible in traces
       def create_skipped_span(skip_reason, result_data, context)
@@ -3709,9 +3654,7 @@ module RAAF
               missing_keys = self.class._required_context_keys.reject do |key|
                 context.respond_to?(:has?) ? context.has?(key) : context.key?(key)
               end
-              if missing_keys.any?
-                span.set_attribute("agent.missing_required_keys", missing_keys.join(", "))
-              end
+              span.set_attribute("agent.missing_required_keys", missing_keys.join(", ")) if missing_keys.any?
             end
 
             # Log the skip event
@@ -3769,7 +3712,7 @@ module RAAF
           # NEW: Universal text extraction for all providers (schema-less agents)
           # Handles responses from ResponsesProvider, GeminiProvider, AnthropicProvider,
           # PerplexityProvider, GroqProvider, and CohereProvider
-          if !has_schema_defined?
+          unless has_schema_defined?
             content = extract_provider_text_content(results)
             if content && content.is_a?(String) && !content.empty?
               log_debug "📄 [#{self.class.name}] Extracted text from provider response (#{content.length} chars)"
@@ -3819,9 +3762,7 @@ module RAAF
         end
 
         # Handle Result objects with .data
-        if results.respond_to?(:data)
-          return results.data if results.data
-        end
+        return results.data if results.respond_to?(:data) && results.data
 
         # Fallback: if results is a RunResult with empty messages, try to extract from raw response
         if defined?(RAAF::RunResult) && results.is_a?(RAAF::RunResult) && results.respond_to?(:to_h)
@@ -3887,7 +3828,7 @@ module RAAF
 
       def parse_ai_response(content)
         return content unless content.is_a?(String)
-        
+
         # Since core Agent now handles JSON repair and schema validation automatically
         # when configured, we can simplify this to basic JSON parsing with graceful fallback
         begin
@@ -3901,7 +3842,7 @@ module RAAF
         end
       end
 
-      # Note: fault_tolerant_parse functionality has been moved to core Agent
+      # NOTE: fault_tolerant_parse functionality has been moved to core Agent
       # The core Agent now handles JSON repair and schema validation automatically
       # when json_repair, normalize_keys, and validation_mode options are set
 
@@ -3910,7 +3851,7 @@ module RAAF
         log_error "💀 [DEAD_LETTER] #{self.class.name} - Failed to parse AI response"
         log_error "Content: #{content}"
         log_error "Errors: #{errors.join(', ')}"
-        
+
         # In production, you might want to store this in a database or file
         # DeadLetterQueue.create!(
         #   agent_class: self.class.name,
@@ -3919,7 +3860,6 @@ module RAAF
         #   timestamp: Time.current
         # )
       end
-
 
       # Generate automatic transformations for output fields when none are configured
       def generate_auto_transformations_for_output_fields(base_result)
@@ -4046,8 +3986,11 @@ module RAAF
 
         # Get schema configuration to determine JSON repair options
         schema_def = build_schema
-        validation_mode = schema_def && schema_def.is_a?(Hash) && schema_def[:config] ?
-                         schema_def[:config][:mode] : :strict
+        validation_mode = if schema_def && schema_def.is_a?(Hash) && schema_def[:config]
+                            schema_def[:config][:mode]
+                          else
+                            :strict
+                          end
 
         # Build base configuration
         agent_config = {
@@ -4065,8 +4008,8 @@ module RAAF
           user: user,
           parallel_tool_calls: parallel_tool_calls,
           # Pass JSON repair and schema validation options to core Agent
-          json_repair: [:tolerant, :partial].include?(validation_mode),
-          normalize_keys: [:tolerant, :partial].include?(validation_mode),
+          json_repair: %i[tolerant partial].include?(validation_mode),
+          normalize_keys: %i[tolerant partial].include?(validation_mode),
           validation_mode: validation_mode
         }
 
@@ -4085,19 +4028,15 @@ module RAAF
         # Add tools if configured
         current_tools = tools
 
-        if current_tools.any?
-          agent_config[:tools] = current_tools
-        end
+        agent_config[:tools] = current_tools if current_tools.any?
 
         # Add handoffs if configured
-        if handoff_agents.any?
-          agent_config[:handoffs] = handoff_agents
-        end
+        agent_config[:handoffs] = handoff_agents if handoff_agents.any?
 
         # Add hooks if configured (bridge DSL hooks to Core execution)
         hooks_config = combined_hooks_config
         if hooks_config
-          require_relative 'hooks/hooks_adapter'
+          require_relative "hooks/hooks_adapter"
           agent_config[:hooks] = RAAF::DSL::Hooks::HooksAdapter.new(hooks_config, self)
         end
 
@@ -4146,15 +4085,15 @@ module RAAF
 
         # Extract usage data from run_result if available (for token tracking in evaluations)
         usage_data = if run_result.respond_to?(:usage)
-          log_info "🔍 [#{self.class.name}::transform_ai_result] run_result.usage = #{run_result.usage.inspect}"
-          run_result.usage
-        elsif run_result.is_a?(Hash) && (run_result[:usage] || run_result['usage'])
-          log_info "🔍 [#{self.class.name}::transform_ai_result] run_result hash usage = #{(run_result[:usage] || run_result['usage']).inspect}"
-          run_result[:usage] || run_result['usage']
-        else
-          log_warn "⚠️ [#{self.class.name}::transform_ai_result] No usage data found in run_result! Class: #{run_result.class.name}"
-          nil
-        end
+                       log_info "🔍 [#{self.class.name}::transform_ai_result] run_result.usage = #{run_result.usage.inspect}"
+                       run_result.usage
+                     elsif run_result.is_a?(Hash) && (run_result[:usage] || run_result["usage"])
+                       log_info "🔍 [#{self.class.name}::transform_ai_result] run_result hash usage = #{(run_result[:usage] || run_result['usage']).inspect}"
+                       run_result[:usage] || run_result["usage"]
+                     else
+                       log_warn "⚠️ [#{self.class.name}::transform_ai_result] No usage data found in run_result! Class: #{run_result.class.name}"
+                       nil
+                     end
 
         # Build result in expected DSL format
         raaf_result = {
@@ -4212,14 +4151,13 @@ module RAAF
                     content_type: content.class.name
         elsif content.is_a?(Array)
           # For arrays, convert any nested hashes to indifferent access
-          content = content.map { |item|
+          content = content.map do |item|
             item.is_a?(Hash) ? RAAF::Utils.indifferent_access(item) : item
-          }
+          end
         end
 
         content
       end
-
 
       def build_result_summary(final_output)
         case final_output
@@ -4240,50 +4178,49 @@ module RAAF
 
         # Debug: Show transformation inputs
         log_debug("apply_result_transformations", category: :agents, agent_name: agent_name)
-        log_debug("Base result keys", category: :agents, 
-                  keys: base_result.keys.inspect) if base_result.respond_to?(:keys)
+        if base_result.respond_to?(:keys)
+          log_debug("Base result keys", category: :agents,
+                                        keys: base_result.keys.inspect)
+        end
         log_debug("Base result type", category: :agents, type: base_result.class.name)
-        
+
         transformations = self.class._result_transformations
-        log_debug("Transformations to apply", category: :agents, 
-                  transformations: transformations.keys.inspect)
-        
+        log_debug("Transformations to apply", category: :agents,
+                                              transformations: transformations.keys.inspect)
+
         # For AI results, the parsed output is in :parsed_output
         # For other results, it's in :data
         input_data = base_result[:parsed_output] || base_result[:data] || base_result
-        
+
         log_debug "Processing transformation input data: #{input_data.class}"
 
         transformed_result = {}
         metadata = {}
 
         transformations.each do |field_name, field_config|
-          begin
-            # Extract source value
-            source_value = extract_field_value(input_data, field_config)
+          # Extract source value
+          source_value = extract_field_value(input_data, field_config)
 
-            # Apply transformations and validations
-            transformed_value = transform_field_value(source_value, field_config, input_data)
+          # Apply transformations and validations
+          transformed_value = transform_field_value(source_value, field_config, input_data)
 
-            # Set result
-            transformed_result[field_name] = transformed_value
+          # Set result
+          transformed_result[field_name] = transformed_value
 
-            # Track metadata for debugging
-            metadata[field_name] = {
-              source: field_config[:from] || field_name,
-              transformed: !field_config[:transform].nil?,
-              computed: !field_config[:computed].nil?
-            }
+          # Track metadata for debugging
+          metadata[field_name] = {
+            source: field_config[:from] || field_name,
+            transformed: !field_config[:transform].nil?,
+            computed: !field_config[:computed].nil?
+          }
+        rescue StandardError => e
+          log_error "❌ [#{self.class.name}] Field transformation failed",
+                    field: field_name,
+                    error: e.message
 
-          rescue => e
-            log_error "❌ [#{self.class.name}] Field transformation failed",
-                     field: field_name,
-                     error: e.message
-
-            # Set field to nil or default if transformation fails
-            transformed_result[field_name] = field_config[:default] || nil
-            metadata[field_name] = { error: e.message }
-          end
+          # Set field to nil or default if transformation fails
+          transformed_result[field_name] = field_config[:default] || nil
+          metadata[field_name] = { error: e.message }
         end
 
         # Merge transformed fields into the original result structure
@@ -4292,10 +4229,10 @@ module RAAF
         final_result = base_result.merge(transformed_result).merge(
           transformation_metadata: metadata
         )
-        
+
         # Generic transformation logging
         log_debug "Transformation completed for #{agent_name} with #{final_result.keys.size} result keys"
-        
+
         final_result
       end
 
@@ -4354,7 +4291,7 @@ module RAAF
                     # Callable objects (Proc, lambda, Method) - check arity for parameter count
                     if transform.arity == -3 # 2 required params + **args (most flexible)
                       transform.call(value, raw_data)
-                    elsif transform.arity == 2 || transform.arity == -2 # Exactly 2 params or 1 required + 1 optional
+                    elsif [2, -2].include?(transform.arity) # Exactly 2 params or 1 required + 1 optional
                       transform.call(value, raw_data)
                     else
                       # Backward compatibility: single parameter
@@ -4362,19 +4299,20 @@ module RAAF
                     end
                   when Symbol
                     # Symbol method name - call as instance method with arity checking
-                    if respond_to?(transform, true)
-                      method_obj = method(transform)
-                      if method_obj.arity == -3 # 2 required params + **args (most flexible)
-                        send(transform, value, raw_data)
-                      elsif method_obj.arity == 2 || method_obj.arity == -2 # Exactly 2 params or 1 required + 1 optional
-                        send(transform, value, raw_data)
-                      else
-                        # Backward compatibility: single parameter
-                        send(transform, value)
-                      end
-                    else
+                    unless respond_to?(transform, true)
                       raise ArgumentError, "Transform method '#{transform}' not found on #{self.class.name}"
                     end
+
+                    method_obj = method(transform)
+                    if method_obj.arity == -3 # 2 required params + **args (most flexible)
+                      send(transform, value, raw_data)
+                    elsif [2, -2].include?(method_obj.arity) # Exactly 2 params or 1 required + 1 optional
+                      send(transform, value, raw_data)
+                    else
+                      # Backward compatibility: single parameter
+                      send(transform, value)
+                    end
+
                   else
                     raise ArgumentError, "Transform must be a Proc, Method, or Symbol, got #{transform.class}"
                   end
@@ -4404,7 +4342,6 @@ module RAAF
         end
       end
 
-
       # Handoff building method (consolidated from AgentDsl)
       def build_handoffs_from_config
         handoff_context_configs = self.class._context_config[:handoff_agents] || []
@@ -4424,8 +4361,6 @@ module RAAF
 
       # Custom error classes
       class CircuitBreakerOpenError < StandardError; end
-
-
 
       # Result transformation builder for defining field mappings and transformations
       class ResultTransformBuilder
@@ -4454,12 +4389,12 @@ module RAAF
         end
       end
 
-      # Note: LogEventBuilder and MetricsBuilder classes were removed as they were not implemented.
+      # NOTE: LogEventBuilder and MetricsBuilder classes were removed as they were not implemented.
 
-      # Note: LogEventProcessor and MetricsCollector classes were removed as they were not implemented.
+      # NOTE: LogEventProcessor and MetricsCollector classes were removed as they were not implemented.
 
       # Context wrapper for run_if blocks that provides automatic variable access
-      # 
+      #
       # This class wraps the context and previous result, providing method_missing
       # for automatic context variable access similar to prompt classes.
       #
@@ -4470,36 +4405,35 @@ module RAAF
       #
       class ConditionContext
         include RAAF::DSL::ContextAccess
-        
+
         attr_reader :previous_result
-        
+
         def initialize(context, previous_result = nil)
           @context = ensure_context_variables(context)
           @previous_result = previous_result
         end
-        
+
         # Convenience methods for previous result checks
         def previous_succeeded?
           @previous_result && @previous_result[:success] != false
         end
-        
+
         def previous_failed?
           @previous_result && @previous_result[:success] == false
         end
-        
+
         def previous_result_has?(*keys)
           return false unless @previous_result.is_a?(Hash)
+
           keys.all? { |key| @previous_result.key?(key) && @previous_result[key] }
         end
-        
+
         # Access to the raw context for compatibility with existing DSL methods
-        def context
-          @context
-        end
+        attr_reader :context
       end
 
       # Execution conditions for conditional agent execution
-      # 
+      #
       # Supports two execution modes:
       # 1. Explicit DSL mode (legacy): Uses context_has, context_value, etc.
       # 2. Automatic context mode (new): Direct variable access with method_missing
@@ -4510,7 +4444,7 @@ module RAAF
       #     context_value :analysis_depth, equals: "deep"
       #   end
       #
-      # @example Automatic context mode  
+      # @example Automatic context mode
       #   run_if do
       #     companies.present? && analysis_depth == "deep"
       #   end
@@ -4521,19 +4455,19 @@ module RAAF
           @negate = negate
           @block = block
           @use_automatic_mode = false
-          
+
           # Try to detect if block uses explicit DSL methods
-          if block_given?
-            # First try explicit DSL mode
-            begin
-              instance_eval(&block)
-              @use_automatic_mode = false
-            rescue NoMethodError, NameError => e
-              # If we get NoMethodError or NameError during explicit DSL evaluation,
-              # this likely means the block uses automatic context access
-              @conditions.clear  # Clear any partial conditions
-              @use_automatic_mode = true
-            end
+          return unless block_given?
+
+          # First try explicit DSL mode
+          begin
+            instance_eval(&block)
+            @use_automatic_mode = false
+          rescue NoMethodError, NameError
+            # If we get NoMethodError or NameError during explicit DSL evaluation,
+            # this likely means the block uses automatic context access
+            @conditions.clear # Clear any partial conditions
+            @use_automatic_mode = true
           end
         end
 
@@ -4545,7 +4479,7 @@ module RAAF
               result = condition_context.instance_eval(&@block)
               # Convert result to boolean
               result = !!result
-            rescue => e
+            rescue StandardError => e
               # If automatic mode fails, fall back to false
               Rails.logger&.warn("Execution condition evaluation failed: #{e.message}")
               result = false
@@ -4554,48 +4488,49 @@ module RAAF
             # Use explicit DSL mode
             result = @conditions.empty? || @conditions.all? { |condition| condition.call(context, previous_result) }
           end
-          
+
           @negate ? !result : result
         end
 
         # Context-based conditions
         def context_has(*keys)
-          @conditions << ->(context, _) {
+          @conditions << lambda { |context, _|
             keys.all? { |key| context.has?(key) && context.get(key) }
           }
         end
 
         def context_has_any(*keys)
-          @conditions << ->(context, _) {
+          @conditions << lambda { |context, _|
             keys.any? { |key| context.has?(key) && context.get(key) }
           }
         end
 
         def context_value(key, **comparisons)
-          @conditions << ->(context, _) {
+          @conditions << lambda { |context, _|
             value = context.get(key)
             return false unless value
-            
+
             check_comparisons(value, comparisons)
           }
         end
 
         # Previous result conditions
         def previous_agent_succeeded
-          @conditions << ->(_, previous_result) {
+          @conditions << lambda { |_, previous_result|
             previous_result && previous_result[:success] != false
           }
         end
 
         def previous_agent_failed
-          @conditions << ->(_, previous_result) {
+          @conditions << lambda { |_, previous_result|
             previous_result && previous_result[:success] == false
           }
         end
 
         def previous_result_has(*keys)
-          @conditions << ->(_, previous_result) {
+          @conditions << lambda { |_, previous_result|
             return false unless previous_result.is_a?(Hash)
+
             keys.all? { |key| previous_result.key?(key) && previous_result[key] }
           }
         end
@@ -4603,7 +4538,7 @@ module RAAF
         # Logical grouping
         def all_of(&block)
           sub_conditions = ExecutionConditions.new(&block)
-          @conditions << ->(context, previous_result) {
+          @conditions << lambda { |context, previous_result|
             sub_conditions.evaluate(context, previous_result)
           }
         end
@@ -4611,8 +4546,8 @@ module RAAF
         def any_of(&block)
           sub_builder = ConditionBuilder.new
           sub_builder.instance_eval(&block)
-          
-          @conditions << ->(context, previous_result) {
+
+          @conditions << lambda { |context, previous_result|
             sub_builder.conditions.any? { |condition| condition.call(context, previous_result) }
           }
         end
@@ -4620,8 +4555,8 @@ module RAAF
         def none_of(&block)
           sub_builder = ConditionBuilder.new
           sub_builder.instance_eval(&block)
-          
-          @conditions << ->(context, previous_result) {
+
+          @conditions << lambda { |context, previous_result|
             sub_builder.conditions.none? { |condition| condition.call(context, previous_result) }
           }
         end
@@ -4670,34 +4605,34 @@ module RAAF
         end
 
         def context_has(*keys)
-          @conditions << ->(context, _) {
+          @conditions << lambda { |context, _|
             keys.all? { |key| context.has?(key) && context.get(key) }
           }
         end
 
         def context_has_any(*keys)
-          @conditions << ->(context, _) {
+          @conditions << lambda { |context, _|
             keys.any? { |key| context.has?(key) && context.get(key) }
           }
         end
 
         def context_value(key, **comparisons)
-          @conditions << ->(context, _) {
+          @conditions << lambda { |context, _|
             value = context.get(key)
             return false unless value
-            
+
             check_comparisons(value, comparisons)
           }
         end
 
         def previous_agent_succeeded
-          @conditions << ->(_, previous_result) {
+          @conditions << lambda { |_, previous_result|
             previous_result && previous_result[:success] != false
           }
         end
 
         def previous_agent_failed
-          @conditions << ->(_, previous_result) {
+          @conditions << lambda { |_, previous_result|
             previous_result && previous_result[:success] == false
           }
         end
@@ -4744,7 +4679,6 @@ module RAAF
         # Create a short-lived span to make the skip visible in traces
         # Let tracer determine parent automatically (no manual parent passing)
         tracer.agent_span(agent_name) do |span|
-
           # Mark as skipped with specific attributes
           span.set_attribute("agent.skipped", true)
           span.set_attribute("agent.skip_reason", skip_reason)
@@ -4764,9 +4698,9 @@ module RAAF
 
           # Add event to show when skip occurred
           span.add_event("agent.execution_skipped", attributes: {
-            reason: skip_reason,
-            timestamp: Time.now.utc.iso8601
-          })
+                           reason: skip_reason,
+                           timestamp: Time.now.utc.iso8601
+                         })
 
           # Return the skip result
           skip_result
@@ -4811,7 +4745,7 @@ module RAAF
         end
 
         RAAF.logger.debug "🔍 [RAAF Auto-Flush] Flushed traces after #{self.class.name} completion"
-      rescue => e
+      rescue StandardError => e
         RAAF.logger.error "❌ [RAAF Auto-Flush] Failed to flush traces: #{e.message}"
       end
     end

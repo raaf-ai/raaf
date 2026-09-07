@@ -68,12 +68,12 @@ RSpec.describe RAAF::Eval::DSL::FieldContext do
     context "with numeric values" do
       it "calculates absolute delta" do
         context = described_class.new("usage.total_tokens", result_hash)
-        expect(context.delta).to eq(30)  # 150 - 120
+        expect(context.delta).to eq(30) # 150 - 120
       end
 
       it "calculates percentage delta" do
         context = described_class.new("usage.total_tokens", result_hash)
-        expect(context.delta_percentage).to eq(25.0)  # ((150 - 120) / 120.0) * 100
+        expect(context.delta_percentage).to eq(25.0) # ((150 - 120) / 120.0) * 100
       end
 
       it "returns nil delta when baseline is missing" do
@@ -149,15 +149,15 @@ RSpec.describe RAAF::Eval::DSL::FieldContext do
 
   describe "error handling for missing fields" do
     it "raises clear error when field is missing" do
-      expect {
+      expect do
         described_class.new("missing_field", result_hash)
-      }.to raise_error(RAAF::Eval::DSL::FieldNotFoundError, /Field 'missing_field' not found/)
+      end.to raise_error(RAAF::Eval::DSL::FieldNotFoundError, /Field 'missing_field' not found/)
     end
 
     it "raises error for missing nested field" do
-      expect {
+      expect do
         described_class.new("usage.missing_tokens", result_hash)
-      }.to raise_error(RAAF::Eval::DSL::FieldNotFoundError, /Field 'usage.missing_tokens' not found/)
+      end.to raise_error(RAAF::Eval::DSL::FieldNotFoundError, /Field 'usage.missing_tokens' not found/)
     end
   end
 

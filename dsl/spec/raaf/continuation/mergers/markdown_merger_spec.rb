@@ -42,7 +42,7 @@ RSpec.describe "RAAF::Continuation::Mergers::MarkdownMerger" do
       result = markdown_merger.merge([chunk1, chunk2])
 
       # Count header occurrences
-      header_count = result[:content].scan(/\| Product \| Price \| Stock \|/).count
+      header_count = result[:content].scan("| Product | Price | Stock |").count
       expect(header_count).to eq(1)
     end
 
@@ -564,7 +564,7 @@ RSpec.describe "RAAF::Continuation::Mergers::MarkdownMerger" do
         "## Section #{i}\n\nContent #{i}\n\n- Item 1\n- Item 2"
       end
 
-      chunks = parts.each_with_index.map do |content, idx|
+      chunks = parts.each_with_index.map do |content, _idx|
         { content: content }
       end
 

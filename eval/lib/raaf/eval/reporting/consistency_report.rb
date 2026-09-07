@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'json'
+require "json"
 
 module RAAF
   module Eval
@@ -64,7 +64,7 @@ module RAAF
         #
         # @return [String] CSV representation of consistency analysis
         def to_csv
-          require 'csv'
+          require "csv"
 
           CSV.generate do |csv|
             # Header row

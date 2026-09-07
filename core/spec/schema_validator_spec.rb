@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
-require_relative '../lib/raaf/schema_validator'
+require "spec_helper"
+require_relative "../lib/raaf/schema_validator"
 
 RSpec.describe RAAF::SchemaValidator do
   let(:basic_schema) do
@@ -51,7 +51,7 @@ RSpec.describe RAAF::SchemaValidator do
       it "validates successfully" do
         data = { name: "John", age: 30, active: true }
         result = validator.validate(data)
-        
+
         expect(result[:valid]).to be true
         expect(result[:data]).to eq(name: "John", age: 30, active: true)
         expect(result[:errors]).to be_empty
@@ -62,7 +62,7 @@ RSpec.describe RAAF::SchemaValidator do
       it "fails validation" do
         data = { age: 30, active: true }
         result = validator.validate(data)
-        
+
         expect(result[:valid]).to be false
         expect(result[:errors]).to include("Missing required field: name")
       end
@@ -72,7 +72,7 @@ RSpec.describe RAAF::SchemaValidator do
       it "fails validation" do
         data = { name: "John", age: "thirty", active: true }
         result = validator.validate(data)
-        
+
         expect(result[:valid]).to be false
         expect(result[:errors]).to include(/Field age type mismatch/)
       end
@@ -89,16 +89,16 @@ RSpec.describe RAAF::SchemaValidator do
           "Company Name" => "ACME Corp",
           "Employee Count" => 500,
           "Market Sector" => "technology",
-          "Annual Revenue" => 50000000
+          "Annual Revenue" => 50_000_000
         }
-        
+
         result = validator.validate(data)
-        
+
         expect(result[:valid]).to be true
         expect(result[:data][:company_name]).to eq("ACME Corp")
         expect(result[:data][:employee_count]).to eq(500)
         expect(result[:data][:market_sector]).to eq("technology")
-        expect(result[:data][:annual_revenue]).to eq(50000000)
+        expect(result[:data][:annual_revenue]).to eq(50_000_000)
       end
 
       it "handles various key formats" do
@@ -106,16 +106,16 @@ RSpec.describe RAAF::SchemaValidator do
           "Company-Name" => "ACME Corp",
           "employee_count" => 500,
           "Market Sector" => "tech",
-          "annualRevenue" => 50000000
+          "annualRevenue" => 50_000_000
         }
-        
+
         result = validator.validate(data)
-        
+
         expect(result[:valid]).to be true
         expect(result[:data][:company_name]).to eq("ACME Corp")
         expect(result[:data][:employee_count]).to eq(500)
         expect(result[:data][:market_sector]).to eq("tech")
-        expect(result[:data][:annual_revenue]).to eq(50000000)
+        expect(result[:data][:annual_revenue]).to eq(50_000_000)
       end
     end
 
@@ -123,7 +123,7 @@ RSpec.describe RAAF::SchemaValidator do
       it "parses and validates JSON strings" do
         json_string = '{"Company Name": "ACME Corp", "Employee Count": 500}'
         result = validator.validate(json_string)
-        
+
         expect(result[:valid]).to be true
         expect(result[:data][:company_name]).to eq("ACME Corp")
         expect(result[:data][:employee_count]).to eq(500)
@@ -132,7 +132,7 @@ RSpec.describe RAAF::SchemaValidator do
       it "handles malformed JSON with repair" do
         malformed_json = '{"Company Name": "ACME Corp", "Employee Count": 500,}'
         result = validator.validate(malformed_json)
-        
+
         expect(result[:valid]).to be true
         expect(result[:data][:company_name]).to eq("ACME Corp")
         expect(result[:data][:employee_count]).to eq(500)
@@ -146,7 +146,7 @@ RSpec.describe RAAF::SchemaValidator do
           ```
         MD
         result = validator.validate(markdown_json)
-        
+
         expect(result[:valid]).to be true
         expect(result[:data][:company_name]).to eq("ACME Corp")
         expect(result[:data][:employee_count]).to eq(500)
@@ -160,13 +160,13 @@ RSpec.describe RAAF::SchemaValidator do
     it "accepts whatever fields validate and ignores invalid ones" do
       data = {
         "Company Name" => "ACME Corp",
-        "Employee Count" => "not_a_number",  # Invalid
+        "Employee Count" => "not_a_number", # Invalid
         "Market Sector" => "technology",
-        "Invalid Field" => { "complex": "data" }
+        "Invalid Field" => { complex: "data" }
       }
-      
+
       result = validator.validate(data)
-      
+
       expect(result[:valid]).to be true
       expect(result[:partial]).to be true
       expect(result[:data][:company_name]).to eq("ACME Corp")
@@ -181,18 +181,18 @@ RSpec.describe RAAF::SchemaValidator do
     it "normalizes various key formats to match schema" do
       data = {
         "Company Name" => "ACME",
-        "company-name" => "should not override",  # Won't override because first match wins
+        "company-name" => "should not override", # Won't override because first match wins
         "EMPLOYEE_COUNT" => 100,
         "marketSector" => "tech",
-        "Annual-Revenue" => 1000000
+        "Annual-Revenue" => 1_000_000
       }
-      
+
       normalized = validator.normalize_data_keys(data)
-      
-      expect(normalized[:company_name]).to eq("ACME")  # First match wins
+
+      expect(normalized[:company_name]).to eq("ACME") # First match wins
       expect(normalized[:employee_count]).to eq(100)
       expect(normalized[:market_sector]).to eq("tech")
-      expect(normalized[:annual_revenue]).to eq(1000000)
+      expect(normalized[:annual_revenue]).to eq(1_000_000)
     end
 
     it "handles nested objects recursively" do
@@ -207,7 +207,7 @@ RSpec.describe RAAF::SchemaValidator do
           }
         }
       }
-      
+
       validator = described_class.new(nested_schema)
       data = {
         "User Details" => {
@@ -215,9 +215,9 @@ RSpec.describe RAAF::SchemaValidator do
           "Last Name" => "Doe"
         }
       }
-      
+
       normalized = validator.normalize_data_keys(data)
-      
+
       expect(normalized[:user_details][:first_name]).to eq("John")
       expect(normalized[:user_details][:last_name]).to eq("Doe")
     end
@@ -230,11 +230,11 @@ RSpec.describe RAAF::SchemaValidator do
       # Perform some validations
       validator.validate({ name: "John" })  # Success
       validator.validate({ age: 30 })       # Failure (missing required field)
-      
+
       stats = validator.statistics
-      
+
       expect(stats[:total_attempts]).to eq(2)
-      expect(stats[:success_rate]).to eq(0.5)  # 1 success out of 2 attempts
+      expect(stats[:success_rate]).to eq(0.5) # 1 success out of 2 attempts
     end
 
     it "returns no_data flag when no attempts made" do
@@ -256,7 +256,7 @@ RSpec.describe RAAF::SchemaValidator do
         "HTTPResponse" => 5,
         "XMLHttpRequest" => 6
       }
-      
+
       # We'll test this by checking that different formats get normalized to the same key
       schema_with_various_keys = {
         properties: {
@@ -268,10 +268,10 @@ RSpec.describe RAAF::SchemaValidator do
           xml_http_request: { type: "integer" }
         }
       }
-      
+
       validator = described_class.new(schema_with_various_keys)
       normalized = validator.normalize_data_keys(test_data)
-      
+
       expect(normalized.keys).to include(:camel_case, :kebab_case, :snake_case, :space_separated)
     end
   end

@@ -28,9 +28,7 @@ module RAAF
 
           field_deltas.each do |field_name, field_delta|
             field_delta[:configurations].each do |config_name, config_data|
-              if condition.call(config_data[:delta])
-                improvements_by_config[config_name] << field_name
-              end
+              improvements_by_config[config_name] << field_name if condition.call(config_data[:delta])
             end
           end
 

@@ -19,7 +19,7 @@ module RAAF
             details = result[:details] || {}
 
             # Check if we have individual score checks
-            individual_checks = details[:individual_checks] || details['individual_checks']
+            individual_checks = details[:individual_checks] || details["individual_checks"]
             if individual_checks && !individual_checks.empty?
               return format_individual_checks(details, individual_checks)
             end
@@ -40,9 +40,9 @@ module RAAF
             bad_scores = []
 
             individual_checks.each do |check|
-              name = check[:name] || check['name']
-              value = check[:value] || check['value']
-              threshold = check[:threshold] || check['threshold']
+              name = check[:name] || check["name"]
+              value = check[:value] || check["value"]
+              threshold = check[:threshold] || check["threshold"]
               status = determine_status_for_value(value, threshold)
 
               md << "| #{name} | #{format_value(value)} | #{format_threshold(threshold)} | #{status} |\n"
@@ -64,10 +64,10 @@ module RAAF
           # @param details [Hash] The evaluation details
           # @return [String] Markdown-formatted result
           def self.format_aggregate_result(details)
-            cv = details[:coefficient_of_variation] || details['coefficient_of_variation']
-            max_cv = details[:max_std_dev] || details['max_std_dev'] || 0.1
-            mean = details[:mean] || details['mean']
-            std_dev = details[:std_dev] || details['std_dev']
+            cv = details[:coefficient_of_variation] || details["coefficient_of_variation"]
+            max_cv = details[:max_std_dev] || details["max_std_dev"] || 0.1
+            mean = details[:mean] || details["mean"]
+            std_dev = details[:std_dev] || details["std_dev"]
 
             return "No consistency data available" unless cv
 
@@ -84,8 +84,8 @@ module RAAF
             md << "| Metric | Value | Threshold | Result |\n"
             md << "|--------|------:|----------:|--------|\n"
             md << "| Coefficient of Variation | #{(cv * 100).round(1)}% | ≤#{(max_cv * 100).round(1)}% | #{status} |\n"
-            md << "| Mean | #{mean&.round(2) || 'N/A'} | — | — |\n"
-            md << "| Std Dev | #{std_dev&.round(2) || 'N/A'} | — | — |\n"
+            md << "| Mean | #{mean&.round(2) || "N/A"} | — | — |\n"
+            md << "| Std Dev | #{std_dev&.round(2) || "N/A"} | — | — |\n"
             md << "\n"
 
             if status == "✗ Bad"
@@ -100,10 +100,10 @@ module RAAF
           def self.determine_status_for_value(value, threshold)
             return "◐ Average" unless value && threshold
 
-            min_threshold = threshold[:min] || threshold['min']
-            max_threshold = threshold[:max] || threshold['max']
-            good_min = threshold[:good_min] || threshold['good_min'] || min_threshold
-            good_max = threshold[:good_max] || threshold['good_max'] || max_threshold
+            min_threshold = threshold[:min] || threshold["min"]
+            max_threshold = threshold[:max] || threshold["max"]
+            good_min = threshold[:good_min] || threshold["good_min"] || min_threshold
+            good_max = threshold[:good_max] || threshold["good_max"] || max_threshold
 
             if min_threshold && value < min_threshold
               "✗ Bad"
@@ -131,8 +131,8 @@ module RAAF
           def self.format_threshold(threshold)
             return "—" unless threshold
 
-            min_val = threshold[:min] || threshold['min']
-            max_val = threshold[:max] || threshold['max']
+            min_val = threshold[:min] || threshold["min"]
+            max_val = threshold[:max] || threshold["max"]
 
             if min_val && max_val
               "#{min_val}–#{max_val}"
@@ -200,7 +200,7 @@ module RAAF
 
           def calculate_mean(values)
             return 0 if values.empty?
-            
+
             numeric_values = values.map { |v| v.is_a?(Numeric) ? v : v.to_s.length }
             numeric_values.sum.to_f / numeric_values.size
           end
@@ -208,7 +208,7 @@ module RAAF
           def calculate_std_dev(values)
             numeric_values = values.map { |v| v.is_a?(Numeric) ? v : v.to_s.length }
             mean = calculate_mean(values)
-            
+
             variance = numeric_values.sum { |v| (v - mean)**2 } / numeric_values.size
             Math.sqrt(variance)
           end
@@ -217,7 +217,7 @@ module RAAF
             return 1.0 if cv <= max_std_dev / 2
             return 0.0 if cv >= max_std_dev * 2
 
-            1.0 - ((cv - max_std_dev / 2) / (max_std_dev * 1.5)).clamp(0, 1)
+            1.0 - ((cv - (max_std_dev / 2)) / (max_std_dev * 1.5)).clamp(0, 1)
           end
         end
       end

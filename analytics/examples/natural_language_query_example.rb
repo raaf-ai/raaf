@@ -18,7 +18,7 @@ puts "\n=== Example 1: NLQ Engine Setup ==="
 
 nlq_engine = RAAF::Tracing::NaturalLanguageQuery.new(
   model: "gpt-4o",
-  trace_database: "traces.db", 
+  trace_database: "traces.db",
   cache_queries: true,
   explain_queries: true
 )
@@ -36,7 +36,7 @@ queries = [
 ]
 
 queries.each_with_index do |query, i|
-  puts "  #{i+1}. Query: '#{query}'"
+  puts "  #{i + 1}. Query: '#{query}'"
   result = nlq_engine.query(query)
   puts "     SQL: #{result[:sql]}"
   puts "     Results: #{result[:results].length} items"

@@ -113,7 +113,7 @@ module RAAF
 
             def validate_xml(text)
               # Simplified XML validation
-              @error = "XML not properly closed" unless text.match?(/<\w+>.*<\/\w+>/m)
+              @error = "XML not properly closed" unless text.match?(%r{<\w+>.*</\w+>}m)
               @error.nil?
             end
 
@@ -125,7 +125,7 @@ module RAAF
 
             def validate_html(text)
               # Simplified HTML validation
-              @error = "HTML not properly formed" unless text.match?(/<html>.*<\/html>/mi)
+              @error = "HTML not properly formed" unless text.match?(%r{<html>.*</html>}mi)
               @error.nil?
             end
           end
@@ -248,7 +248,7 @@ module RAAF
               case @comparison
               when :range
                 "Expected length between #{@min_length} and #{@max_length}, " \
-                  "but got #{@actual_length}"
+                "but got #{@actual_length}"
               when :max
                 "Expected length less than #{@max_length}, but got #{@actual_length}"
               when :min

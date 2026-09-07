@@ -6,11 +6,11 @@ require "raaf/dsl/pipeline_dsl"
 RSpec.describe RAAF::DSL::PipelineDSL::WrapperDSL do
   # Set mock API key for testing (tests don't actually call OpenAI)
   before(:all) do
-    ENV['OPENAI_API_KEY'] = 'test-api-key-for-wrapper-hooks-spec'
+    ENV["OPENAI_API_KEY"] = "test-api-key-for-wrapper-hooks-spec"
   end
 
   after(:all) do
-    ENV.delete('OPENAI_API_KEY')
+    ENV.delete("OPENAI_API_KEY")
   end
 
   # Create test agent with hooks
@@ -107,7 +107,7 @@ RSpec.describe RAAF::DSL::PipelineDSL::WrapperDSL do
 
         hooks = test_agent_class.hooks_executed
         # ChainedAgent wraps the entire chain in one set of hooks
-        expect(hooks.map { |h| h[:hook] }).to eq([:before_execute, :after_execute])
+        expect(hooks.map { |h| h[:hook] }).to eq(%i[before_execute after_execute])
       end
 
       it "provides wrapper_type parameter" do
@@ -205,13 +205,13 @@ RSpec.describe RAAF::DSL::PipelineDSL::WrapperDSL do
       let(:remapped_agent) do
         RAAF::DSL::PipelineDSL::RemappedAgent.new(
           test_agent_class,
-          input_mapping: { input_data: :source_data },  # Map source_data → input_data
-          output_mapping: { result_data: :output_data }  # Map output_data → result_data
+          input_mapping: { input_data: :source_data }, # Map source_data → input_data
+          output_mapping: { result_data: :output_data } # Map output_data → result_data
         )
       end
 
       it "provides wrapper_type :remapped" do
-        result_context = remapped_agent.execute({ source_data: "test" })
+        remapped_agent.execute({ source_data: "test" })
 
         hooks = test_agent_class.hooks_executed
         expect(hooks.first[:wrapper_type]).to eq(:remapped)
@@ -373,7 +373,7 @@ RSpec.describe RAAF::DSL::PipelineDSL::WrapperDSL do
         end
 
         def run
-          { processed_items: ["item1", "item2"] }
+          { processed_items: %w[item1 item2] }
         end
       end
 
@@ -483,9 +483,9 @@ RSpec.describe RAAF::DSL::PipelineDSL::WrapperDSL do
       order = multi_hook_agent_class.execution_order
       # ChainedAgent wraps entire chain in one set of hooks
       # Hooks fire once, then both agent instances run sequentially
-      expect(order).to eq([
-        :before_1, :before_2, :run, :run, :after_1, :after_2
-      ])
+      expect(order).to eq(%i[
+                            before_1 before_2 run run after_1 after_2
+                          ])
     end
   end
 end

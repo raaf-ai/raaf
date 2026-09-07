@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Tracing
+
     class SpanNamingConfig
+
       DEFAULT_PATTERN = "run.workflow.{component_type}.{component_name}.{method_name}"
       COMPACT_PATTERN = "{component_type}.{component_name}"
       DETAILED_PATTERN = "raaf.{trace_id}.{component_type}.{component_name}.{method_name}"
@@ -40,6 +43,9 @@ module RAAF
           name
         end
       end
+
     end
+
   end
+
 end

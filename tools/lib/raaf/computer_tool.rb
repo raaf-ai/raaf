@@ -37,7 +37,9 @@ require "raaf/function_tool"
 # @since 0.1.0
 # @see https://platform.openai.com/docs/assistants/tools/computer-use OpenAI Computer Use documentation
 module RAAF
+
   module Tools
+
     ##
     # Hosted computer use tool for OpenAI API
     #
@@ -62,6 +64,7 @@ module RAAF
     #
     # @see https://platform.openai.com/docs/assistants/tools/computer-use OpenAI Computer Use API
     class HostedComputerTool
+
       attr_reader :display_width_px, :display_height_px, :display_number
 
       ##
@@ -116,6 +119,7 @@ module RAAF
           }.compact
         }
       end
+
     end
 
     ##
@@ -165,6 +169,7 @@ module RAAF
     #   # Agent will call: computer_action(action: "click", x: 100, y: 200)
     #   # Agent will call: computer_action(action: "type", text: "Hello World")
     class ComputerTool < FunctionTool
+
       ##
       # Initialize local computer control tool
       #
@@ -611,8 +616,11 @@ module RAAF
       def command_exists?(command)
         system("which #{command} > /dev/null 2>&1")
       end
+
     end
+
   end
+
 end
 
 # rubocop:enable Naming/MethodParameterName

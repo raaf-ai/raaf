@@ -30,12 +30,10 @@ RSpec.describe RAAF::Rails::Controllers::DashboardController do
 
   # Mock models
   before do
-    # rubocop:disable Rails/ApplicationRecord
     # Using ::ActiveRecord::Base because ApplicationRecord isn't available in test environment
     stub_const("AgentModel", Class.new(ActiveRecord::Base))
     stub_const("ConversationModel", Class.new(ActiveRecord::Base))
     stub_const("MessageModel", Class.new(ActiveRecord::Base))
-    # rubocop:enable Rails/ApplicationRecord
     stub_const("ConversationJob", Class.new)
   end
 

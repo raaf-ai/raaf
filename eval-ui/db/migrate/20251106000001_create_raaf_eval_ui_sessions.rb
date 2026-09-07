@@ -16,7 +16,7 @@ class CreateRaafEvalUiSessions < ActiveRecord::Migration[7.0]
 
       t.timestamps
 
-      t.index [:user_id, :session_type]
+      t.index %i[user_id session_type]
       t.index :baseline_span_id
       t.index :created_at
       t.index :status

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../dsl/evaluator"
-require 'json'
+require "json"
 
 module RAAF
   module Eval
@@ -60,11 +60,9 @@ module RAAF
 
           def extract_error_position(error_message)
             # Try to extract position from error message
-            if error_message =~ /at (\d+)/
-              $1.to_i
-            else
-              nil
-            end
+            return unless error_message =~ /at (\d+)/
+
+            ::Regexp.last_match(1).to_i
           end
         end
       end

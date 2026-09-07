@@ -70,7 +70,7 @@ module RAAF
           stream: stream
         }
 
-        if tools && !tools.empty?
+        if tools.present?
           body[:tools] = prepare_tools(tools)
           body[:tool_choice] = kwargs[:tool_choice] if kwargs[:tool_choice]
         end
@@ -162,9 +162,7 @@ module RAAF
             if parsed.dig("choices", 0, "delta", "content")
               content = parsed["choices"][0]["delta"]["content"]
               accumulated_content += content
-              if block_given?
-                yield({ type: "content", content: content, accumulated_content: accumulated_content })
-              end
+              yield({ type: "content", content: content, accumulated_content: accumulated_content }) if block_given?
             end
 
             if parsed.dig("choices", 0, "delta", "tool_calls")

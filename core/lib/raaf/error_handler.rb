@@ -358,7 +358,7 @@ module RAAF
         if error.is_a?(RAAF::APIError) && contains_html_error?(error.message)
           log_error("API returned HTML error (likely gateway/proxy issue)",
                     **context, error_class: error.class.name,
-                    original_message: truncate_log_message(error.message))
+                               original_message: truncate_log_message(error.message))
 
           case strategy
           when RecoveryStrategy::GRACEFUL_DEGRADATION, RecoveryStrategy::LOG_AND_CONTINUE
@@ -416,9 +416,7 @@ module RAAF
       #
       def clean_html_error_message(message)
         # If message already cleaned by HTTP client
-        if message.include?("HTML error:")
-          return message.split("HTML error:").last.strip
-        end
+        return message.split("HTML error:").last.strip if message.include?("HTML error:")
 
         # Gateway errors
         if message.include?("502") || message.include?("Bad Gateway")

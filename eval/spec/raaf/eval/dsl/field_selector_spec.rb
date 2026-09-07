@@ -15,12 +15,12 @@ RSpec.describe RAAF::Eval::DSL::FieldSelector do
 
     it "parses dot notation paths (usage.total_tokens)" do
       parsed = selector.parse_path("usage.total_tokens")
-      expect(parsed).to eq(["usage", "total_tokens"])
+      expect(parsed).to eq(%w[usage total_tokens])
     end
 
     it "parses deeply nested paths (a.b.c.d)" do
       parsed = selector.parse_path("result.metrics.quality.score")
-      expect(parsed).to eq(["result", "metrics", "quality", "score"])
+      expect(parsed).to eq(%w[result metrics quality score])
     end
 
     it "handles symbol field names" do
@@ -30,7 +30,7 @@ RSpec.describe RAAF::Eval::DSL::FieldSelector do
 
     it "handles nested symbol paths" do
       parsed = selector.parse_path(:"usage.total_tokens")
-      expect(parsed).to eq(["usage", "total_tokens"])
+      expect(parsed).to eq(%w[usage total_tokens])
     end
 
     it "raises error for invalid path formats (empty string)" do
@@ -51,7 +51,7 @@ RSpec.describe RAAF::Eval::DSL::FieldSelector do
       # Parse same path twice
       parsed1 = selector.parse_path("usage.total_tokens")
       parsed2 = selector.parse_path("usage.total_tokens")
-      
+
       # Should return same object (cached)
       expect(parsed1).to be(parsed2)
     end
@@ -126,8 +126,8 @@ RSpec.describe RAAF::Eval::DSL::FieldSelector do
           { name: "second", value: 20 }
         ]
       }
-      
-      # Note: Array indexing not supported in this implementation
+
+      # NOTE: Array indexing not supported in this implementation
       # This tests that we handle it appropriately
       expect { selector.extract_value("items.0.value", complex_result) }.to raise_error(
         RAAF::Eval::DSL::FieldNotFoundError
@@ -140,14 +140,14 @@ RSpec.describe RAAF::Eval::DSL::FieldSelector do
 
     it "assigns aliases with as: parameter" do
       selector.add_field("usage.total_tokens", as: :tokens)
-      
+
       expect(selector.fields).to include("usage.total_tokens")
       expect(selector.aliases[:tokens]).to eq("usage.total_tokens")
     end
 
     it "allows alias usage in field context" do
       selector.add_field("usage.total_tokens", as: :tokens)
-      
+
       # Get the original path for an alias
       original_path = selector.resolve_alias(:tokens)
       expect(original_path).to eq("usage.total_tokens")
@@ -155,10 +155,10 @@ RSpec.describe RAAF::Eval::DSL::FieldSelector do
 
     it "detects duplicate aliases" do
       selector.add_field("usage.total_tokens", as: :tokens)
-      
-      expect { 
-        selector.add_field("usage.prompt_tokens", as: :tokens) 
-      }.to raise_error(
+
+      expect do
+        selector.add_field("usage.prompt_tokens", as: :tokens)
+      end.to raise_error(
         RAAF::Eval::DSL::DuplicateAliasError,
         /Alias 'tokens' is already assigned/
       )
@@ -167,7 +167,7 @@ RSpec.describe RAAF::Eval::DSL::FieldSelector do
     it "allows multiple fields without aliases" do
       selector.add_field("output")
       selector.add_field("usage.total_tokens")
-      
+
       expect(selector.fields).to contain_exactly("output", "usage.total_tokens")
       expect(selector.aliases).to be_empty
     end
@@ -175,7 +175,7 @@ RSpec.describe RAAF::Eval::DSL::FieldSelector do
     it "allows same field to be selected multiple times with different aliases" do
       selector.add_field("usage.total_tokens", as: :tokens)
       selector.add_field("usage.total_tokens", as: :total)
-      
+
       expect(selector.aliases[:tokens]).to eq("usage.total_tokens")
       expect(selector.aliases[:total]).to eq("usage.total_tokens")
     end
@@ -184,20 +184,20 @@ RSpec.describe RAAF::Eval::DSL::FieldSelector do
       selector.add_field("first")
       selector.add_field("second")
       selector.add_field("third")
-      
-      expect(selector.fields).to eq(["first", "second", "third"])
+
+      expect(selector.fields).to eq(%w[first second third])
     end
 
     it "resolves non-aliased fields to themselves" do
       selector.add_field("output")
-      
+
       resolved = selector.resolve_alias("output")
       expect(resolved).to eq("output")
     end
 
     it "converts symbol aliases to strings internally" do
       selector.add_field("usage.total_tokens", as: :tokens)
-      
+
       # Should work with both string and symbol
       expect(selector.resolve_alias(:tokens)).to eq("usage.total_tokens")
       expect(selector.resolve_alias("tokens")).to eq("usage.total_tokens")
@@ -214,21 +214,21 @@ RSpec.describe RAAF::Eval::DSL::FieldSelector do
 
     it "detects missing fields during extraction" do
       result = { output: "text" }
-      
+
       selector.add_field("missing_field")
-      
-      expect { 
-        selector.extract_value("missing_field", result) 
-      }.to raise_error(
+
+      expect do
+        selector.extract_value("missing_field", result)
+      end.to raise_error(
         RAAF::Eval::DSL::FieldNotFoundError,
         /Field 'missing_field' not found/
       )
     end
 
     it "detects invalid path formats at selection time" do
-      expect { 
-        selector.add_field("") 
-      }.to raise_error(
+      expect do
+        selector.add_field("")
+      end.to raise_error(
         RAAF::Eval::DSL::InvalidPathError,
         /empty or invalid/
       )
@@ -236,12 +236,12 @@ RSpec.describe RAAF::Eval::DSL::FieldSelector do
 
     it "provides clear error messages with field name and path" do
       result = { usage: { prompt_tokens: 50 } }
-      
+
       selector.add_field("usage.total_tokens")
-      
-      expect { 
-        selector.extract_value("usage.total_tokens", result) 
-      }.to raise_error(
+
+      expect do
+        selector.extract_value("usage.total_tokens", result)
+      end.to raise_error(
         RAAF::Eval::DSL::FieldNotFoundError,
         /Field 'usage.total_tokens' not found in result/
       )
@@ -255,44 +255,44 @@ RSpec.describe RAAF::Eval::DSL::FieldSelector do
     end
 
     it "validates paths don't have consecutive dots" do
-      expect { 
-        selector.add_field("usage..tokens") 
-      }.to raise_error(
+      expect do
+        selector.add_field("usage..tokens")
+      end.to raise_error(
         RAAF::Eval::DSL::InvalidPathError,
         /Invalid path format/
       )
     end
 
     it "validates paths don't start or end with dots" do
-      expect { 
-        selector.add_field(".usage.tokens") 
-      }.to raise_error(
+      expect do
+        selector.add_field(".usage.tokens")
+      end.to raise_error(
         RAAF::Eval::DSL::InvalidPathError,
         /Invalid path format/
       )
-      
-      expect { 
-        selector.add_field("usage.tokens.") 
-      }.to raise_error(
+
+      expect do
+        selector.add_field("usage.tokens.")
+      end.to raise_error(
         RAAF::Eval::DSL::InvalidPathError,
         /Invalid path format/
       )
     end
 
     it "creates FieldContext objects successfully for valid fields" do
-      result = { 
-        output: "text", 
-        usage: { total_tokens: 100 } 
+      result = {
+        output: "text",
+        usage: { total_tokens: 100 }
       }
-      
+
       selector.add_field("output")
       selector.add_field("usage.total_tokens", as: :tokens)
-      
+
       # Should create FieldContext without errors
       context1 = selector.create_field_context("output", result)
       expect(context1).to be_a(RAAF::Eval::DSL::FieldContext)
       expect(context1.value).to eq("text")
-      
+
       # Should work with alias
       context2 = selector.create_field_context(:tokens, result)
       expect(context2).to be_a(RAAF::Eval::DSL::FieldContext)

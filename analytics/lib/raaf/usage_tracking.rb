@@ -5,6 +5,7 @@ require "time"
 require "digest"
 
 module RAAF
+
   ##
   # UsageTracking - Comprehensive resource monitoring and analytics system
   #
@@ -69,12 +70,14 @@ module RAAF
   # @author RAAF (Ruby AI Agents Factory) Team
   # @since 0.1.0
   module UsageTracking
+
     ##
     # UsageTracker - Main usage tracking and analytics engine
     #
     # Central component for collecting, storing, and analyzing usage data across
     # all RAAF operations.
     class UsageTracker
+
       attr_reader :storage, :alerts, :custom_metrics
 
       ##
@@ -789,11 +792,13 @@ module RAAF
         timestamp = Time.now.strftime("%Y%m%d_%H%M%S")
         "usage_data_#{period}_#{timestamp}.#{format}"
       end
+
     end
 
     ##
     # MemoryStorage - In-memory storage adapter for usage data
     class MemoryStorage
+
       def initialize
         @events = []
       end
@@ -815,11 +820,13 @@ module RAAF
         @events.reject! { |e| e[:timestamp] < cutoff_date }
         initial_count - @events.length
       end
+
     end
 
     ##
     # UsageReport - Comprehensive usage report generator
     class UsageReport
+
       attr_reader :analytics, :period
 
       # rubocop:disable Style/OptionalBooleanParameter
@@ -908,6 +915,9 @@ module RAAF
 
         number.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
       end
+
     end
+
   end
+
 end

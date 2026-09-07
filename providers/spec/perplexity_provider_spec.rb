@@ -150,9 +150,9 @@ RSpec.describe RAAF::Models::PerplexityProvider do
 
       expect(provider).to receive(:make_api_call) do |body|
         expect(body[:response_format]).to eq({
-          type: "json_schema",
-          json_schema: { schema: schema }
-        })
+                                               type: "json_schema",
+                                               json_schema: { schema: schema }
+                                             })
         mock_response
       end
 
@@ -182,7 +182,7 @@ RSpec.describe RAAF::Models::PerplexityProvider do
       tools = [{ type: "function", name: "test_tool" }]
 
       expect(provider).to receive(:log_warn).with(
-        /does not support function\/tool calling/,
+        %r{does not support function/tool calling},
         hash_including(provider: "PerplexityProvider", model: model)
       )
 
@@ -212,6 +212,7 @@ RSpec.describe RAAF::Models::PerplexityProvider do
         allow(provider).to receive(:make_api_call) do
           call_count += 1
           raise Net::ReadTimeout if call_count < 2
+
           { "choices" => [{ "message" => { "content" => "success" } }] }
         end
 
@@ -225,6 +226,7 @@ RSpec.describe RAAF::Models::PerplexityProvider do
         allow(provider).to receive(:make_api_call) do
           call_count += 1
           raise Net::WriteTimeout if call_count < 2
+
           { "choices" => [{ "message" => { "content" => "success" } }] }
         end
 
@@ -238,6 +240,7 @@ RSpec.describe RAAF::Models::PerplexityProvider do
         allow(provider).to receive(:make_api_call) do
           call_count += 1
           raise Errno::ECONNRESET if call_count < 2
+
           { "choices" => [{ "message" => { "content" => "success" } }] }
         end
 
@@ -277,6 +280,7 @@ RSpec.describe RAAF::Models::PerplexityProvider do
         allow(provider).to receive(:make_api_call) do
           call_count += 1
           raise Net::ReadTimeout if call_count < 3
+
           { "choices" => [{ "message" => { "content" => "success" } }] }
         end
 
@@ -310,9 +314,9 @@ RSpec.describe RAAF::Models::PerplexityProvider do
 
       it "includes optional parameters when provided" do
         body = provider.send(:build_request_body, messages, model, false,
-                              top_p: 0.9,
-                              presence_penalty: 0.5,
-                              frequency_penalty: 0.3)
+                             top_p: 0.9,
+                             presence_penalty: 0.5,
+                             frequency_penalty: 0.3)
 
         expect(body[:top_p]).to eq(0.9)
         expect(body[:presence_penalty]).to eq(0.5)
@@ -349,11 +353,11 @@ RSpec.describe RAAF::Models::PerplexityProvider do
         result = provider.send(:unwrap_response_format, openai_format)
 
         expect(result).to eq({
-          type: "json_schema",
-          json_schema: {
-            schema: { type: "object", properties: { test: { type: "string" } } }
-          }
-        })
+                               type: "json_schema",
+                               json_schema: {
+                                 schema: { type: "object", properties: { test: { type: "string" } } }
+                               }
+                             })
       end
 
       it "handles raw schema format" do
@@ -362,11 +366,11 @@ RSpec.describe RAAF::Models::PerplexityProvider do
         result = provider.send(:unwrap_response_format, raw_schema)
 
         expect(result).to eq({
-          type: "json_schema",
-          json_schema: {
-            schema: raw_schema
-          }
-        })
+                               type: "json_schema",
+                               json_schema: {
+                                 schema: raw_schema
+                               }
+                             })
       end
     end
 

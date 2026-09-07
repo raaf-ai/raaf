@@ -3,7 +3,7 @@
 
 # Final validation of enhanced RAAF DSL schema builder implementation
 
-require_relative 'lib/raaf-dsl'
+require_relative "lib/raaf-dsl"
 
 puts "=== RAAF DSL Enhanced Schema Builder - Final Validation ==="
 puts
@@ -12,7 +12,7 @@ puts
 puts "1. Testing Semantic Types System..."
 semantic_examples = {
   email: "user@example.com",
-  url: "https://example.com", 
+  url: "https://example.com",
   percentage: 85.5,
   currency: 29.99,
   phone: "+1234567890",
@@ -34,17 +34,17 @@ puts "2. Testing Schema Builder Fluent Interface..."
 begin
   # Test fluent interface
   builder = RAAF::DSL::SchemaBuilder.new
-    .field(:name, :string)
-    .field(:score, :score)
-    .field(:email, :email)
-    .required(:name, :email)
-    .array_of(:tags, :string)
+                                    .field(:name, :string)
+                                    .field(:score, :score)
+                                    .field(:email, :email)
+                                    .required(:name, :email)
+                                    .array_of(:tags, :string)
 
   schema = builder.build
   puts "  ✓ Fluent interface working"
   puts "  Generated schema has #{schema[:properties].keys.length} properties"
   puts "  Required fields: #{schema[:required].join(', ')}"
-rescue => e
+rescue StandardError => e
   puts "  ✗ Fluent interface failed: #{e.message}"
 end
 puts
@@ -54,21 +54,21 @@ puts "3. Testing Schema Composition..."
 begin
   # Test nested schema composition
   contact_schema = RAAF::DSL::SchemaBuilder.new
-    .field(:email, :email)
-    .field(:phone, :phone)
-    .required(:email)
+                                           .field(:email, :email)
+                                           .field(:phone, :phone)
+                                           .required(:email)
 
   main_schema = RAAF::DSL::SchemaBuilder.new
-    .field(:name, :string)
-    .field(:score, :score)
-    .nested(:contact, &contact_schema.method(:build))
-    .required(:name)
+                                        .field(:name, :string)
+                                        .field(:score, :score)
+                                        .nested(:contact, &contact_schema.method(:build))
+                                        .required(:name)
 
   final_schema = main_schema.build
   puts "  ✓ Schema composition working"
   puts "  Main schema properties: #{final_schema[:properties].keys.join(', ')}"
   puts "  Nested contact properties: #{final_schema[:properties][:contact][:properties].keys.join(', ')}"
-rescue => e
+rescue StandardError => e
   puts "  ✗ Schema composition failed: #{e.message}"
 end
 puts
@@ -89,7 +89,7 @@ puts
 
 puts "=== IMPLEMENTATION SUCCESS SUMMARY ==="
 puts "✓ Semantic type system implemented with 7 built-in types"
-puts "✓ Fluent interface allows method chaining for readable schemas"  
+puts "✓ Fluent interface allows method chaining for readable schemas"
 puts "✓ Schema composition supports nested objects and arrays"
 puts "✓ Performance optimized for production use"
 puts "✓ Goal achieved: Reduces 100+ lines of schema to 3 lines"

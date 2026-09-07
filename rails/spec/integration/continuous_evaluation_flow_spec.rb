@@ -58,9 +58,9 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
 
   describe "basic flow without evaluators" do
     it "creates a span without enqueueing jobs when no policies exist" do
-      expect {
+      expect do
         RAAF::Rails::Tracing::SpanRecord.create!(span_attributes)
-      }.not_to change { RAAF::Eval::Models::EvaluationQueueItem.count }
+      end.not_to(change { RAAF::Eval::Models::EvaluationQueueItem.count })
     end
   end
 
@@ -70,7 +70,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
         name: "Integration Test Policy",
         description: "Policy for integration testing",
         target_agent_names: ["IntegrationTestAgent"],
-        target_environments: [::Rails.env],
+        target_environments: [Rails.env],
         sampling_mode: "all",
         sample_rate: 100,
         max_daily_evaluations: 1000,
@@ -119,13 +119,13 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
         span = RAAF::Rails::Tracing::SpanRecord.create!(span_attributes)
 
         # Manually execute the job (simulating background processing)
-        expect {
+        expect do
           RAAF::Rails::Continuous::EvaluationJob.new.perform(
             span_id: span.span_id,
             policy_id: policy.id
           )
-        }.to change { RAAF::Eval::Models::EvaluationQueueItem.count }.by(1)
-          .and change { RAAF::Eval::Models::ContinuousEvaluationResult.count }.by(1)
+        end.to change { RAAF::Eval::Models::EvaluationQueueItem.count }.by(1)
+                                                                       .and change { RAAF::Eval::Models::ContinuousEvaluationResult.count }.by(1)
       end
 
       it "marks queue item as completed on success" do
@@ -161,12 +161,12 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
       it "increments policy evaluation count" do
         span = RAAF::Rails::Tracing::SpanRecord.create!(span_attributes)
 
-        expect {
+        expect do
           RAAF::Rails::Continuous::EvaluationJob.new.perform(
             span_id: span.span_id,
             policy_id: policy.id
           )
-        }.to change { policy.reload.evaluation_count }.by(1)
+        end.to change { policy.reload.evaluation_count }.by(1)
       end
     end
 
@@ -176,7 +176,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
           name: "Multi-Evaluator Policy",
           description: "Policy with multiple evaluators",
           target_agent_names: ["IntegrationTestAgent"],
-          target_environments: [::Rails.env],
+          target_environments: [Rails.env],
           sampling_mode: "all",
           active: true,
           evaluators: [
@@ -226,12 +226,12 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
       it "creates result for each evaluator" do
         span = RAAF::Rails::Tracing::SpanRecord.create!(span_attributes)
 
-        expect {
+        expect do
           RAAF::Rails::Continuous::EvaluationJob.new.perform(
             span_id: span.span_id,
             policy_id: multi_evaluator_policy.id
           )
-        }.to change { RAAF::Eval::Models::ContinuousEvaluationResult.count }.by(2)
+        end.to change { RAAF::Eval::Models::ContinuousEvaluationResult.count }.by(2)
       end
     end
 
@@ -241,7 +241,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
           name: "Partial Failure Policy",
           description: "Policy to test partial failure",
           target_agent_names: ["IntegrationTestAgent"],
-          target_environments: [::Rails.env],
+          target_environments: [Rails.env],
           sampling_mode: "all",
           active: true,
           evaluators: [
@@ -315,7 +315,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
         name: "Backpressure Test Policy",
         description: "Policy for backpressure testing",
         target_agent_names: ["IntegrationTestAgent"],
-        target_environments: [::Rails.env],
+        target_environments: [Rails.env],
         sampling_mode: "all",
         active: true,
         evaluators: [{ "name" => "test_evaluator", "type" => "rule_based", "config" => {} }]
@@ -346,7 +346,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
           name: "Percentage Sampling Policy",
           description: "Policy with 50% sampling",
           target_agent_names: ["IntegrationTestAgent"],
-          target_environments: [::Rails.env],
+          target_environments: [Rails.env],
           sampling_mode: "percentage",
           sample_rate: 50,
           active: true,
@@ -359,7 +359,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
         allow(RAAF::Rails::Continuous::EvaluationJob).to receive(:perform_later) { enqueue_count += 1 }
 
         # Create many spans to test sampling
-        100.times do |i|
+        100.times do |_i|
           RAAF::Rails::Tracing::SpanRecord.create!(
             span_attributes.merge(span_id: "span_#{SecureRandom.hex(12)}")
           )
@@ -376,7 +376,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
           name: "Limited Policy",
           description: "Policy with daily limit",
           target_agent_names: ["IntegrationTestAgent"],
-          target_environments: [::Rails.env],
+          target_environments: [Rails.env],
           sampling_mode: "all",
           max_daily_evaluations: 2,
           active: true,
@@ -392,7 +392,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
         limited_policy.update!(evaluation_count: 0, last_evaluation_at: Time.current)
 
         # Create spans (should only enqueue up to the limit)
-        5.times do |i|
+        5.times do |_i|
           RAAF::Rails::Tracing::SpanRecord.create!(
             span_attributes.merge(span_id: "span_#{SecureRandom.hex(12)}")
           )
@@ -411,7 +411,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
         name: "Error Test Policy",
         description: "Policy for error testing",
         target_agent_names: ["IntegrationTestAgent"],
-        target_environments: [::Rails.env],
+        target_environments: [Rails.env],
         sampling_mode: "all",
         active: true,
         evaluators: [{ "name" => "test_evaluator", "type" => "rule_based", "config" => {} }]
@@ -423,31 +423,31 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
         .and_raise(StandardError, "Unexpected error")
 
       span = nil
-      expect {
+      expect do
         span = RAAF::Rails::Tracing::SpanRecord.create!(span_attributes)
-      }.not_to raise_error
+      end.not_to raise_error
 
       expect(span).to be_persisted
     end
 
     it "handles non-existent span gracefully in job" do
-      expect {
+      expect do
         RAAF::Rails::Continuous::EvaluationJob.new.perform(
           span_id: "span_nonexistent123456789012",
           policy_id: policy.id
         )
-      }.to raise_error(RAAF::Eval::SpanNotFoundError)
+      end.to raise_error(RAAF::Eval::SpanNotFoundError)
     end
 
     it "handles non-existent policy gracefully in job" do
       span = RAAF::Rails::Tracing::SpanRecord.create!(span_attributes)
 
-      expect {
+      expect do
         RAAF::Rails::Continuous::EvaluationJob.new.perform(
           span_id: span.span_id,
-          policy_id: 999999
+          policy_id: 999_999
         )
-      }.to raise_error(ActiveRecord::RecordNotFound)
+      end.to raise_error(ActiveRecord::RecordNotFound)
     end
   end
 end

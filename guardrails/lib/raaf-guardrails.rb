@@ -15,6 +15,7 @@ require_relative "raaf/guardrails/providers/google_moderator"
 require_relative "raaf/guardrails/guideline_guardrail"
 
 module RAAF
+
   ##
   # Safety validation and content filtering for Ruby AI Agents Factory
   #
@@ -35,7 +36,7 @@ module RAAF
   #
   # @example Basic guardrails setup
   #   require 'raaf-guardrails'
-  #   
+  #
   #   # Configure guardrails
   #   RAAF::Guardrails.configure do |config|
   #     config.toxicity_detection = true
@@ -43,10 +44,10 @@ module RAAF
   #     config.prompt_injection_detection = true
   #     config.content_filtering = true
   #   end
-  #   
+  #
   #   # Create validator
   #   validator = RAAF::Guardrails::Validator.new
-  #   
+  #
   #   # Add to agent
   #   agent = RAAF::Agent.new(
   #     name: "SafeAgent",
@@ -56,15 +57,15 @@ module RAAF
   #
   # @example Content filtering with multiple providers
   #   require 'raaf-guardrails'
-  #   
+  #
   #   # Setup content filter with multiple providers
   #   content_filter = RAAF::Guardrails::ContentFilter.new
   #   content_filter.add_provider(RAAF::Guardrails::Providers::OpenAIModerator.new)
   #   content_filter.add_provider(RAAF::Guardrails::Providers::AzureModerator.new)
-  #   
+  #
   #   # Validate content
   #   result = content_filter.validate("This is a test message")
-  #   
+  #
   #   if result.safe?
   #     puts "Content is safe"
   #   else
@@ -73,41 +74,42 @@ module RAAF
   #
   # @example Custom safety rules
   #   require 'raaf-guardrails'
-  #   
+  #
   #   # Define custom rules
   #   custom_rules = RAAF::Guardrails::CustomRules.new
-  #   
+  #
   #   # Add keyword blocking
   #   custom_rules.add_keyword_rule(
   #     keywords: ["password", "secret", "api_key"],
   #     action: :block,
   #     message: "Sensitive information detected"
   #   )
-  #   
+  #
   #   # Add regex pattern
   #   custom_rules.add_regex_rule(
   #     pattern: /\b\d{4}-\d{4}-\d{4}-\d{4}\b/,
   #     action: :redact,
   #     replacement: "[CREDIT_CARD_REDACTED]"
   #   )
-  #   
+  #
   #   # Add to validator
   #   validator = RAAF::Guardrails::Validator.new
   #   validator.add_custom_rules(custom_rules)
   #
   # @example Middleware integration
   #   require 'raaf-guardrails'
-  #   
+  #
   #   # In Rails application
   #   class ApplicationController < ActionController::Base
   #     include RAAF::Guardrails::Middleware
-  #     
+  #
   #     before_action :validate_input_content
   #     after_action :validate_output_content
   #   end
   #
   # @since 1.0.0
   module Guardrails
+
     # Error classes
     class GuardrailsError < StandardError; end
     class ContentViolationError < GuardrailsError; end
@@ -142,11 +144,11 @@ module RAAF
       default_action: :block,
       log_violations: true,
       notify_violations: false,
-      
+
       # Providers
       primary_provider: :openai,
-      fallback_providers: [:azure, :aws],
-      
+      fallback_providers: %i[azure aws],
+
       # Performance
       timeout: 5.0,
       retry_count: 2,
@@ -160,6 +162,7 @@ module RAAF
     }.freeze
 
     class << self
+
       # @return [Hash] Current configuration
       attr_accessor :config
 
@@ -197,7 +200,7 @@ module RAAF
       # @param options [Hash] Validator options
       # @return [Validator] New validator instance
       def create_validator(**options)
-        Validator.new(**config.merge(options))
+        Validator.new(**config, **options)
       end
 
       ##
@@ -206,7 +209,7 @@ module RAAF
       # @return [ContentFilter] New content filter instance
       def create_content_filter
         filter = ContentFilter.new
-        
+
         # Add primary provider
         case config[:primary_provider]
         when :openai
@@ -218,7 +221,7 @@ module RAAF
         when :google
           filter.add_provider(Providers::GoogleModerator.new)
         end
-        
+
         # Add fallback providers
         config[:fallback_providers].each do |provider|
           case provider
@@ -232,7 +235,7 @@ module RAAF
             filter.add_provider(Providers::GoogleModerator.new)
           end
         end
-        
+
         filter
       end
 
@@ -329,11 +332,11 @@ module RAAF
 
         # Log to configured logger
         RAAF.logger.warn("Guardrail violation", violation)
-        
+
         # Send to monitoring system if configured
-        if config[:violation_reporting]
-          send_violation_report(violation)
-        end
+        return unless config[:violation_reporting]
+
+        send_violation_report(violation)
       end
 
       ##
@@ -344,7 +347,7 @@ module RAAF
       def update_stats(response_time, violations = 0)
         @total_validations = (@total_validations || 0) + 1
         @total_violations = (@total_violations || 0) + violations
-        
+
         # Update average response time
         @avg_response_time = if @avg_response_time
                                (@avg_response_time + response_time) / 2.0
@@ -358,9 +361,9 @@ module RAAF
       def calculate_violation_rate
         total = @total_validations || 0
         violations = @total_violations || 0
-        
+
         return 0.0 if total == 0
-        
+
         (violations.to_f / total * 100).round(2)
       end
 
@@ -369,6 +372,9 @@ module RAAF
         # For now, we'll just log it
         RAAF.logger.info("Violation reported", violation)
       end
+
     end
+
   end
+
 end

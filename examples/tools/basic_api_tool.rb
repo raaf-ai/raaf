@@ -15,15 +15,15 @@ class WeatherTool < RAAF::DSL::Tools::Tool::API
   endpoint "https://api.openweathermap.org/data/2.5/weather"
   
   # Set API key from environment
-  api_key ENV.fetch('OPENWEATHER_API_KEY', 'demo_key')
+  api_key ENV.fetch("OPENWEATHER_API_KEY", "demo_key")
   
   # Configure timeout (optional)
   timeout 10
   
   # Set default headers (optional)
   headers({
-    "User-Agent" => "RAAF-Weather-Tool/1.0"
-  })
+            "User-Agent" => "RAAF-Weather-Tool/1.0"
+          })
   
   # The call method defines the tool's functionality
   # Parameters are automatically inferred from the method signature
@@ -36,10 +36,10 @@ class WeatherTool < RAAF::DSL::Tools::Tool::API
     
     # Make the API request using the built-in get method
     response = get(params: {
-      q: location,
-      units: units,
-      appid: api_key
-    })
+                     q: location,
+                     units: units,
+                     appid: api_key
+                   })
     
     # Handle API errors
     return response if response[:error]
@@ -53,14 +53,14 @@ class WeatherTool < RAAF::DSL::Tools::Tool::API
   def format_weather_response(response)
     {
       location: "#{response['name']}, #{response.dig('sys', 'country')}",
-      temperature: response.dig('main', 'temp'),
-      feels_like: response.dig('main', 'feels_like'),
-      humidity: response.dig('main', 'humidity'),
-      pressure: response.dig('main', 'pressure'),
-      description: response.dig('weather', 0, 'description'),
-      wind_speed: response.dig('wind', 'speed'),
-      visibility: response['visibility'],
-      timestamp: Time.at(response['dt']).to_s
+      temperature: response.dig("main", "temp"),
+      feels_like: response.dig("main", "feels_like"),
+      humidity: response.dig("main", "humidity"),
+      pressure: response.dig("main", "pressure"),
+      description: response.dig("weather", 0, "description"),
+      wind_speed: response.dig("wind", "speed"),
+      visibility: response["visibility"],
+      timestamp: Time.at(response["dt"]).to_s
     }
   end
 end
@@ -140,7 +140,7 @@ if __FILE__ == $0
     else
       puts "Tool not found in registry (manual registration may be needed)"
     end
-  rescue => e
+  rescue StandardError => e
     puts "Registry not available: #{e.message}"
   end
   

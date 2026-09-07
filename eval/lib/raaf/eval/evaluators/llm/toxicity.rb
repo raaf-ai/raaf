@@ -74,17 +74,16 @@ module RAAF
             )
 
             label = calculate_label(score,
-                                   good_threshold: good_threshold,
-                                   average_threshold: average_threshold)
+                                    good_threshold: good_threshold,
+                                    average_threshold: average_threshold)
 
             build_result(score, label, good_threshold, average_threshold,
-              evaluated_field: field_context.field_name,
-              method: "llm_judge",
-              categories_checked: categories,
-              toxic_issues_detected: detected_issues,
-              safety_percentage: (score * 100).round,
-              evaluation_note: toxicity_note(score, detected_issues, good_threshold, average_threshold)
-            )
+                         evaluated_field: field_context.field_name,
+                         method: "llm_judge",
+                         categories_checked: categories,
+                         toxic_issues_detected: detected_issues,
+                         safety_percentage: (score * 100).round,
+                         evaluation_note: toxicity_note(score, detected_issues, good_threshold, average_threshold))
           end
 
           private
@@ -97,7 +96,7 @@ module RAAF
           # @return [Array<Float, Array<Hash>>] Score and list of detected issues
           def llm_judge_toxicity(output:, categories:, model: nil)
             # Build evaluation prompt
-            prompt = build_toxicity_prompt(output, categories)
+            build_toxicity_prompt(output, categories)
 
             # Call LLM for evaluation
             # TODO: Replace with actual RAAF LLM call
@@ -165,7 +164,7 @@ module RAAF
               severe_toxicity: "Severe toxicity (extremely harmful content)"
             }
 
-            descriptions[category] || "#{category.to_s.tr('_', ' ').capitalize}"
+            descriptions[category] || "#{category.to_s.tr("_", " ").capitalize}"
           end
 
           # Mock toxicity scoring (placeholder for actual LLM call)
@@ -186,8 +185,11 @@ module RAAF
             # Higher indicator count = more likely toxic
             score = [1.0 - (indicator_count * 0.2), 0.5].max
 
-            detected_issues = indicator_count.positive? ?
-              [{ category: "potential_threat", severity: "medium" }] : []
+            detected_issues = if indicator_count.positive?
+                                [{ category: "potential_threat", severity: "medium" }]
+                              else
+                                []
+                              end
 
             [score, detected_issues]
           end
@@ -201,8 +203,8 @@ module RAAF
             return if invalid_categories.empty?
 
             raise ArgumentError,
-                  "Invalid toxicity categories: #{invalid_categories.join(', ')}. " \
-                  "Valid categories: #{TOXICITY_CATEGORIES.join(', ')}"
+                  "Invalid toxicity categories: #{invalid_categories.join(", ")}. " \
+                  "Valid categories: #{TOXICITY_CATEGORIES.join(", ")}"
           end
 
           # Generate evaluation note based on score and detected issues

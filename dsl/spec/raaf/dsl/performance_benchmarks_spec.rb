@@ -28,7 +28,7 @@ RSpec.describe "Performance Benchmarks" do
 
       const_name = "BenchmarkTool#{i}Tool"
       stub_const("Ai::Tools::#{const_name}", tool_class)
-      @test_tools["benchmark_tool#{i}".to_sym] = tool_class
+      @test_tools[:"benchmark_tool#{i}"] = tool_class
     end
   end
 
@@ -113,7 +113,7 @@ RSpec.describe "Performance Benchmarks" do
       ITERATIONS.times do
         start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         eager_agent_class.new
-        eager_times << (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000
+        eager_times << ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000)
       end
 
       # Benchmark lazy loading
@@ -121,7 +121,7 @@ RSpec.describe "Performance Benchmarks" do
       ITERATIONS.times do
         start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         lazy_agent_class.new
-        lazy_times << (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000
+        lazy_times << ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000)
       end
 
       eager_avg = eager_times.sum / eager_times.length
@@ -154,7 +154,7 @@ RSpec.describe "Performance Benchmarks" do
           RAAF::ToolRegistry.resolve(tool_name)
           end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
 
-          resolution_times << (end_time - start) * 1000
+          resolution_times << ((end_time - start) * 1000)
         end
       end
 
@@ -178,7 +178,7 @@ RSpec.describe "Performance Benchmarks" do
         RAAF::ToolRegistry.instance_variable_get(:@registry).clear # Clear cache
         start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         RAAF::ToolRegistry.resolve(tool_name)
-        first_lookup_times << (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000
+        first_lookup_times << ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000)
       end
 
       # Subsequent lookups (cached)
@@ -186,7 +186,7 @@ RSpec.describe "Performance Benchmarks" do
       100.times do
         start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         RAAF::ToolRegistry.resolve(tool_name)
-        cached_lookup_times << (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000
+        cached_lookup_times << ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000)
       end
 
       first_avg = first_lookup_times.sum / first_lookup_times.length
@@ -195,7 +195,7 @@ RSpec.describe "Performance Benchmarks" do
       puts "\n  Cache Performance:"
       puts "    First lookup:  #{'%.4f' % first_avg}ms"
       puts "    Cached lookup: #{'%.4f' % cached_avg}ms"
-      puts "    Speedup:       #{'%.1f' % (first_avg / cached_avg)}x"
+      puts "    Speedup:       #{format('%.1f', first_avg / cached_avg)}x"
 
       # Cached should be faster
       expect(cached_avg).to be < first_avg
@@ -224,8 +224,8 @@ RSpec.describe "Performance Benchmarks" do
       memory_increase_mb = (final_memory - initial_memory) / 1024.0 / 1024.0
 
       puts "\n  Memory Usage:"
-      puts "    Initial: #{'%.2f' % (initial_memory / 1024.0 / 1024.0)}MB"
-      puts "    Final:   #{'%.2f' % (final_memory / 1024.0 / 1024.0)}MB"
+      puts "    Initial: #{format('%.2f', initial_memory / 1024.0 / 1024.0)}MB"
+      puts "    Final:   #{format('%.2f', final_memory / 1024.0 / 1024.0)}MB"
       puts "    Increase: #{'%.2f' % memory_increase_mb}MB for 100 agents"
 
       # Memory increase should be reasonable (< 50MB for 100 agents)
@@ -261,7 +261,7 @@ RSpec.describe "Performance Benchmarks" do
 
       puts "\n  Thread Safety Performance:"
       puts "    Total agents:     #{total_agents}"
-      puts "    Total time:       #{'%.2f' % (total_time * 1000)}ms"
+      puts "    Total time:       #{format('%.2f', total_time * 1000)}ms"
       puts "    Avg per agent:    #{'%.4f' % avg_time_ms}ms"
       puts "    Threads:          #{thread_count}"
 
@@ -290,7 +290,7 @@ RSpec.describe "Performance Benchmarks" do
 
         start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         RAAF::ToolRegistry.resolve(:last_resort)
-        search_times << (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000
+        search_times << ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000)
       end
 
       avg_time = search_times.sum / search_times.length
@@ -325,7 +325,7 @@ RSpec.describe "Performance Benchmarks" do
       20.times do
         start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         BeforeImplementation.resolve_tool(:test)
-        before_times << (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000
+        before_times << ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000)
       end
 
       # Benchmark new implementation
@@ -333,7 +333,7 @@ RSpec.describe "Performance Benchmarks" do
       20.times do
         start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         AfterImplementation.resolve_tool(:benchmark_tool0)
-        after_times << (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000
+        after_times << ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000)
       end
 
       before_avg = before_times.sum / before_times.length

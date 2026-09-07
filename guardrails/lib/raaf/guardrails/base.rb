@@ -1,10 +1,13 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Guardrails
+
     # Base class for all guardrails
     # Provides common interface and functionality for input/output filtering
     class Base
+
       attr_reader :action, :logger, :metrics
 
       VALID_ACTIONS = %i[block redact flag log].freeze
@@ -20,9 +23,9 @@ module RAAF
       # Check input before sending to AI
       def check_input(content, context = {})
         return safe_result if !enabled? || content.nil? || content.empty?
-        
+
         @metrics[:checks] += 1
-        
+
         begin
           perform_input_check(content, context)
         rescue StandardError => e
@@ -34,9 +37,9 @@ module RAAF
       # Check output before returning to user
       def check_output(content, context = {})
         return safe_result if !enabled? || content.nil? || content.empty?
-        
+
         @metrics[:checks] += 1
-        
+
         begin
           perform_output_check(content, context)
         rescue StandardError => e
@@ -70,7 +73,7 @@ module RAAF
       end
 
       # Override in subclasses for actual implementation
-      def perform_check(content, context)
+      def perform_check(_content, _context)
         safe_result
       end
 
@@ -86,7 +89,7 @@ module RAAF
 
       def violation_result(violations, modified_content = nil)
         @metrics[:violations] += 1
-        
+
         GuardrailResult.new(
           safe: false,
           action: @action,
@@ -99,15 +102,15 @@ module RAAF
       private
 
       def validate_action!(action)
-        unless VALID_ACTIONS.include?(action)
-          raise ArgumentError, "Invalid action: #{action}. Must be one of: #{VALID_ACTIONS.join(', ')}"
-        end
+        return if VALID_ACTIONS.include?(action)
+
+        raise ArgumentError, "Invalid action: #{action}. Must be one of: #{VALID_ACTIONS.join(", ")}"
       end
 
-      def handle_error(error, content, context)
+      def handle_error(error, _content, _context)
         @logger.error "Guardrail error in #{self.class.name}: #{error.message}"
         @logger.debug error.backtrace.join("\n")
-        
+
         # Fail open - return safe result on error
         safe_result
       end
@@ -116,14 +119,16 @@ module RAAF
         if defined?(Rails)
           Rails.logger
         else
-          require 'logger'
+          require "logger"
           Logger.new($stdout)
         end
       end
+
     end
 
     # Result object returned by guardrail checks
     class GuardrailResult
+
       attr_reader :safe, :action, :content, :violations, :metadata
 
       def initialize(safe:, action:, content:, violations:, metadata:)
@@ -167,6 +172,9 @@ module RAAF
           metadata: metadata
         }
       end
+
     end
+
   end
+
 end

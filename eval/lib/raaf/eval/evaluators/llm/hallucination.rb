@@ -65,17 +65,16 @@ module RAAF
             )
 
             label = calculate_label(score,
-                                   good_threshold: good_threshold,
-                                   average_threshold: average_threshold)
+                                    good_threshold: good_threshold,
+                                    average_threshold: average_threshold)
 
             build_result(score, label, good_threshold, average_threshold,
-              evaluated_field: field_context.field_name,
-              method: "llm_judge",
-              context_provided: true,
-              context_chunks: context.is_a?(Array) ? context.size : 1,
-              factual_accuracy_percentage: (score * 100).round,
-              evaluation_note: hallucination_note(score, good_threshold, average_threshold)
-            )
+                         evaluated_field: field_context.field_name,
+                         method: "llm_judge",
+                         context_provided: true,
+                         context_chunks: context.is_a?(Array) ? context.size : 1,
+                         factual_accuracy_percentage: (score * 100).round,
+                         evaluation_note: hallucination_note(score, good_threshold, average_threshold))
           end
 
           private
@@ -91,7 +90,7 @@ module RAAF
             context_text = context.is_a?(Array) ? context.join("\n\n") : context
 
             # Build evaluation prompt
-            prompt = build_hallucination_prompt(output, context_text)
+            build_hallucination_prompt(output, context_text)
 
             # Call LLM for evaluation
             # TODO: Replace with actual RAAF LLM call

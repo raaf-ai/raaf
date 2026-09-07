@@ -8,13 +8,13 @@ module RAAF
       # This module focuses on the most valuable validations:
       # - Type checking to catch wrong data types
       # - Custom validation for business rules
-      # 
+      #
       # It does NOT validate required fields (Ruby fails naturally with clear errors).
       #
       # @example Type validation
       #   class MyAgent < RAAF::DSL::Agents::Base
       #     include RAAF::DSL::Agents::ContextValidation
-      #     
+      #
       #     validates_context :product, type: Product
       #     validates_context :score, type: Integer, validate: -> (v) { v.between?(0, 100) }
       #   end
@@ -49,7 +49,7 @@ module RAAF
           #   validates_context :score, type: Integer, validate: -> (v) { v.between?(0, 100) }
           #
           # @example With custom error message
-          #   validates_context :email, 
+          #   validates_context :email,
           #     validate: -> (v) { v =~ /\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i },
           #     message: "must be a valid email address"
           #
@@ -90,13 +90,13 @@ module RAAF
             return unless validates_context?
 
             errors = []
-            
+
             context_validations.each do |key, rules|
               value = context.get(key)
-              
+
               # Skip validation if value is nil - let Ruby fail naturally
               next if value.nil?
-              
+
               # Type validation - this catches real bugs
               if rules[:type]
                 valid_type = Array(rules[:type]).any? { |t| value.is_a?(t) }
@@ -105,39 +105,39 @@ module RAAF
                   errors << "Context key '#{key}' must be #{expected} but was #{value.class.name}"
                 end
               end
-              
+
               # Custom validation for business rules
-              if rules[:validate]
-                begin
-                  unless rules[:validate].call(value)
-                    message = rules[:message] || "failed custom validation"
-                    errors << "Context key '#{key}' #{message}"
-                  end
-                rescue => e
-                  errors << "Context key '#{key}' validation error: #{e.message}"
+              next unless rules[:validate]
+
+              begin
+                unless rules[:validate].call(value)
+                  message = rules[:message] || "failed custom validation"
+                  errors << "Context key '#{key}' #{message}"
                 end
+              rescue StandardError => e
+                errors << "Context key '#{key}' validation error: #{e.message}"
               end
             end
-            
-            if errors.any?
-              raise ContextValidationError.new(errors, context)
-            end
+
+            return unless errors.any?
+
+            raise ContextValidationError.new(errors, context)
           end
         end
 
         module InstanceMethods
           # Override initialize to add validation
           def initialize(context: nil, **options)
-            super(context: context, **options)
-            
+            super
+
             # Only validate if there are meaningful validations (type or custom)
-            if self.class.validates_context?
-              begin
-                self.class.validate_context!(@context)
-              rescue ContextValidationError => e
-                handle_validation_error(e)
-                raise
-              end
+            return unless self.class.validates_context?
+
+            begin
+              self.class.validate_context!(@context)
+            rescue ContextValidationError => e
+              handle_validation_error(e)
+              raise
             end
           end
 
@@ -174,41 +174,41 @@ module RAAF
       # Convenience module for common validations
       module ContextValidators
         # Validate string is not blank
-        NOT_BLANK = -> (v) { v.is_a?(String) && !v.strip.empty? }
-        
+        NOT_BLANK = ->(v) { v.is_a?(String) && !v.strip.empty? }
+
         # Validate positive number
-        POSITIVE = -> (v) { v.is_a?(Numeric) && v > 0 }
-        
+        POSITIVE = ->(v) { v.is_a?(Numeric) && v > 0 }
+
         # Validate non-negative number
-        NON_NEGATIVE = -> (v) { v.is_a?(Numeric) && v >= 0 }
-        
+        NON_NEGATIVE = ->(v) { v.is_a?(Numeric) && v >= 0 }
+
         # Validate percentage (0-100)
-        PERCENTAGE = -> (v) { v.is_a?(Numeric) && v >= 0 && v <= 100 }
-        
+        PERCENTAGE = ->(v) { v.is_a?(Numeric) && v >= 0 && v <= 100 }
+
         # Validate email format
-        EMAIL = -> (v) { v.is_a?(String) && v =~ /\A[\w+\-.]+@[a-z\d\-]+(\.[a-z\d\-]+)*\.[a-z]+\z/i }
-        
+        EMAIL = ->(v) { v.is_a?(String) && v =~ /\A[\w+\-.]+@[a-z\d-]+(\.[a-z\d-]+)*\.[a-z]+\z/i }
+
         # Validate URL format
-        URL = -> (v) { v.is_a?(String) && v =~ /\A#{URI::regexp(['http', 'https'])}\z/ }
-        
+        URL = ->(v) { v.is_a?(String) && v =~ /\A#{URI::DEFAULT_PARSER.make_regexp(%w[http https])}\z/ }
+
         # Validate inclusion in list
         def self.included_in(list)
-          -> (v) { list.include?(v) }
+          ->(v) { list.include?(v) }
         end
-        
+
         # Validate string length
         def self.length_between(min, max)
-          -> (v) { v.is_a?(String) && v.length >= min && v.length <= max }
+          ->(v) { v.is_a?(String) && v.length >= min && v.length <= max }
         end
-        
+
         # Validate array size
         def self.array_size_between(min, max)
-          -> (v) { v.is_a?(Array) && v.size >= min && v.size <= max }
+          ->(v) { v.is_a?(Array) && v.size >= min && v.size <= max }
         end
-        
+
         # Validate numeric range
         def self.between(min, max)
-          -> (v) { v.is_a?(Numeric) && v >= min && v <= max }
+          ->(v) { v.is_a?(Numeric) && v >= min && v <= max }
         end
       end
     end

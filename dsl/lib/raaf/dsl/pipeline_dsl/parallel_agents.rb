@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-require 'thread'
-require_relative 'pipeline_failure_error'
+require_relative "pipeline_failure_error"
 
 module RAAF
   module DSL
@@ -21,23 +20,23 @@ module RAAF
         include WrapperDSL
 
         attr_reader :agents
-        
+
         def initialize(agents)
           @agents = agents.flatten
         end
-        
+
         # DSL operator: Add another agent to parallel execution group
         # Flattens nested parallel agents into single group for efficiency
-        def |(other_agent)
-          ParallelAgents.new(@agents + [other_agent])
+        def |(other)
+          ParallelAgents.new(@agents + [other])
         end
-        
+
         # DSL operator: Chain entire parallel group with next agent
         # All parallel agents complete before next agent executes
-        def >>(next_agent)
-          ChainedAgent.new(self, next_agent)
+        def >>(other)
+          ChainedAgent.new(self, other)
         end
-        
+
         # Parallel execution: Create thread for each agent, merge results
         # Field merging strategy: Union of all agent results (last writer wins for conflicts)
         # Error handling: Any failure in parallel agents stops the entire pipeline
@@ -47,13 +46,11 @@ module RAAF
 
           execute_with_hooks(context, :parallel, agent_count: @agents.size, agent_names: agent_names) do
             # Ensure context is ContextVariables if it's a plain Hash
-            unless context.respond_to?(:set)
-              context = RAAF::DSL::ContextVariables.new(context)
-            end
+            context = RAAF::DSL::ContextVariables.new(context) unless context.respond_to?(:set)
 
             results = @agents.map do |agent|
               Thread.new do
-                execute_single(agent, context.dup)  # Each agent gets own context copy
+                execute_single(agent, context.dup) # Each agent gets own context copy
               end
             end.map(&:value)
 
@@ -65,7 +62,7 @@ module RAAF
             context
           end
         end
-        
+
         def required_fields
           # Union of all parallel agents' requirements
           @agents.flat_map do |agent|
@@ -79,7 +76,7 @@ module RAAF
             end
           end.uniq
         end
-        
+
         def provided_fields
           # Union of all parallel agents' provisions
           @agents.flat_map do |agent|
@@ -93,7 +90,7 @@ module RAAF
             end
           end.uniq
         end
-        
+
         def requirements_met?(context)
           # All parallel agents must have their requirements met
           @agents.all? do |agent|
@@ -107,9 +104,9 @@ module RAAF
             end
           end
         end
-        
+
         private
-        
+
         def execute_single(agent, context)
           case agent
           when ChainedAgent
@@ -151,7 +148,7 @@ module RAAF
             {}
           end
         end
-        
+
         def extract_provided_fields(agent, context)
           # Extract provided fields from context after execution
           provided_data = {}
@@ -162,7 +159,7 @@ module RAAF
           end
           provided_data
         end
-        
+
         def agent_name(agent)
           case agent
           when Class

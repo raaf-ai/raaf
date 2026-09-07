@@ -72,7 +72,7 @@ module RAAF
             )
             render_stat_card(
               "Active Alerts",
-              @alerts.count { |a| a[:status] == 'active' },
+              @alerts.count { |a| a[:status] == "active" },
               "bi-bell",
               active_alerts_color
             )
@@ -123,7 +123,7 @@ module RAAF
                       h4(class: "text-sm font-medium text-yellow-800") { "Backpressure Active" }
                       p(class: "mt-1 text-sm text-yellow-700") do
                         "New evaluations are being skipped to allow the queue to drain. " \
-                        "Threshold: #{@health_data[:backpressure_threshold] || 'N/A'}"
+                          "Threshold: #{@health_data[:backpressure_threshold] || 'N/A'}"
                       end
                     end
                   end
@@ -144,9 +144,7 @@ module RAAF
           div(class: "bg-white shadow rounded-lg overflow-hidden mb-6") do
             div(class: "px-4 py-5 sm:px-6 border-b border-gray-200 flex justify-between items-center") do
               h3(class: "text-lg font-medium text-gray-900") { "Recent Alerts" }
-              if @alerts.any?
-                span(class: "text-sm text-gray-500") { "#{@alerts.count} alerts" }
-              end
+              span(class: "text-sm text-gray-500") { "#{@alerts.count} alerts" } if @alerts.any?
             end
             div(class: "px-4 py-5 sm:p-6") do
               if @alerts.any?
@@ -164,22 +162,22 @@ module RAAF
 
         def render_alert_item(alert)
           severity_classes = case alert[:severity]
-                             when 'critical' then 'bg-red-50 border-red-200'
-                             when 'warning' then 'bg-yellow-50 border-yellow-200'
-                             else 'bg-blue-50 border-blue-200'
+                             when "critical" then "bg-red-50 border-red-200"
+                             when "warning" then "bg-yellow-50 border-yellow-200"
+                             else "bg-blue-50 border-blue-200"
                              end
 
           severity_icon = case alert[:severity]
-                          when 'critical' then 'bi-x-circle text-red-500'
-                          when 'warning' then 'bi-exclamation-triangle text-yellow-500'
-                          else 'bi-info-circle text-blue-500'
+                          when "critical" then "bi-x-circle text-red-500"
+                          when "warning" then "bi-exclamation-triangle text-yellow-500"
+                          else "bi-info-circle text-blue-500"
                           end
 
           status_badge = case alert[:status]
-                         when 'active' then 'bg-red-100 text-red-800'
-                         when 'acknowledged' then 'bg-yellow-100 text-yellow-800'
-                         when 'resolved' then 'bg-green-100 text-green-800'
-                         else 'bg-gray-100 text-gray-800'
+                         when "active" then "bg-red-100 text-red-800"
+                         when "acknowledged" then "bg-yellow-100 text-yellow-800"
+                         when "resolved" then "bg-green-100 text-green-800"
+                         else "bg-gray-100 text-gray-800"
                          end
 
           div(class: "p-4 border rounded-md #{severity_classes}") do
@@ -241,22 +239,25 @@ module RAAF
         def system_status_text
           return "Disabled" unless @config[:enabled]
           return "Backpressure" if @health_data[:backpressure_active]
-          return "Degraded" if @alerts.any? { |a| a[:status] == 'active' && a[:severity] == 'critical' }
+          return "Degraded" if @alerts.any? { |a| a[:status] == "active" && a[:severity] == "critical" }
+
           "Healthy"
         end
 
         def system_status_icon
           return "bi-x-circle" unless @config[:enabled]
           return "bi-pause-circle" if @health_data[:backpressure_active]
-          return "bi-exclamation-circle" if @alerts.any? { |a| a[:status] == 'active' }
+          return "bi-exclamation-circle" if @alerts.any? { |a| a[:status] == "active" }
+
           "bi-check-circle"
         end
 
         def system_status_color
           return "gray" unless @config[:enabled]
           return "yellow" if @health_data[:backpressure_active]
-          return "red" if @alerts.any? { |a| a[:status] == 'active' && a[:severity] == 'critical' }
-          return "yellow" if @alerts.any? { |a| a[:status] == 'active' }
+          return "red" if @alerts.any? { |a| a[:status] == "active" && a[:severity] == "critical" }
+          return "yellow" if @alerts.any? { |a| a[:status] == "active" }
+
           "green"
         end
 
@@ -265,21 +266,24 @@ module RAAF
           threshold = @config[:backpressure_threshold] || 1000
           return "red" if depth > threshold
           return "yellow" if depth > threshold * 0.7
+
           "green"
         end
 
         def active_alerts_color
-          active = @alerts.count { |a| a[:status] == 'active' }
-          return "red" if active > 0 && @alerts.any? { |a| a[:status] == 'active' && a[:severity] == 'critical' }
+          active = @alerts.count { |a| a[:status] == "active" }
+          return "red" if active > 0 && @alerts.any? { |a| a[:status] == "active" && a[:severity] == "critical" }
           return "yellow" if active > 0
+
           "green"
         end
 
         def format_time(time)
           return "Unknown" unless time
+
           time = Time.parse(time) if time.is_a?(String)
           time.strftime("%Y-%m-%d %H:%M:%S")
-        rescue
+        rescue StandardError
           "Unknown"
         end
       end

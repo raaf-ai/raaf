@@ -14,7 +14,7 @@ module RAAF
         validates :period_type, presence: true, inclusion: { in: %w[hourly daily weekly] }
         validates :period_start, presence: true
         validates :agent_name, uniqueness: {
-          scope: [:environment, :model, :evaluator_name, :period_type, :period_start],
+          scope: %i[environment model evaluator_name period_type period_start],
           message: "already has metrics for this period"
         }
 
@@ -34,6 +34,7 @@ module RAAF
         # @return [Float] Rate between 0 and 1
         def pass_rate
           return 0 if total_evaluations.zero?
+
           success_count.to_f / total_evaluations
         end
 
@@ -42,6 +43,7 @@ module RAAF
         # @return [Float] Rate between 0 and 1
         def fail_rate
           return 0 if total_evaluations.zero?
+
           failure_count.to_f / total_evaluations
         end
 
@@ -165,14 +167,14 @@ module RAAF
 
             return sorted_array[k.round] if f == c
 
-            sorted_array[f] * (c - k) + sorted_array[c] * (k - f)
+            (sorted_array[f] * (c - k)) + (sorted_array[c] * (k - f))
           end
 
           def calculate_stddev(values)
             return nil if values.empty? || values.size < 2
 
             mean = values.sum / values.size
-            variance = values.sum { |v| (v - mean) ** 2 } / (values.size - 1)
+            variance = values.sum { |v| (v - mean)**2 } / (values.size - 1)
             Math.sqrt(variance)
           end
         end

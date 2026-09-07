@@ -384,8 +384,8 @@ RSpec.describe "API Interactions with VCR", :integration do
           # Model might call tools in parallel or sequence
           if tool_messages.size >= 2
             expect(tool_messages.map { |m| m[:content] }).to include(
-              match(/Search results/),
-              match(/Database results/)
+              include("Search results"),
+              include("Database results")
             )
           end
         end

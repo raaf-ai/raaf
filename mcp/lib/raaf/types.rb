@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module MCP
+
     # MCP type definitions
 
     # Resource represents a piece of content that can be read from the server
     class Resource
+
       attr_reader :uri, :name, :description, :mime_type
 
       def initialize(uri:, name:, description: nil, mime_type: nil)
@@ -23,10 +26,12 @@ module RAAF
           mimeType: mime_type
         }.compact
       end
+
     end
 
     # ResourceContent represents the actual content of a resource
     class ResourceContent
+
       attr_reader :uri, :mime_type, :text, :blob
 
       def initialize(uri:, mime_type:, text: nil, blob: nil)
@@ -52,10 +57,12 @@ module RAAF
           blob: blob
         }.compact
       end
+
     end
 
     # Tool represents a function that can be called on the server
     class Tool
+
       attr_reader :name, :description, :input_schema
 
       def initialize(name:, description:, input_schema:)
@@ -83,10 +90,12 @@ module RAAF
           }
         }
       end
+
     end
 
     # ToolResult represents the result of calling a tool
     class ToolResult
+
       attr_reader :tool_name, :content, :is_error
 
       def initialize(tool_name:, content:, is_error: false)
@@ -110,10 +119,12 @@ module RAAF
           isError: is_error
         }
       end
+
     end
 
     # Prompt represents a prompt template on the server
     class Prompt
+
       attr_reader :name, :description, :arguments
 
       def initialize(name:, description: nil, arguments: nil)
@@ -129,10 +140,12 @@ module RAAF
           arguments: arguments
         }.compact
       end
+
     end
 
     # PromptContent represents the expanded content of a prompt
     class PromptContent
+
       attr_reader :messages, :description
 
       def initialize(messages:, description: nil)
@@ -146,10 +159,12 @@ module RAAF
           description: description
         }.compact
       end
+
     end
 
     # SamplingResult represents the result of a sampling request
     class SamplingResult
+
       attr_reader :role, :content, :model, :stop_reason
 
       def initialize(role:, content:, model: nil, stop_reason: nil)
@@ -175,10 +190,12 @@ module RAAF
           content: content
         }
       end
+
     end
 
     # ServerInfo represents information about the MCP server
     class ServerInfo
+
       attr_reader :name, :version, :protocol_version, :capabilities
 
       def initialize(name:, version:, protocol_version:, capabilities: {})
@@ -212,10 +229,12 @@ module RAAF
           capabilities: capabilities
         }
       end
+
     end
 
     # Root represents a root directory for resources
     class Root
+
       attr_reader :uri, :name
 
       def initialize(uri:, name: nil)
@@ -229,6 +248,9 @@ module RAAF
           name: name
         }
       end
+
     end
+
   end
+
 end

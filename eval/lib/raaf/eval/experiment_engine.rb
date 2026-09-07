@@ -36,7 +36,8 @@ module RAAF
       # @param configuration [Hash] Agent configuration
       # @param created_by [String] Creator identifier
       # @return [Models::Experiment]
-      def create_experiment(name:, dataset:, agent_name: nil, model: nil, provider: nil, configuration: {}, created_by: nil)
+      def create_experiment(name:, dataset:, agent_name: nil, model: nil, provider: nil, configuration: {},
+                            created_by: nil)
         Models::Experiment.create!(
           name: name,
           dataset: dataset,
@@ -114,11 +115,13 @@ module RAAF
       def execute_agent(item, agent:, runner:, experiment:)
         if runner
           result = runner.run(item.input_messages)
-          { messages: result.messages, content: result.messages.last&.dig(:content) || result.messages.last&.dig("content") }
+          { messages: result.messages,
+            content: result.messages.last&.dig(:content) || result.messages.last&.dig("content") }
         elsif agent
           temp_runner = RAAF::Runner.new(agent: agent)
           result = temp_runner.run(item.input_messages)
-          { messages: result.messages, content: result.messages.last&.dig(:content) || result.messages.last&.dig("content") }
+          { messages: result.messages,
+            content: result.messages.last&.dig(:content) || result.messages.last&.dig("content") }
         else
           # Dry run - return input as output for testing
           { messages: item.input_messages, content: "dry_run", dry_run: true }
@@ -127,6 +130,7 @@ module RAAF
 
       def extract_token_metrics(output)
         return {} unless output.is_a?(Hash)
+
         output[:token_metrics] || output["token_metrics"] || {}
       end
 
@@ -192,6 +196,7 @@ module RAAF
 
       def safe_delta(b, a)
         return nil if a.nil? || b.nil?
+
         (b.to_f - a.to_f).round(4)
       end
     end

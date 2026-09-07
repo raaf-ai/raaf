@@ -33,9 +33,7 @@ require_relative "eval/errors"
 require_relative "eval/continuous"
 
 # Require continuous evaluation models only when ActiveRecord is available
-if defined?(ActiveRecord::Base)
-  require_relative "eval/models/continuous"
-end
+require_relative "eval/models/continuous" if defined?(ActiveRecord::Base)
 
 # Statistical LLM Judge module (lazy loaded)
 # Based on: Lee et al. "How to Correctly Report LLM-as-a-Judge Evaluations" (arXiv:2511.21140)
@@ -71,14 +69,15 @@ module RAAF
       #       puts "#{event.status}: #{event.progress}%"
       #     end
       #   end
-      def define(&block)
+      def define(&)
         raise ArgumentError, "no block given" unless block_given?
 
         builder = DSL::Builder.new
-        builder.instance_eval(&block)
+        builder.instance_eval(&)
 
         DslEngine::Evaluator.new(builder.build_definition)
       end
+
       ##
       # Returns the global configuration object
       #

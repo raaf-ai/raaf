@@ -43,7 +43,7 @@ puts "\n3. Creating agent with reasoning_effort: :high (symbol)"
 class HighReasoningAgent < RAAF::DSL::Agent
   agent_name "HighReasoningAgent"
   model "o1-preview"
-  reasoning_effort :high  # Symbol notation
+  reasoning_effort :high # Symbol notation
   static_instructions "Deep thinking agent"
 end
 
@@ -82,7 +82,7 @@ end
 
 # Test 5: All effort levels
 puts "\n5. Testing all reasoning effort levels"
-effort_levels = ["minimal", "low", "medium", "high"]
+effort_levels = %w[minimal low medium high]
 
 effort_levels.each do |level|
   agent_class = Class.new(RAAF::DSL::Agent) do
@@ -103,7 +103,7 @@ effort_levels.each do |level|
   end
 end
 
-puts "\n" + "=" * 60
+puts "\n" + ("=" * 60)
 puts "✅ All tests passed!"
 puts "\nThe reasoning_effort DSL method is working correctly:"
 puts "  - Accepts both string and symbol values"

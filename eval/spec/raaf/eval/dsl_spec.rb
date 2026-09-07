@@ -40,9 +40,9 @@ RSpec.describe RAAF::Eval, ".define" do
     end
 
     it "raises error when no block given" do
-      expect {
+      expect do
         described_class.define
-      }.to raise_error(ArgumentError, /no block given/)
+      end.to raise_error(ArgumentError, /no block given/)
     end
   end
 
@@ -81,7 +81,7 @@ RSpec.describe RAAF::Eval, ".define" do
       callback_called = false
 
       evaluator = described_class.define do
-        on_progress do |event|
+        on_progress do |_event|
           callback_called = true
         end
       end
@@ -96,14 +96,14 @@ RSpec.describe RAAF::Eval, ".define" do
 
     describe "history DSL (deprecated)" do
       it "raises DeprecatedDSLError when history block is used" do
-        expect {
+        expect do
           described_class.define do
             history do
               auto_save true
               retention_days 30
             end
           end
-        }.to raise_error(RAAF::Eval::DeprecatedDSLError, /history do\.\.\.end/)
+        end.to raise_error(RAAF::Eval::DeprecatedDSLError, /history do\.\.\.end/)
       end
 
       it "provides migration guidance in the error message" do

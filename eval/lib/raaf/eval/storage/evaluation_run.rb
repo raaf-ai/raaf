@@ -37,17 +37,18 @@ module RAAF
           @runs.size
         end
 
-        def map(&block)
-          @runs.map(&block)
+        def map(&)
+          @runs.map(&)
         end
 
-        def each(&block)
-          @runs.each(&block)
+        def each(&)
+          @runs.each(&)
         end
 
         include Enumerable
-        def each
-          @runs.each { |run| yield run }
+
+        def each(&)
+          @runs.each(&)
         end
       end
 

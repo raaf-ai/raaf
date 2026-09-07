@@ -40,7 +40,7 @@ memory_store = RAAF::Memory::InMemoryStore.new
 # The Memory class encapsulates content with metadata for rich querying
 memory1 = RAAF::Memory::Memory.new(
   content: "User prefers Python for data science projects",
-  agent_name: "assistant_1",  # Links memory to specific agent
+  agent_name: "assistant_1", # Links memory to specific agent
   metadata: {                  # Metadata enables filtering and categorization
     category: "preference",    # Type of information stored
     language: "python"         # Additional context for search
@@ -102,7 +102,7 @@ memory3 = RAAF::Memory::Memory.new(
   content: "Customer reported issue with login functionality",
   agent_name: "support_bot",
   conversation_id: "ticket_123",    # Groups memories by support ticket
-  metadata: { 
+  metadata: {
     severity: "high",               # Priority for triage and escalation
     category: "authentication",     # Issue categorization for routing
     resolved: false                 # Status tracking for follow-up
@@ -137,23 +137,23 @@ puts "-" * 40
 
 # Add memories with rich metadata for filtering
 memory_store.store("doc:1", RAAF::Memory::Memory.new(
-  content: "API rate limit is 100 requests per minute",
-  agent_name: "assistant_1",
-  metadata: { category: "technical", type: "limit", api: "openai" }
-))
+                              content: "API rate limit is 100 requests per minute",
+                              agent_name: "assistant_1",
+                              metadata: { category: "technical", type: "limit", api: "openai" }
+                            ))
 
 memory_store.store("doc:2", RAAF::Memory::Memory.new(
-  content: "User interface should be responsive and mobile-friendly",
-  agent_name: "assistant_1", 
-  metadata: { category: "design", type: "requirement", priority: "high" }
-))
+                              content: "User interface should be responsive and mobile-friendly",
+                              agent_name: "assistant_1",
+                              metadata: { category: "design", type: "requirement", priority: "high" }
+                            ))
 
 # Search by metadata
 puts "Searching for technical memories:"
 tech_memories = memory_store.search("", agent_name: "assistant_1", metadata: { category: "technical" })
 tech_memories.each { |m| puts "- #{m[:content]}" }
 
-puts "\nTotal memories for assistant_1: #{memory_store.list_keys(agent_name: 'assistant_1').length}"
+puts "\nTotal memories for assistant_1: #{memory_store.list_keys(agent_name: "assistant_1").length}"
 
 # ============================================================================
 # EXAMPLE 4: SIMULATED AGENT WITH MEMORY
@@ -179,6 +179,7 @@ agent = RAAF::Agent.new(
 # This pattern demonstrates how memory enhances agent intelligence
 # The wrapper intercepts interactions to store and retrieve context
 class MemoryEnhancedAgent
+
   def initialize(agent, memory_store)
     @agent = agent
     @memory_store = memory_store
@@ -216,8 +217,9 @@ class MemoryEnhancedAgent
     return "" if memories.empty?
 
     "\nRelevant context from memory:\n" +
-    memories.map { |m| "- #{m[:content]}" }.join("\n")
+      memories.map { |m| "- #{m[:content]}" }.join("\n")
   end
+
 end
 
 # Create memory-enhanced wrapper
@@ -276,12 +278,12 @@ agent_with_memory = RAAF::Agent.new(
 
 # Store information using the agent's remember method
 puts "Using agent.remember() to store information..."
-key1 = agent_with_memory.remember("User enjoys hiking and outdoor activities", 
+key1 = agent_with_memory.remember("User enjoys hiking and outdoor activities",
                                   metadata: { type: "hobby" })
-key2 = agent_with_memory.remember("User is learning Ruby programming", 
-                                  metadata: { type: "skill", level: "beginner" })
-key3 = agent_with_memory.remember("User prefers email communications over phone",
-                                  metadata: { type: "preference", channel: "email" })
+agent_with_memory.remember("User is learning Ruby programming",
+                           metadata: { type: "skill", level: "beginner" })
+agent_with_memory.remember("User prefers email communications over phone",
+                           metadata: { type: "preference", channel: "email" })
 
 puts "✓ Stored #{agent_with_memory.memory_count} memories"
 
@@ -333,7 +335,7 @@ persistent_agent = RAAF::Agent.new(
 
 # Store persistent memory
 persistent_agent.remember("Important: System maintenance scheduled for Sunday",
-                         metadata: { type: "system", priority: "high" })
+                          metadata: { type: "system", priority: "high" })
 puts "✓ Stored persistent memory (survives restart)"
 
 # ============================================================================
@@ -351,7 +353,7 @@ specialized_agent = agent_with_memory.clone(
 
 puts "Original agent memories: #{agent_with_memory.memory_count}"
 puts "Cloned agent memories: #{specialized_agent.memory_count}"
-puts "Same memory store? #{agent_with_memory.memory_store.object_id == specialized_agent.memory_store.object_id}"
+puts "Same memory store? #{agent_with_memory.memory_store.equal?(specialized_agent.memory_store)}"
 
 # Add memory to clone - appears in both
 specialized_agent.remember("Clone-specific insight about user behavior")

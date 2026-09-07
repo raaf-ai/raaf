@@ -6,7 +6,6 @@ require "json"
 require "securerandom"
 
 module RAAF
-  
 
   ##
   # Logger mixin provides convenient logging methods to any class
@@ -550,14 +549,12 @@ module RAAF
         end
       end
 
-
     end
 
     # Configuration class
     class Configuration
 
-      attr_writer :log_level, :log_format, :log_output, :log_file
-      attr_writer :debug_categories
+      attr_writer :log_level, :log_format, :log_output, :log_file, :debug_categories
 
       def initialize
         # Defer environment variable reading until values are accessed
@@ -639,23 +636,23 @@ module RAAF
         @config = config
       end
 
-      def debug(message, **context)
+      def debug(message, **_context)
         @rails_logger.debug(message)
       end
 
-      def info(message, **context)
+      def info(message, **_context)
         @rails_logger.info(message)
       end
 
-      def warn(message, **context)
+      def warn(message, **_context)
         @rails_logger.warn(message)
       end
 
-      def error(message, **context)
+      def error(message, **_context)
         @rails_logger.error(message)
       end
 
-      def fatal(message, **context)
+      def fatal(message, **_context)
         @rails_logger.fatal(message)
       end
 
@@ -668,23 +665,23 @@ module RAAF
         @config = config
       end
 
-      def debug(message, **context)
+      def debug(message, **_context)
         puts "[DEBUG] #{message}" if @config.log_level == :debug
       end
 
-      def info(message, **context)
+      def info(message, **_context)
         puts "[INFO] #{message}"
       end
 
-      def warn(message, **context)
+      def warn(message, **_context)
         puts "[WARN] #{message}"
       end
 
-      def error(message, **context)
+      def error(message, **_context)
         puts "[ERROR] #{message}"
       end
 
-      def fatal(message, **context)
+      def fatal(message, **_context)
         puts "[FATAL] #{message}"
       end
 
@@ -698,23 +695,23 @@ module RAAF
         @logger = create_file_logger
       end
 
-      def debug(message, **context)
+      def debug(message, **_context)
         @logger.debug(message)
       end
 
-      def info(message, **context)
+      def info(message, **_context)
         @logger.info(message)
       end
 
-      def warn(message, **context)
+      def warn(message, **_context)
         @logger.warn(message)
       end
 
-      def error(message, **context)
+      def error(message, **_context)
         @logger.error(message)
       end
 
-      def fatal(message, **context)
+      def fatal(message, **_context)
         @logger.fatal(message)
       end
 

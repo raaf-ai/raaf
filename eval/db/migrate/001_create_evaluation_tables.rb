@@ -38,7 +38,7 @@ class CreateEvaluationTables < ActiveRecord::Migration[7.0]
     add_index :evaluation_spans, :parent_span_id
     add_index :evaluation_spans, :span_type
     add_index :evaluation_spans, :span_data, using: :gin
-    add_index :evaluation_spans, [:trace_id, :parent_span_id]
+    add_index :evaluation_spans, %i[trace_id parent_span_id]
 
     # Create evaluation_configurations table
     create_table :evaluation_configurations do |t|
@@ -51,7 +51,8 @@ class CreateEvaluationTables < ActiveRecord::Migration[7.0]
       t.timestamps
     end
 
-    add_index :evaluation_configurations, [:evaluation_run_id, :execution_order], name: "idx_eval_configs_on_run_id_and_order"
+    add_index :evaluation_configurations, %i[evaluation_run_id execution_order],
+              name: "idx_eval_configs_on_run_id_and_order"
     add_index :evaluation_configurations, :configuration_type
     add_index :evaluation_configurations, :changes, using: :gin
 
@@ -79,7 +80,7 @@ class CreateEvaluationTables < ActiveRecord::Migration[7.0]
 
     add_index :evaluation_results, :status
     add_index :evaluation_results, :result_span_id
-    add_index :evaluation_results, [:evaluation_run_id, :status]
+    add_index :evaluation_results, %i[evaluation_run_id status]
     add_index :evaluation_results, :token_metrics, using: :gin
     add_index :evaluation_results, :ai_comparison, using: :gin
     add_index :evaluation_results, :baseline_comparison, using: :gin

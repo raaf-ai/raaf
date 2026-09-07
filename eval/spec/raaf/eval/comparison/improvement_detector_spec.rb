@@ -60,7 +60,7 @@ RSpec.describe RAAF::Eval::Comparison::ImprovementDetector do
 
       result.each_value do |fields|
         expect(fields).to be_an(Array)
-        fields.each { |field| expect(field).to be_a(Symbol) }
+        expect(fields).to all(be_a(Symbol))
       end
     end
 
@@ -112,7 +112,7 @@ RSpec.describe RAAF::Eval::Comparison::ImprovementDetector do
 
       result.each_value do |fields|
         expect(fields).to be_an(Array)
-        fields.each { |field| expect(field).to be_a(Symbol) }
+        expect(fields).to all(be_a(Symbol))
       end
     end
 

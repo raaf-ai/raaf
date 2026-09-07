@@ -58,9 +58,9 @@ RSpec.describe "G-Eval RSpec Matchers" do
     end
 
     it "provides detailed failure message" do
-      expect {
+      expect do
         expect(g_eval_result).to meet_all_criteria(min_score: 0.90)
-      }.to raise_error(::RSpec::Expectations::ExpectationNotMetError, /clarity.*75% < 90%/)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError, /clarity.*75% < 90%/)
     end
   end
 
@@ -82,15 +82,15 @@ RSpec.describe "G-Eval RSpec Matchers" do
     end
 
     it "provides detailed failure message for low score" do
-      expect {
+      expect do
         expect(g_eval_result).to meet_criterion(:clarity, min_score: 0.80)
-      }.to raise_error(::RSpec::Expectations::ExpectationNotMetError, /clarity.*got 75%/)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError, /clarity.*got 75%/)
     end
 
     it "provides detailed failure message for missing criterion" do
-      expect {
+      expect do
         expect(g_eval_result).to meet_criterion(:nonexistent, min_score: 0.70)
-      }.to raise_error(::RSpec::Expectations::ExpectationNotMetError, /not found/)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError, /not found/)
     end
   end
 
@@ -120,9 +120,9 @@ RSpec.describe "G-Eval RSpec Matchers" do
     end
 
     it "provides detailed failure message for short chain" do
-      expect {
+      expect do
         expect(g_eval_result).to have_chain_of_thought(min_length: 1000)
-      }.to raise_error(::RSpec::Expectations::ExpectationNotMetError, /at least 1000 characters/)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError, /at least 1000 characters/)
     end
   end
 
@@ -142,9 +142,9 @@ RSpec.describe "G-Eval RSpec Matchers" do
       result_with_wrong_score = g_eval_result.dup
       result_with_wrong_score[:score] = 0.50
 
-      expect {
+      expect do
         expect(result_with_wrong_score).to respect_criteria_weights
-      }.to raise_error(::RSpec::Expectations::ExpectationNotMetError, /weighted average/)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError, /weighted average/)
     end
   end
 
@@ -158,9 +158,9 @@ RSpec.describe "G-Eval RSpec Matchers" do
     end
 
     it "provides detailed failure message" do
-      expect {
+      expect do
         expect(g_eval_result).to evaluate_criteria_count(5)
-      }.to raise_error(::RSpec::Expectations::ExpectationNotMetError, /Expected 5 criteria.*but got 3/)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Expected 5 criteria.*but got 3/)
     end
   end
 
@@ -231,9 +231,9 @@ RSpec.describe "G-Eval RSpec Matchers" do
         }
       }
 
-      expect {
+      expect do
         expect(invalid_result).to be_valid_g_eval_result
-      }.to raise_error(::RSpec::Expectations::ExpectationNotMetError, /Missing label/)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError, /Missing label/)
     end
   end
 

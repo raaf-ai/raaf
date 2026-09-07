@@ -76,9 +76,9 @@ RSpec.describe RAAF::Tools::PerplexityTool do
         expect(result[:success]).to be true
         expect(result[:content]).to eq("Ruby 3.4 includes significant performance improvements...")
         expect(result[:citations]).to eq([
-          "https://ruby-lang.org/news/2024/ruby-3-4-released",
-          "https://github.com/ruby/ruby"
-        ])
+                                           "https://ruby-lang.org/news/2024/ruby-3-4-released",
+                                           "https://github.com/ruby/ruby"
+                                         ])
         expect(result[:web_results].length).to eq(1)
         expect(result[:model]).to eq("sonar")
       end
@@ -207,9 +207,9 @@ RSpec.describe RAAF::Tools::PerplexityTool do
 
         expect(result[:citations]).to be_an(Array)
         expect(result[:citations]).to eq([
-          "https://ruby-lang.org/news/2024/ruby-3-4-released",
-          "https://github.com/ruby/ruby"
-        ])
+                                           "https://ruby-lang.org/news/2024/ruby-3-4-released",
+                                           "https://github.com/ruby/ruby"
+                                         ])
       end
 
       it "handles missing citations" do

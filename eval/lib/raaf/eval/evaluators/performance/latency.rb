@@ -92,7 +92,7 @@ module RAAF
             return 0.0 if latency >= max_ms * 2 # Poor if over double threshold
 
             # Linear scale between half and double threshold
-            1.0 - ((latency - max_ms / 2.0) / (max_ms * 1.5)).clamp(0, 1)
+            1.0 - ((latency - (max_ms / 2.0)) / (max_ms * 1.5)).clamp(0, 1)
           end
 
           # Calculate label from discrete millisecond thresholds

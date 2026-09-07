@@ -114,9 +114,7 @@ module RAAF
           end
 
           applicable = execution_log.applied_guidelines
-          unless applicable.empty?
-            execution_log.set_constraint_text(build_constraint_text(applicable))
-          end
+          execution_log.set_constraint_text(build_constraint_text(applicable)) unless applicable.empty?
 
           execution_log.complete!
           execution_log
@@ -138,16 +136,12 @@ module RAAF
         def evaluate_guideline(guideline, context, input)
           cache_key = build_cache_key(guideline, context, input) if @cache_enabled
 
-          if @cache_enabled && @cache.key?(cache_key)
-            return @cache[cache_key]
-          end
+          return @cache[cache_key] if @cache_enabled && @cache.key?(cache_key)
 
           result = guideline.applies?(context, input)
 
           # Handle LLM condition fallback
-          if result == :requires_llm_evaluation
-            result = evaluate_llm_condition(guideline, context, input)
-          end
+          result = evaluate_llm_condition(guideline, context, input) if result == :requires_llm_evaluation
 
           @cache[cache_key] = result if @cache_enabled
 
@@ -179,7 +173,11 @@ module RAAF
 
         # Build a cache key for condition evaluation
         def build_cache_key(guideline, context, input)
-          context_digest = Digest::MD5.hexdigest(context.to_json) rescue "ctx"
+          context_digest = begin
+            Digest::MD5.hexdigest(context.to_json)
+          rescue StandardError
+            "ctx"
+          end
           input_digest = Digest::MD5.hexdigest(input.to_s)
           "#{guideline.name}:#{context_digest}:#{input_digest}"
         end

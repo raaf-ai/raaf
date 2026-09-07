@@ -79,7 +79,7 @@ RSpec.describe RAAF::RateLimiter do
 
         # Should either succeed quickly (window reset) or wait ~1 second
         expect(result).to eq("waited")
-        expect(elapsed).to be < 5.0  # Just verify it completes within timeout
+        expect(elapsed).to be < 5.0 # Just verify it completes within timeout
       end
 
       it "raises error on timeout when capacity exhausted" do
@@ -99,9 +99,9 @@ RSpec.describe RAAF::RateLimiter do
         # Now attempt with very short timeout - should fail unless we get very unlucky with timing
         # This test may occasionally pass if run exactly at minute boundary
         begin
-          expect {
+          expect do
             limiter.acquire(max_wait_seconds: 0.5) { "should timeout" }
-          }.to raise_error(RuntimeError, /Rate limit acquisition timeout/)
+          end.to raise_error(RuntimeError, /Rate limit acquisition timeout/)
         rescue RSpec::Expectations::ExpectationNotMetError
           # If we got unlucky with timing and window reset occurred, skip this assertion
           # The important thing is that the rate limiter itself is working
@@ -122,9 +122,9 @@ RSpec.describe RAAF::RateLimiter do
         end
 
         begin
-          expect {
+          expect do
             limiter.acquire(max_wait_seconds: 0.1) { "timeout" }
-          }.to raise_error(/gemini/)
+          end.to raise_error(/gemini/)
         rescue RSpec::Expectations::ExpectationNotMetError
           # Window reset timing edge case - mark as pending
           pending "Test coincided with minute boundary - rate limiter working correctly"
@@ -256,7 +256,7 @@ RSpec.describe RAAF::RateLimiter do
 
       # Threads complete successfully (either via wait or window reset)
       # Just verify it completes within reasonable time
-      expect(elapsed).to be < 65  # Completes before timeout
+      expect(elapsed).to be < 65 # Completes before timeout
     end
   end
 

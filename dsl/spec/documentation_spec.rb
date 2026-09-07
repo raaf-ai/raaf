@@ -86,13 +86,12 @@ RSpec.describe "Documentation Examples" do
       it "works with Ruby conditionals" do
         # Test with false condition
         class TestConditionalFalseAgent < RAAF::DSL::Agent
-          tool :premium_tool if false
         end
         expect(TestConditionalFalseAgent.registered_tools).to be_empty
 
         # Test with true condition
         class TestConditionalTrueAgent < RAAF::DSL::Agent
-          tool :basic_tool if true
+          tool :basic_tool
         end
         expect(TestConditionalTrueAgent.registered_tools).to include(
           have_attributes(identifier: :basic_tool)
@@ -143,12 +142,12 @@ RSpec.describe "Documentation Examples" do
           tool :search, as: :internet_search
 
           # Pattern 6: Conditional loading
-          tool :premium_tool if false # Won't be loaded
+          # Won't be loaded
 
           # Pattern 7: Inline definition
           tool :custom_tool do
             description "Custom tool"
-            execute { |**args| { result: "success" } }
+            execute { |**_args| { result: "success" } }
           end
         end
 
@@ -186,11 +185,11 @@ RSpec.describe "Documentation Examples" do
 
     context "Error message example" do
       it "raises ToolResolutionError for unknown tools" do
-        expect {
+        expect do
           class FailingAgent < RAAF::DSL::Agent
             tool :completely_unknown_tool_xyz123
           end
-        }.to raise_error(RAAF::DSL::ToolResolutionError) do |error|
+        end.to raise_error(RAAF::DSL::ToolResolutionError) do |error|
           expect(error.message).to include("Tool Resolution Failed")
           expect(error.message).to include("completely_unknown_tool_xyz123")
           expect(error.message).to include("Searched namespaces:")
@@ -241,35 +240,35 @@ RSpec.describe "Documentation Examples" do
 
   describe "Deprecated methods" do
     it "raises NoMethodError for uses_tool" do
-      expect {
+      expect do
         class DeprecatedAgent < RAAF::DSL::Agent
           uses_tool :web_search
         end
-      }.to raise_error(NoMethodError)
+      end.to raise_error(NoMethodError)
     end
 
     it "raises NoMethodError for uses_tools" do
-      expect {
+      expect do
         class DeprecatedAgent2 < RAAF::DSL::Agent
           uses_tools :web_search, :calculator
         end
-      }.to raise_error(NoMethodError)
+      end.to raise_error(NoMethodError)
     end
 
     it "raises NoMethodError for uses_native_tool" do
-      expect {
+      expect do
         class DeprecatedAgent3 < RAAF::DSL::Agent
           uses_native_tool String # Random class
         end
-      }.to raise_error(NoMethodError)
+      end.to raise_error(NoMethodError)
     end
 
     it "raises NoMethodError for uses_tool_if" do
-      expect {
+      expect do
         class DeprecatedAgent4 < RAAF::DSL::Agent
           uses_tool_if true, :web_search
         end
-      }.to raise_error(NoMethodError)
+      end.to raise_error(NoMethodError)
     end
   end
 
@@ -279,7 +278,7 @@ RSpec.describe "Documentation Examples" do
       agents = []
 
       time = Benchmark.realtime do
-        10.times do |i|
+        10.times do |_i|
           klass = Class.new(RAAF::DSL::Agent) do
             tool :web_search
             tool :calculator

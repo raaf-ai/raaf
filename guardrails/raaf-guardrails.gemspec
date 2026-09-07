@@ -40,16 +40,14 @@ Gem::Specification.new do |spec|
 
   # Optional dependencies for specific providers
   spec.add_development_dependency "aws-sdk-comprehend", "~> 1.0"
-  spec.add_development_dependency "azure-cognitiveservices-contentmoderator", "~> 0.1"
   spec.add_development_dependency "google-cloud-dlp", "~> 1.0"
 
   # Development dependencies
-  spec.add_development_dependency "bundler", "~> 2.0"
   spec.add_development_dependency "rake", "~> 13.0"
   spec.add_dependency "rspec", "~> 3.0"
   spec.add_development_dependency "rubocop", "~> 1.0"
   spec.add_development_dependency "rubocop-rake", "~> 0.6"
-  spec.add_development_dependency "rubocop-rspec", "~> 2.0"
+  spec.add_development_dependency "rubocop-rspec", "~> 3.0"
   spec.add_development_dependency "vcr", "~> 6.0"
   spec.add_development_dependency "webmock", "~> 3.0"
 end

@@ -45,7 +45,9 @@ module RAAF
           #   EvaluatorDiscovery.reset!
           def reset!
             @custom_evaluators_loaded = false
-            RAAF::Eval::DSL::EvaluatorDefinition.reset_included_classes! if defined?(RAAF::Eval::DSL::EvaluatorDefinition)
+            return unless defined?(RAAF::Eval::DSL::EvaluatorDefinition)
+
+            RAAF::Eval::DSL::EvaluatorDefinition.reset_included_classes!
           end
 
           ##
@@ -157,8 +159,8 @@ module RAAF
             end
 
             raise UnknownEvaluatorError, "Unknown evaluator: #{name}. " \
-              "Available built-in: #{RAAF::Eval::DSL::EvaluatorRegistry.instance.all_names.take(5).join(', ')}... " \
-              "Available custom: #{custom_evaluator_names.take(5).join(', ')}..."
+                                         "Available built-in: #{RAAF::Eval::DSL::EvaluatorRegistry.instance.all_names.take(5).join(", ")}... " \
+                                         "Available custom: #{custom_evaluator_names.take(5).join(", ")}..."
           end
 
           ##
@@ -262,11 +264,11 @@ module RAAF
           #   derive_name_from_class(Eval::Prospect::Scoring) #=> :eval_prospect_scoring
           def derive_name_from_class(klass)
             klass.name
-              .gsub("::", "_")
-              .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
-              .gsub(/([a-z\d])([A-Z])/, '\1_\2')
-              .downcase
-              .to_sym
+                 .gsub("::", "_")
+                 .gsub(/([A-Z]+)([A-Z][a-z])/, '\1_\2')
+                 .gsub(/([a-z\d])([A-Z])/, '\1_\2')
+                 .downcase
+                 .to_sym
           end
 
           ##
@@ -339,9 +341,7 @@ module RAAF
 
           def determine_evaluator_type(evaluator_class)
             # Check if evaluator explicitly declares its type
-            if evaluator_class.respond_to?(:evaluator_type)
-              return evaluator_class.evaluator_type.to_s
-            end
+            return evaluator_class.evaluator_type.to_s if evaluator_class.respond_to?(:evaluator_type)
 
             # Infer type from class name/namespace
             class_name = evaluator_class.name.to_s
@@ -356,21 +356,25 @@ module RAAF
 
           def extract_description(evaluator_class)
             return evaluator_class.description if evaluator_class.respond_to?(:description)
+
             nil
           end
 
           def extract_configurable_options(evaluator_class)
             return evaluator_class.configurable_options if evaluator_class.respond_to?(:configurable_options)
+
             []
           end
 
           def extract_agent_name(evaluator_class)
             return evaluator_class.agent_name if evaluator_class.respond_to?(:agent_name)
+
             nil
           end
 
           def extract_evaluated_fields(evaluator_class)
             return evaluator_class.evaluated_fields if evaluator_class.respond_to?(:evaluated_fields)
+
             []
           end
 
@@ -379,9 +383,7 @@ module RAAF
           # @return [Array<Hash>] List of checks with field_name, evaluator_type, and check_type
           def extract_evaluated_checks(evaluator_class)
             # Try the new evaluated_checks method first (provides detailed info)
-            if evaluator_class.respond_to?(:evaluated_checks)
-              return evaluator_class.evaluated_checks
-            end
+            return evaluator_class.evaluated_checks if evaluator_class.respond_to?(:evaluated_checks)
 
             # Fall back to evaluated_fields for legacy evaluators
             if evaluator_class.respond_to?(:evaluated_fields)

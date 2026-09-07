@@ -56,7 +56,7 @@ RSpec.describe RAAF::ThrottleConfig do
 
     context "with environment variable override" do
       around do |example|
-        original_value = ENV["RAAF_THROTTLE_GEMINI_RPM"]
+        original_value = ENV.fetch("RAAF_THROTTLE_GEMINI_RPM", nil)
         ENV["RAAF_THROTTLE_GEMINI_RPM"] = "60"
         example.run
         if original_value
@@ -73,7 +73,7 @@ RSpec.describe RAAF::ThrottleConfig do
 
     context "with empty environment variable" do
       around do |example|
-        original_value = ENV["RAAF_THROTTLE_GEMINI_RPM"]
+        original_value = ENV.fetch("RAAF_THROTTLE_GEMINI_RPM", nil)
         ENV["RAAF_THROTTLE_GEMINI_RPM"] = ""
         example.run
         if original_value
@@ -171,7 +171,7 @@ RSpec.describe RAAF::ThrottleConfig do
     end
 
     it "includes environment variable overrides" do
-      original_value = ENV["RAAF_THROTTLE_GEMINI_RPM"]
+      original_value = ENV.fetch("RAAF_THROTTLE_GEMINI_RPM", nil)
       ENV["RAAF_THROTTLE_GEMINI_RPM"] = "100"
 
       limits = described_class.all_limits
@@ -201,7 +201,7 @@ RSpec.describe RAAF::ThrottleConfig do
     end
 
     it "returns true with environment variable override" do
-      original_value = ENV["RAAF_THROTTLE_UNKNOWN_RPM"]
+      original_value = ENV.fetch("RAAF_THROTTLE_UNKNOWN_RPM", nil)
       ENV["RAAF_THROTTLE_UNKNOWN_RPM"] = "50"
 
       expect(described_class.configured?(:unknown)).to be true

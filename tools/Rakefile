@@ -9,7 +9,6 @@ require "rubocop/rake_task"
 
 RuboCop::RakeTask.new
 
-
 # Load shared tasks from the root shared directory
 $LOAD_PATH.unshift(File.expand_path("../shared/lib", __dir__))
 require "raaf/shared/tasks"

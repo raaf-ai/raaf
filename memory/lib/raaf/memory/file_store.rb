@@ -7,7 +7,9 @@ require "fileutils"
 require_relative "../../../../core/lib/raaf/utils"
 
 module RAAF
+
   module Memory
+
     ##
     # File-based implementation of memory storage
     #
@@ -34,6 +36,7 @@ module RAAF
     #   puts "Removed #{orphaned_count} orphaned files"
     #
     class FileStore < BaseStore
+
       ##
       # Initialize a file-based memory store
       #
@@ -262,6 +265,9 @@ module RAAF
       def save_index
         File.write(@index_file, JSON.pretty_generate(@index))
       end
+
     end
+
   end
+
 end

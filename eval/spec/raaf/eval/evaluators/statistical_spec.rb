@@ -17,7 +17,7 @@ RSpec.describe "Statistical Evaluators" do
 
       it "passes with low variation" do
         result = evaluator.evaluate(field_context, std_dev: 0.1)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to be > 0.5
         expect(result[:details][:coefficient_of_variation]).to be < 0.1
@@ -29,7 +29,7 @@ RSpec.describe "Statistical Evaluators" do
 
       it "fails with high variation" do
         result = evaluator.evaluate(field_context, std_dev: 0.1)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 1.0
       end
@@ -40,7 +40,7 @@ RSpec.describe "Statistical Evaluators" do
 
       it "fails with invalid data" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:score]).to eq(0.0)
         expect(result[:message]).to include("Invalid input")
@@ -56,7 +56,7 @@ RSpec.describe "Statistical Evaluators" do
 
       it "returns label 'good' when significant" do
         result = evaluator.evaluate(field_context, p_value: 0.05)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to be > 0.5
         expect(result[:details][:p_value]).to eq(0.03)
@@ -65,18 +65,18 @@ RSpec.describe "Statistical Evaluators" do
       it "returns label 'bad' when not significant" do
         result_high_p = { data: { p_value: 0.08, sample_size: 100 } }
         context_high_p = RAAF::Eval::DSL::FieldContext.new(:data, result_high_p)
-        
+
         result = evaluator.evaluate(context_high_p, p_value: 0.05)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:score]).to be < 1.0
       end
     end
 
     context "with control and treatment groups" do
-      let(:result) do 
-        { 
-          data: { 
+      let(:result) do
+        {
+          data: {
             control: [10, 11, 9, 10, 11],
             treatment: [15, 16, 14, 15, 16]
           }
@@ -85,7 +85,7 @@ RSpec.describe "Statistical Evaluators" do
 
       it "calculates p-value from groups" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:details][:p_value]).not_to be_nil
       end
     end
@@ -99,7 +99,7 @@ RSpec.describe "Statistical Evaluators" do
 
       it "passes with large effect" do
         result = evaluator.evaluate(field_context, cohen_d: 0.5)
-        
+
         expect(result[:label]).to eq("good")
         expect(result[:score]).to be > 0.5
         expect(result[:details][:effect_size_interpretation]).to eq("large")
@@ -108,9 +108,9 @@ RSpec.describe "Statistical Evaluators" do
       it "fails with small effect" do
         result_small = { data: { cohen_d: 0.2 } }
         context_small = RAAF::Eval::DSL::FieldContext.new(:data, result_small)
-        
+
         result = evaluator.evaluate(context_small, cohen_d: 0.5)
-        
+
         expect(result[:label]).to eq("bad")
         expect(result[:details][:effect_size_interpretation]).to eq("small")
       end
@@ -128,7 +128,7 @@ RSpec.describe "Statistical Evaluators" do
 
       it "calculates Cohen's d from groups" do
         result = evaluator.evaluate(field_context)
-        
+
         expect(result[:details][:cohen_d]).not_to be_nil
         expect(result[:details][:effect_size_interpretation]).not_to be_nil
       end

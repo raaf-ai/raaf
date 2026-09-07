@@ -38,11 +38,11 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
     end
 
     it "merges large arrays (100+ items)" do
-      items = (1..50).map { |i| %Q({"id": #{i}, "name": "Item#{i}"}) }
-      items2 = (51..100).map { |i| %Q({"id": #{i}, "name": "Item#{i}"}) }
+      items = (1..50).map { |i| %({"id": #{i}, "name": "Item#{i}"}) }
+      items2 = (51..100).map { |i| %({"id": #{i}, "name": "Item#{i}"}) }
 
-      chunk1 = { content: %Q({"items": [#{items.join(", ")}]) }
-      chunk2 = { content: %Q(, #{items2.join(", ")}]}) }
+      chunk1 = { content: %({"items": [#{items.join(', ')}]) }
+      chunk2 = { content: %(, #{items2.join(', ')}]}) }
 
       result = json_merger.merge([chunk1, chunk2])
 
@@ -52,9 +52,9 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
     end
 
     it "preserves array order across chunks" do
-      items = (1..10).map { |i| %Q({"id": #{i}, "value": "val#{i}"}) }
-      chunk1 = { content: %Q({"data": [#{items[0..4].join(", ")}]) }
-      chunk2 = { content: %Q(, #{items[5..9].join(", ")}]}) }
+      items = (1..10).map { |i| %({"id": #{i}, "value": "val#{i}"}) }
+      chunk1 = { content: %({"data": [#{items[0..4].join(', ')}]) }
+      chunk2 = { content: %(, #{items[5..9].join(', ')}]}) }
 
       result = json_merger.merge([chunk1, chunk2])
 
@@ -66,7 +66,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
 
     it "handles arrays of primitives" do
       chunk1 = { content: '{"numbers": [1, 2, 3, 4' }
-      chunk2 = { content: ', 5, 6, 7, 8, 9, 10]}' }
+      chunk2 = { content: ", 5, 6, 7, 8, 9, 10]}" }
 
       result = json_merger.merge([chunk1, chunk2])
 
@@ -77,7 +77,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
 
     it "handles nested arrays" do
       chunk1 = { content: '{"matrix": [[1, 2], [3, 4]' }
-      chunk2 = { content: ', [5, 6]]}' }
+      chunk2 = { content: ", [5, 6]]}" }
 
       result = json_merger.merge([chunk1, chunk2])
 
@@ -136,7 +136,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
     end
 
     it "merges objects with many fields" do
-      fields = (1..20).map { |i| %Q("field#{i}": "value#{i}") }.join(", ")
+      fields = (1..20).map { |i| %("field#{i}": "value#{i}") }.join(", ")
       chunk1 = { content: "{#{fields[0..200]}" }
       chunk2 = { content: "#{fields[201..-1]}}" }
 
@@ -207,7 +207,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
 
     it "merges deeply nested arrays and objects" do
       chunk1 = { content: '{"outer": [{"inner": [{"deep": [1, 2' }
-      chunk2 = { content: ', 3]}]}]}' }
+      chunk2 = { content: ", 3]}]}]}" }
 
       result = json_merger.merge([chunk1, chunk2])
 
@@ -218,7 +218,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
     it "handles mixed nesting with objects in arrays in objects" do
       chunk1 = { content: '{"wrapper": {"items": [{"id": 1, "details": {"name":' }
       chunk2 = { content: ' "Item1"}}, {"id": 2, "details": {"name": "Item2"' }
-      chunk3 = { content: '}}]}}' }
+      chunk3 = { content: "}}]}}" }
 
       result = json_merger.merge([chunk1, chunk2, chunk3])
 
@@ -240,7 +240,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
 
     it "maintains structure with empty nested arrays" do
       chunk1 = { content: '{"data": [{"items": []}, {"items": [' }
-      chunk2 = { content: '1, 2]}]}' }
+      chunk2 = { content: "1, 2]}]}" }
 
       result = json_merger.merge([chunk1, chunk2])
 
@@ -251,7 +251,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
 
     it "handles objects with nested empty structures" do
       chunk1 = { content: '{"container": {"data": {}, "array":' }
-      chunk2 = { content: ' []}}' }
+      chunk2 = { content: " []}}" }
 
       result = json_merger.merge([chunk1, chunk2])
 
@@ -267,7 +267,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
   describe "malformed JSON repair" do
     it "repairs trailing commas in objects" do
       chunk1 = { content: '{"name": "Alice", "age": 30,' }
-      chunk2 = { content: '}' }
+      chunk2 = { content: "}" }
 
       result = json_merger.merge([chunk1, chunk2])
 
@@ -278,7 +278,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
 
     it "repairs trailing commas in arrays" do
       chunk1 = { content: '{"items": [1, 2, 3,' }
-      chunk2 = { content: ']}' }
+      chunk2 = { content: "]}" }
 
       result = json_merger.merge([chunk1, chunk2])
 
@@ -287,7 +287,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
     end
 
     it "repairs single quotes to double quotes" do
-      chunk1 = { content: %Q({"name": 'Alice', "city": 'New York'}) }
+      chunk1 = { content: %({"name": 'Alice', "city": 'New York'}) }
 
       result = json_merger.merge([chunk1])
 
@@ -297,9 +297,9 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
     end
 
     it "handles markdown-wrapped JSON" do
-      chunk1 = { content: '```json' }
-      chunk2 = { content: %Q(\n{"data": "value"}\n) }
-      chunk3 = { content: '```' }
+      chunk1 = { content: "```json" }
+      chunk2 = { content: %(\n{"data": "value"}\n) }
+      chunk3 = { content: "```" }
 
       result = json_merger.merge([chunk1, chunk2, chunk3])
 
@@ -319,7 +319,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
     end
 
     it "handles mixed single and double quotes" do
-      chunk1 = { content: %Q({"field": 'value', "other": "test"}) }
+      chunk1 = { content: %({"field": 'value', "other": "test"}) }
 
       result = json_merger.merge([chunk1])
 
@@ -329,7 +329,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
 
     it "repairs unescaped newlines in strings" do
       chunk1 = { content: '{"text": "Line 1\nLine 2\nLine 3"' }
-      chunk2 = { content: '}' }
+      chunk2 = { content: "}" }
 
       result = json_merger.merge([chunk1, chunk2])
 
@@ -339,8 +339,8 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
     end
 
     it "repairs multiple JSON issues simultaneously" do
-      chunk1 = { content: %Q({"name": 'John', "items": [1, 2,) }
-      chunk2 = { content: %Q(3,]}) }
+      chunk1 = { content: %({"name": 'John', "items": [1, 2,) }
+      chunk2 = { content: %(3,]}) }
 
       result = json_merger.merge([chunk1, chunk2])
 
@@ -453,7 +453,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
     it "handles deeply nested structure (10+ levels)" do
       nest = '{"l'
       (1..10).each { |i| nest += i.to_s + '": {"l' }
-      nest += '11": "deep"' + '}' * 11
+      nest += '11": "deep"' + ("}" * 11)
 
       chunk1 = { content: nest[0..100] }
       chunk2 = { content: nest[101..-1] }
@@ -464,11 +464,11 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
     end
 
     it "handles extremely large arrays (1000+ items)" do
-      items = (1..500).map { |i| %Q({"id": #{i}}) }
-      items2 = (501..1000).map { |i| %Q({"id": #{i}}) }
+      items = (1..500).map { |i| %({"id": #{i}}) }
+      items2 = (501..1000).map { |i| %({"id": #{i}}) }
 
-      chunk1 = { content: %Q([#{items.join(", ")}]) }
-      chunk2 = { content: %Q(, #{items2.join(", ")}]) }
+      chunk1 = { content: %([#{items.join(', ')}]) }
+      chunk2 = { content: %(, #{items2.join(', ')}]) }
 
       result = json_merger.merge([chunk1, chunk2])
 
@@ -553,8 +553,8 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
 
     it "handles chunks with mixed ending styles" do
       chunk1 = { content: '{"data": [1, 2, 3' }
-      chunk2 = { content: ', 4, 5' }
-      chunk3 = { content: ', 6, 7]}' }
+      chunk2 = { content: ", 4, 5" }
+      chunk3 = { content: ", 6, 7]}" }
 
       result = json_merger.merge([chunk1, chunk2, chunk3])
 
@@ -583,7 +583,7 @@ RSpec.describe "RAAF::Continuation::Mergers::JSONMerger" do
     it "preserves data integrity across merges" do
       # Create JSON with specific data patterns
       data = (1..50).map do |i|
-        %Q({"id": #{i}, "value": "data#{i}", "price": #{100 + i * 10}.50})
+        %({"id": #{i}, "value": "data#{i}", "price": #{100 + (i * 10)}.50})
       end.join(", ")
 
       chunk1 = { content: "[#{data[0..1500]}" }

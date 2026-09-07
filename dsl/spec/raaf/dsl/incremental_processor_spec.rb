@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
+require "spec_helper"
 
 RSpec.describe RAAF::DSL::IncrementalProcessor do
   # Mock agent class for testing
@@ -41,12 +41,12 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
     agent_class.incremental_processing do
       chunk_size 20
 
-      skip_if do |record, context|
+      skip_if do |record, _context|
         # Skip even-numbered records (simulating existing records)
         record[:id].even?
       end
 
-      load_existing do |record, context|
+      load_existing do |record, _context|
         # Load existing data for skipped records
         {
           id: record[:id],
@@ -72,23 +72,23 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
     end
 
     it "raises error if agent is nil" do
-      expect {
+      expect do
         described_class.new(nil, config)
-      }.to raise_error(ArgumentError, /agent cannot be nil/)
+      end.to raise_error(ArgumentError, /agent cannot be nil/)
     end
 
     it "raises error if config is nil" do
-      expect {
+      expect do
         described_class.new(agent, nil)
-      }.to raise_error(ArgumentError, /config cannot be nil/)
+      end.to raise_error(ArgumentError, /config cannot be nil/)
     end
 
     it "validates configuration completeness" do
       incomplete_config = RAAF::DSL::IncrementalConfig.new
 
-      expect {
+      expect do
         described_class.new(agent, incomplete_config)
-      }.to raise_error(RuntimeError, /configuration incomplete/)
+      end.to raise_error(RuntimeError, /configuration incomplete/)
     end
   end
 
@@ -96,7 +96,7 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
     let(:processor) { described_class.new(agent, config) }
     let(:process_block) do
       # Mock processing block that simulates AI processing
-      ->(items, context) do
+      lambda do |items, _context|
         items.map do |item|
           {
             id: item[:id],
@@ -110,7 +110,7 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
 
     context "with batching enabled" do
       it "processes items in configured batch sizes" do
-        result = processor.process(input_items, agent.context, &process_block)
+        processor.process(input_items, agent.context, &process_block)
 
         # Input: 50 items split into batches of 20: [20, 20, 10]
         # Skip even IDs, so each batch has roughly half processed
@@ -178,11 +178,11 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
         agent_class.incremental_processing do
           # No chunk_size specified - process all at once
 
-          skip_if do |record, context|
+          skip_if do |record, _context|
             record[:id].even?
           end
 
-          load_existing do |record, context|
+          load_existing do |record, _context|
             {
               id: record[:id],
               name: record[:name],
@@ -199,7 +199,7 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
       end
 
       it "processes all items in single batch" do
-        result = processor.process(input_items, agent.context, &process_block)
+        processor.process(input_items, agent.context, &process_block)
 
         # Should process all non-skipped items (25 odd items) in single batch
         expect(agent.context[:persisted_batches].count).to eq(1)
@@ -228,11 +228,11 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
         agent_class.incremental_processing do
           chunk_size 20
 
-          skip_if do |record, context|
+          skip_if do |_record, _context|
             true # Skip all items
           end
 
-          load_existing do |record, context|
+          load_existing do |record, _context|
             {
               id: record[:id],
               name: record[:name],
@@ -272,7 +272,7 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
   describe "progress tracking" do
     let(:processor) { described_class.new(agent, config) }
     let(:process_block) do
-      ->(items, context) do
+      lambda do |items, _context|
         items.map do |item|
           {
             id: item[:id],
@@ -305,15 +305,15 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
 
     context "when processing block raises error" do
       let(:error_block) do
-        ->(items, context) do
+        lambda do |_items, _context|
           raise StandardError, "Processing failed"
         end
       end
 
       it "raises the error with context" do
-        expect {
+        expect do
           processor.process(input_items, agent.context, &error_block)
-        }.to raise_error(StandardError, /Processing failed/)
+        end.to raise_error(StandardError, /Processing failed/)
       end
     end
 
@@ -322,11 +322,11 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
         agent_class.incremental_processing do
           chunk_size 20
 
-          skip_if do |record, context|
+          skip_if do |_record, _context|
             raise StandardError, "Skip check failed"
           end
 
-          load_existing do |record, context|
+          load_existing do |record, _context|
             { id: record[:id] }
           end
 
@@ -337,9 +337,9 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
       end
 
       it "raises the error with context" do
-        expect {
-          processor.process(input_items, agent.context) { |items, ctx| [] }
-        }.to raise_error(StandardError, /Skip check failed/)
+        expect do
+          processor.process(input_items, agent.context) { |_items, _ctx| [] }
+        end.to raise_error(StandardError, /Skip check failed/)
       end
     end
 
@@ -348,30 +348,30 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
         agent_class.incremental_processing do
           chunk_size 20
 
-          skip_if do |record, context|
+          skip_if do |_record, _context|
             false # Process all
           end
 
-          load_existing do |record, context|
+          load_existing do |record, _context|
             { id: record[:id] }
           end
 
-          persistence_handler do |batch_results, context|
+          persistence_handler do |_batch_results, _context|
             raise StandardError, "Persistence failed"
           end
         end
       end
 
       let(:process_block) do
-        ->(items, context) do
+        lambda do |items, _context|
           items.map { |item| { id: item[:id], processed: true } }
         end
       end
 
       it "raises the error with context" do
-        expect {
+        expect do
           processor.process(input_items, agent.context, &process_block)
-        }.to raise_error(StandardError, /Persistence failed/)
+        end.to raise_error(StandardError, /Persistence failed/)
       end
     end
   end
@@ -379,7 +379,7 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
   describe "result accumulation" do
     let(:processor) { described_class.new(agent, config) }
     let(:process_block) do
-      ->(items, context) do
+      lambda do |items, context|
         items.map do |item|
           {
             id: item[:id],
@@ -421,7 +421,7 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
   describe "batch processing logic" do
     let(:processor) { described_class.new(agent, config) }
     let(:process_block) do
-      ->(items, context) do
+      lambda do |items, context|
         context[:batches_processed] ||= 0
         context[:batches_processed] += 1
 

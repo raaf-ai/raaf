@@ -24,7 +24,7 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::ProgressContext do
       context = described_class.new(
         stream_number: 1,
         total_streams: 5,
-        stream_data: ["a", "b"],
+        stream_data: %w[a b],
         metadata: metadata
       )
 
@@ -140,21 +140,21 @@ RSpec.describe RAAF::DSL::IntelligentStreaming::ProgressContext do
       hash = context.to_h
 
       expect(hash).to eq({
-        stream_number: 3,
-        total_streams: 10,
-        stream_size: 3,
-        progress_percentage: 30.0,
-        first_stream: false,
-        last_stream: false,
-        metadata: { foo: "bar" }
-      })
+                           stream_number: 3,
+                           total_streams: 10,
+                           stream_size: 3,
+                           progress_percentage: 30.0,
+                           first_stream: false,
+                           last_stream: false,
+                           metadata: { foo: "bar" }
+                         })
     end
 
     it "shows correct flags for first stream" do
       context = described_class.new(
         stream_number: 1,
         total_streams: 5,
-        stream_data: ["a", "b"]
+        stream_data: %w[a b]
       )
 
       hash = context.to_h

@@ -3,9 +3,12 @@
 # Document libraries are loaded dynamically when needed
 
 module RAAF
+
   module Tools
+
     # Document generation tool for creating PDFs, Word docs, and Excel files
     class DocumentTool
+
       attr_reader :name, :description, :output_dir
 
       def initialize(name: "generate_document", description: nil, output_dir: nil)
@@ -353,7 +356,7 @@ module RAAF
         end
       end
 
-      def apply_excel_template(workbook, template_name)
+      def apply_excel_template(_workbook, template_name)
         # Load template settings
         template_file = File.join(@output_dir, "templates", "#{template_name}.yml")
 
@@ -385,10 +388,12 @@ module RAAF
 
         filepath
       end
+
     end
 
     # Report generation tool with predefined templates
     class ReportTool < DocumentTool
+
       def initialize(name: "generate_report", **)
         super
         @description = "Generate formatted reports with charts and analytics"
@@ -446,7 +451,7 @@ module RAAF
         }
       end
 
-      def generate_summary(content)
+      def generate_summary(_content)
         # Extract key points from content
         "This report summarizes the key findings and recommendations..."
       end
@@ -465,6 +470,9 @@ module RAAF
         # Format numbers, add currency symbols, etc.
         content
       end
+
     end
+
   end
+
 end

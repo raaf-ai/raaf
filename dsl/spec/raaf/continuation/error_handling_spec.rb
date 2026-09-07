@@ -45,9 +45,9 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
           { content: ",,broken,structure" }
         ]
 
-        expect {
+        expect do
           merger.merge(bad_chunks)
-        }.not_to raise_error
+        end.not_to raise_error
 
         result = merger.merge(bad_chunks)
         expect(result[:metadata][:merge_success]).to be false
@@ -73,9 +73,9 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
 
         chunks = [{ content: "test" }]
 
-        expect {
+        expect do
           merger.merge(chunks)
-        }.to raise_error(NotImplementedError)
+        end.to raise_error(NotImplementedError)
       end
 
       it "includes error message in metadata" do
@@ -130,11 +130,11 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
         bad_chunks2 = [{ content: "[" }]
         bad_chunks3 = [{ content: "INVALID" }]
 
-        expect {
+        expect do
           merger.merge(bad_chunks1)
           merger.merge(bad_chunks2)
           merger.merge(bad_chunks3)
-        }.not_to raise_error
+        end.not_to raise_error
 
         result1 = merger.merge(bad_chunks1)
         result2 = merger.merge(bad_chunks2)
@@ -256,9 +256,9 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
       it "does not raise exception with :return_partial" do
         chunks = [{ content: "INVALID CSV" }]
 
-        expect {
+        expect do
           merger.merge(chunks)
-        }.not_to raise_error
+        end.not_to raise_error
       end
     end
 
@@ -269,30 +269,30 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
       it "raises error with :raise_error configuration" do
         chunks = [{ content: "{" }]
 
-        expect {
+        expect do
           merger.merge(chunks)
-        }.to raise_error(RAAF::Continuation::MergeError)
+        end.to raise_error(RAAF::Continuation::MergeError)
       end
 
       it "includes helpful error message" do
         chunks = [{ content: "[" }]
 
-        expect {
+        expect do
           merger.merge(chunks)
-        }.to raise_error { |error|
+        end.to(raise_error do |error|
           expect(error.message).to be_a(String)
           expect(error.message).not_to be_empty
-        }
+        end)
       end
 
       it "provides error context in raised exception" do
         chunks = [{ content: "INVALID JSON" }]
 
-        expect {
+        expect do
           merger.merge(chunks)
-        }.to raise_error { |error|
+        end.to(raise_error do |error|
           expect(error).to respond_to(:merge_error_metadata)
-        }
+        end)
       end
     end
 
@@ -301,9 +301,9 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
         config = RAAF::Continuation::Config.new(on_failure: :raise_error)
         merger = RAAF::Continuation::Mergers::JSONMerger.new(config)
 
-        expect {
+        expect do
           merger.merge([{ content: "{" }])
-        }.to raise_error(RAAF::Continuation::MergeError)
+        end.to raise_error(RAAF::Continuation::MergeError)
       end
 
       it "error includes error_class field" do
@@ -318,12 +318,12 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
         config = RAAF::Continuation::Config.new(on_failure: :raise_error)
         merger = RAAF::Continuation::Mergers::CSVMerger.new(config)
 
-        expect {
+        expect do
           merger.merge([{ content: '"unclosed' }])
-        }.to raise_error { |error|
+        end.to(raise_error do |error|
           message = error.message
           expect(message).to match(/merge|csv|parse|error/i)
-        }
+        end)
       end
     end
   end
@@ -338,10 +338,10 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
           { content: "id,name\n1,John\n" }
         ]
 
-        expect {
+        expect do
           result = merger.merge(chunks)
           expect(result).to have_key(:metadata)
-        }.not_to raise_error
+        end.not_to raise_error
       end
 
       it "handles incomplete response gracefully" do
@@ -366,9 +366,9 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
           { content: "COMPLETELY,BROKEN,STRUCTURE\nWITH,WRONG,COLUMNS\n" }
         ]
 
-        expect {
-          result = merger.merge(chunks)
-        }.not_to raise_error
+        expect do
+          merger.merge(chunks)
+        end.not_to raise_error
       end
 
       it "recovers from malformed JSON" do
@@ -377,12 +377,12 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
 
         chunks = [
           { content: '{"valid": true}' },
-          { content: 'MALFORMED' }
+          { content: "MALFORMED" }
         ]
 
-        expect {
-          result = merger.merge(chunks)
-        }.not_to raise_error
+        expect do
+          merger.merge(chunks)
+        end.not_to raise_error
       end
 
       it "recovers from malformed Markdown" do
@@ -394,9 +394,9 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
           { content: "BROKEN | TABLE | STRUCTURE" }
         ]
 
-        expect {
-          result = merger.merge(chunks)
-        }.not_to raise_error
+        expect do
+          merger.merge(chunks)
+        end.not_to raise_error
       end
     end
 
@@ -413,9 +413,9 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
         end
 
         merger = RAAF::Continuation::Mergers::CSVMerger.new(config)
-        expect {
-          result = merger.merge(chunks)
-        }.not_to raise_error
+        expect do
+          merger.merge(chunks)
+        end.not_to raise_error
       end
 
       it "logs warning when max attempts exceeded" do
@@ -431,9 +431,9 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
 
         merger = RAAF::Continuation::Mergers::CSVMerger.new(config)
 
-        expect {
-          result = merger.merge(chunks)
-        }.not_to raise_error
+        expect do
+          merger.merge(chunks)
+        end.not_to raise_error
       end
     end
   end
@@ -545,7 +545,7 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
 
         expect(result[:metadata]).to have_key(:merge_error)
         expect(result[:metadata][:merge_error]).to have_key(:error_class)
-        expect(result[:metadata][:merge_error][:error_class]).to match(/Error/)
+        expect(result[:metadata][:merge_error][:error_class]).to include("Error")
       end
 
       it "captures specific exception types" do
@@ -622,9 +622,7 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
         ]
 
         result = merger.merge(chunks)
-        if result[:metadata][:merge_success] == false
-          expect(result[:metadata]).to have_key(:merge_error)
-        end
+        expect(result[:metadata]).to have_key(:merge_error) if result[:metadata][:merge_success] == false
       end
 
       it "includes context about incomplete data section" do
@@ -636,9 +634,7 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
         ]
 
         result = merger.merge(chunks)
-        if result[:metadata][:merge_success] == false
-          expect(result[:metadata][:merge_error]).to be_present
-        end
+        expect(result[:metadata][:merge_error]).to be_present if result[:metadata][:merge_success] == false
       end
     end
   end
@@ -657,11 +653,11 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
       json_chunks = [{ content: "{" }]
       md_chunks = [{ content: "| incomplete" }]
 
-      expect {
+      expect do
         csv_merger.merge(csv_chunks)
         json_merger.merge(json_chunks)
         md_merger.merge(md_chunks)
-      }.not_to raise_error
+      end.not_to raise_error
     end
 
     it "error recovery works across format types" do
@@ -683,7 +679,7 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
         markdown: mergers[:markdown].merge([{ content: "| incomplete" }])
       }
 
-      results.each do |format, result|
+      results.each do |_format, result|
         expect(result).to have_key(:metadata)
         expect(result[:metadata]).to have_key(:merge_success)
       end
@@ -732,10 +728,10 @@ RSpec.describe "RAAF Continuation: Error Handling and Graceful Degradation" do
         { content: "data" }
       ]
 
-      expect {
+      expect do
         result = merger.merge(chunks)
         expect(result).to have_key(:metadata)
-      }.not_to raise_error
+      end.not_to raise_error
     end
   end
 end

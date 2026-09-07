@@ -9,14 +9,14 @@ RSpec.describe RAAF::Eval::UI::SessionsController, type: :controller do
     {
       name: "Test Session",
       description: "A test evaluation session",
-      session_type: "draft"
+      session_type: "draft",
     }
   end
 
   let(:invalid_attributes) do
     {
       name: "",
-      session_type: "invalid"
+      session_type: "invalid",
     }
   end
 
@@ -31,7 +31,7 @@ RSpec.describe RAAF::Eval::UI::SessionsController, type: :controller do
 
     it "assigns @sessions" do
       get :index
-      expect(assigns(:sessions)).to match_array([session1, session2])
+      expect(assigns(:sessions)).to contain_exactly(session1, session2)
     end
 
     context "with filter parameter" do
@@ -62,9 +62,9 @@ RSpec.describe RAAF::Eval::UI::SessionsController, type: :controller do
   describe "POST #create" do
     context "with valid params" do
       it "creates a new Session" do
-        expect {
+        expect do
           post :create, params: { session: valid_attributes }
-        }.to change(RAAF::Eval::UI::Session, :count).by(1)
+        end.to change(RAAF::Eval::UI::Session, :count).by(1)
       end
 
       it "redirects to the created session" do
@@ -75,9 +75,9 @@ RSpec.describe RAAF::Eval::UI::SessionsController, type: :controller do
 
     context "with invalid params" do
       it "does not create a new Session" do
-        expect {
+        expect do
           post :create, params: { session: invalid_attributes }
-        }.not_to change(RAAF::Eval::UI::Session, :count)
+        end.not_to change(RAAF::Eval::UI::Session, :count)
       end
 
       it "returns unprocessable entity status" do
@@ -117,9 +117,9 @@ RSpec.describe RAAF::Eval::UI::SessionsController, type: :controller do
     let!(:session) { create(:session) }
 
     it "destroys the requested session" do
-      expect {
+      expect do
         delete :destroy, params: { id: session.id }
-      }.to change(RAAF::Eval::UI::Session, :count).by(-1)
+      end.to change(RAAF::Eval::UI::Session, :count).by(-1)
     end
 
     it "redirects to the sessions list" do

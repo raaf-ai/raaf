@@ -10,8 +10,8 @@ module RAAF
       class ProgressEvent
         attr_reader :type, :timestamp, :progress, :status, :metadata
 
-        EVENT_TYPES = [:start, :config_start, :evaluator_start, :evaluator_end, :config_end, :end].freeze
-        STATUSES = [:pending, :running, :completed, :failed].freeze
+        EVENT_TYPES = %i[start config_start evaluator_start evaluator_end config_end end].freeze
+        STATUSES = %i[pending running completed failed].freeze
 
         # Initialize progress event
         # @param type [Symbol] Event type (one of EVENT_TYPES)
@@ -48,27 +48,27 @@ module RAAF
         # @param type [Symbol] Event type to validate
         # @raise [InvalidEventTypeError] if type is invalid
         def validate_type!(type)
-          unless EVENT_TYPES.include?(type)
-            raise InvalidEventTypeError, "Invalid event type: #{type}. Must be one of: #{EVENT_TYPES.join(', ')}"
-          end
+          return if EVENT_TYPES.include?(type)
+
+          raise InvalidEventTypeError, "Invalid event type: #{type}. Must be one of: #{EVENT_TYPES.join(", ")}"
         end
 
         # Validate event status
         # @param status [Symbol] Status to validate
         # @raise [InvalidEventStatusError] if status is invalid
         def validate_status!(status)
-          unless STATUSES.include?(status)
-            raise InvalidEventStatusError, "Invalid status: #{status}. Must be one of: #{STATUSES.join(', ')}"
-          end
+          return if STATUSES.include?(status)
+
+          raise InvalidEventStatusError, "Invalid status: #{status}. Must be one of: #{STATUSES.join(", ")}"
         end
 
         # Validate progress percentage
         # @param progress [Float] Progress to validate
         # @raise [InvalidProgressError] if progress is out of range
         def validate_progress!(progress)
-          unless progress >= 0.0 && progress <= 100.0
-            raise InvalidProgressError, "Progress must be 0.0-100.0, got: #{progress}"
-          end
+          return if progress >= 0.0 && progress <= 100.0
+
+          raise InvalidProgressError, "Progress must be 0.0-100.0, got: #{progress}"
         end
       end
 

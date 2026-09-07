@@ -7,7 +7,7 @@ RSpec.describe RAAF::Memory::Memory do
   describe "#initialize" do
     it "creates a memory with required content" do
       memory = described_class.new(content: "Test content")
-      
+
       expect(memory.content).to eq("Test content")
       expect(memory.id).not_to be_nil
       expect(memory.created_at).to be_a(Time)
@@ -22,7 +22,7 @@ RSpec.describe RAAF::Memory::Memory do
         metadata: { tags: ["important"] },
         id: "custom-id"
       )
-      
+
       expect(memory.agent_name).to eq("TestAgent")
       expect(memory.conversation_id).to eq("conv-123")
       expect(memory.metadata).to eq({ tags: ["important"] })
@@ -37,9 +37,9 @@ RSpec.describe RAAF::Memory::Memory do
         agent_name: "Agent1",
         conversation_id: "conv-123"
       )
-      
+
       hash = memory.to_h
-      
+
       expect(hash).to include(
         id: memory.id,
         content: "Test content",
@@ -59,10 +59,10 @@ RSpec.describe RAAF::Memory::Memory do
         agent_name: "Agent1",
         metadata: { priority: "high" }
       )
-      
+
       hash = original.to_h
       restored = described_class.from_h(hash)
-      
+
       expect(restored.id).to eq(original.id)
       expect(restored.content).to eq(original.content)
       expect(restored.agent_name).to eq(original.agent_name)
@@ -78,9 +78,9 @@ RSpec.describe RAAF::Memory::Memory do
         "metadata" => { "key" => "value" },
         "created_at" => Time.now.iso8601
       }
-      
+
       memory = described_class.from_h(hash)
-      
+
       expect(memory.id).to eq("test-id")
       expect(memory.content).to eq("Test content")
       expect(memory.agent_name).to eq("Agent1")
@@ -91,10 +91,10 @@ RSpec.describe RAAF::Memory::Memory do
     it "updates content and metadata" do
       memory = described_class.new(content: "Original")
       original_created = memory.created_at
-      
+
       sleep 0.01 # Ensure time difference
       memory.update(content: "Updated", metadata: { edited: true })
-      
+
       expect(memory.content).to eq("Updated")
       expect(memory.metadata).to eq({ edited: true })
       expect(memory.created_at).to eq(original_created)
@@ -105,10 +105,10 @@ RSpec.describe RAAF::Memory::Memory do
   describe "#add_tags" do
     it "adds tags to metadata" do
       memory = described_class.new(content: "Test")
-      
+
       memory.add_tags("important", "urgent")
       expect(memory.metadata[:tags]).to eq(%w[important urgent])
-      
+
       memory.add_tags("urgent", "todo")
       expect(memory.metadata[:tags]).to eq(%w[important urgent todo])
     end
@@ -118,7 +118,7 @@ RSpec.describe RAAF::Memory::Memory do
     it "checks for tag presence" do
       memory = described_class.new(content: "Test")
       memory.add_tags("important")
-      
+
       expect(memory.has_tag?("important")).to be true
       expect(memory.has_tag?("urgent")).to be false
     end
@@ -127,7 +127,7 @@ RSpec.describe RAAF::Memory::Memory do
   describe "#age" do
     it "returns age in seconds" do
       memory = described_class.new(content: "Test")
-      
+
       sleep 0.1
       expect(memory.age).to be_between(0.1, 0.2)
     end
@@ -136,14 +136,14 @@ RSpec.describe RAAF::Memory::Memory do
   describe "#summary" do
     it "returns full content if under limit" do
       memory = described_class.new(content: "Short content")
-      
+
       expect(memory.summary(100)).to eq("Short content")
     end
 
     it "truncates long content" do
       long_content = "a" * 150
       memory = described_class.new(content: long_content)
-      
+
       summary = memory.summary(100)
       expect(summary).to eq(("a" * 100) + "...")
       expect(summary.length).to eq(103)
@@ -154,7 +154,7 @@ RSpec.describe RAAF::Memory::Memory do
     let(:memory) do
       described_class.new(
         content: "Ruby programming is fun",
-        metadata: { 
+        metadata: {
           category: "programming",
           tags: %w[ruby coding]
         }

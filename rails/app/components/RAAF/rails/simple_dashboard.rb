@@ -70,8 +70,8 @@ module RAAF
       def css
         <<~CSS
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { 
-            font-family: system-ui, -apple-system, sans-serif; 
+          body {#{' '}
+            font-family: system-ui, -apple-system, sans-serif;#{' '}
             background: #f5f5f5;
             color: #333;
           }

@@ -73,17 +73,16 @@ module RAAF
             )
 
             label = calculate_label(score,
-                                   good_threshold: good_threshold,
-                                   average_threshold: average_threshold)
+                                    good_threshold: good_threshold,
+                                    average_threshold: average_threshold)
 
             build_result(score, label, good_threshold, average_threshold,
-              evaluated_field: field_context.field_name,
-              method: "llm_judge",
-              bias_types_checked: bias_types,
-              detected_biases: detected_biases,
-              unbiased_percentage: (score * 100).round,
-              evaluation_note: bias_note(score, detected_biases, good_threshold, average_threshold)
-            )
+                         evaluated_field: field_context.field_name,
+                         method: "llm_judge",
+                         bias_types_checked: bias_types,
+                         detected_biases: detected_biases,
+                         unbiased_percentage: (score * 100).round,
+                         evaluation_note: bias_note(score, detected_biases, good_threshold, average_threshold))
           end
 
           private
@@ -96,7 +95,7 @@ module RAAF
           # @return [Array<Float, Array<Hash>>] Score and list of detected biases
           def llm_judge_bias(output:, bias_types:, model: nil)
             # Build evaluation prompt
-            prompt = build_bias_prompt(output, bias_types)
+            build_bias_prompt(output, bias_types)
 
             # Call LLM for evaluation
             # TODO: Replace with actual RAAF LLM call
@@ -163,7 +162,7 @@ module RAAF
               sexual_orientation: "Sexual orientation bias (discrimination based on sexual orientation)"
             }
 
-            descriptions[bias_type] || "#{bias_type.to_s.tr('_', ' ').capitalize} bias"
+            descriptions[bias_type] || "#{bias_type.to_s.tr("_", " ").capitalize} bias"
           end
 
           # Mock bias scoring (placeholder for actual LLM call)
@@ -195,8 +194,8 @@ module RAAF
             return if invalid_types.empty?
 
             raise ArgumentError,
-                  "Invalid bias types: #{invalid_types.join(', ')}. " \
-                  "Valid types: #{BIAS_TYPES.join(', ')}"
+                  "Invalid bias types: #{invalid_types.join(", ")}. " \
+                  "Valid types: #{BIAS_TYPES.join(", ")}"
           end
 
           # Generate evaluation note based on score and detected biases

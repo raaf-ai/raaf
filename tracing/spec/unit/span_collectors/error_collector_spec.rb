@@ -23,8 +23,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::ErrorCollector do
   describe "#collect_attributes (error tracking)" do
     let(:component) do
       double("Component",
-        class: double("ComponentClass", name: "TestAgent")
-      )
+             class: double("ComponentClass", name: "TestAgent"))
     end
 
     context "with no errors" do
@@ -82,8 +81,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::ErrorCollector do
   describe "#collect_result (error recovery tracking)" do
     let(:component) do
       double("Component",
-        class: double("ComponentClass", name: "TestAgent")
-      )
+             class: double("ComponentClass", name: "TestAgent"))
     end
 
     context "with successful execution (no errors)" do
@@ -203,11 +201,9 @@ RSpec.describe RAAF::Tracing::SpanCollectors::ErrorCollector do
 
     context "with stack trace in error" do
       let(:error) do
-        begin
-          raise RuntimeError.new("Deep error")
-        rescue => e
-          e
-        end
+        raise "Deep error"
+      rescue StandardError => e
+        e
       end
 
       it "includes stack trace in error_details" do
@@ -222,13 +218,11 @@ RSpec.describe RAAF::Tracing::SpanCollectors::ErrorCollector do
     context "with error response object" do
       let(:error_response) do
         double("ErrorResponse",
-          failure?: true,
-          error: double("Error",
-            class: double("ErrorClass", name: "ApiError"),
-            message: "API request failed",
-            backtrace: ["line1", "line2"]
-          )
-        ).tap do |obj|
+               failure?: true,
+               error: double("Error",
+                             class: double("ErrorClass", name: "ApiError"),
+                             message: "API request failed",
+                             backtrace: %w[line1 line2])).tap do |obj|
           allow(obj).to receive(:[]).with(:status_code).and_return(502)
           allow(obj).to receive(:[]).with("status_code").and_return(502)
         end

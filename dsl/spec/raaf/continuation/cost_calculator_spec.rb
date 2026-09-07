@@ -53,7 +53,7 @@ RSpec.describe RAAF::Continuation::CostCalculator do
     end
 
     it "handles high token counts" do
-      cost = RAAF::Continuation::CostCalculator.calculate("gpt-4o", 1000000, 500000)
+      cost = RAAF::Continuation::CostCalculator.calculate("gpt-4o", 1_000_000, 500_000)
       # 1000000 * 0.005/1k + 500000 * 0.015/1k = 5.0 + 7.5 = 12.5
       expect(cost).to be_within(0.01).of(12.5)
     end

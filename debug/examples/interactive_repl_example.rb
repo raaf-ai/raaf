@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 # Interactive REPL (Read-Eval-Print Loop) Example
-# 
+#
 # This example demonstrates the comprehensive interactive development environment
 # built into the RAAF (Ruby AI Agents Factory) gem. The REPL provides a powerful shell
 # for agent development, debugging, and testing with features like:
@@ -51,7 +51,7 @@ puts "\n=== Example 1: REPL Creation and Configuration ==="
 
 # Create a REPL instance with supported configuration
 repl = RAAF::REPL.new(
-  debug: true                          # Enable debug output
+  debug: true # Enable debug output
 )
 
 puts "✅ REPL configured with:"
@@ -70,7 +70,7 @@ assistant_agent = RAAF::Agent.new(
 )
 
 researcher_agent = RAAF::Agent.new(
-  name: "Researcher", 
+  name: "Researcher",
   instructions: "You are a research specialist focused on gathering information.",
   model: "gpt-4o"
 )
@@ -102,8 +102,9 @@ puts "\n=== Example 3: Tool Integration and Testing ==="
 def calculate_fibonacci(n:)
   return 0 if n == 0
   return 1 if n == 1
-  
-  a, b = 0, 1
+
+  a = 0
+  b = 1
   (2..n).each do |_|
     a, b = b, a + b
   end
@@ -142,14 +143,14 @@ begin
   puts "  > calculate_fibonacci(n: 10)"
   result = calculate_fibonacci(n: 10)
   puts "  Result: #{result}"
-  
+
   puts "  > analyze_code(code: 'def hello\\n  puts \"world\"\\nend')"
   code_result = analyze_code(
-    code: "def hello\n  puts \"world\"\nend", 
+    code: "def hello\n  puts \"world\"\nend",
     language: "ruby"
   )
   puts "  Result: #{code_result}"
-rescue => e
+rescue StandardError => e
   puts "  ℹ️  Demo mode: Would test tools (#{e.class.name})"
 end
 
@@ -161,7 +162,7 @@ conversation_history = [
   { role: "user", content: "Calculate fibonacci number 8" },
   { role: "assistant", content: "I'll calculate fibonacci(8) for you.", tool_calls: [
     { function: { name: "calculate_fibonacci", arguments: '{"n": 8}' } }
-  ]},
+  ] },
   { role: "tool", content: "21" },
   { role: "assistant", content: "The 8th Fibonacci number is 21." }
 ]
@@ -170,13 +171,13 @@ conversation_history = [
 puts "📚 Conversation history (#{conversation_history.length} messages):"
 conversation_history.each_with_index do |msg, i|
   role_icon = case msg[:role]
-  when "user" then "👤"
-  when "assistant" then "🤖"
-  when "tool" then "🔧"
-  else "💬"
-  end
+              when "user" then "👤"
+              when "assistant" then "🤖"
+              when "tool" then "🔧"
+              else "💬"
+              end
   content = msg[:content][0..60] + (msg[:content].length > 60 ? "..." : "")
-  puts "  #{i+1}. #{role_icon} #{msg[:role]}: #{content}"
+  puts "  #{i + 1}. #{role_icon} #{msg[:role]}: #{content}"
 end
 
 # Simulate export capabilities
@@ -215,7 +216,7 @@ puts "  [DEBUG] Continuing execution..."
 puts "\n=== Example 6: Trace Visualization ==="
 
 # Generate sample trace for visualization
-sample_trace = {
+{
   trace_id: "trace_#{Time.now.to_i}",
   spans: [
     {
@@ -227,7 +228,7 @@ sample_trace = {
       metadata: { agent: "Assistant", model: "gpt-4o" }
     },
     {
-      span_id: "span_2", 
+      span_id: "span_2",
       parent_id: "span_1",
       name: "tool.calculate_fibonacci",
       start_time: Time.now - 1.5,
@@ -273,7 +274,7 @@ puts "\n💻 Example REPL session simulation:"
 example_commands = [
   "create_agent 'DataAnalyst' 'You analyze data and provide insights' 'gpt-4o'",
   "add_tool calculate_statistics",
-  "switch_agent 'DataAnalyst'", 
+  "switch_agent 'DataAnalyst'",
   "debug on",
   "run 'Analyze this dataset: [1,2,3,4,5]'",
   "visualize last_trace",
@@ -281,7 +282,7 @@ example_commands = [
 ]
 
 example_commands.each_with_index do |cmd, i|
-  puts "  #{i+1}. raaf> #{cmd}"
+  puts "  #{i + 1}. raaf> #{cmd}"
   puts "      ✅ Command executed successfully"
 end
 

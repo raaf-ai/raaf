@@ -21,10 +21,10 @@ module RAAF
     #   )
     class Config
       # Valid output format options
-      VALID_FORMATS = [:csv, :markdown, :json, :auto].freeze
+      VALID_FORMATS = %i[csv markdown json auto].freeze
 
       # Valid failure handling modes
-      VALID_FAILURE_MODES = [:return_partial, :raise_error].freeze
+      VALID_FAILURE_MODES = %i[return_partial raise_error].freeze
 
       # Maximum allowed attempts for continuation
       MAX_ATTEMPTS_LIMIT = 50
@@ -34,7 +34,7 @@ module RAAF
         max_attempts: 10,
         output_format: :auto,
         on_failure: :return_partial,
-        merge_strategy: nil  # Format-specific, determined at runtime
+        merge_strategy: nil # Format-specific, determined at runtime
       }.freeze
 
       # @return [Integer] Maximum number of continuation attempts (1-50)
@@ -69,7 +69,7 @@ module RAAF
         @merge_strategy = DEFAULTS[:merge_strategy]
 
         # Check for unknown options
-        known_options = [:max_attempts, :output_format, :on_failure, :merge_strategy]
+        known_options = %i[max_attempts output_format on_failure merge_strategy]
         unknown_options = options.keys - known_options
         unless unknown_options.empty?
           raise RAAF::InvalidConfigurationError,
@@ -174,10 +174,10 @@ module RAAF
                 "max_attempts must be a positive integer between 1 and #{MAX_ATTEMPTS_LIMIT}, got #{max_attempts}"
         end
 
-        if max_attempts > MAX_ATTEMPTS_LIMIT
-          raise RAAF::InvalidConfigurationError,
-                "max_attempts cannot exceed #{MAX_ATTEMPTS_LIMIT}, got #{max_attempts}"
-        end
+        return unless max_attempts > MAX_ATTEMPTS_LIMIT
+
+        raise RAAF::InvalidConfigurationError,
+              "max_attempts cannot exceed #{MAX_ATTEMPTS_LIMIT}, got #{max_attempts}"
       end
 
       # Validate output_format configuration
@@ -190,28 +190,28 @@ module RAAF
                 "Valid options are: #{VALID_FORMATS.map(&:inspect).join(', ')}"
         end
 
-        unless VALID_FORMATS.include?(output_format)
-          suggestion = suggest_similar_option(output_format, VALID_FORMATS)
-          message = "Invalid output_format: #{output_format}. " \
-                   "Valid options are: #{VALID_FORMATS.map(&:inspect).join(', ')}"
-          message += ". Did you mean: :#{suggestion}" if suggestion
+        return if VALID_FORMATS.include?(output_format)
 
-          raise RAAF::InvalidConfigurationError, message
-        end
+        suggestion = suggest_similar_option(output_format, VALID_FORMATS)
+        message = "Invalid output_format: #{output_format}. " \
+                  "Valid options are: #{VALID_FORMATS.map(&:inspect).join(', ')}"
+        message += ". Did you mean: :#{suggestion}" if suggestion
+
+        raise RAAF::InvalidConfigurationError, message
       end
 
       # Validate on_failure configuration
       #
       # @raise [InvalidConfigurationError] If on_failure is invalid
       def validate_on_failure!
-        unless VALID_FAILURE_MODES.include?(on_failure)
-          suggestion = suggest_similar_option(on_failure, VALID_FAILURE_MODES)
-          message = "Invalid on_failure mode: #{on_failure}. " \
-                   "Valid options are: #{VALID_FAILURE_MODES.map(&:inspect).join(', ')}"
-          message += ". Did you mean: :#{suggestion}" if suggestion
+        return if VALID_FAILURE_MODES.include?(on_failure)
 
-          raise RAAF::InvalidConfigurationError, message
-        end
+        suggestion = suggest_similar_option(on_failure, VALID_FAILURE_MODES)
+        message = "Invalid on_failure mode: #{on_failure}. " \
+                  "Valid options are: #{VALID_FAILURE_MODES.map(&:inspect).join(', ')}"
+        message += ". Did you mean: :#{suggestion}" if suggestion
+
+        raise RAAF::InvalidConfigurationError, message
       end
 
       # Suggest similar valid option based on edit distance

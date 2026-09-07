@@ -88,15 +88,13 @@ module RAAF
         end
 
         # Validate the value if rules are defined
-        if @validate_enabled && @validations[key.to_sym]
-          validate_key!(key, value)
-        end
+        validate_key!(key, value) if @validate_enabled && @validations[key.to_sym]
 
         # Update context (capturing the new instance)
         @context = @context.set(key, value)
-        
+
         debug_log("Added #{key}: #{value.inspect}") if @debug_enabled
-        
+
         self
       end
 
@@ -133,7 +131,7 @@ module RAAF
       #
       def with_if(condition, key, value)
         return self unless condition
-        
+
         computed_value = value.is_a?(Proc) ? value.call : value
         with(key, computed_value)
       end
@@ -216,13 +214,13 @@ module RAAF
       #
       def with_object(key, object, **options)
         return with(key, nil) if object.nil?
-        
+
         # Load ObjectProxy if not already loaded
-        require_relative 'object_proxy' unless defined?(RAAF::DSL::ObjectProxy)
-        
+        require_relative "object_proxy" unless defined?(RAAF::DSL::ObjectProxy)
+
         # Create proxy
         proxy = ObjectProxy.new(object, **options)
-        
+
         # Add to context
         with(key, proxy)
       end
@@ -260,12 +258,10 @@ module RAAF
       # @raise [ArgumentError] If required keys are missing or validation fails
       #
       def build(strict: true)
-        if strict && @validate_enabled
-          validate_all!
-        end
-        
+        validate_all! if strict && @validate_enabled
+
         debug_log("Built context with #{@context.size} variables") if @debug_enabled
-        
+
         @context
       end
 
@@ -278,8 +274,8 @@ module RAAF
         build(strict: true)
       rescue ArgumentError => e
         raise ArgumentError, "ContextBuilder validation failed: #{e.message}\n" \
-                           "Current keys: #{@context.keys.inspect}\n" \
-                           "Required keys: #{required_keys.inspect}"
+                             "Current keys: #{@context.keys.inspect}\n" \
+                             "Required keys: #{required_keys.inspect}"
       end
 
       # Get the current context state without finalizing the builder
@@ -321,18 +317,16 @@ module RAAF
         end
 
         # Custom validation
-        if rules[:validate] && !rules[:validate].call(value)
-          raise ArgumentError, "Context key '#{key}' failed custom validation"
-        end
+        return unless rules[:validate] && !rules[:validate].call(value)
+
+        raise ArgumentError, "Context key '#{key}' failed custom validation"
       end
 
       # Validate all required keys are present
       def validate_all!
         missing_keys = required_keys - @context.keys
-        
-        if missing_keys.any?
-          raise ArgumentError, "Required context keys missing: #{missing_keys.join(', ')}"
-        end
+
+        raise ArgumentError, "Required context keys missing: #{missing_keys.join(', ')}" if missing_keys.any?
 
         # Run all validations
         @context.to_h.each do |key, value|

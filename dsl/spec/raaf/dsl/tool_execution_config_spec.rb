@@ -1,23 +1,23 @@
 # frozen_string_literal: true
 
-require 'spec_helper'
+require "spec_helper"
 
-RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
+RSpec.describe "RAAF::DSL::Agent Tool Execution Configuration", type: :unit do
   # Set fake API key for testing
   before(:all) do
-    @original_api_key = ENV['OPENAI_API_KEY']
-    ENV['OPENAI_API_KEY'] = 'test-key-for-specs'
+    @original_api_key = ENV.fetch("OPENAI_API_KEY", nil)
+    ENV["OPENAI_API_KEY"] = "test-key-for-specs"
   end
 
   after(:all) do
-    ENV['OPENAI_API_KEY'] = @original_api_key
+    ENV["OPENAI_API_KEY"] = @original_api_key
   end
 
-  describe 'default configuration' do
-    it 'has all features enabled by default' do
+  describe "default configuration" do
+    it "has all features enabled by default" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
       end
@@ -30,10 +30,10 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
       expect(agent.log_arguments?).to be true
     end
 
-    it 'has default truncation of 100 characters' do
+    it "has default truncation of 100 characters" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
       end
@@ -44,11 +44,11 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
     end
   end
 
-  describe 'class-level configuration' do
-    it 'allows configuring validation' do
+  describe "class-level configuration" do
+    it "allows configuring validation" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
 
@@ -62,10 +62,10 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
       expect(agent.validation_enabled?).to be false
     end
 
-    it 'allows configuring logging' do
+    it "allows configuring logging" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
 
@@ -79,10 +79,10 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
       expect(agent.logging_enabled?).to be false
     end
 
-    it 'allows configuring metadata' do
+    it "allows configuring metadata" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
 
@@ -96,10 +96,10 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
       expect(agent.metadata_enabled?).to be false
     end
 
-    it 'allows configuring argument logging' do
+    it "allows configuring argument logging" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
 
@@ -113,10 +113,10 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
       expect(agent.log_arguments?).to be false
     end
 
-    it 'allows configuring log truncation' do
+    it "allows configuring log truncation" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
 
@@ -130,10 +130,10 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
       expect(agent.truncate_logs_at).to eq(250)
     end
 
-    it 'allows multiple configuration options in one block' do
+    it "allows multiple configuration options in one block" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
 
@@ -156,11 +156,11 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
     end
   end
 
-  describe 'configuration inheritance' do
-    it 'subclasses inherit parent configuration' do
+  describe "configuration inheritance" do
+    it "subclasses inherit parent configuration" do
       parent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
 
@@ -172,7 +172,7 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
 
       subclass = Class.new(parent_class) do
         def self.name
-          'SubclassAgent'
+          "SubclassAgent"
         end
         agent_name "SubclassAgent"
       end
@@ -183,10 +183,10 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
       expect(agent.truncate_logs_at).to eq(200)
     end
 
-    it 'subclasses can override parent configuration' do
+    it "subclasses can override parent configuration" do
       parent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
 
@@ -199,7 +199,7 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
 
       subclass = Class.new(parent_class) do
         def self.name
-          'SubclassAgent'
+          "SubclassAgent"
         end
         agent_name "SubclassAgent"
 
@@ -219,10 +219,10 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
       expect(agent.truncate_logs_at).to eq(200)
     end
 
-    it 'does not affect parent when subclass changes configuration' do
+    it "does not affect parent when subclass changes configuration" do
       parent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
 
@@ -233,7 +233,7 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
 
       subclass = Class.new(parent_class) do
         def self.name
-          'SubclassAgent'
+          "SubclassAgent"
         end
         agent_name "SubclassAgent"
 
@@ -250,11 +250,11 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
     end
   end
 
-  describe 'configuration immutability' do
-    it 'configuration is frozen after class definition' do
+  describe "configuration immutability" do
+    it "configuration is frozen after class definition" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
 
@@ -268,10 +268,10 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
       expect(config).to be_frozen
     end
 
-    it 'modifying returned config does not affect class configuration' do
+    it "modifying returned config does not affect class configuration" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
 
@@ -290,11 +290,11 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
     end
   end
 
-  describe 'instance-level configuration access' do
-    it 'instances access class-level configuration' do
+  describe "instance-level configuration access" do
+    it "instances access class-level configuration" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
 
@@ -315,11 +315,11 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
     end
   end
 
-  describe 'configuration query methods' do
-    it 'provides boolean query methods with ? suffix' do
+  describe "configuration query methods" do
+    it "provides boolean query methods with ? suffix" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
       end
@@ -333,10 +333,10 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
       expect(agent).to respond_to(:log_arguments?)
     end
 
-    it 'provides value accessor methods' do
+    it "provides value accessor methods" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
       end
@@ -347,11 +347,11 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
     end
   end
 
-  describe 'tool_execution_enabled? integration' do
-    it 'returns true when any feature is enabled' do
+  describe "tool_execution_enabled? integration" do
+    it "returns true when any feature is enabled" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
 
@@ -367,10 +367,10 @@ RSpec.describe 'RAAF::DSL::Agent Tool Execution Configuration', type: :unit do
       expect(agent.send(:tool_execution_enabled?)).to be true
     end
 
-    it 'returns false when all features are disabled' do
+    it "returns false when all features are disabled" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
-          'TestAgent'
+          "TestAgent"
         end
         agent_name "TestAgent"
 

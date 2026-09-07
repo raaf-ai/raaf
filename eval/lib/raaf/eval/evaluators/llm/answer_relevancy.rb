@@ -56,16 +56,15 @@ module RAAF
             )
 
             label = calculate_label(score,
-                                   good_threshold: good_threshold,
-                                   average_threshold: average_threshold)
+                                    good_threshold: good_threshold,
+                                    average_threshold: average_threshold)
 
             build_result(score, label, good_threshold, average_threshold,
-              evaluated_field: field_context.field_name,
-              method: "llm_judge",
-              query: truncate_for_display(query),
-              relevancy_percentage: (score * 100).round,
-              evaluation_note: relevancy_note(score, good_threshold, average_threshold)
-            )
+                         evaluated_field: field_context.field_name,
+                         method: "llm_judge",
+                         query: truncate_for_display(query),
+                         relevancy_percentage: (score * 100).round,
+                         evaluation_note: relevancy_note(score, good_threshold, average_threshold))
           end
 
           private
@@ -78,7 +77,7 @@ module RAAF
           # @return [Float] Score from 0.0 (irrelevant) to 1.0 (perfectly relevant)
           def llm_judge_relevancy(answer:, query:, model: nil)
             # Build evaluation prompt
-            prompt = build_relevancy_prompt(answer, query)
+            build_relevancy_prompt(answer, query)
 
             # Call LLM for evaluation
             # TODO: Replace with actual RAAF LLM call
@@ -167,6 +166,7 @@ module RAAF
           # @return [String] Truncated text
           def truncate_for_display(text, max_length = 100)
             return text if text.length <= max_length
+
             "#{text[0...max_length]}..."
           end
         end

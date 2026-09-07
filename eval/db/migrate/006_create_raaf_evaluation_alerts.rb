@@ -7,9 +7,9 @@ class CreateRAAFEvaluationAlerts < ActiveRecord::Migration[7.0]
       t.string :alert_type, null: false
       # Types: 'quality_degradation', 'failure_spike', 'queue_backlog',
       #        'evaluator_error', 'policy_threshold', 'cost_exceeded'
-      t.string :severity, null: false, default: 'warning'
+      t.string :severity, null: false, default: "warning"
       # Severities: 'info', 'warning', 'critical'
-      t.string :status, null: false, default: 'active'
+      t.string :status, null: false, default: "active"
       # Status: 'active', 'acknowledged', 'resolved', 'suppressed'
 
       # What triggered the alert
@@ -55,17 +55,17 @@ class CreateRAAFEvaluationAlerts < ActiveRecord::Migration[7.0]
     add_index :raaf_evaluation_alerts, :severity
     add_index :raaf_evaluation_alerts, :status
     add_index :raaf_evaluation_alerts, :triggered_at
-    add_index :raaf_evaluation_alerts, [:status, :severity],
-              name: 'idx_eval_alerts_status_severity'
-    add_index :raaf_evaluation_alerts, [:agent_name, :status],
-              name: 'idx_eval_alerts_agent_status'
+    add_index :raaf_evaluation_alerts, %i[status severity],
+              name: "idx_eval_alerts_status_severity"
+    add_index :raaf_evaluation_alerts, %i[agent_name status],
+              name: "idx_eval_alerts_agent_status"
     add_index :raaf_evaluation_alerts, :fingerprint,
-              name: 'idx_eval_alerts_fingerprint'
+              name: "idx_eval_alerts_fingerprint"
 
     # For deduplication - only one active alert per fingerprint
-    add_index :raaf_evaluation_alerts, [:fingerprint, :status],
+    add_index :raaf_evaluation_alerts, %i[fingerprint status],
               unique: true,
               where: "status = 'active'",
-              name: 'idx_eval_alerts_active_unique'
+              name: "idx_eval_alerts_active_unique"
   end
 end

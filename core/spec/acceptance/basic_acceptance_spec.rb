@@ -5,7 +5,7 @@ require "spec_helper"
 RSpec.describe "RAAF Basic Acceptance", :acceptance do
   # Skip all tests if no API key is available
   before(:context) do
-    skip "Acceptance tests require OPENAI_API_KEY to be set" unless ENV["OPENAI_API_KEY"] && !ENV["OPENAI_API_KEY"].empty?
+    skip "Acceptance tests require OPENAI_API_KEY to be set" unless ENV["OPENAI_API_KEY"].present?
   end
 
   # Disable VCR and WebMock for acceptance tests - we want real API calls
@@ -107,7 +107,7 @@ RSpec.describe "RAAF Basic Acceptance", :acceptance do
       define_singleton_method(:calculator) do |operation:|
         # For test purposes only - using eval with strict validation
         # In production, use a proper math parser library
-        if operation.match?(%r{\A[\d\s\+\-\*/\(\)\.]+\z})
+        if operation.match?(%r{\A[\d\s+\-*/().]+\z})
           eval(operation).to_s # rubocop:disable Security/Eval
         else
           "Error: Invalid operation"

@@ -58,7 +58,7 @@ class TextAnalyzerTool < RAAF::DSL::Tools::Tool
     {
       word_count: words.length,
       character_count: text.length,
-      character_count_no_spaces: text.gsub(/\s/, '').length,
+      character_count_no_spaces: text.gsub(/\s/, "").length,
       sentence_count: text.split(/[.!?]+/).reject(&:empty?).length,
       paragraph_count: text.split(/\n\s*\n/).reject(&:empty?).length
     }
@@ -66,15 +66,15 @@ class TextAnalyzerTool < RAAF::DSL::Tools::Tool
   
   def detailed_analysis(text)
     basic = basic_analysis(text)
-    words = text.downcase.split(/\s+/).map { |w| w.gsub(/[^\w]/, '') }.reject(&:empty?)
+    words = text.downcase.split(/\s+/).map { |w| w.gsub(/[^\w]/, "") }.reject(&:empty?)
     
     basic.merge({
-      unique_words: words.uniq.length,
-      average_word_length: words.empty? ? 0 : (words.map(&:length).sum.to_f / words.length).round(2),
-      longest_word: words.max_by(&:length) || "",
-      shortest_word: words.min_by(&:length) || "",
-      word_frequency: words.tally.sort_by { |_, count| -count }.first(10).to_h
-    })
+                  unique_words: words.uniq.length,
+                  average_word_length: words.empty? ? 0 : (words.map(&:length).sum.to_f / words.length).round(2),
+                  longest_word: words.max_by(&:length) || "",
+                  shortest_word: words.min_by(&:length) || "",
+                  word_frequency: words.tally.sort_by { |_, count| -count }.first(10).to_h
+                })
   end
   
   def sentiment_analysis(text)
@@ -82,7 +82,7 @@ class TextAnalyzerTool < RAAF::DSL::Tools::Tool
     positive_words = %w[good great excellent amazing wonderful fantastic love like happy joy]
     negative_words = %w[bad terrible awful horrible hate dislike sad angry disappointed]
     
-    words = text.downcase.split(/\s+/).map { |w| w.gsub(/[^\w]/, '') }
+    words = text.downcase.split(/\s+/).map { |w| w.gsub(/[^\w]/, "") }
     
     positive_count = words.count { |word| positive_words.include?(word) }
     negative_count = words.count { |word| negative_words.include?(word) }
@@ -129,10 +129,10 @@ class TimeUtilityTool < RAAF::DSL::Tools::Tool
   def current_time(timezone = "UTC", format = nil)
     time = case timezone.upcase
            when "UTC" then Time.now.utc
-           when "EST" then Time.now.utc - 5 * 3600
-           when "PST" then Time.now.utc - 8 * 3600
-           when "CET" then Time.now.utc + 1 * 3600
-           when "JST" then Time.now.utc + 9 * 3600
+           when "EST" then Time.now.utc - (5 * 3600)
+           when "PST" then Time.now.utc - (8 * 3600)
+           when "CET" then Time.now.utc + (1 * 3600)
+           when "JST" then Time.now.utc + (9 * 3600)
            else Time.now.utc
            end
     
@@ -176,7 +176,7 @@ end
 
 # Example weather API tool (simplified for demo)
 class WeatherTool < RAAF::DSL::Tools::Tool::API
-  endpoint "https://api.example-weather.com/v1"  # Demo endpoint
+  endpoint "https://api.example-weather.com/v1" # Demo endpoint
   timeout 10
   
   def call(city:, country: "US", units: "metric")
@@ -279,19 +279,19 @@ if __FILE__ == $0
   
   # Show auto-discovery in action
   puts "=== Auto-Discovery Test ==="
-  tool_names = [:calculator, :text_analyzer, :time_helper, :weather, :code_executor]
+  tool_names = %i[calculator text_analyzer time_helper weather code_executor]
   
   tool_names.each do |tool_name|
-    begin
-      found_tool = RAAF::DSL::Tools::ToolRegistry.get(tool_name, strict: false)
-      if found_tool
-        puts "✓ #{tool_name} -> #{found_tool.name}"
-      else
-        puts "✗ #{tool_name} not found"
-      end
-    rescue => e
-      puts "✗ #{tool_name} error: #{e.message}"
+    
+    found_tool = RAAF::DSL::Tools::ToolRegistry.get(tool_name, strict: false)
+    if found_tool
+      puts "✓ #{tool_name} -> #{found_tool.name}"
+    else
+      puts "✗ #{tool_name} not found"
     end
+  rescue StandardError => e
+    puts "✗ #{tool_name} error: #{e.message}"
+    
   end
   puts
   
@@ -362,14 +362,14 @@ if __FILE__ == $0
       puts
     end
     
-  rescue => e
+  rescue StandardError => e
     puts "Error creating agent: #{e.message}"
     puts "This might be expected if RAAF::DSL::AgentBuilder is not available"
   end
   
   # Performance test
   puts "=== Performance Test ==="
-  require 'benchmark'
+  require "benchmark"
   
   calc_tool = CalculatorTool.new
   iterations = 1000
@@ -396,7 +396,7 @@ if __FILE__ == $0
     puts "  Cache hits: #{stats[:cache_hits]}"
     puts "  Cache hit ratio: #{(stats[:cache_hit_ratio] * 100).round(1)}%"
     puts "  Auto-discoveries: #{stats[:discoveries]}"
-  rescue => e
+  rescue StandardError => e
     puts "Registry statistics not available: #{e.message}"
   end
   

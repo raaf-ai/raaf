@@ -14,7 +14,7 @@ RSpec.describe "RAAF::Guardrails" do
     it "blocks long input" do
       result = guardrail.run(nil, nil, "this is a very long input that exceeds the limit")
       expect(result.tripwire_triggered?).to be true
-      expect(result.output.output_info[:blocked_reason]).to match(/Input too long/)
+      expect(result.output.output_info[:blocked_reason]).to include("Input too long")
     end
   end
 

@@ -28,7 +28,7 @@ puts "\n1. Agent created with model: #{agent.model}"
 module RAAF
   module Models
     class GeminiProvider
-      alias_method :original_chat, :chat
+      alias original_chat chat
 
       def chat(params)
         puts "\n2. GeminiProvider.chat called with params keys: #{params.keys}"
@@ -57,7 +57,7 @@ end
 # Patch Runner to debug token flow
 module RAAF
   class Runner
-    alias_method :original_process_response, :process_response
+    alias original_process_response process_response
 
     def process_response(response, context)
       puts "\n5. Runner.process_response called"
@@ -95,7 +95,7 @@ module RAAF
 end
 
 # Create runner and run the agent
-puts "\n" + "=" * 80
+puts "\n" + ("=" * 80)
 puts "RUNNING AGENT"
 puts "=" * 80
 
@@ -103,7 +103,7 @@ runner = RAAF::Runner.new(agent: agent)
 result = runner.run("Say hello and tell me your model name.")
 
 # Check final result
-puts "\n" + "=" * 80
+puts "\n" + ("=" * 80)
 puts "FINAL RESULT ANALYSIS"
 puts "=" * 80
 
@@ -150,6 +150,6 @@ if result.is_a?(RAAF::RunContext)
   end
 end
 
-puts "\n" + "=" * 80
+puts "\n" + ("=" * 80)
 puts "DEBUG COMPLETE"
 puts "=" * 80

@@ -48,7 +48,7 @@ module RAAF
 
         # GPT-5 models (projected pricing)
         "gpt-5" => { input: 0.01, output: 0.04 },
-        "gpt-5-mini" => { input: 0.002, output: 0.008 },
+        "gpt-5-mini" => { input: 0.002, output: 0.008 }
 
         # Default fallback (use gpt-4o pricing)
       }.freeze

@@ -39,7 +39,6 @@ end
 
 # Example 3: Dynamic prompt with conditional content
 class ReportPrompt < RAAF::DSL::Prompts::Base
-
   def system
     <<~SYSTEM
       You are a data analyst creating a #{report_type} report.

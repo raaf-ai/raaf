@@ -1,8 +1,12 @@
 # frozen_string_literal: true
 
 RSpec.describe "LLM Matchers" do
-  let(:helpful_output) { "Ruby is a programming language designed with developer happiness in mind. It has elegant syntax that is easy to read and write." }
-  let(:technical_output) { "Ruby uses dynamic typing and automatic memory management. The MRI implementation uses a global interpreter lock (GIL)." }
+  let(:helpful_output) do
+    "Ruby is a programming language designed with developer happiness in mind. It has elegant syntax that is easy to read and write."
+  end
+  let(:technical_output) do
+    "Ruby uses dynamic typing and automatic memory management. The MRI implementation uses a global interpreter lock (GIL)."
+  end
   let(:unhelpful_output) { "Stuff about programming." }
 
   let(:baseline_span) do
@@ -19,8 +23,8 @@ RSpec.describe "LLM Matchers" do
       configurations: { test: {} }
     )
     run.instance_variable_set(:@results, {
-      test: { success: true, output: helpful_output }
-    })
+                                test: { success: true, output: helpful_output }
+                              })
     run.instance_variable_set(:@executed, true)
     RAAF::Eval::EvaluationResult.new(run: run, baseline: baseline_span)
   end
@@ -31,8 +35,8 @@ RSpec.describe "LLM Matchers" do
       configurations: { test: {} }
     )
     run.instance_variable_set(:@results, {
-      test: { success: true, output: technical_output }
-    })
+                                test: { success: true, output: technical_output }
+                              })
     run.instance_variable_set(:@executed, true)
     RAAF::Eval::EvaluationResult.new(run: run, baseline: baseline_span)
   end
@@ -43,8 +47,8 @@ RSpec.describe "LLM Matchers" do
       configurations: { test: {} }
     )
     run.instance_variable_set(:@results, {
-      test: { success: true, output: unhelpful_output }
-    })
+                                test: { success: true, output: unhelpful_output }
+                              })
     run.instance_variable_set(:@executed, true)
     RAAF::Eval::EvaluationResult.new(run: run, baseline: baseline_span)
   end
@@ -76,9 +80,9 @@ RSpec.describe "LLM Matchers" do
         { label: "bad", confidence: 0.8, reasoning: "Output lacks detail" }
       )
 
-      expect {
+      expect do
         expect(unhelpful_result).to satisfy_llm_check("is comprehensive")
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
     end
 
     it "provides clear failure message with judge reasoning" do
@@ -104,9 +108,9 @@ RSpec.describe "LLM Matchers" do
         { label: "good", confidence: 0.6, reasoning: "Somewhat helpful" }
       )
 
-      expect {
+      expect do
         expect(helpful_result).to satisfy_llm_check("is helpful").with_confidence(0.8)
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
     end
 
     it "respects confidence threshold" do
@@ -120,12 +124,10 @@ RSpec.describe "LLM Matchers" do
 
     context "when negated" do
       it "provides clear negated failure message" do
-        begin
-          expect(helpful_result).to_not satisfy_llm_check("is helpful")
-        rescue RSpec::Expectations::ExpectationNotMetError => e
-          expect(e.message).to include("not satisfy")
-          expect(e.message).to include("it did")
-        end
+        expect(helpful_result).not_to satisfy_llm_check("is helpful")
+      rescue RSpec::Expectations::ExpectationNotMetError => e
+        expect(e.message).to include("not satisfy")
+        expect(e.message).to include("it did")
       end
     end
   end
@@ -139,12 +141,11 @@ RSpec.describe "LLM Matchers" do
       instance_double(
         RAAF::Eval::RSpec::LLMJudge,
         check_criteria: { label: "good",
-          criteria: [
-            { name: "clarity", label: "good", reasoning: "Clear and concise" },
-            { name: "accuracy", label: "good", reasoning: "Technically accurate" },
-            { name: "completeness", label: "good", reasoning: "Covers key points" }
-          ]
-        }
+                          criteria: [
+                            { name: "clarity", label: "good", reasoning: "Clear and concise" },
+                            { name: "accuracy", label: "good", reasoning: "Technically accurate" },
+                            { name: "completeness", label: "good", reasoning: "Covers key points" }
+                          ] }
       )
     end
 
@@ -180,13 +181,12 @@ RSpec.describe "LLM Matchers" do
             { name: "clarity", label: "good", reasoning: "Clear" },
             { name: "accuracy", label: "bad", reasoning: "Contains errors" },
             { name: "completeness", label: "good", reasoning: "Complete" }
-          ]
-        }
+          ] }
       )
 
-      expect {
+      expect do
         expect(unhelpful_result).to satisfy_llm_criteria(["is clear", "is accurate", "is complete"])
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
     end
 
     it "provides clear failure message listing failed criteria" do
@@ -196,8 +196,7 @@ RSpec.describe "LLM Matchers" do
             { name: "clarity", label: "good", reasoning: "Clear" },
             { name: "accuracy", label: "bad", reasoning: "Contains errors" },
             { name: "completeness", label: "bad", reasoning: "Incomplete" }
-          ]
-        }
+          ] }
       )
 
       begin
@@ -218,12 +217,10 @@ RSpec.describe "LLM Matchers" do
 
     context "when negated" do
       it "provides clear negated failure message" do
-        begin
-          expect(helpful_result).to_not satisfy_llm_criteria(["is clear"])
-        rescue RSpec::Expectations::ExpectationNotMetError => e
-          expect(e.message).to include("fail criteria")
-          expect(e.message).to include("all passed")
-        end
+        expect(helpful_result).not_to satisfy_llm_criteria(["is clear"])
+      rescue RSpec::Expectations::ExpectationNotMetError => e
+        expect(e.message).to include("fail criteria")
+        expect(e.message).to include("all passed")
       end
     end
   end
@@ -262,9 +259,9 @@ RSpec.describe "LLM Matchers" do
         { label: "bad", reasoning: "Output doesn't match description" }
       )
 
-      expect {
+      expect do
         expect(unhelpful_result).to be_judged_as("comprehensive and detailed")
-      }.to raise_error(RSpec::Expectations::ExpectationNotMetError)
+      end.to raise_error(RSpec::Expectations::ExpectationNotMetError)
     end
 
     it "provides clear failure message with reasoning" do
@@ -297,12 +294,10 @@ RSpec.describe "LLM Matchers" do
 
     context "when negated" do
       it "provides clear negated failure message" do
-        begin
-          expect(helpful_result).to_not be_judged_as("helpful")
-        rescue RSpec::Expectations::ExpectationNotMetError => e
-          expect(e.message).to include("not be judged as")
-          expect(e.message).to include("it was")
-        end
+        expect(helpful_result).not_to be_judged_as("helpful")
+      rescue RSpec::Expectations::ExpectationNotMetError => e
+        expect(e.message).to include("not be judged as")
+        expect(e.message).to include("it was")
       end
     end
   end
@@ -327,8 +322,8 @@ RSpec.describe "LLM Matchers" do
         configurations: { test: {} }
       )
       empty_result.instance_variable_set(:@results, {
-        test: { success: true, output: "" }
-      })
+                                           test: { success: true, output: "" }
+                                         })
       empty_result.instance_variable_set(:@executed, true)
       result = RAAF::Eval::EvaluationResult.new(run: empty_result, baseline: baseline_span)
 
@@ -341,8 +336,8 @@ RSpec.describe "LLM Matchers" do
         configurations: { test: {} }
       )
       failed_result.instance_variable_set(:@results, {
-        test: { success: false, error: "Test error" }
-      })
+                                            test: { success: false, error: "Test error" }
+                                          })
       failed_result.instance_variable_set(:@executed, true)
       result = RAAF::Eval::EvaluationResult.new(run: failed_result, baseline: baseline_span)
 

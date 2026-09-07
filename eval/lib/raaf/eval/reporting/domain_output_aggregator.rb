@@ -40,9 +40,7 @@ module RAAF
         #   aggregator.grouped_field_values(:score)
         #   # => { industry: [90, 92, 91], geography: [85, 87, 86], ... }
         def grouped_field_values(field_name)
-          unless @output_path && @group_by
-            return {}
-          end
+          return {} unless @output_path && @group_by
 
           # Build grouped structure: { group_key => [values_from_all_runs] }
           grouped = Hash.new { |h, k| h[k] = [] }
@@ -118,7 +116,7 @@ module RAAF
         # @return [Array<Hash>] Domain output items
         def extract_output_items(run)
           # Parse output_path (e.g., 'prospect_evaluations.*.criterion_scores')
-          path_parts = @output_path.split('.')
+          path_parts = @output_path.split(".")
 
           # Try to find the data starting from the run's top level first
           # This allows paths like 'prospect_evaluations.*.criterion_scores'
@@ -130,13 +128,14 @@ module RAAF
             current = run
           else
             # Fall back to agent_result if first part not at run level
-            agent_result = run[:agent_result] || run['agent_result']
+            agent_result = run[:agent_result] || run["agent_result"]
             return [] unless agent_result
+
             current = agent_result
           end
 
           path_parts.each_with_index do |part, index|
-            if part == '*'
+            if part == "*"
               # Wildcard means "iterate over array elements"
               # The next part tells us which field to extract from each element
               next_part = path_parts[index + 1]
@@ -145,6 +144,7 @@ module RAAF
                 # Extract the next_part field from each array element
                 current = current.flat_map do |item|
                   next [] unless item.is_a?(Hash)
+
                   value = item[next_part] || item[next_part.to_sym]
                   value.is_a?(Array) ? value : [value]
                 end.compact

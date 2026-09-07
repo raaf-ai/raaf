@@ -5,7 +5,9 @@ require "set"
 require_relative "../../../../core/lib/raaf/logging"
 
 module RAAF
+
   module Tracing
+
     # Processor that batches spans and exports them efficiently in the background
     #
     # BatchTraceProcessor accumulates spans and exports them in batches to reduce
@@ -51,7 +53,9 @@ module RAAF
     #
     #   processor = BatchTraceProcessor.new(MyExporter.new)
     class BatchTraceProcessor
+
       include Logger
+
       # Default number of spans to accumulate before export
       DEFAULT_BATCH_SIZE = 50
 
@@ -239,7 +243,8 @@ module RAAF
       # @api private
       def run_worker
         # Debug logging now handled by category system
-        log_debug_tracing("[BatchTraceProcessor] Worker thread started (flush interval: #{@flush_interval}s)", flush_interval: @flush_interval)
+        log_debug_tracing("[BatchTraceProcessor] Worker thread started (flush interval: #{@flush_interval}s)",
+                          flush_interval: @flush_interval)
 
         loop do
           # Wait for flush interval or force flush signal
@@ -334,14 +339,15 @@ module RAAF
         return span if span.finished?
 
         # Check if span has been running too long (5 minutes)
-        max_duration = 5 * 60  # 5 minutes in seconds
+        max_duration = 5 * 60 # 5 minutes in seconds
         current_time = Time.now.utc
         duration = current_time - span.start_time
 
         if duration > max_duration
           begin
             # Auto-finish the stuck span with error status
-            span.set_status(:error, description: "Auto-finished: span exceeded maximum duration of #{max_duration} seconds")
+            span.set_status(:error,
+                            description: "Auto-finished: span exceeded maximum duration of #{max_duration} seconds")
             span.finish(end_time: current_time)
 
             log_debug_tracing("[BatchTraceProcessor] Auto-finished stuck span",
@@ -405,9 +411,8 @@ module RAAF
         return {} unless hash.respond_to?(:each)
 
         # Prevent circular references
-        if visited.include?(hash.object_id)
-          return "[CIRCULAR_REFERENCE]"
-        end
+        return "[CIRCULAR_REFERENCE]" if visited.include?(hash.object_id)
+
         visited = visited.dup.add(hash.object_id)
 
         result = {}
@@ -417,10 +422,10 @@ module RAAF
           hash.each do |key, value|
             # Convert key to string safely
             sanitized_key = case key
-                           when String then key
-                           when Symbol then key.to_s
-                           else key.to_s
-                           end
+                            when String then key
+                            when Symbol then key.to_s
+                            else key.to_s
+                            end
 
             # Recursively sanitize values, passing key context
             result[sanitized_key] = sanitize_value_for_export(value, visited, sanitized_key)
@@ -453,6 +458,7 @@ module RAAF
           deep_sanitize_hash(value, visited)
         when Array
           return "[CIRCULAR_REFERENCE]" if visited.include?(value.object_id)
+
           visited = visited.dup.add(value.object_id)
           begin
             value.map { |v| sanitize_value_for_export(v, visited, key) }
@@ -463,7 +469,7 @@ module RAAF
         when String
           # Skip truncation for conversation messages to preserve JSON integrity
           if key&.include?("conversation_messages")
-            value  # Keep conversation messages intact
+            value # Keep conversation messages intact
           else
             # Truncate very long strings
             value.length > 10_000 ? "#{value[0..9997]}..." : value
@@ -534,10 +540,12 @@ module RAAF
         # Attempt direct export with retries
         3.times do |attempt|
           @exporter.export(emergency_spans)
-          log_debug_tracing("[BatchTraceProcessor] Emergency flush succeeded on attempt #{attempt + 1}", attempt: attempt + 1)
+          log_debug_tracing("[BatchTraceProcessor] Emergency flush succeeded on attempt #{attempt + 1}",
+                            attempt: attempt + 1)
           return
         rescue StandardError => e
-          log_debug_tracing("[BatchTraceProcessor] Emergency flush attempt #{attempt + 1} failed: #{e.message}", attempt: attempt + 1, error: e.message)
+          log_debug_tracing("[BatchTraceProcessor] Emergency flush attempt #{attempt + 1} failed: #{e.message}",
+                            attempt: attempt + 1, error: e.message)
           sleep(0.1) if attempt < 2
         end
 
@@ -564,7 +572,8 @@ module RAAF
 
           next if batch.empty?
 
-          log_debug_tracing("[BatchTraceProcessor] Synchronous export attempt #{attempts}: #{batch.size} spans", attempt: attempts, batch_size: batch.size)
+          log_debug_tracing("[BatchTraceProcessor] Synchronous export attempt #{attempts}: #{batch.size} spans",
+                            attempt: attempts, batch_size: batch.size)
 
           begin
             # Call the wrapped processor's export method with raw spans
@@ -572,7 +581,8 @@ module RAAF
             log_debug_tracing("[BatchTraceProcessor] Synchronous export succeeded", attempt: attempts)
             return # Success, we're done
           rescue StandardError => e
-            log_debug_tracing("[BatchTraceProcessor] Synchronous export failed (attempt #{attempts}): #{e.message}", attempt: attempts, error: e.message)
+            log_debug_tracing("[BatchTraceProcessor] Synchronous export failed (attempt #{attempts}): #{e.message}",
+                              attempt: attempts, error: e.message)
 
             # On failure, put spans back for next attempt (if not last attempt)
             if attempts < max_attempts
@@ -580,14 +590,16 @@ module RAAF
               sleep(0.1)
             else
               # Last attempt failed, use emergency flush as final fallback
-              log_debug_tracing("[BatchTraceProcessor] All synchronous attempts failed, using emergency flush", attempts: attempts)
+              log_debug_tracing("[BatchTraceProcessor] All synchronous attempts failed, using emergency flush",
+                                attempts: attempts)
               @queue.clear # Clear queue to avoid infinite loop
               emergency_spans = batch
 
               # Emergency direct export attempt
               begin
                 @exporter.export(emergency_spans)
-                log_debug_tracing("[BatchTraceProcessor] Emergency export succeeded", emergency_spans: emergency_spans.size)
+                log_debug_tracing("[BatchTraceProcessor] Emergency export succeeded",
+                                  emergency_spans: emergency_spans.size)
               rescue StandardError => emergency_error
                 warn "[BatchTraceProcessor] Final emergency export failed: #{emergency_error.message}"
               end
@@ -612,6 +624,9 @@ module RAAF
         # NOTE: Finalizer removed to avoid "finalizer references object to be finalized" warning
         # Cleanup is handled by signal handlers and global atexit registration
       end
+
     end
+
   end
+
 end

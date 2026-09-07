@@ -1,10 +1,13 @@
 # frozen_string_literal: true
 
-require 'json'
+require "json"
 
 module RAAF
+
   module Tracing
+
     module SpanCollectors
+
       # Base collector class that provides the foundation for all RAAF tracing span collectors.
       # This class implements a powerful DSL for extracting attributes from traced components
       # and provides automatic serialization, safety, and integration with the RAAF tracing system.
@@ -42,6 +45,7 @@ module RAAF
       # @since 1.0.0
       # @author RAAF Team
       class BaseCollector
+
         ##
         # THREAD-SAFETY NOTE: DSL State Accumulation
         #
@@ -304,7 +308,7 @@ module RAAF
 
           # Extract just the component type (e.g., "agent", "llm", "tool")
           # from class names like "RAAF::Tracing::SpanCollectors::AgentCollector"
-          component_type = class_name.split("::").last&.downcase&.gsub(/collector$/, '')
+          component_type = class_name.split("::").last&.downcase&.gsub(/collector$/, "")
           component_type || "unknown"
         end
 
@@ -340,7 +344,7 @@ module RAAF
         rescue SystemStackError
           # Circular reference detected
           "[Circular reference detected]"
-        rescue => e
+        rescue StandardError
           # For any other objects that can't be converted to JSON,
           # just return a string representation
           case value
@@ -368,12 +372,9 @@ module RAAF
           end
         end
 
-        private
-
       end
 
       # Module-level discovery methods for automatic collector selection
-      module_function
 
       # Find the appropriate collector for a component using intelligent naming-based
       # discovery. This method analyzes the component's class hierarchy and name patterns
@@ -401,12 +402,12 @@ module RAAF
         class_name = component.class.name
 
         # Special case for DSL agents - check DSL::Agent class hierarchy
-        if class_name == "RAAF::DSL::Agent" || (component.class.ancestors.map(&:name).include?("RAAF::DSL::Agent"))
+        if class_name == "RAAF::DSL::Agent" || component.class.ancestors.map(&:name).include?("RAAF::DSL::Agent")
           return DSL::AgentCollector.new
         end
 
         # Core agent handling
-        if class_name == "RAAF::Agent" || (component.class.ancestors.map(&:name).include?("RAAF::Agent"))
+        if class_name == "RAAF::Agent" || component.class.ancestors.map(&:name).include?("RAAF::Agent")
           return AgentCollector.new
         end
 
@@ -423,6 +424,9 @@ module RAAF
           BaseCollector.new
         end
       end
+
     end
+
   end
+
 end

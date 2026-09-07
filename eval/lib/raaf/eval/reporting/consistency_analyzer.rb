@@ -15,7 +15,7 @@ module RAAF
         # Variance status thresholds
         VARIANCE_THRESHOLDS = {
           perfect: 0,
-          acceptable: 12,  # Default tolerance
+          acceptable: 12, # Default tolerance
           high_variance: Float::INFINITY
         }.freeze
 
@@ -85,6 +85,7 @@ module RAAF
         # @return [Float] Mean value
         def calculate_mean(values)
           return 0.0 if values.empty?
+
           values.sum.to_f / values.size
         end
 

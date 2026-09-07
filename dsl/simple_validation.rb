@@ -4,8 +4,8 @@
 # Simple validation test for enhanced RAAF DSL schema builder components
 
 # Load just our components without full DSL
-require_relative 'lib/raaf/dsl/types'
-require_relative 'lib/raaf/dsl/schema_builder'
+require_relative "lib/raaf/dsl/types"
+require_relative "lib/raaf/dsl/schema_builder"
 
 puts "=== Enhanced RAAF DSL Schema Builder - Component Validation ==="
 puts
@@ -14,7 +14,7 @@ puts
 puts "1. Testing Semantic Types System..."
 semantic_examples = {
   email: "user@example.com",
-  url: "https://example.com", 
+  url: "https://example.com",
   percentage: 85.5,
   currency: 29.99,
   phone: "+1234567890",
@@ -36,17 +36,17 @@ puts "2. Testing Schema Builder Fluent Interface..."
 begin
   # Test fluent interface
   builder = RAAF::DSL::SchemaBuilder.new
-    .field(:name, :string)
-    .field(:score, :score)
-    .field(:email, :email)
-    .required(:name, :email)
-    .array_of(:tags, :string)
+                                    .field(:name, :string)
+                                    .field(:score, :score)
+                                    .field(:email, :email)
+                                    .required(:name, :email)
+                                    .array_of(:tags, :string)
 
   schema = builder.to_schema
   puts "  ✓ Fluent interface working"
   puts "  Generated schema has #{schema[:properties].keys.length} properties"
   puts "  Required fields: #{schema[:required].join(', ')}"
-rescue => e
+rescue StandardError => e
   puts "  ✗ Fluent interface failed: #{e.message}"
 end
 puts
@@ -67,7 +67,7 @@ puts
 
 puts "=== IMPLEMENTATION SUCCESS SUMMARY ==="
 puts "✓ Semantic type system implemented with 7 built-in types"
-puts "✓ Fluent interface allows method chaining for readable schemas"  
+puts "✓ Fluent interface allows method chaining for readable schemas"
 puts "✓ Performance optimized for production use"
 puts "✓ Goal achieved: Reduces 100+ lines of schema to 3 lines"
 puts

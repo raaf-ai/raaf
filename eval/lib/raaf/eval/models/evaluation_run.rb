@@ -50,6 +50,7 @@ module RAAF
         # @return [Float, nil] Duration or nil if not completed
         def duration
           return nil unless started_at && completed_at
+
           completed_at - started_at
         end
 
