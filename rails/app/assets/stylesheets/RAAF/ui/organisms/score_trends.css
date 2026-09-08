@@ -1,0 +1,240 @@
+/* ============================================================================
+   Score trends — RAAF Eval.dc.html
+   A row per evaluator, a cell per bucket. The grid is four columns wide: the
+   evaluator, the cells, where it is now, and how far it has moved.
+   ========================================================================= */
+
+/* The grid has a floor below which a cell stops being a colour anyone can
+   read, so it scrolls sideways rather than compressing. */
+.raaf-heatgrid-scroll {
+  padding: var(--raaf-space-4) var(--raaf-space-5) var(--raaf-space-5);
+  overflow-x: auto;
+}
+
+.raaf-heatgrid {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 680px;
+}
+
+.raaf-heatgrid-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 190px) minmax(0, 1fr) 60px 78px;
+  gap: var(--raaf-space-3);
+  align-items: center;
+  padding: var(--raaf-space-1) 0;
+  border-radius: 6px;
+}
+
+.raaf-heatgrid-row:hover { background: var(--raaf-glass-white-5); }
+
+.raaf-heatgrid-row--axis {
+  align-items: end;
+  padding: 0;
+}
+
+.raaf-heatgrid-row--axis:hover { background: none; }
+
+/* The headline row is separated from the evaluators by rules rather than by
+   space: it is the same measurement, summed, not a different section. */
+.raaf-heatgrid-row--overall {
+  padding: var(--raaf-space-2) 0;
+  border-top: 1px solid var(--raaf-border);
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-heatgrid-head {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--raaf-text-muted);
+}
+
+.raaf-heatgrid-head--right { text-align: right; }
+
+/* ── The evaluator ───────────────────────────────────────────────────────── */
+
+.raaf-heatgrid-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.raaf-heatgrid-title {
+  font-size: var(--raaf-text-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.raaf-heatgrid-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.raaf-heatgrid-agent {
+  font-size: 10.5px;
+  color: var(--raaf-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* What kind of thing produced the score. The three the console can tell
+   apart get the colours the span-kind chips use for the same distinction. */
+.raaf-heat-kind {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--raaf-text-secondary);
+}
+
+.raaf-heat-kind--llm-judge { color: var(--raaf-kind-agent-fg); }
+.raaf-heat-kind--human { color: var(--raaf-tone-warn-text); }
+.raaf-heat-kind--statistical { color: var(--raaf-kind-llm-fg); }
+
+/* ── Cells ───────────────────────────────────────────────────────────────── */
+
+.raaf-heatgrid-cells {
+  display: grid;
+  grid-template-columns: repeat(var(--raaf-heat-cols, 30), minmax(7px, 1fr));
+  gap: 2px;
+  min-width: 0;
+}
+
+.raaf-heat {
+  height: 22px;
+  border-radius: 3px;
+  background: var(--raaf-glass-white-8);
+  cursor: default;
+}
+
+/* Δ vs median — how far this bucket sits from the row's own middle. */
+.raaf-heat--up-2 { background: rgb(17 170 100 / 75%); }
+.raaf-heat--up-1 { background: rgb(17 170 100 / 38%); }
+.raaf-heat--flat { background: var(--raaf-glass-white-8); }
+.raaf-heat--down-1 { background: rgb(245 158 11 / 52%); }
+.raaf-heat--down-2 { background: rgb(239 68 68 / 75%); }
+
+/* Pass rate — where this bucket sits on the scale itself. */
+.raaf-heat--t5 { background: rgb(17 170 100 / 82%); }
+.raaf-heat--t4 { background: rgb(17 170 100 / 52%); }
+.raaf-heat--t3 { background: rgb(17 170 100 / 28%); }
+.raaf-heat--t2 { background: rgb(245 158 11 / 42%); }
+.raaf-heat--t1 { background: rgb(245 158 11 / 68%); }
+.raaf-heat--t0 { background: rgb(239 68 68 / 72%); }
+
+/* A bucket nothing ran in is a gap, not a zero, in either colouring. It is
+   hatched rather than tinted so it cannot be mistaken for a flat cell. */
+.raaf-heat--empty {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--raaf-glass-white-5) 0,
+    var(--raaf-glass-white-5) 2px,
+    transparent 2px,
+    transparent 5px
+  );
+}
+
+/* The column a release landed in, marked down the whole grid. */
+.raaf-heat.is-release { box-shadow: inset 1px 0 0 rgb(0 154 204 / 55%); }
+
+/* The tooltip molecule is inline-flex, which would collapse a grid cell to
+   its content. */
+.raaf-heatgrid-cells > .raaf-heat.raaf-tooltip {
+  display: block;
+  position: relative;
+}
+
+/* ── Axis ────────────────────────────────────────────────────────────────── */
+
+.raaf-heat-axis {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: visible;
+}
+
+.raaf-heat-release {
+  font-family: var(--raaf-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--raaf-cyan-500);
+  white-space: nowrap;
+}
+
+.raaf-heat-tick {
+  height: 4px;
+  border-left: 1px solid transparent;
+}
+
+.raaf-heat-tick.is-release { border-left-color: rgb(0 154 204 / 55%); }
+
+.raaf-heat-date {
+  font-family: var(--raaf-font-mono);
+  font-size: 9.5px;
+  color: var(--raaf-text-muted);
+  white-space: nowrap;
+}
+
+/* ── The headline line ───────────────────────────────────────────────────── */
+
+.raaf-heat-line {
+  display: block;
+  width: 100%;
+  height: 34px;
+  overflow: visible;
+}
+
+.raaf-heat-line--empty {
+  border-bottom: 1px dashed var(--raaf-border-strong);
+}
+
+.raaf-heat-line-area { fill: rgb(0 154 204 / 14%); }
+
+.raaf-heat-line-stroke {
+  stroke: var(--raaf-cyan-500);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+/* ── Legend ──────────────────────────────────────────────────────────────── */
+
+.raaf-heat-legend {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.raaf-heat-legend-swatches {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.raaf-heat-legend-swatches > .raaf-heat {
+  width: 16px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+/* ── Movement ────────────────────────────────────────────────────────────── */
+
+.raaf-mover {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-3);
+  padding: var(--raaf-space-3) var(--raaf-space-4);
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-mover:last-child { border-bottom: none; }
+
+.raaf-mover > .raaf-titlemeta {
+  flex: 1;
+  min-width: 0;
+}

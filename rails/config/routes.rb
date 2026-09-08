@@ -129,6 +129,9 @@ RAAF::Rails::Engine.routes.draw do
     # Results browsing
     resources :results, only: %i[index show]
 
+    # Every evaluator's score against every bucket in the window.
+    get "trends", to: "trends#index", as: :trends
+
     # Analytics dashboard with data endpoints
     resource :analytics, only: [:show] do
       get :pass_rate_data

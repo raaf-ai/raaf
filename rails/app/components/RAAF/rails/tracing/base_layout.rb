@@ -213,7 +213,9 @@ module RAAF
               { key: :policies, label: "Policies", icon: "clipboard-check", href: continuous_policies_path },
               { key: :queue, label: "Queue", icon: "hourglass-split",
                 href: continuous_queue_index_path },
-              { key: :results, label: "Results", icon: "list-check" },
+              { key: :results, label: "Results", icon: "list-check", href: continuous_results_path },
+              { key: :trends, label: "Score trends", icon: "graph-up",
+                href: continuous_trends_path },
               { key: :health, label: "Health", icon: "heart-pulse",
                 href: continuous_health_path }
             ] },
