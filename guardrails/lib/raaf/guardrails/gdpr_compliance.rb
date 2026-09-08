@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
+require "digest"
+
 require_relative "base"
-require_relative "pii_detector"
+require_relative "pii_scanner"
 
 module RAAF
 
@@ -75,7 +77,7 @@ module RAAF
         @audit_trail = audit_trail
 
         # Create internal PII detector with GDPR-specific configuration
-        @pii_detector = PIIDetector.new(
+        @pii_detector = PIIScanner.new(
           action: :redact,
           detection_types: GDPR_PII_TYPES,
           custom_patterns: gdpr_specific_patterns

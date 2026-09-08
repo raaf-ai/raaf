@@ -128,21 +128,32 @@ module RAAF
     end
 
     # Result object returned by guardrail checks
+    #
+    # Scanners built on {Base} describe an outcome as `safe:` plus the violations
+    # they found; detectors that run a whole context at once ({PIIDetector} and
+    # friends) describe it as `passed:` plus a human-readable `message:`. Both are
+    # the same verdict, so both spellings land on the same object and `safe?` and
+    # `passed?` answer identically.
     class GuardrailResult
 
-      attr_reader :safe, :action, :content, :violations, :metadata
+      attr_reader :safe, :action, :content, :violations, :metadata, :message
 
-      def initialize(safe:, action:, content:, violations:, metadata:)
-        @safe = safe
+      def initialize(safe: nil, passed: nil, action: nil, content: nil, violations: [], metadata: {}, message: nil)
+        raise ArgumentError, "GuardrailResult requires either safe: or passed:" if safe.nil? && passed.nil?
+
+        @safe = safe.nil? ? passed : safe
         @action = action
         @content = content
         @violations = violations
         @metadata = metadata
+        @message = message
       end
 
       def safe?
         @safe
       end
+      alias passed? safe?
+      alias passed safe
 
       def violated?
         !@safe
@@ -170,7 +181,8 @@ module RAAF
           action: action,
           content: content,
           violations: violations,
-          metadata: metadata
+          metadata: metadata,
+          message: message
         }
       end
 

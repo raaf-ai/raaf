@@ -2,6 +2,8 @@
 
 # Main module file that loads all guardrail components
 require_relative "guardrails/base"
+require_relative "guardrails/pii_scanner"
+require_relative "guardrails/results"
 require_relative "guardrails/pii_detector"
 require_relative "guardrails/security_guardrail"
 require_relative "guardrails/toxicity_detector"

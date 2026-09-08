@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
+require "digest"
+
 require_relative "base"
-require_relative "pii_detector"
+require_relative "pii_scanner"
 
 module RAAF
 
@@ -102,7 +104,7 @@ module RAAF
         @audit_required = audit_required
 
         # Create internal PHI detector
-        @phi_detector = PIIDetector.new(
+        @phi_detector = PIIScanner.new(
           action: :redact,
           custom_patterns: PHI_IDENTIFIERS.transform_values { |pattern| { pattern: pattern, description: "PHI" } }
         )

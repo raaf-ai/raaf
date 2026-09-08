@@ -151,7 +151,7 @@ module RAAF
         # Add default providers based on configuration
         @providers << ToxicityDetector.new(**@config) if @config[:toxicity_detection]
 
-        @providers << PIIDetector.new(**@config) if @config[:pii_detection]
+        @providers << PIIScanner.new(**@config) if @config[:pii_detection]
 
         @providers << PromptInjectionDetector.new(**@config) if @config[:prompt_injection_detection]
 
@@ -169,7 +169,7 @@ module RAAF
       end
 
       def validate_pii(content, context)
-        provider = @providers.find { |p| p.is_a?(PIIDetector) }
+        provider = @providers.find { |p| p.is_a?(PIIScanner) }
         return [] unless provider
 
         result = provider.validate(content, context)

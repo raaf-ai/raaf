@@ -4,11 +4,11 @@ require "spec_helper"
 
 RSpec.describe RAAF::Guardrails do
   describe "GuardrailError hierarchy" do
+    # The error classes come from raaf-core, which raises them from the runner.
     it "defines custom error classes" do
       expect(RAAF::Guardrails::GuardrailError).to be < RAAF::Error
-      expect(RAAF::Guardrails::TripwireException).to be < RAAF::Guardrails::GuardrailError
-      expect(RAAF::Guardrails::InputGuardrailTripwireTriggered).to be < RAAF::Guardrails::TripwireException
-      expect(RAAF::Guardrails::OutputGuardrailTripwireTriggered).to be < RAAF::Guardrails::TripwireException
+      expect(RAAF::Guardrails::InputGuardrailTripwireTriggered).to be < RAAF::Guardrails::GuardrailError
+      expect(RAAF::Guardrails::OutputGuardrailTripwireTriggered).to be < RAAF::Guardrails::GuardrailError
     end
   end
 
