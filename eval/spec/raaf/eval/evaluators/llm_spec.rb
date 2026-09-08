@@ -9,22 +9,64 @@ RSpec.describe "LLM Evaluators" do
   let(:result) { {} }
   let(:field_context) { RAAF::Eval::DSL::FieldContext.new(:output, result) }
 
+  # The judge is the one evaluator whose answer cannot be re-derived from the
+  # payload and a rule, so what is asserted here is that a score exists only
+  # because a model produced it — and that when no model could be reached, the
+  # result says so rather than passing a heuristic off as a judgement.
   describe RAAF::Eval::Evaluators::LLM::LlmJudge do
     let(:evaluator) { described_class.new }
+    let(:result) { { output: "The capital of France is Paris. It is known for the Eiffel Tower." } }
+    let(:criteria) { "accuracy, clarity, relevance" }
 
-    context "with valid criteria" do
-      let(:result) { { output: "The capital of France is Paris. It is known for the Eiffel Tower." } }
-      let(:criteria) { "accuracy, clarity, relevance" }
+    # Never a real call: without a stub this reaches OpenAI on any machine that
+    # has the key in its environment.
+    def judge_answers(scores)
+      answer = { criteria: scores.map.with_index { |score, i| { criterion: "criterion_#{i + 1}", score: score } },
+                 overall_chain_of_thought: "judged" }.to_json
+      allow_any_instance_of(RAAF::Eval::Evaluators::LLM::GEval).to receive(:call_llm).and_return(answer)
+    end
 
-      it "evaluates against criteria" do
-        result = evaluator.evaluate(field_context, criteria: criteria)
+    it "scores from the judge's answer" do
+      judge_answers([0.4])
 
-        expect(result).to have_key(:label)
-        expect(result).to have_key(:score)
-        expect(result[:details][:criteria]).to eq(criteria)
-        expect(result[:details][:reasoning]).not_to be_empty
-        expect(result[:details][:confidence]).to be > 0
-      end
+      expect(evaluator.evaluate(field_context, criteria: criteria)[:score]).to be_within(0.001).of(0.4)
+    end
+
+    it "names the criteria it was asked to judge against" do
+      judge_answers([1.0])
+
+      expect(evaluator.evaluate(field_context, criteria: criteria)[:details][:criteria]).to eq(criteria)
+    end
+
+    it "explains itself in the judge's own words" do
+      judge_answers([1.0])
+
+      expect(evaluator.evaluate(field_context, criteria: criteria)[:details][:reasoning]).to eq("judged")
+    end
+
+    it "carries the judge's model and exchange, which is what the score can be checked against" do
+      judge_answers([1.0])
+
+      details = evaluator.evaluate(field_context, criteria: criteria)[:details]
+
+      expect(details[:judge_model]).to be_a(String)
+      expect(details[:judge_prompt]).to include("accuracy, clarity, relevance")
+      expect(details[:judge_response]).to include("overall_chain_of_thought")
+    end
+
+    it "raises when the judge was not reached rather than scoring the field anyway" do
+      allow_any_instance_of(RAAF::Eval::Evaluators::LLM::GEval).to receive(:call_llm).and_return(nil)
+
+      expect { evaluator.evaluate(field_context, criteria: criteria) }
+        .to raise_error(RAAF::Eval::JudgeUnavailableError, /could not be reached/)
+    end
+
+    it "raises when the judge answered something that cannot be read as criteria" do
+      allow_any_instance_of(RAAF::Eval::Evaluators::LLM::GEval)
+        .to receive(:call_llm).and_return("not json at all")
+
+      expect { evaluator.evaluate(field_context, criteria: criteria) }
+        .to raise_error(RAAF::Eval::JudgeUnavailableError, /could not be read/)
     end
 
     context "without criteria" do
@@ -39,15 +81,16 @@ RSpec.describe "LLM Evaluators" do
       end
     end
 
-    context "with short response" do
-      let(:result) { { output: "Yes" } }
-      let(:criteria) { "clarity" }
+    context "with nothing to judge" do
+      let(:result) { { output: nil } }
 
-      it "penalizes brevity" do
+      it "scores an empty field without asking anybody" do
+        expect_any_instance_of(RAAF::Eval::Evaluators::LLM::GEval).not_to receive(:call_llm)
+
         result = evaluator.evaluate(field_context, criteria: criteria)
 
-        expect(result[:score]).to be < 0.7
-        expect(result[:details][:reasoning]).to include("brief")
+        expect(result[:label]).to eq("bad")
+        expect(result[:score]).to eq(0.0)
       end
     end
   end

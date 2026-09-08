@@ -9,6 +9,63 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::GEval do
     RAAF::Eval::DSL::FieldContext.new(:output, { output: "Paris is the capital of France." })
   end
 
+  # Every example below used to call evaluate with nothing stubbed, and passed
+  # because a missing API key sent GEval into a word-count heuristic that always
+  # answered. The suite was therefore asserting the behaviour of the stand-in
+  # rather than of the judge, which is how a judge that had never run stayed
+  # green. There is no stand-in any more, so the judge's answer is stated here.
+  #
+  # Three criteria are returned regardless of how many were asked for: extras go
+  # unread, and the scores are distinct so the average and weighted-average
+  # examples are checking arithmetic rather than comparing a number to itself.
+  def judge_answers(scores = [0.9, 0.6, 0.75])
+    answer = {
+      criteria: scores.map.with_index { |score, i|
+        { criterion: "criterion_#{i + 1}", score: score,
+          reasoning: "criterion #{i + 1} reasoning" }
+      },
+      overall_chain_of_thought: "The output was read against each criterion in turn, and the " \
+                                "reasoning for each is recorded beside its score above."
+    }.to_json
+    allow_any_instance_of(described_class).to receive(:call_llm).and_return(answer)
+  end
+
+  before { judge_answers }
+
+  describe "provider routing" do
+    it "reaches Gemini for a gemini model, and OpenAI for anything else" do
+      evaluator = described_class.new(criteria: ["Output is clear"])
+
+      expect(evaluator.send(:provider_for, "gemini-2.5-flash")[:key_env]).to eq("GEMINI_API_KEY")
+      expect(evaluator.send(:provider_for, "gpt-4o-mini")[:key_env]).to eq("OPENAI_API_KEY")
+      expect(evaluator.send(:provider_for, "some-future-model")[:label]).to eq("OpenAI")
+    end
+  end
+
+  describe "judge usage" do
+    it "bills tokens the provider did not report as completion" do
+      evaluator = described_class.new(criteria: ["Output is clear"])
+
+      # gemini-2.5-pro reports thinking tokens only inside the total, and bills
+      # them at the output rate; reading completion_tokens alone understated a
+      # measured call by about four times.
+      usage = evaluator.send(:extract_usage,
+                             { "prompt_tokens" => 146, "completion_tokens" => 365, "total_tokens" => 1349 })
+
+      expect(usage[:output_tokens]).to eq(1203)
+      expect(usage[:total_tokens]).to eq(1349)
+    end
+
+    it "leaves a provider that reports everything alone" do
+      evaluator = described_class.new(criteria: ["Output is clear"])
+
+      usage = evaluator.send(:extract_usage,
+                             { "prompt_tokens" => 100, "completion_tokens" => 50, "total_tokens" => 150 })
+
+      expect(usage[:output_tokens]).to eq(50)
+    end
+  end
+
   describe "initialization" do
     it "requires at least one evaluation criterion" do
       expect do

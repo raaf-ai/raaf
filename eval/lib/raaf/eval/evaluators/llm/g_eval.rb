@@ -45,6 +45,30 @@ module RAAF
           DEFAULT_GOOD_THRESHOLD = 0.80
           DEFAULT_AVERAGE_THRESHOLD = 0.60
 
+          DEFAULT_JUDGE_MODEL = "gpt-4o-mini"
+
+          # Seconds to wait for the judge. The old value was 30, which is under
+          # what a reasoning model takes on a large payload: gemini-2.5-pro
+          # measured ~18s on a 288-token prompt, and the judged fields here run
+          # to twenty thousand. A timeout is not a low score, it is no score, so
+          # the cost of waiting is far below the cost of giving up early.
+          DEFAULT_READ_TIMEOUT = 120
+
+          # Where a judge model is reached, chosen by the model's own name so a
+          # check can name a judge without also naming an endpoint. Google
+          # serves an OpenAI-compatible route, so both providers take the same
+          # request and answer with the same token-usage keys; anything else
+          # OpenAI-compatible can be reached by pointing the base env at it.
+          # First match wins, so the catch-all stays last.
+          PROVIDERS = [
+            { match: /\Agemini[-.]/, label: "Gemini", key_env: "GEMINI_API_KEY",
+              base_env: "RAAF_JUDGE_GEMINI_API_BASE",
+              base: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions" },
+            { match: //, label: "OpenAI", key_env: "OPENAI_API_KEY",
+              base_env: "RAAF_JUDGE_OPENAI_API_BASE",
+              base: "https://api.openai.com/v1/chat/completions" }
+          ].freeze
+
           attr_reader :criteria, :criteria_weights
 
           # Initialize G-Eval evaluator with custom criteria
@@ -105,11 +129,21 @@ module RAAF
                          chain_of_thought: chain_of_thought,
                          criteria_evaluation: criteria_results,
                          # What this judgement cost. The judge is a billed model call that
-                         # leaves no tracing span — call_llm talks to OpenAI directly — so
-                         # unless the usage travels out with the result there is no record
-                         # of it anywhere and total_evaluation_cost can only ever be zero.
+                         # leaves no tracing span — call_llm posts to the provider directly
+                         # — so unless the usage travels out with the result there is no
+                         # record of it anywhere and total_evaluation_cost can only ever be
+                         # zero.
                          judge_model: @judge_model,
                          judge_usage: @judge_usage,
+                         # What the judge was asked and what it answered. A
+                         # rule's verdict can be re-derived from the payload and
+                         # the rule; a judge's cannot be checked at all without
+                         # these two, which is what the console's judge section
+                         # reads. There is no stand-in score to distinguish any
+                         # more: a judge that cannot be reached raises
+                         # JudgeUnavailableError rather than scoring the field.
+                         judge_prompt: @judge_prompt,
+                         judge_response: @judge_response,
                          evaluation_note: g_eval_note(overall_score, criteria_results, good_threshold, average_threshold))
           end
 
@@ -191,20 +225,20 @@ module RAAF
           # @return [Array<Array<Hash>, String>] Criteria results and chain-of-thought reasoning
           def llm_judge_criteria(output:, criteria:, model: nil)
             prompt = build_g_eval_prompt(output, criteria)
-            judge_model = model || "gpt-4o-mini"
+            judge_model = model || DEFAULT_JUDGE_MODEL
 
             @judge_model = judge_model
             @judge_usage = nil
+            @judge_prompt = prompt
+            @judge_response = nil
 
             response_text = call_llm(prompt, judge_model)
+            @judge_response = response_text
 
-            if response_text
-              result = parse_llm_response(response_text, criteria)
-              return result if result
-            end
+            raise JudgeUnavailableError, "#{judge_model} could not be reached" if response_text.nil?
 
-            RAAF.logger&.warn("[GEval] LLM judge unavailable, falling back to mock evaluation")
-            mock_criteria_evaluation(output, criteria)
+            parse_llm_response(response_text, criteria) ||
+              raise(JudgeUnavailableError, "#{judge_model} answered something that could not be read as criteria")
           end
 
           # Make a direct OpenAI chat completions call for evaluation
@@ -216,16 +250,17 @@ module RAAF
             require "net/http"
             require "json"
 
-            api_key = ENV.fetch("OPENAI_API_KEY", nil)
+            provider = provider_for(model)
+            api_key = ENV.fetch(provider[:key_env], nil)
             unless api_key&.present?
-              RAAF.logger&.warn("[GEval] OPENAI_API_KEY not set, cannot run LLM judge")
+              RAAF.logger&.warn("[GEval] #{provider[:key_env]} not set, cannot run #{model}")
               return nil
             end
 
-            uri = URI("https://api.openai.com/v1/chat/completions")
+            uri = URI(ENV.fetch(provider[:base_env], provider[:base]))
             http = Net::HTTP.new(uri.host, uri.port)
             http.use_ssl = true
-            http.read_timeout = 30
+            http.read_timeout = ENV.fetch("RAAF_JUDGE_READ_TIMEOUT", DEFAULT_READ_TIMEOUT).to_i
             http.open_timeout = 10
 
             req = Net::HTTP::Post.new(uri)
@@ -240,7 +275,7 @@ module RAAF
 
             response = http.request(req)
             unless response.is_a?(Net::HTTPSuccess)
-              RAAF.logger&.warn("[GEval] OpenAI API returned #{response.code}: #{response.body[0..200]}")
+              RAAF.logger&.warn("[GEval] #{provider[:label]} returned #{response.code}: #{response.body[0..200]}")
               return nil
             end
 
@@ -252,10 +287,25 @@ module RAAF
             nil
           end
 
-          # Normalise the usage block OpenAI returns into the keys
+          # Which provider serves this model.
+          #
+          # @param model [String] the judge model
+          # @return [Hash] the matching PROVIDERS entry
+          def provider_for(model)
+            PROVIDERS.find { |provider| provider[:match].match?(model.to_s) }
+          end
+
+          # Normalise the usage block the provider returns into the keys
           # RAAF::Usage::CostCalculator expects. A response without usage (a
-          # mocked or cached judge) yields nil rather than zeros, so "we did not
-          # measure" stays distinguishable from "it was free".
+          # cached judge) yields nil rather than zeros, so "we did not measure"
+          # stays distinguishable from "it was free".
+          #
+          # Output is the larger of what was reported and what is left after the
+          # prompt, because a reasoning model bills tokens it does not report as
+          # completion: gemini-2.5-pro measured 365 completion tokens against a
+          # 1349 total on a 146-token prompt, and Google bills those 838
+          # thinking tokens at the output rate. Reading completion_tokens alone
+          # understated that call by a factor of about four.
           #
           # @param usage [Hash, nil] raw usage block from the API response
           # @return [Hash, nil] input/output/total token counts
@@ -266,10 +316,12 @@ module RAAF
             output = usage["completion_tokens"] || usage["output_tokens"]
             return nil if input.nil? && output.nil?
 
+            total = (usage["total_tokens"] || (input.to_i + output.to_i)).to_i
+
             {
               input_tokens: input.to_i,
-              output_tokens: output.to_i,
-              total_tokens: (usage["total_tokens"] || (input.to_i + output.to_i)).to_i
+              output_tokens: [output.to_i, total - input.to_i].max,
+              total_tokens: total
             }
           end
 
@@ -345,120 +397,6 @@ module RAAF
                 "overall_chain_of_thought": "Overall reasoning summary..."
               }
             PROMPT
-          end
-
-          # Mock criteria evaluation (placeholder for actual LLM call)
-          #
-          # @param output [String] Output to evaluate
-          # @param criteria [Array<Hash>] Evaluation criteria
-          # @return [Array<Array<Hash>, String>] Criteria results and chain-of-thought
-          def mock_criteria_evaluation(output, criteria)
-            # Simple heuristic-based mock evaluation
-            output_lower = output.downcase
-            output_length = output.split.size
-
-            # Evaluate each criterion with mock scoring
-            criteria_results = criteria.map do |criterion|
-              # Mock scoring based on output characteristics
-              score = mock_criterion_score(output_lower, output_length, criterion[:description])
-
-              {
-                criterion: criterion[:criterion],
-                description: criterion[:description],
-                weight: criterion[:weight],
-                score: score,
-                reasoning: mock_criterion_reasoning(score, criterion[:description])
-              }
-            end
-
-            # Generate mock chain-of-thought
-            chain_of_thought = mock_chain_of_thought(criteria_results, output)
-
-            [criteria_results, chain_of_thought]
-          end
-
-          # Mock scoring for a single criterion
-          #
-          # @param output_lower [String] Lowercase output
-          # @param output_length [Integer] Word count
-          # @param description [String] Criterion description
-          # @return [Float] Score between 0.0 and 1.0
-          def mock_criterion_score(output_lower, output_length, description)
-            # Heuristic-based scoring
-            base_score = 0.7
-
-            # Adjust based on output length (reasonable length is good)
-            length_factor = if output_length.between?(5, 50)
-                              0.1
-                            elsif output_length < 5
-                              -0.1
-                            else
-                              0.0
-                            end
-
-            # Adjust based on criterion keywords
-            keyword_factor = if description.downcase.include?("accurate") && output_lower.include?("is")
-                               0.15
-                             elsif description.downcase.include?("clear") && output_length < 30
-                               0.1
-                             elsif description.downcase.include?("concise") && output_length < 20
-                               0.15
-                             else
-                               0.05
-                             end
-
-            score = base_score + length_factor + keyword_factor
-            [[score, 0.0].max, 1.0].min
-          end
-
-          # Generate mock reasoning for a criterion
-          #
-          # @param score [Float] Criterion score
-          # @param description [String] Criterion description
-          # @return [String] Reasoning explanation
-          def mock_criterion_reasoning(score, description)
-            if score >= 0.85
-              "The output strongly satisfies the criterion '#{description}'. " \
-                "It demonstrates clear alignment with the evaluation standard."
-            elsif score >= 0.70
-              "The output adequately meets the criterion '#{description}'. " \
-                "There is room for minor improvements."
-            elsif score >= 0.50
-              "The output partially meets the criterion '#{description}'. " \
-                "Significant improvements are needed."
-            else
-              "The output fails to meet the criterion '#{description}'. " \
-                "Substantial revision is required."
-            end
-          end
-
-          # Generate mock overall chain-of-thought
-          #
-          # @param criteria_results [Array<Hash>] Individual criterion results
-          # @param output [String] Output that was evaluated
-          # @return [String] Overall chain-of-thought reasoning
-          def mock_chain_of_thought(criteria_results, output)
-            avg_score = criteria_results.sum { |r| r[:score] } / criteria_results.size.to_f
-
-            reasoning = "Evaluation Summary:\n"
-            truncated_output = output.length > 50 ? "#{output[0...47]}..." : output
-            reasoning += "Analyzed output: '#{truncated_output}'\n\n"
-
-            criteria_results.each_with_index do |result, index|
-              reasoning += "Criterion #{index + 1} (#{result[:description]}): "
-              reasoning += "Score #{(result[:score] * 100).round}% - #{result[:reasoning]}\n"
-            end
-
-            reasoning += "\nOverall Assessment: "
-            reasoning += if avg_score >= 0.80
-                           "The output performs well across most criteria."
-                         elsif avg_score >= 0.60
-                           "The output shows acceptable performance with room for improvement."
-                         else
-                           "The output requires significant revision to meet criteria standards."
-                         end
-
-            reasoning
           end
 
           # Calculate overall score from criteria results

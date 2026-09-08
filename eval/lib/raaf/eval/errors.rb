@@ -29,6 +29,18 @@ module RAAF
     # Error raised during evaluation processing
     class EvaluationError < Error; end
 
+    # Raised when a judged check could not reach a judge, or could not read what
+    # the judge answered.
+    #
+    # It is an error rather than a low score on purpose. A judge that cannot be
+    # reached has said nothing about the output, and anything returned in its
+    # place — a heuristic, a default, a middling number — is indistinguishable
+    # on a dashboard from a real verdict about a mediocre agent. Raising sends
+    # the check down FieldEvaluatorSet's failure path, which records it as
+    # +error+ with no score, so "we did not measure this" and "we measured this
+    # and it was poor" stay different answers.
+    class JudgeUnavailableError < Error; end
+
     # Error raised when deprecated DSL features are used
     # @since 2.0.0
     class DeprecatedDSLError < Error
