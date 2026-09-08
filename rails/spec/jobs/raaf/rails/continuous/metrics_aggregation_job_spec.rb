@@ -19,7 +19,7 @@ RSpec.describe RAAF::Rails::Continuous::MetricsAggregationJob, type: :job do
         agent_name: agent_name,
         model: model,
         environment: environment,
-        status: i < 4 ? "passed" : "failed",
+        status: i < 4 ? "good" : "bad",
         score: (0.8 + (i * 0.05)).round(4),
         scores: { "quality" => 0.9 },
         metrics: { "cost" => 0.001 },
@@ -27,7 +27,7 @@ RSpec.describe RAAF::Rails::Continuous::MetricsAggregationJob, type: :job do
         details: {},
         evaluation_duration_ms: 100 + (i * 10),
         evaluation_started_at: 1.hour.ago,
-        evaluation_completed_at: 1.hour.ago + (100 + (i * 10)).milliseconds,
+        evaluation_completed_at: 1.hour.ago + ((100 + (i * 10)) / 1000.0),
         created_at: 1.hour.ago
       )
     end
@@ -39,6 +39,23 @@ RSpec.describe RAAF::Rails::Continuous::MetricsAggregationJob, type: :job do
         expect do
           described_class.perform_now(period_type: "hourly")
         end.to change(RAAF::Eval::Models::EvaluationMetric, :count).by_at_least(1)
+      end
+
+      # A manual sweep grades spans somebody chose by hand, with evaluators no
+      # policy samples. Counting it here would move a percentile that exists to
+      # answer whether production got better or worse.
+      it "leaves a hand-run evaluation out of the aggregate" do
+        RAAF::Eval::Models::ContinuousEvaluationResult.create!(
+          span_id: "span-manual", trace_id: "trace-manual",
+          evaluation_type: "manual", evaluator_name: evaluator_name,
+          evaluator_type: "rule_based", agent_name: agent_name, model: model,
+          environment: environment, status: "bad", score: 0.0,
+          created_at: 1.hour.ago
+        )
+
+        described_class.perform_now(period_type: "hourly")
+
+        expect(RAAF::Eval::Models::EvaluationMetric.last.total_evaluations).to eq(5)
       end
 
       it "computes correct aggregate statistics" do
@@ -101,9 +118,12 @@ RSpec.describe RAAF::Rails::Continuous::MetricsAggregationJob, type: :job do
     end
 
     context "with invalid period type" do
+      # Called on the instance rather than through perform_now: the job retries
+      # on StandardError, so going through ActiveJob would swallow this and
+      # schedule an hour's wait for an argument that will never become valid.
       it "raises an error" do
         expect do
-          described_class.perform_now(period_type: "invalid")
+          described_class.new.perform(period_type: "invalid")
         end.to raise_error(ArgumentError, /Invalid period_type/)
       end
     end
@@ -137,7 +157,7 @@ RSpec.describe RAAF::Rails::Continuous::MetricsAggregationJob, type: :job do
           agent_name: agent_name,
           model: model,
           environment: environment,
-          status: "passed",
+          status: "good",
           score: 0.95,
           scores: {},
           metrics: {},
@@ -170,7 +190,7 @@ RSpec.describe RAAF::Rails::Continuous::MetricsAggregationJob, type: :job do
           agent_name: "OtherAgent",
           model: "claude-3",
           environment: "production",
-          status: "passed",
+          status: "good",
           score: 0.88,
           scores: {},
           metrics: {},
@@ -218,7 +238,7 @@ RSpec.describe RAAF::Rails::Continuous::MetricsAggregationJob, type: :job do
 
       expect do
         described_class.perform_now(period_type: "hourly")
-      end.to raise_error(StandardError)
+      end.to have_enqueued_job(described_class)
     end
   end
 end

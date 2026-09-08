@@ -83,8 +83,16 @@ module RAAF
         # @param end_time [Time] Period end
         # @param interval [ActiveSupport::Duration] Time interval for grouping
         def aggregate_for_period(period_type, start_time, end_time, interval)
-          # Get all results in the time range
+          # Get all results in the time range.
+          #
+          # Automated only. A manual sweep grades whatever span happens to be
+          # newest -- months old if that is what exists, against evaluators no
+          # policy samples -- so folding it in would move a p50 that is supposed
+          # to answer "is this agent scoring worse this week than last". The
+          # rows are still in the table and still on the Results page; they are
+          # just not evidence about production traffic.
           results = RAAF::Eval::Models::ContinuousEvaluationResult
+                    .automated
                     .where(created_at: start_time..end_time)
 
           # Group results by dimensions

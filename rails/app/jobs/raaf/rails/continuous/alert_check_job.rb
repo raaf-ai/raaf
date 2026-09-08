@@ -145,13 +145,20 @@ module RAAF
 
         # Helper methods
 
+        # Automated only, on both sides of the comparison. A manual sweep picks
+        # its own spans and its own evaluators, so letting it into either window
+        # would raise "quality degradation" for an agent whose production
+        # traffic never moved -- or hide a real drop behind a good hand-run
+        # score.
         def recent_evaluation_results
           RAAF::Eval::Models::ContinuousEvaluationResult
+            .automated
             .where("created_at > ?", LOOKBACK_PERIOD.ago)
         end
 
         def baseline_evaluation_results(agent_name)
           RAAF::Eval::Models::ContinuousEvaluationResult
+            .automated
             .where(agent_name: agent_name)
             .where("created_at > ? AND created_at <= ?", 2 * LOOKBACK_PERIOD.ago, LOOKBACK_PERIOD.ago)
         end
