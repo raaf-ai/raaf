@@ -183,7 +183,9 @@ module RAAF
 
     # Merge strategy configuration class
     class MergeStrategyConfig
-      attr_reader :key_field, :array_merge_fields, :latest_fields, :sum_fields,
+      # key_field and sum_fields double as DSL setters below, so they are not
+      # listed here — an attr_reader would just be shadowed by the method.
+      attr_reader :array_merge_fields, :latest_fields,
                   :object_merge_fields, :custom_merge_rules
 
       def initialize
@@ -195,8 +197,11 @@ module RAAF
         @custom_merge_rules = {}
       end
 
-      # Set the key field for grouping items
-      def key_field(field_name)
+      # Set the key field for grouping items, or read it back when called
+      # without an argument (which is how DataMerger consumes the strategy).
+      def key_field(field_name = nil)
+        return @key_field if field_name.nil?
+
         @key_field = field_name
       end
 
@@ -210,8 +215,11 @@ module RAAF
         @latest_fields.concat(fields.map(&:to_sym))
       end
 
-      # Fields that should be summed (for numeric values)
+      # Fields that should be summed (for numeric values), or the current list
+      # when called without arguments.
       def sum_fields(*fields)
+        return @sum_fields if fields.empty?
+
         @sum_fields.concat(fields.map(&:to_sym))
       end
 

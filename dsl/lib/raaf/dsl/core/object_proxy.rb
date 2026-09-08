@@ -55,10 +55,15 @@ module RAAF
       end
 
       # Override method_missing to add access control and caching
+      #
+      # Delegator undefines Kernel's private methods so they route to the target
+      # instead, and keeps `raise` reachable as `__raise__`. Calling a bare
+      # `raise` from here would re-enter method_missing and recurse forever, so
+      # every raise in this class has to go through `__raise__`.
       def method_missing(method_name, *args, &block)
         # Check if method is allowed
         unless method_allowed?(method_name)
-          raise NoMethodError, "Method '#{method_name}' is not allowed on proxied object"
+          __raise__ NoMethodError, "Method '#{method_name}' is not allowed on proxied object"
         end
 
         # Track access
@@ -81,7 +86,7 @@ module RAAF
         end
       rescue NoMethodError => e
         # Re-raise with more context
-        raise NoMethodError, "#{e.message} on #{@__target__.class.name} proxy"
+        __raise__ NoMethodError, "#{e.message} on #{@__target__.class.name} proxy"
       end
 
       # Check if proxy responds to a method
@@ -136,14 +141,15 @@ module RAAF
         # Never allow private methods starting with _
         return false if method_str.start_with?("_")
 
+        # :methods names extra methods to expose, so it wins over both lists —
+        # otherwise `only:` would silently discard everything it added.
+        return true if @__options__[:methods]&.include?(method_sym)
+
         # Check whitelist (only)
         return @__options__[:only].include?(method_sym) if @__options__[:only]
 
         # Check blacklist (except)
         return !@__options__[:except].include?(method_sym) if @__options__[:except]
-
-        # Check if it's in additional methods
-        return true if @__options__[:methods] && @__options__[:methods].include?(method_sym)
 
         # Default: allow public methods
         @__target__.respond_to?(method_name)
@@ -188,7 +194,9 @@ module RAAF
           parent_method: method_name
         )
 
-        self.class.new(result, **nested_options)
+        # Not self.class: `class` is delegated to the target, so it would return
+        # the wrapped object's class and try to construct one of those instead.
+        ObjectProxy.new(result, **nested_options)
       end
     end
 

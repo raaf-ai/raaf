@@ -19,7 +19,9 @@ module RAAF
         email: {
           type: :string,
           format: :email,
-          pattern: /\A[\w+\-.]+@[a-z\d-]+(\.[a-z\d-]+)*\.[a-z]+\z/i
+          # Local part is dot-separated atoms, so a run of dots ("a..b@x.com")
+          # is rejected the way a single leading/trailing dot already was.
+          pattern: /\A[\w+\-]+(\.[\w+\-]+)*@[a-z\d-]+(\.[a-z\d-]+)*\.[a-z]+\z/i
         },
         url: {
           type: :string,
@@ -37,7 +39,8 @@ module RAAF
         },
         phone: {
           type: :string,
-          pattern: /\A\+?[1-9]\d{1,14}\z/
+          # E.164: a mandatory "+", a non-zero country digit, and at most 15 digits.
+          pattern: /\A\+[1-9]\d{1,14}\z/
         },
         positive_integer: {
           type: :integer,

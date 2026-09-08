@@ -20,6 +20,22 @@ module RAAF
     #     .field(:insights, :text)
     #   schema = builder.to_schema
     class SchemaBuilder
+      # Active Record column types that have no JSON Schema equivalent of their own.
+      # SchemaGenerator already collapses these when introspecting a model; fields
+      # declared by hand go through the same map so that `field(:insights, :text)`
+      # emits a "string" rather than a type OpenAI will reject.
+      TYPE_ALIASES = {
+        text: :string,
+        date: :string,
+        time: :string,
+        datetime: :string,
+        timestamp: :string,
+        bigint: :integer,
+        decimal: :number,
+        float: :number,
+        numeric: :number
+      }.freeze
+
       # Initialize schema builder
       #
       # @param model [Class, nil] Optional Active Record model class for auto-generation
@@ -66,6 +82,12 @@ module RAAF
         # New: field(:name, :string, minimum: 0)
         # Old: field(:name, type: :string, required: true, description: "Name")
         actual_type = positional_type || type || :string
+
+        # Collapse Active Record column types onto their JSON Schema equivalent,
+        # leaving semantic types (which own their own definition) untouched.
+        unless RAAF::DSL::Types.semantic?(actual_type)
+          actual_type = TYPE_ALIASES.fetch(actual_type.to_sym, actual_type) if actual_type.respond_to?(:to_sym)
+        end
 
         # Handle semantic types first
         type_definition = RAAF::DSL::Types.define(actual_type, **options)
@@ -158,6 +180,7 @@ module RAAF
       #   builder.required(:name, :email)
       def required(*fields)
         @required.concat(fields)
+        @required.uniq!
         self
       end
 
@@ -177,9 +200,16 @@ module RAAF
       # @example With constraints
       #   builder.array_of(:scores, :integer, minimum: 0, maximum: 100)
       def array_of(name, item_type, **options)
+        item_definition = RAAF::DSL::Types.define(item_type, **options)
+
+        # Types.define only knows the semantic types; for a basic type such as
+        # :string or :integer it returns the options alone, so the item type has
+        # to be supplied here or the items schema comes out without a type.
+        item_definition = { type: item_type.to_s }.merge(item_definition) unless item_definition.key?(:type)
+
         @properties[name] = {
           type: :array,
-          items: RAAF::DSL::Types.define(item_type, **options)
+          items: item_definition
         }
         self
       end
@@ -235,9 +265,9 @@ module RAAF
       #
       # @example
       #   schema = builder.to_schema
-      #   puts schema[:type]        # => :object
-      #   puts schema[:properties]  # => {...}
-      #   puts schema[:required]    # => [...]
+      #   puts schema["type"]        # => "object"
+      #   puts schema["properties"]  # => {...}
+      #   puts schema["required"]    # => [...]
       def to_schema
         schema = {
           type: "object",

@@ -194,6 +194,10 @@ module RAAF
             result[member.to_s] = serialize(struct[member], next_options) if attribute_allowed?(member, options)
           end
 
+          options[:methods]&.each do |method|
+            result[method.to_s] = serialize(struct.send(method), next_options) if struct.respond_to?(method)
+          end
+
           result
         end
 

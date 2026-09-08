@@ -311,7 +311,9 @@ module RAAF
       def merge!(other)
         other_vars = other.is_a?(self.class) ? other.to_h : other
         other_vars.each do |key, value|
-          set(key, value)
+          # []= mutates; set() would build a new instance and throw it away,
+          # leaving this "in-place" merge with nothing to show for itself.
+          self[key] = value
         end
         self
       end

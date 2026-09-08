@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative "../core/context_builder"
+
 module RAAF
   module DSL
     module Context
@@ -86,7 +88,9 @@ module RAAF
             objects.each { |key, obj| proxy(key, obj, **options) }
           when Array
             if as_key
-              proxy(as_key, objects, **options)
+              # The shared options describe each element, so proxy the elements
+              # and keep the collection itself a plain Array.
+              set(as_key, objects.map { |obj| build_proxy(obj, options) })
             else
               objects.each_with_index do |obj, index|
                 proxy(:"item_#{index}", obj, **options)
@@ -213,9 +217,6 @@ module RAAF
           # Validate the final context
           validate_context if @validation_rules.any? || @required_keys.any?
 
-          # Log debug information if enabled
-          log_debug_info if @debug_enabled
-
           @context_variables
         end
 
@@ -243,20 +244,28 @@ module RAAF
         end
 
         def apply_proxies
-          require_relative "../core/object_proxy" unless defined?(RAAF::DSL::ObjectProxy)
-
           @proxy_configs.each do |key, config|
             object = config[:object]
-            options = config[:options]
 
-            if object.nil?
-              @context_variables = @context_variables.set(key, nil)
-            else
-              # Create proxy with configuration
-              proxy = ObjectProxy.new(object, **options)
-              @context_variables = @context_variables.set(key, proxy)
-            end
+            @context_variables = if object.nil?
+                                   @context_variables.set(key, nil)
+                                 else
+                                   @context_variables.set(key, build_proxy(object, config[:options]))
+                                 end
           end
+        end
+
+        # Build a single ObjectProxy, translating this class's option spelling
+        # onto ObjectProxy's. `with_methods:` is what the DSL documents; the
+        # proxy itself calls the same thing `methods:`.
+        def build_proxy(object, options)
+          require_relative "../core/object_proxy" unless defined?(RAAF::DSL::ObjectProxy)
+
+          proxy_options = options.dup
+          extra_methods = proxy_options.delete(:with_methods)
+          proxy_options[:methods] = extra_methods if extra_methods
+
+          ObjectProxy.new(object, **proxy_options)
         end
 
         def validate_context
@@ -285,9 +294,13 @@ module RAAF
           end
 
           # Presence of attributes validation (for objects)
-          if rules[:presence].is_a?(Array) && value.respond_to?(:[])
+          if rules[:presence].is_a?(Array) && !value.nil?
             missing_attrs = rules[:presence].reject do |attr|
-              attr_value = value[attr] || (value.respond_to?(attr) ? value.send(attr) : nil)
+              attr_value = if value.respond_to?(:[])
+                             value[attr]
+                           elsif value.respond_to?(attr)
+                             value.send(attr)
+                           end
               attr_value.present?
             end
 
@@ -300,16 +313,6 @@ module RAAF
           return unless rules[:validate] && !rules[:validate].call(value)
 
           raise ArgumentError, "Context key '#{key}' failed custom validation"
-        end
-
-        def log_debug_info
-          log_debug_context "[SmartBuilder] Context built successfully",
-                            data: {
-                              keys: @context_variables.keys,
-                              proxied_objects: @proxy_configs.keys,
-                              total_size: @context_variables.size,
-                              validation_rules: @validation_rules.keys
-                            }
         end
       end
     end
