@@ -47,7 +47,7 @@ module RAAF
             evaluation_run: run,
             name: config[:name],
             configuration_type: determine_configuration_type(config[:changes]),
-            changes: config[:changes],
+            configuration_changes: config[:changes],
             execution_order: config[:execution_order] || index,
             metadata: config[:metadata] || {}
           )
@@ -102,7 +102,7 @@ module RAAF
 
       def execute_configuration(run, config, baseline_config, baseline_span)
         # Apply configuration changes
-        modified_config = apply_configuration_changes(baseline_config, config.changes)
+        modified_config = apply_configuration_changes(baseline_config, config.configuration_changes)
 
         # Create agent with modified configuration
         agent = create_agent_from_config(modified_config)
@@ -190,8 +190,10 @@ module RAAF
         token_metrics = Metrics::TokenMetrics.calculate(baseline_span, result_span)
         eval_result.update!(token_metrics: token_metrics)
 
-        # Calculate latency metrics (mock for now)
-        latency_metrics = { total_ms: 1000 }
+        # Calculate latency metrics. The hand-written placeholder that used to sit here
+        # carried neither :delta_ms nor :percentage_change, so BaselineComparator read
+        # nil for the latency change and every configuration ended up a failed result.
+        latency_metrics = Metrics::LatencyMetrics.calculate(baseline_span, result_span)
         eval_result.update!(latency_metrics: latency_metrics)
 
         # Calculate baseline comparison

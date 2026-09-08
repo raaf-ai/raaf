@@ -16,66 +16,66 @@ module RAAF
         validates :name, presence: true
         validates :configuration_type, presence: true,
                                        inclusion: { in: %w[model_change parameter_change prompt_change provider_change combined] }
-        validates :changes, presence: true
+        validates :configuration_changes, presence: true
 
         # Scopes
         scope :by_type, ->(type) { where(configuration_type: type) }
         scope :ordered, -> { order(:execution_order) }
 
         ##
-        # Get model from changes
+        # Get model from the configuration's changes
         # @return [String, nil]
         def model
-          changes&.dig("model")
+          configuration_changes&.dig("model")
         end
 
         ##
         # Get provider from changes
         # @return [String, nil]
         def provider
-          changes&.dig("provider")
+          configuration_changes&.dig("provider")
         end
 
         ##
         # Get parameters from changes
         # @return [Hash, nil]
         def parameters
-          changes&.dig("parameters")
+          configuration_changes&.dig("parameters")
         end
 
         ##
         # Get instructions from changes
         # @return [String, nil]
         def instructions
-          changes&.dig("instructions")
+          configuration_changes&.dig("instructions")
         end
 
         ##
         # Check if configuration changes model
         # @return [Boolean]
         def changes_model?
-          changes&.key?("model")
+          configuration_changes&.key?("model")
         end
 
         ##
         # Check if configuration changes provider
         # @return [Boolean]
         def changes_provider?
-          changes&.key?("provider")
+          configuration_changes&.key?("provider")
         end
 
         ##
         # Check if configuration changes parameters
         # @return [Boolean]
         def changes_parameters?
-          changes&.key?("parameters")
+          configuration_changes&.key?("parameters")
         end
 
         ##
         # Check if configuration changes instructions/prompt
         # @return [Boolean]
         def changes_prompt?
-          changes&.key?("instructions")
+          configuration_changes&.key?("instructions")
         end
       end
     end

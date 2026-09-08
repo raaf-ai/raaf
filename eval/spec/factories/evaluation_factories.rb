@@ -32,7 +32,7 @@ FactoryBot.define do
     association :evaluation_run
     name { "Model Change Test" }
     configuration_type { "model_change" }
-    changes { { model: "claude-3-5-sonnet-20241022", provider: "anthropic" } }
+    configuration_changes { { model: "claude-3-5-sonnet-20241022", provider: "anthropic" } }
     execution_order { 0 }
   end
 

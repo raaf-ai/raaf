@@ -74,13 +74,12 @@ RSpec.describe RAAF::Eval::EvaluationEngine do
 
       let(:run_result) do
         RAAF::RunResult.new(
-          agent_name: "TestAgent",
+          last_agent: agent,
           messages: [
             { role: "user", content: "What is 2+2?" },
             { role: "assistant", content: "4" }
           ],
-          usage: { total_tokens: 50, input_tokens: 10, output_tokens: 40 },
-          final_output: "4"
+          usage: { total_tokens: 50, input_tokens: 10, output_tokens: 40 }
         )
       end
 
@@ -144,19 +143,22 @@ RSpec.describe RAAF::Eval::EvaluationEngine do
 
   describe "#execute_run" do
     let(:run) { create(:evaluation_run) }
-    let(:baseline_span) { create(:evaluation_span, span_id: run.baseline_span_id) }
-    let(:config) do
+    let!(:baseline_span) { create(:evaluation_span, span_id: run.baseline_span_id) }
+    let!(:config) do
       create(:evaluation_configuration,
              evaluation_run: run,
-             changes: { model: "gpt-4o" })
+             configuration_changes: { model: "gpt-4o" })
+    end
+
+    let(:run_result) do
+      double(messages: [{ role: "assistant", content: "Response" }],
+             usage: { total_tokens: 55, input_tokens: 10, output_tokens: 45 })
     end
 
     before do
-      # Mock RAAF::Runner to avoid actual API calls
-      allow_any_instance_of(RAAF::Runner).to receive(:run).and_return(
-        double(messages: [{ role: "assistant", content: "Response" }],
-               usage: { total_tokens: 55, input_tokens: 10, output_tokens: 45 })
-      )
+      # Stand in for the whole runner: building one asks for an API key, so stubbing
+      # only #run still left the engine unable to reach this point.
+      allow(RAAF::Runner).to receive(:new).and_return(instance_double(RAAF::Runner, run: run_result))
     end
 
     it "executes configurations and creates results" do
@@ -174,10 +176,22 @@ RSpec.describe RAAF::Eval::EvaluationEngine do
       expect(run.status).to eq("completed")
     end
 
-    it "handles execution failures gracefully" do
-      allow_any_instance_of(RAAF::Runner).to receive(:run).and_raise(StandardError, "API Error")
+    it "records a configuration that raises as a failed result and finishes the run" do
+      allow(RAAF::Runner).to receive(:new).and_raise(StandardError, "API Error")
 
-      expect { engine.execute_run(run) }.to raise_error(StandardError)
+      results = engine.execute_run(run)
+
+      expect(results.map(&:status)).to eq(["failed"])
+      expect(results.first.error_message).to eq("API Error")
+
+      run.reload
+      expect(run.status).to eq("completed")
+    end
+
+    it "fails the run when the baseline it was built from has gone" do
+      baseline_span.destroy!
+
+      expect { engine.execute_run(run) }.to raise_error(ActiveRecord::RecordNotFound)
 
       run.reload
       expect(run.status).to eq("failed")

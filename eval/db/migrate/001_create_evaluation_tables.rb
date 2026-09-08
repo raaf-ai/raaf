@@ -45,7 +45,7 @@ class CreateEvaluationTables < ActiveRecord::Migration[7.0]
       t.references :evaluation_run, null: false, foreign_key: true
       t.string :name, null: false
       t.string :configuration_type, null: false
-      t.jsonb :changes, null: false
+      t.jsonb :configuration_changes, null: false
       t.integer :execution_order, default: 0
       t.jsonb :metadata, default: {}
       t.timestamps
@@ -54,7 +54,7 @@ class CreateEvaluationTables < ActiveRecord::Migration[7.0]
     add_index :evaluation_configurations, %i[evaluation_run_id execution_order],
               name: "idx_eval_configs_on_run_id_and_order"
     add_index :evaluation_configurations, :configuration_type
-    add_index :evaluation_configurations, :changes, using: :gin
+    add_index :evaluation_configurations, :configuration_changes, using: :gin
 
     # Create evaluation_results table
     create_table :evaluation_results do |t|
