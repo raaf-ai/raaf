@@ -71,8 +71,16 @@ module RAAF
 
     class << self
 
+      attr_writer :config
+
+      # Nothing ever assigned this, so `create_tracer` and `enabled?` read nil
+      # and raised — the engine's monitoring initializer among them, which took
+      # down every Rails app that mounted RAAF::Rails::Engine.
+      #
       # @return [Hash] Current tracing configuration
-      attr_accessor :config
+      def config
+        @config ||= DEFAULT_CONFIG.dup
+      end
 
       ##
       # Configure tracing settings
