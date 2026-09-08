@@ -1,3 +1,14 @@
+# Custom cops. The RAAF/Evaluator* cops police this repo's evaluator library and
+# ship with their scoping in the gem's config/default.yml, so nothing needs
+# declaring here. This require also matches the one in ProspectsRadar's
+# .rubocop.yml two levels up, which used to abort a run from inside this repo
+# because the gem was absent from our bundle.
+require:
+  - ai-rubocops
+
+inherit_from:
+  - .rubocop_app_cops.yml
+
 # Cop plugins are loaded process-wide as soon as any config in the tree declares
 # them, so the root config has to declare them too. Without this, a repo-wide run
 # registers the RSpec/Rails cops via core/.rubocop.yml and friends, then crashes
@@ -7,8 +18,7 @@ plugins:
   - rubocop-rake
   - rubocop-rails
 
-# Only rails/ and eval-ui/ are Rails code; they enable the department in their
-# own configs.
+# Only rails/ is Rails code; it enables the department in its own config.
 Rails:
   Enabled: false
 

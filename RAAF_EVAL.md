@@ -9,7 +9,7 @@
 RAAF Eval is a comprehensive AI agent evaluation and testing framework for Ruby AI Agents Factory (RAAF). It enables systematic testing and validation of agent behavior when changing LLMs, parameters, or prompts through two complementary interfaces:
 
 - **raaf-eval** - Core evaluation engine with RSpec integration for automated testing
-- **raaf-eval-ui** - Interactive web UI for exploratory evaluation and optimization
+- **raaf-rails** - The RAAF console, whose evaluation screens cover exploratory evaluation and optimization
 
 ## Quick Links
 
@@ -26,9 +26,8 @@ RAAF Eval is a comprehensive AI agent evaluation and testing framework for Ruby 
 - **[Statistical LLM Judge Guide](eval/docs/LLM_JUDGE_GUIDE.md)** - Bias-corrected LLM-as-a-Judge evaluation
 
 ### UI Documentation
-- **[UI Installation](eval-ui/README.md)** - Setting up the web interface
-- **[Integration Guide](eval-ui/INTEGRATION_GUIDE.md)** - Integrating with RAAF ecosystem
-- **[Contributing](eval-ui/CONTRIBUTING.md)** - Development guidelines
+- **[Console Installation](rails/README.md)** - Mounting the RAAF console
+- **[Contributing](CONTRIBUTING.md)** - Development guidelines
 
 ### Technical Reference
 - **[Database Schema](eval/MIGRATIONS.md)** - Database structure and migrations
@@ -60,16 +59,16 @@ end
 
 **40+ RSpec matchers available** for performance, quality, regression, safety, and more.
 
-### 2. Interactive Optimization (raaf-eval-ui)
+### 2. Interactive Optimization (raaf-rails console)
 
-Use the web UI for exploratory testing:
+Use the console for exploratory testing:
 
 1. **Browse Spans** - Filter production traces by agent, model, status
-2. **Edit Prompts** - Monaco Editor with syntax highlighting and diff view
-3. **Modify Settings** - Adjust model, temperature, max_tokens
-4. **Run Evaluations** - Real-time execution with progress updates
-5. **Compare Results** - Side-by-side diff with metrics and deltas
-6. **Save Sessions** - Resume evaluation experiments
+2. **Replay a Span** - Re-run it with an edited prompt and different model settings
+3. **Compare Results** - Read the replay beside the original span it came from
+4. **Run Experiments** - Score a prompt version against a dataset
+5. **Record Feedback** - Attach feedback scores to spans and traces
+6. **Monitor Continuously** - Policies that evaluate production spans as they arrive
 
 ## Key Features
 
@@ -85,13 +84,13 @@ Use the web UI for exploratory testing:
 - ✅ **Fluent DSL** - Clean, readable test syntax
 - ✅ **CI/CD Ready** - Run in automated pipelines
 
-### Web UI (Phase 3)
+### Console UI (Phase 3)
 - ✅ **Span Browser** - Filter, search, paginate production spans
-- ✅ **Prompt Editor** - Monaco Editor with diff view
-- ✅ **Settings Form** - AI configuration interface
-- ✅ **Real-time Progress** - Turbo Streams updates
-- ✅ **Results Comparison** - Side-by-side metrics
-- ✅ **Session Management** - Save and resume experiments
+- ✅ **Span Replay** - Re-run a stored span with an edited prompt and settings
+- ✅ **Results Comparison** - Replay read beside its original span
+- ✅ **Datasets & Experiments** - Score prompt versions against saved datasets
+- ✅ **Feedback Scores** - Human and automated scores on spans and traces
+- ✅ **Continuous Evaluation** - Policies, queue, results, and trends
 
 ### Statistical LLM Judge (NEW)
 Based on [Lee et al. "How to Correctly Report LLM-as-a-Judge Evaluations"](https://arxiv.org/abs/2511.21140):
@@ -124,7 +123,7 @@ Based on [Lee et al. "How to Correctly Report LLM-as-a-Judge Evaluations"](https
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Two-Gem Architecture
+### Gem Boundaries
 
 **raaf-eval** (Core Engine):
 - Span serialization and deserialization
@@ -133,13 +132,12 @@ Based on [Lee et al. "How to Correctly Report LLM-as-a-Judge Evaluations"](https
 - RSpec integration and matchers
 - Database models and persistence
 
-**raaf-eval-ui** (Web Interface):
+**raaf-rails** (Console UI):
 - Rails engine with Phlex components
 - Span browser with filtering
-- Prompt editor with Monaco
-- Real-time execution tracking
-- Results visualization
-- Session persistence
+- Span replay with prompt and settings overrides
+- Datasets, experiments, prompts, and feedback scores
+- Continuous evaluation policies and results
 
 See **[Architecture Details](eval/ARCHITECTURE.md)** for complete system design.
 
@@ -158,19 +156,23 @@ cd eval
 bundle exec rake db:migrate
 ```
 
-### Web UI (Optional)
+### Console UI (Optional)
 
 ```ruby
 # Gemfile
-gem 'raaf-eval-ui'
+gem 'raaf-rails'
 ```
 
 ```ruby
 # config/routes.rb
 Rails.application.routes.draw do
-  mount RAAF::Eval::UI::Engine, at: "/eval"
+  mount RAAF::Rails::Engine, at: "/agents"
 end
 ```
+
+The evaluation screens live under that mount: `/agents/tracing/replays`,
+`/agents/eval/experiments`, `/agents/eval/datasets`, `/agents/eval/prompts`,
+and `/agents/continuous/policies`.
 
 See **[Installation Guide](eval/README.md)** for detailed setup.
 
@@ -284,15 +286,15 @@ RAAF Eval integrates with:
 - **raaf-tracing** - Span data access
 - **raaf-providers** - Multi-provider support
 
-### Future Integration (Phase 4.5)
+### Console Integration
 
-When RAAF tracing dashboard UI exists:
-- **"Evaluate This Span"** buttons in trace views
-- **"View Original Trace"** links in eval results
+Evaluation is part of the RAAF console rather than a UI beside it (DEC-004):
+- **"Evaluate This Span"** and **"Replay"** actions in trace views
+- **"View Original Trace"** links from a replay back to its span
 - **Unified navigation** between monitoring and evaluation
 - **Shared authentication** and authorization
 
-See **[Integration Guide](eval-ui/INTEGRATION_GUIDE.md)** for patterns and recommendations.
+See **[Console Setup](rails/README.md)** for mounting and configuration.
 
 ## Performance
 
@@ -623,7 +625,7 @@ See **[Product Roadmap](.agent-os/product/roadmap.md)** for complete timeline.
 ## Contributing
 
 We welcome contributions! See:
-- **[Contributing Guide](eval-ui/CONTRIBUTING.md)** - Development setup and guidelines
+- **[Contributing Guide](CONTRIBUTING.md)** - Development setup and guidelines
 - **[Architecture Documentation](eval/ARCHITECTURE.md)** - System design
 - **[GitHub Issues](https://github.com/raaf-ai/ruby-ai-agents-factory/issues)** - Bug reports and features
 
@@ -637,7 +639,7 @@ MIT License - see LICENSE file for details.
 1. Start: **[README](eval/README.md)** - Quick start
 2. Learn: **[Getting Started](eval/GETTING_STARTED.md)** - Tutorial
 3. Test: **[RSpec Integration](eval/RSPEC_INTEGRATION.md)** - Writing tests
-4. UI: **[UI Setup](eval-ui/README.md)** - Web interface
+4. UI: **[Console Setup](rails/README.md)** - The RAAF console
 
 ### For Developers
 1. **[Architecture](eval/ARCHITECTURE.md)** - System design
@@ -646,9 +648,9 @@ MIT License - see LICENSE file for details.
 4. **[Performance](eval/PERFORMANCE.md)** - Benchmarks
 
 ### For Integrators
-1. **[Integration Guide](eval-ui/INTEGRATION_GUIDE.md)** - RAAF ecosystem integration
+1. **[Console Setup](rails/README.md)** - Mounting the console
 2. **[Migrations](eval/MIGRATIONS.md)** - Database schema
-3. **[Contributing](eval-ui/CONTRIBUTING.md)** - Development guide
+3. **[Contributing](CONTRIBUTING.md)** - Development guide
 
 ---
 

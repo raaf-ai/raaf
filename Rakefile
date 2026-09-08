@@ -43,7 +43,6 @@ SPEC_GEMS = %w[
   guardrails
   tools
   eval
-  eval-ui
   rails
   testing
 ].freeze

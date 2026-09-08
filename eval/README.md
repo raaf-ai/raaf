@@ -159,9 +159,8 @@ See **[Continuous Evaluation Guide](../RAAF_EVAL.md#continuous-evaluation-phase-
 - **[Performance](PERFORMANCE.md)** - Benchmarks and optimization
 - **[Migrations](MIGRATIONS.md)** - Database schema reference
 
-### Web UI (Optional)
-- **[UI Installation](../eval-ui/README.md)** - Interactive evaluation interface
-- **[Integration Guide](../eval-ui/INTEGRATION_GUIDE.md)** - RAAF ecosystem integration
+### Console UI (Optional)
+- **[Console Installation](../rails/README.md)** - Evaluation screens in the RAAF console
 
 ## Quick Links
 
@@ -171,7 +170,7 @@ See **[Continuous Evaluation Guide](../RAAF_EVAL.md#continuous-evaluation-phase-
 | Write RSpec tests | [RSpec Integration](RSPEC_INTEGRATION.md) |
 | Understand architecture | [Architecture](ARCHITECTURE.md) |
 | API reference | [API Documentation](API.md) |
-| Use web interface | [UI Setup](../eval-ui/README.md) |
+| Use web interface | [Console Setup](../rails/README.md) |
 | View metrics | [Metrics System](METRICS.md) |
 
 ## Database Setup
@@ -275,9 +274,9 @@ See **[Performance Benchmarks](PERFORMANCE.md)** for details.
 - Helper methods
 - CI/CD support
 
-🚧 **Phase 3: Web UI** (Complete in `raaf-eval-ui`)
-- Interactive evaluation interface
-- See [eval-ui README](../eval-ui/README.md)
+✅ **Phase 3: Web UI** (Complete in `raaf-rails`)
+- Evaluation screens integrated into the RAAF console
+- See [raaf-rails README](../rails/README.md)
 
 See **[Product Roadmap](../.agent-os/product/roadmap.md)** for future plans.
 
@@ -292,7 +291,7 @@ bundle exec rake db:migrate
 bundle exec rspec
 ```
 
-See **[Contributing Guide](../eval-ui/CONTRIBUTING.md)** for guidelines.
+See **[Contributing Guide](../CONTRIBUTING.md)** for guidelines.
 
 ## Examples
 

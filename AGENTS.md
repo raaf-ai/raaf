@@ -273,18 +273,13 @@ class MyAgent < RAAF::DSL::Agent
   # Optional: Configure interceptor behavior
   tool_execution do
     enable_validation true   # Validate parameters before execution
-    enable_logging true      # Log execution start/end with duration
     enable_metadata true     # Add _execution_metadata to results
-    log_arguments true       # Include arguments in logs
-    truncate_logs 100        # Truncate long values in logs
   end
 end
 
 # The interceptor automatically provides:
 # - Parameter validation against tool definition
-# - Execution logging with duration tracking
 # - Metadata injection ({ _execution_metadata: { duration_ms, tool_name, timestamp } })
-# - Error handling and logging
 
 # Tools execute with < 1ms overhead
 agent = MyAgent.new
@@ -472,7 +467,7 @@ For detailed gem-specific documentation, see the individual `CLAUDE.md` files in
 - **[Quick Start](eval/README.md)** - 5-minute introduction
 - **[Tutorial](eval/GETTING_STARTED.md)** - Comprehensive guide with examples
 - **[RSpec Testing](eval/RSPEC_INTEGRATION.md)** - 40+ matchers for automated testing
-- **[Web UI](eval-ui/README.md)** - Interactive evaluation interface
+- **[Console UI](rails/README.md)** - Evaluation screens in the RAAF console
 
 ### Two Complementary Interfaces
 
@@ -482,11 +477,11 @@ For detailed gem-specific documentation, see the individual `CLAUDE.md` files in
 - RSpec integration with 40+ matchers
 - Comprehensive metrics system
 
-**Web UI (raaf-eval-ui):**
+**Console UI (raaf-rails):**
 - Interactive span browser
-- Monaco-based prompt editor
-- Real-time execution tracking
-- Side-by-side results comparison
+- Span replay with prompt and settings overrides
+- Datasets, experiments, prompts, and feedback scores
+- Continuous evaluation policies and results
 
 ### 5-Second Example
 

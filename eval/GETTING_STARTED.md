@@ -51,27 +51,27 @@ This creates four tables:
 - `evaluation_configurations` - Configuration variants
 - `evaluation_results` - Results and metrics
 
-### Optional: Install Web UI
+### Optional: Install the Console UI
 
 ```ruby
 # Gemfile
-gem 'raaf-eval-ui'
+gem 'raaf-rails'
 ```
 
 ```ruby
 # config/routes.rb
 Rails.application.routes.draw do
-  mount RAAF::Eval::UI::Engine, at: "/eval"
+  mount RAAF::Rails::Engine, at: "/agents"
 end
 ```
 
 ```bash
 bundle install
-rails raaf_eval_ui:install:migrations
+rails raaf_rails:install:migrations
 rails db:migrate
 ```
 
-See **[UI Setup Guide](../eval-ui/README.md)** for configuration options.
+See **[Console Setup Guide](../rails/README.md)** for configuration options.
 
 ## Quick Start
 
@@ -522,11 +522,11 @@ expect(result).to detect_no_hallucinations
 
 See **[RSpec Integration Guide](RSPEC_INTEGRATION.md)** for complete matcher reference.
 
-## Web UI Usage
+## Console UI Usage
 
 ### Accessing the UI
 
-Navigate to the mounted path (e.g., `http://localhost:3000/eval`).
+Navigate to the mounted path (e.g., `http://localhost:3000/agents`).
 
 ### Workflow
 
@@ -534,33 +534,29 @@ Navigate to the mounted path (e.g., `http://localhost:3000/eval`).
    - Filter by agent, model, status
    - Search by content or metadata
    - Sort and paginate results
-   - Select span for evaluation
+   - Open a span in its trace
 
-2. **Edit Configuration**
+2. **Set Up a Replay**
    - Modify AI settings (model, temperature, max_tokens)
-   - Edit system prompt with Monaco Editor
-   - View diff against baseline
-   - Syntax highlighting and autocomplete
+   - Edit the prompt the span ran with
+   - Start from the original span's own data
 
-3. **Run Evaluation**
-   - Click "Run Evaluation"
-   - Real-time progress updates
-   - Background job execution
-   - Automatic result storage
+3. **Run the Replay**
+   - Replays run against the stored span, never against production
+   - Results are stored and listed under the span
 
 4. **Compare Results**
-   - Side-by-side output comparison
-   - Metrics panel with deltas
+   - Replay output read beside the original
+   - Metrics with deltas
    - Quality indicators
    - Regression warnings
 
-5. **Save Session**
-   - Save evaluation configuration
-   - Resume later
-   - Share with team
-   - Export results
+5. **Go Further**
+   - Score a prompt version against a dataset under `/agents/eval/experiments`
+   - Record feedback scores on spans and traces
+   - Let continuous evaluation policies score production spans as they arrive
 
-See **[UI Guide](../eval-ui/README.md)** for detailed UI documentation.
+See **[Console Guide](../rails/README.md)** for detailed UI documentation.
 
 ## Advanced Patterns
 
@@ -830,7 +826,7 @@ baseline[:metadata][:output]  # Should exist
 ## Next Steps
 
 - **[RSpec Integration](RSPEC_INTEGRATION.md)** - Write evaluation tests
-- **[Web UI Setup](../eval-ui/README.md)** - Install and configure UI
+- **[Console Setup](../rails/README.md)** - Install and configure the console
 - **[Metrics Reference](METRICS.md)** - Deep dive into metrics
 - **[API Documentation](API.md)** - Complete API reference
 - **[Architecture](ARCHITECTURE.md)** - System design details

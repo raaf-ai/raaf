@@ -276,3 +276,11 @@ Merging evaluation UI into the tracing dashboard provides the best user experien
 - Existing raaf-eval-ui users migrate to raaf-rails with evaluation features
 - Provide migration guide for route changes and configuration updates
 - No changes required for users only using RSpec evaluation (raaf-eval core)
+
+**Carried out (2026-09-08):**
+The `eval-ui/` directory was deleted. It had stayed on disk after this decision,
+unreferenced by any Gemfile and loaded by nothing, while `rake spec` still ran its
+suite and four documents still told users to install and mount it. Its screens now
+live in raaf-rails: browse and replay a span under `/tracing`, datasets, experiments,
+prompts and feedback scores under `/eval`, and policies under `/continuous`. The
+gem's own history is in git if any of it is wanted back.
