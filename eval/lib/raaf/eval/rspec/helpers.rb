@@ -137,11 +137,16 @@ module RAAF
         ##
         # Adds a configuration to evaluate
         #
-        # @param config_hash [Hash] configuration settings
+        # The settings may be written inline, which is how the guides show it
+        # (`with_configuration(temperature: 0.9)`), or passed as a hash. Either way a
+        # `name:` names the configuration rather than becoming part of it.
+        #
+        # @param config_hash [Hash, nil] configuration settings
         # @param name [String, Symbol] optional configuration name
+        # @param settings [Hash] configuration settings written inline
         # @return [SpanEvaluator] self for chaining
-        def with_configuration(config_hash, name: :default)
-          @configurations[name.to_sym] = config_hash
+        def with_configuration(config_hash = nil, name: :default, **settings)
+          @configurations[name.to_sym] = config_hash || settings
           self
         end
 

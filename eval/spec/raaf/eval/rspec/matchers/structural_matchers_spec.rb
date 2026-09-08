@@ -283,7 +283,7 @@ RSpec.describe "Structural Matchers" do
         configurations: { test: {} }
       )
       exact_result.instance_variable_set(:@results, {
-                                           test: { success: true, output: ("exactly50characters" * 2) + "1234567890" }
+                                           test: { success: true, output: ("exactly_50_characters" * 2) + "12345678" }
                                          })
       exact_result.instance_variable_set(:@executed, true)
       result = RAAF::Eval::EvaluationResult.new(run: exact_result, baseline: baseline_span)

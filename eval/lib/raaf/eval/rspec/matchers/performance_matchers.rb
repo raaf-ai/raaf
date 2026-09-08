@@ -63,8 +63,7 @@ module RAAF
           module UseTokens
             include Base
 
-            def initialize(*args)
-              super
+            def matcher_defaults
               @comparison_mode = nil
               @threshold_percent = nil
               @max_tokens = nil
@@ -171,9 +170,8 @@ module RAAF
           module CompleteWithin
             include Base
 
-            def initialize(time_value)
-              super()
-              @time_value = time_value
+            def matcher_defaults
+              @time_value = expected_as_array.first
               @unit = :seconds
             end
 
@@ -217,9 +215,8 @@ module RAAF
           module CostLessThan
             include Base
 
-            def initialize(amount)
-              super()
-              @max_cost = amount
+            def matcher_defaults
+              @max_cost = expected_as_array.first
               @model = nil
             end
 

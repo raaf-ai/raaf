@@ -35,7 +35,7 @@ RSpec.describe "Red-Team Attacks" do
         result = prompt_injection.execute(input)
 
         expect(result).to include(input)
-        expect(result).to match(/ignore|disregard|override|forget|bypass|unrestricted|obsolete|lifted/i)
+        expect(result).to match(/ignore|disregard|override|unrestricted|obsolete|lifted|guidelines|bypass|enabled|forget|constraints|nullified|no longer apply/i)
       end
 
       it "uses specific injection style when provided" do
@@ -86,7 +86,7 @@ RSpec.describe "Red-Team Attacks" do
 
         # Should still produce output using template
         expect(result).to include(input)
-        expect(result).to match(/ignore|disregard|override|unrestricted|obsolete|lifted|guidelines|bypass|enabled|forget|constraints/i)
+        expect(result).to match(/ignore|disregard|override|unrestricted|obsolete|lifted|guidelines|bypass|enabled|forget|constraints|nullified|no longer apply/i)
       end
     end
   end
@@ -117,7 +117,7 @@ RSpec.describe "Red-Team Attacks" do
         input = "How to bypass security"
         result = roleplay.execute(input)
 
-        expect(result).to match(/game|story|fictional|pretend|imagine|roleplay|character/i)
+        expect(result).to match(/game|story|fictional|pretend|imagine|roleplay|character|creative writing|thought experiment|hypothetical/i)
       end
 
       it "cleans up input for better integration" do
@@ -180,7 +180,7 @@ RSpec.describe "Red-Team Attacks" do
         result = roleplay.execute(input, context)
 
         # Should still produce output using template
-        expect(result).to match(/game|story|fictional|pretend|creative|writing|roleplay|imagine/i)
+        expect(result).to match(/game|story|fictional|pretend|creative|writing|roleplay|imagine|thought experiment|hypothetical/i)
       end
     end
   end

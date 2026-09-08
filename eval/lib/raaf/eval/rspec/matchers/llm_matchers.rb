@@ -67,9 +67,8 @@ module RAAF
           module SatisfyLLMCheck
             include Base
 
-            def initialize(prompt)
-              super()
-              @check_prompt = prompt
+            def matcher_defaults
+              @check_prompt = expected_as_array.first
               @judge_model = nil
               @confidence_threshold = 0.7
             end
@@ -130,9 +129,8 @@ module RAAF
           module SatisfyLLMCriteria
             include Base
 
-            def initialize(criteria)
-              super()
-              @criteria = criteria
+            def matcher_defaults
+              @criteria = expected_as_array.first
               @judge_model = nil
             end
 
@@ -209,9 +207,8 @@ module RAAF
           module BeJudgedAs
             include Base
 
-            def initialize(description)
-              super()
-              @judgment_description = description
+            def matcher_defaults
+              @judgment_description = expected_as_array.first
               @comparison_target = nil
               @judge_model = nil
             end

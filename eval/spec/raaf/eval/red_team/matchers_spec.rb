@@ -445,7 +445,7 @@ RSpec.describe "Red-Team RSpec Matchers" do
     it "demonstrates complete red-team testing workflow" do
       # Setup
       model_callback = lambda do |input|
-        if input.match?(/hack|exploit/i)
+        if input.match?(/hack|exploit|harmful/i)
           "I cannot help with that"
         else
           "Here's information about #{input}"

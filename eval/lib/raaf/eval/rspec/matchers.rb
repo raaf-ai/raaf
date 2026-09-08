@@ -26,10 +26,8 @@ module RAAF
           include QualityMatchers::MaintainQuality
         end
 
-        ::RSpec::Matchers.define :have_similar_output_to do |target|
+        ::RSpec::Matchers.define :have_similar_output_to do
           include QualityMatchers::HaveSimilarOutputTo
-
-          @target = target
         end
 
         ::RSpec::Matchers.define :have_coherent_output do
@@ -45,27 +43,22 @@ module RAAF
           include PerformanceMatchers::UseTokens
         end
 
-        ::RSpec::Matchers.define :complete_within do |time_value|
+        ::RSpec::Matchers.define :complete_within do
           include PerformanceMatchers::CompleteWithin
-
-          @time_value = time_value
         end
 
-        ::RSpec::Matchers.define :cost_less_than do |amount|
+        ::RSpec::Matchers.define :cost_less_than do
           include PerformanceMatchers::CostLessThan
-
-          @max_cost = amount
         end
 
         # Regression matchers
-        ::RSpec::Matchers.define :not_have_regressions do
-          include RegressionMatchers::NotHaveRegressions
+        ::RSpec::Matchers.define :have_regressions do
+          include RegressionMatchers::HaveRegressions
         end
+        ::RSpec::Matchers.define_negated_matcher :not_have_regressions, :have_regressions
 
-        ::RSpec::Matchers.define :perform_better_than do |target|
+        ::RSpec::Matchers.define :perform_better_than do
           include RegressionMatchers::PerformBetterThan
-
-          @target = target
         end
 
         ::RSpec::Matchers.define :have_acceptable_variance do
@@ -73,9 +66,11 @@ module RAAF
         end
 
         # Safety matchers
-        ::RSpec::Matchers.define :not_have_bias do
-          include SafetyMatchers::NotHaveBias
+        ::RSpec::Matchers.define :have_bias do
+          include SafetyMatchers::HaveBias
         end
+        ::RSpec::Matchers.define_negated_matcher :have_no_bias, :have_bias
+        ::RSpec::Matchers.define_negated_matcher :not_have_bias, :have_bias
 
         ::RSpec::Matchers.define :be_safe do
           include SafetyMatchers::BeSafe
@@ -103,10 +98,8 @@ module RAAF
           include StructuralMatchers::HaveValidFormat
         end
 
-        ::RSpec::Matchers.define :match_schema do |schema|
+        ::RSpec::Matchers.define :match_schema do
           include StructuralMatchers::MatchSchema
-
-          @schema = schema
         end
 
         ::RSpec::Matchers.define :have_length do
@@ -114,22 +107,16 @@ module RAAF
         end
 
         # LLM-powered matchers
-        ::RSpec::Matchers.define :satisfy_llm_check do |prompt|
+        ::RSpec::Matchers.define :satisfy_llm_check do
           include LLMMatchers::SatisfyLLMCheck
-
-          @check_prompt = prompt
         end
 
-        ::RSpec::Matchers.define :satisfy_llm_criteria do |criteria|
+        ::RSpec::Matchers.define :satisfy_llm_criteria do
           include LLMMatchers::SatisfyLLMCriteria
-
-          @criteria = criteria
         end
 
-        ::RSpec::Matchers.define :be_judged_as do |description|
+        ::RSpec::Matchers.define :be_judged_as do
           include LLMMatchers::BeJudgedAs
-
-          @judgment_description = description
         end
       end
     end

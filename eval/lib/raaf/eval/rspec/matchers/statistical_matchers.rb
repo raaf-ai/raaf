@@ -63,8 +63,7 @@ module RAAF
           module BeStatisticallySignificant
             include Base
 
-            def initialize(*args)
-              super
+            def matcher_defaults
               @alpha = 0.05
             end
 
@@ -122,8 +121,7 @@ module RAAF
           module HaveEffectSize
             include Base
 
-            def initialize(*args)
-              super
+            def matcher_defaults
               @min_effect_size = nil
             end
 
@@ -202,8 +200,7 @@ module RAAF
           module HaveConfidenceInterval
             include Base
 
-            def initialize(*args)
-              super
+            def matcher_defaults
               @min_value = nil
               @max_value = nil
               @confidence_level = 0.95

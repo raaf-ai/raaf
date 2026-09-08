@@ -65,8 +65,7 @@ module RAAF
           module HaveValidFormat
             include Base
 
-            def initialize(*args)
-              super
+            def matcher_defaults
               @format_type = :text
             end
 
@@ -112,8 +111,22 @@ module RAAF
             end
 
             def validate_xml(text)
-              # Simplified XML validation
-              @error = "XML not properly closed" unless text.match?(%r{<\w+>.*</\w+>}m)
+              # Walks the tags rather than matching a first open against a last close, so
+              # that "<a><b></b>" is caught for leaving <a> open.
+              open_tags = []
+
+              text.scan(%r{<\s*(/?)\s*([\w:.-]+)[^>]*?(/?)\s*>}) do |closing, name, self_closing|
+                next unless self_closing.empty?
+
+                if closing.empty?
+                  open_tags.push(name)
+                elsif open_tags.pop != name
+                  @error = "XML tag </#{name}> does not close the tag it follows"
+                  return false
+                end
+              end
+
+              @error = "XML not properly closed: #{open_tags.map { |t| "<#{t}>" }.join(", ")}" unless open_tags.empty?
               @error.nil?
             end
 
@@ -135,9 +148,8 @@ module RAAF
           module MatchSchema
             include Base
 
-            def initialize(schema)
-              super()
-              @schema = schema
+            def matcher_defaults
+              @schema = expected_as_array.first
             end
 
             def matches?(evaluation_result)
@@ -192,8 +204,7 @@ module RAAF
           module HaveLength
             include Base
 
-            def initialize(*args)
-              super
+            def matcher_defaults
               @min_length = nil
               @max_length = nil
               @exact_length = nil

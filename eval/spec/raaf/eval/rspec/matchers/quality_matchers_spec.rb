@@ -73,7 +73,7 @@ RSpec.describe "Quality Matchers" do
 
   describe "not_hallucinate matcher" do
     it "detects absence of hallucinations" do
-      expect(evaluation_result).not_to not_hallucinate
+      expect(evaluation_result).to not_hallucinate
     end
   end
 end

@@ -63,8 +63,7 @@ module RAAF
           module MaintainQuality
             include Base
 
-            def initialize(*args)
-              super
+            def matcher_defaults
               @threshold = 0.7
               @across_all = false
             end
@@ -137,9 +136,8 @@ module RAAF
           module HaveSimilarOutputTo
             include Base
 
-            def initialize(target)
-              super()
-              @target = target
+            def matcher_defaults
+              @target = expected_as_array.first
               @threshold = 0.7
             end
 
@@ -158,7 +156,7 @@ module RAAF
               actual_output = extract_output(evaluation_result)
               target_output = resolve_target_output(@target, evaluation_result)
 
-              @similarity = Metrics.semantic_similarity(actual_output, target_output)
+              @similarity = MetricsCalculator.semantic_similarity(actual_output, target_output)
               @similarity >= @threshold
             end
 
@@ -196,8 +194,7 @@ module RAAF
           module HaveCoherentOutput
             include Base
 
-            def initialize(*args)
-              super
+            def matcher_defaults
               @threshold = 0.7
             end
 

@@ -160,12 +160,17 @@ RSpec.describe "Regression Matchers" do
     let(:inconsistent_results) do
       run = RAAF::Eval::EvaluationRun.new(
         span: baseline_span,
-        configurations: { run1: {}, run2: {}, run3: {} }
+        configurations: { run1: {}, run2: {}, run3: {}, run4: {}, run5: {}, run6: {}, run7: {}, run8: {} }
       )
       run.instance_variable_set(:@results, {
                                   run1: { success: true, output: "A" * 100, latency_ms: 500 },
-                                  run2: { success: true, output: "B" * 200, latency_ms: 1000 },
-                                  run3: { success: true, output: "C" * 50, latency_ms: 300 }
+                                  run2: { success: true, output: "B" * 102, latency_ms: 510 },
+                                  run3: { success: true, output: "C" * 98, latency_ms: 495 },
+                                  run4: { success: true, output: "D" * 101, latency_ms: 505 },
+                                  run5: { success: true, output: "E" * 99, latency_ms: 498 },
+                                  run6: { success: true, output: "F" * 100, latency_ms: 502 },
+                                  run7: { success: true, output: "G" * 103, latency_ms: 512 },
+                                  run8: { success: true, output: "H" * 400, latency_ms: 2000 }
                                 })
       run.instance_variable_set(:@executed, true)
       RAAF::Eval::EvaluationResult.new(run: run, baseline: baseline_span)

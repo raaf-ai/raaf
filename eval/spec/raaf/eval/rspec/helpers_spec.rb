@@ -50,7 +50,7 @@ RSpec.describe RAAF::Eval::RSpec::Helpers do
 
     context "with invalid input" do
       it "raises error for invalid span type" do
-        expect { evaluate_span(123) }.to raise_error(ArgumentError, /Expected span ID.*or span object/)
+        expect { evaluate_span(123) }.to raise_error(ArgumentError, /Expected span ID.*or span Hash/)
       end
     end
   end
@@ -107,13 +107,12 @@ RSpec.describe RAAF::Eval::RSpec::Helpers do
 
     let(:run_result) do
       RAAF::RunResult.new(
-        agent_name: "TestAgent",
+        last_agent: agent,
         messages: [
           { role: "user", content: "What is 2+2?" },
           { role: "assistant", content: "4" }
         ],
-        usage: { total_tokens: 50, input_tokens: 10, output_tokens: 40 },
-        final_output: "4"
+        usage: { total_tokens: 50, input_tokens: 10, output_tokens: 40 }
       )
     end
 
@@ -159,7 +158,7 @@ RSpec.describe RAAF::Eval::RSpec::Helpers do
 
     let(:run_result) do
       RAAF::RunResult.new(
-        agent_name: "TestAgent",
+        last_agent: agent,
         messages: [
           { role: "user", content: "Hello" },
           { role: "assistant", content: "Hi" }

@@ -59,12 +59,14 @@ module RAAF
           end
 
           ##
-          # Matcher for checking absence of regressions
-          module NotHaveRegressions
+          # Matcher for detecting regressions
+          #
+          # Stated positively so that `expect(result).not_to have_regressions` reads as the
+          # assertion it is; `not_have_regressions` is registered as its negation.
+          module HaveRegressions
             include Base
 
-            def initialize(*args)
-              super
+            def matcher_defaults
               @severity_level = :any
             end
 
@@ -80,16 +82,16 @@ module RAAF
               filtered_regressions = filter_by_severity(@regressions, @severity_level)
               @regression_count = filtered_regressions.size
 
-              @regression_count.zero?
+              @regression_count.positive?
             end
 
             def failure_message
-              details = @regressions.map { |r| "#{r[:type]}: #{r[:description]}" }.join(", ")
-              "Expected no regressions, but found #{@regression_count}: #{details}"
+              "Expected regressions to be present, but none were detected"
             end
 
             def failure_message_when_negated
-              "Expected regressions to be present, but none were detected"
+              details = @regressions.map { |r| "#{r[:type]}: #{r[:description]}" }.join(", ")
+              "Expected no regressions, but found #{@regression_count}: #{details}"
             end
 
             private
@@ -133,9 +135,8 @@ module RAAF
           module PerformBetterThan
             include Base
 
-            def initialize(target)
-              super()
-              @target = target
+            def matcher_defaults
+              @target = expected_as_array.first
               @metrics = %i[quality latency tokens]
             end
 
@@ -179,7 +180,7 @@ module RAAF
             private
 
             def check_quality_improvement(baseline_output, eval_output)
-              similarity = Metrics.semantic_similarity(baseline_output, eval_output)
+              similarity = MetricsCalculator.semantic_similarity(baseline_output, eval_output)
               if similarity < 0.7
                 @regressions[:quality] = "similarity #{format_percent(similarity * 100)}"
               else
@@ -218,8 +219,7 @@ module RAAF
           module HaveAcceptableVariance
             include Base
 
-            def initialize(*args)
-              super
+            def matcher_defaults
               @std_deviations = 2.0
               @metric = :output_length
             end

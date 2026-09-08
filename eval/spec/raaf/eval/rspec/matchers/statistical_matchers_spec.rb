@@ -44,7 +44,7 @@ RSpec.describe "Statistical Matchers" do
   describe "be_statistically_significant matcher" do
     it "detects statistically significant differences" do
       # Mock the statistical significance calculation
-      allow(RAAF::Eval::Metrics).to receive(:statistical_significance).and_return(
+      allow(RAAF::Eval::MetricsCalculator).to receive(:statistical_significance).and_return(
         { p_value: 0.01, is_significant: true }
       )
 
@@ -52,7 +52,7 @@ RSpec.describe "Statistical Matchers" do
     end
 
     it "fails when difference is not significant" do
-      allow(RAAF::Eval::Metrics).to receive(:statistical_significance).and_return(
+      allow(RAAF::Eval::MetricsCalculator).to receive(:statistical_significance).and_return(
         { p_value: 0.15, is_significant: false }
       )
 
@@ -62,7 +62,7 @@ RSpec.describe "Statistical Matchers" do
     end
 
     it "provides clear failure message with p-value" do
-      allow(RAAF::Eval::Metrics).to receive(:statistical_significance).and_return(
+      allow(RAAF::Eval::MetricsCalculator).to receive(:statistical_significance).and_return(
         { p_value: 0.15, is_significant: false }
       )
 
@@ -75,7 +75,7 @@ RSpec.describe "Statistical Matchers" do
     end
 
     it "supports custom significance level" do
-      allow(RAAF::Eval::Metrics).to receive(:statistical_significance).and_return(
+      allow(RAAF::Eval::MetricsCalculator).to receive(:statistical_significance).and_return(
         { p_value: 0.08, is_significant: false }
       )
 
@@ -98,7 +98,7 @@ RSpec.describe "Statistical Matchers" do
 
     context "when negated" do
       it "provides clear negated failure message" do
-        allow(RAAF::Eval::Metrics).to receive(:statistical_significance).and_return(
+        allow(RAAF::Eval::MetricsCalculator).to receive(:statistical_significance).and_return(
           { p_value: 0.01, is_significant: true }
         )
 
