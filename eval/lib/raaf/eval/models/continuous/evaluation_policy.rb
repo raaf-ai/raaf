@@ -237,19 +237,21 @@ module RAAF
         # Check if evaluators have agent_name defined
         # @return [Boolean]
         def agent_names_from_evaluators?
-          return false if evaluators.blank?
+          # Runs before the structure validation has had a chance to reject a badly
+          # shaped column, so it has to survive one.
+          return false unless evaluators.is_a?(Array)
 
-          evaluators.any? { |e| e["agent_name"].present? || e[:agent_name].present? }
+          evaluators.any? { |e| e.is_a?(Hash) && (e["agent_name"].present? || e[:agent_name].present?) }
         end
 
         ##
         # Derive agent_name from evaluators if not set
         def derive_agent_name_from_evaluators
           return if agent_name.present?
-          return if evaluators.blank?
+          return unless evaluators.is_a?(Array)
 
           agent_names = evaluators.filter_map do |e|
-            e["agent_name"] || e[:agent_name]
+            e["agent_name"] || e[:agent_name] if e.is_a?(Hash)
           end.uniq
 
           if agent_names.size == 1

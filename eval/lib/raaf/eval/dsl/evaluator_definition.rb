@@ -1,5 +1,13 @@
 # frozen_string_literal: true
 
+# `evaluated_checks` builds a field set to read back what each field declares,
+# so both are needed wherever this module is. Discovery loads this file on its
+# own -- a host application that reaches the registry before `raaf/eval` has
+# finished loading gets here first -- and without these the check list raised
+# `NameError` instead of naming a single check.
+require_relative "field_evaluator_set"
+require_relative "evaluator_config"
+
 module RAAF
   module Eval
     module DSL

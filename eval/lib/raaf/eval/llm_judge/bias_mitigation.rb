@@ -219,6 +219,11 @@ module RAAF
         # Length bias detector and normalizer
         #
         class LengthBiasAnalyzer
+          # Two points always sit on a line, so a correlation drawn from them is a
+          # property of the arithmetic rather than evidence about the judge. Below this
+          # many samples the analyzer reports no bias rather than a perfect one.
+          MIN_SAMPLES_FOR_BIAS = 3
+
           ##
           # Analyzes correlation between output length and judge scores
           #
@@ -233,7 +238,7 @@ module RAAF
 
             {
               correlation: correlation,
-              bias_detected: correlation.abs > 0.5,
+              bias_detected: evaluations.size >= MIN_SAMPLES_FOR_BIAS && correlation.abs > 0.5,
               bias_direction: correlation.positive? ? :prefers_longer : :prefers_shorter,
               bias_strength: interpret_correlation(correlation),
               sample_size: evaluations.size,

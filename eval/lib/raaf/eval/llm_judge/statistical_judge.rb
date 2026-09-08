@@ -318,7 +318,7 @@ module RAAF
           std_error = Math.sqrt(variance)
 
           # Z-score for confidence level
-          z = Distribution::Normal.inv_cdf(1 - (alpha / 2))
+          z = Distribution::Normal.p_value(1 - (alpha / 2))
 
           # Confidence bounds (clamped to valid probability range)
           lower = (point_estimate - (z * std_error)).clamp(0.0, 1.0)

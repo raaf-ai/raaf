@@ -55,6 +55,9 @@ module RAAF
         # @param output [String] The output/response to evaluate
         # @param ground_truth [Boolean] Whether the output is actually correct
         # @param context [Hash] Optional additional context
+        # @param added_at [String, nil] When the sample was first recorded; kept as-is so
+        #   that a set rebuilt from a split, a filter or a saved file does not restamp
+        #   every sample with the moment it was reloaded
         # @return [self]
         #
         # @example
@@ -64,13 +67,13 @@ module RAAF
         #     ground_truth: true,
         #     context: { domain: "news", difficulty: "medium" }
         #   )
-        def add(input:, output:, ground_truth:, context: {})
+        def add(input:, output:, ground_truth:, context: {}, added_at: nil)
           @samples << {
             input: input,
             output: output,
             ground_truth: ground_truth,
             context: context,
-            added_at: Time.now.iso8601
+            added_at: added_at || Time.now.iso8601
           }
           self
         end

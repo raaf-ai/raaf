@@ -192,11 +192,13 @@ module RAAF
             end
           end
 
-          # Final output text
-          metadata[:output] = run_result.final_output if run_result.final_output
+          # Final output text. A run that produced no assistant message reports an
+          # empty string, which says no more than a missing key would.
+          output = run_result.final_output
+          metadata[:output] = output unless output.nil? || output.to_s.empty?
 
-          # Execution metadata
-          metadata[:turns] = run_result.turns if run_result.turns
+          # Execution metadata. Zero turns means the run never took one.
+          metadata[:turns] = run_result.turns if run_result.turns&.positive?
           if run_result.tool_results && !run_result.tool_results.empty?
             metadata[:tool_results] =
               run_result.tool_results
