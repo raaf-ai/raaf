@@ -1,6 +1,7 @@
 # Minimal RuboCop configuration for raaf-dsl
 # Explicitly do not inherit from parent configs
-inherit_from: []
+inherit_from:
+  - '../.rubocop_app_cops.yml'
 
 plugins:
   - rubocop-rspec

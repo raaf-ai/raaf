@@ -1,0 +1,39 @@
+# Turns off the ai-rubocops cops that encode ProspectsRadar *application*
+# conventions, which do not apply to the framework those applications build on.
+#
+# The gem is shared: it carries cops for the host app (ApplicationAgent,
+# config/ai_agents.yml, app/ai/prompts) alongside the RAAF/Evaluator* cops that
+# police this repo's evaluator library. In the host, the app cops are scoped to
+# app/ai/**. Here those paths do not exist, so they run unscoped against the
+# framework that provides the very API they police — AgentConfigInYaml alone
+# fires 198 times on our own DSL specs, examples and guides.
+#
+# Every .rubocop.yml in this repo inherits this file. A sub-gem config is not
+# merged with its parent automatically, and two of them opt out of inheritance
+# on purpose, so the list has to be pulled in explicitly rather than declared
+# once at the root.
+
+RAAF/AgentConfigInYaml:
+  Enabled: false
+RAAF/AgentContextImmutability:
+  Enabled: false
+RAAF/AgentInheritance:
+  Enabled: false
+RAAF/AgentNoInlineOrchestration:
+  Enabled: false
+RAAF/AgentRun:
+  Enabled: false
+RAAF/AgentSchemaValidation:
+  Enabled: false
+RAAF/AgentToolScope:
+  Enabled: false
+RAAF/Logger:
+  Enabled: false
+RAAF/PromptLanguageInstructions:
+  Enabled: false
+RAAF/PromptMethods:
+  Enabled: false
+RAAF/PromptUserInputEscaping:
+  Enabled: false
+RAAF/SchemaNestedArrayRequired:
+  Enabled: false

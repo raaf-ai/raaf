@@ -1,4 +1,5 @@
 inherit_from:
+  - '../.rubocop_app_cops.yml'
   - '../.rubocop.yml'
 
 Layout/IndentationConsistency:

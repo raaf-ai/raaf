@@ -1,3 +1,6 @@
+inherit_from:
+  - '../.rubocop_app_cops.yml'
+
 plugins:
   - rubocop-rspec
   - rubocop-rake

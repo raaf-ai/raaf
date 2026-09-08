@@ -8,6 +8,12 @@ GIT
       rdoc (>= 5.0)
       rouge
 
+PATH
+  remote: /Users/hajee/src/ArtMunk/prospects_radar/vendor/local_gems/ai-rubocops
+  specs:
+    ai-rubocops (1.0.0)
+      rubocop (>= 1.0)
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -287,6 +293,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  ai-rubocops!
   bundler (~> 2.0)
   dartsass
   matrix (~> 0.4)

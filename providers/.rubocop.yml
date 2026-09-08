@@ -1,5 +1,6 @@
 # Minimal RuboCop configuration for raaf-providers
-inherit_from: ~ # Don't inherit from any parent configs
+inherit_from:
+  - '../.rubocop_app_cops.yml'
 
 plugins:
   - rubocop-rspec
