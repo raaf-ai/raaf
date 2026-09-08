@@ -487,12 +487,7 @@ module RAAF
         @tools.each do |tool_def|
           if tool_def.is_a?(Hash) && tool_def[:name]
             # Build tool from definition
-            tool = RAAF::FunctionTool.new({
-                                            name: tool_def[:name],
-                                            description: tool_def[:config][:description],
-                                            parameters: tool_def[:config][:parameters]
-                                          }, &tool_def[:config][:execution_block])
-            agent.add_tool(tool)
+            agent.add_tool(ToolBuilder.to_function_tool(tool_def[:name], tool_def[:config]))
           else
             # Add existing tool
             agent.add_tool(tool_def)

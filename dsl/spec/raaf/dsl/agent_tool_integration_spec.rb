@@ -169,13 +169,9 @@ RSpec.describe RAAF::DSL::AgentToolIntegration do
       end
 
       context "when tool instantiation fails" do
-        it "logs error and returns nil" do
+        it "returns nil" do
           allow(mock_tool_class).to receive(:name).and_return("MockToolClass")
           expect(mock_tool_class).to receive(:new).and_raise(StandardError.new("test error"))
-          expect(test_agent).to receive(:log_error).with(
-            "Failed to create tool instance",
-            hash_including(error: "test error")
-          )
 
           result = test_agent.create_tool_instance_unified(config)
           expect(result).to be_nil

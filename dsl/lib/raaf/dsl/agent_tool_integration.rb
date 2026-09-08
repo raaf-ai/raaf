@@ -138,8 +138,12 @@ module RAAF
             return
           end
 
-          # tool_identifier is required for regular tools
-          raise ArgumentError, "tool_identifier is required for tool registration" if tool_identifier.nil?
+          # tool_identifier is required for regular tools. A blank string names no
+          # tool any more than nil does, so it is rejected the same way rather
+          # than going on to produce a "tool not found: " resolution error.
+          if tool_identifier.nil? || (tool_identifier.respond_to?(:empty?) && tool_identifier.empty?)
+            raise ArgumentError, "tool_identifier is required for tool registration"
+          end
 
           # HYBRID RESOLUTION: Try eager resolution, fall back to lazy if registry not available
           # This ensures:
@@ -213,8 +217,10 @@ module RAAF
           create_tool_instance_unified(config)
         end.compact
 
-        # Append grounding configuration if present (provider-level, not a tool instance)
-        grounding_config = self.class._grounding_config
+        # Append grounding configuration if present (provider-level, not a tool instance).
+        # Grounding is an optional feature that the host class opts into by
+        # defining _grounding_config, so this module does not require it.
+        grounding_config = self.class.respond_to?(:_grounding_config) ? self.class._grounding_config : nil
         if grounding_config.present?
           # Convert to plain Hash for provider consumption
           # Support both Gemini 2.0+ (google_search) and Gemini 1.5 (google_search_retrieval)
@@ -231,64 +237,83 @@ module RAAF
       # Create a tool instance from configuration
       #
       # @param config [Hash] Tool configuration with resolved tool_class OR tool_identifier for lazy resolution
-      # @return [Object, nil] Instantiated tool or nil if instantiation fails
+      # @return [Object, nil] Instantiated tool, or nil if the tool class itself
+      #   raised while being built (which is logged and skipped)
+      # @raise [ToolResolutionError] if a deferred identifier still cannot be resolved
       def create_tool_instance_unified(config)
         tool_class = config[:tool_class]
 
-        # If tool_class not resolved at class definition time (lazy resolution), resolve now
+        # If tool_class not resolved at class definition time (lazy resolution), resolve now.
+        # This is the last chance to resolve a deferred symbol identifier, so a
+        # failure here is reported rather than swallowed - otherwise the agent
+        # silently ends up with fewer tools than it declared.
         if tool_class.nil? && config[:tool_identifier].present?
+          identifier = config[:tool_identifier]
+
           # Check if ToolRegistry is available before trying to use it
           if defined?(RAAF::ToolRegistry).nil?
-            error_msg = "RAAF::ToolRegistry not available at runtime for #{config[:tool_identifier].inspect}"
-            log_error(error_msg)
-            return nil
+            raise ToolResolutionError.new(
+              identifier,
+              ["RAAF::ToolRegistry (not available at runtime)"],
+              ["Ensure raaf-core is loaded before the agent is instantiated"]
+            )
           end
 
           begin
-            tool_class = RAAF::ToolRegistry.safe_lookup(config[:tool_identifier])
+            tool_class = RAAF::ToolRegistry.safe_lookup(identifier)
           rescue NameError => e
-            error_msg = "Tool registry resolution error for #{config[:tool_identifier].inspect}: #{e.message}"
-            log_error(error_msg)
-            return nil
+            raise ToolResolutionError.new(
+              identifier,
+              ["RAAF::ToolRegistry (raised #{e.class})"],
+              [e.message]
+            )
           end
 
           if tool_class.nil?
-            error_msg = "Failed to resolve tool: #{config[:tool_identifier].inspect}\n" \
-                        "Tool resolution failed at both class definition time and runtime."
-            log_error(error_msg)
-            return nil
+            details = begin
+              RAAF::ToolRegistry.resolve_with_details(identifier)
+            rescue StandardError
+              { searched_namespaces: [], suggestions: [] }
+            end
+
+            raise ToolResolutionError.new(
+              identifier,
+              details[:searched_namespaces],
+              details[:suggestions]
+            )
           end
         end
 
-        # If still no tool_class, we have a problem
+        # If still no tool_class, the config itself is malformed
         if tool_class.nil?
-          error_msg = "BUG: tool_class is nil in create_tool_instance_unified. " \
-                      "Neither tool_class nor tool_identifier present in config."
-          log_error(error_msg)
-          return nil
+          raise ArgumentError,
+                "Tool configuration has neither :tool_class nor :tool_identifier: #{config.inspect}"
         end
 
         options = config[:options] || {}
 
-        # Instantiate the tool with options
-        tool_instance = tool_class.new(**options)
+        begin
+          # Instantiate the tool with options
+          tool_instance = tool_class.new(**options)
 
-        # For native tools, return as-is
-        return tool_instance if config[:native]
+          # For native tools, return as-is
+          return tool_instance if config[:native]
 
-        # For regular tools, ensure FunctionTool compatibility
-        if tool_instance.respond_to?(:to_function_tool)
-          tool_instance.to_function_tool
-
-        else
-          tool_instance
+          # For regular tools, ensure FunctionTool compatibility
+          if tool_instance.respond_to?(:to_function_tool)
+            tool_instance.to_function_tool
+          else
+            tool_instance
+          end
+        rescue StandardError => e
+          # A tool that fails to build is skipped rather than taking the whole
+          # agent down, but it is reported - silently dropping it is how an
+          # agent ends up quietly running with fewer tools than it declared.
+          RAAF.logger.warn(
+            "[RAAF] Skipping tool #{tool_class}: #{e.class}: #{e.message}"
+          )
+          nil
         end
-      rescue StandardError => e
-        log_error("Failed to create tool instance",
-                  tool_class: tool_class&.name,
-                  error: e.message,
-                  error_class: e.class.name)
-        nil
       end
 
       # Tool configuration builder for block syntax

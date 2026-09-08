@@ -111,6 +111,7 @@ module RAAF
     autoload :Railtie, "raaf/dsl/railtie"
     autoload :Result, "raaf/dsl/result"
     autoload :SwarmDebugger, "raaf/dsl/debugging/swarm_debugger"
+    autoload :ToolBuilder, "raaf/dsl/builders/tool_builder"
     autoload :WorkflowBuilder, "raaf/dsl/builders/workflow_builder"
 
     # Builder classes
@@ -215,28 +216,10 @@ module RAAF
       autoload :FileResolver, "raaf/dsl/prompts/file_resolver"
     end
 
-    # Tool integration and execution framework
-    #
-    # This module contains all tool-related classes including the base tool
-    # class and specific tool implementations. Tools provide external functionality
-    # to agents such as web search, API calls, data processing, and other
-    # computational tasks with parameter validation and error handling.
-    #
-    # @example Using tools in agents
-    #   class MyAgent < RAAF::DSL::Agent
-    #     uses_tool :web_search
-    #   end
-    #
-    module Tools
-      autoload :Base, "raaf/dsl/tools/base"
-      autoload :ConventionOverConfiguration, "raaf/dsl/tools/convention_over_configuration"
-      autoload :PerformanceOptimizer, "raaf/dsl/tools/performance_optimizer"
-      autoload :Tool, "raaf/dsl/tools/tool"
-      autoload :ToolRegistry, "raaf/dsl/tools/tool_registry"
-      autoload :WebSearch, "raaf/dsl/tools/web_search"
-      autoload :WebSearchPresets, "raaf/dsl/tools/web_search_presets"
-      # TavilySearch and PerplexitySearch wrappers removed - use core tools with interceptor
-    end
+    # Tools live in the core gem (RAAF::Tools) and are used directly. The DSL
+    # wrapper layer that once mirrored them here was removed; agents declare
+    # core tool classes and the execution interceptor supplies the
+    # conveniences the wrappers used to provide.
 
     # Resilience patterns for error handling and retries
     #
