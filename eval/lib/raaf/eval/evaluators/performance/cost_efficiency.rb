@@ -31,7 +31,7 @@ module RAAF
             # Handle invalid cost values
             unless current_cost && current_cost.is_a?(Numeric) && current_cost >= 0
               return {
-                label: :bad,
+                label: "bad",
                 score: 0.0,
                 details: {
                   current_cost: current_cost,
@@ -44,7 +44,7 @@ module RAAF
             # Handle missing baseline
             unless baseline_cost
               return {
-                label: :good,
+                label: "good",
                 score: 1.0,
                 details: { current_cost: current_cost, no_baseline: true },
                 message: "[GOOD] No baseline available for comparison"

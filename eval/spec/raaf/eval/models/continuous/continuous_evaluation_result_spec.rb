@@ -58,7 +58,7 @@ RSpec.describe RAAF::Eval::Models::ContinuousEvaluationResult, type: :model do
     end
 
     it "accepts valid status values" do
-      %w[passed failed warning error].each do |status|
+      %w[good average bad error].each do |status|
         result = build(:continuous_evaluation_result, status: status)
         expect(result).to be_valid, "Expected status '#{status}' to be valid"
       end
@@ -80,25 +80,30 @@ RSpec.describe RAAF::Eval::Models::ContinuousEvaluationResult, type: :model do
       expect(result).to be_valid
     end
 
-    it "requires evaluation_type to be automated" do
+    it "accepts a hand-run sweep as manual" do
       result = build(:continuous_evaluation_result, evaluation_type: "manual")
+      expect(result).to be_valid
+    end
+
+    it "rejects an evaluation_type it has no meaning for" do
+      result = build(:continuous_evaluation_result, evaluation_type: "scheduled")
       expect(result).not_to be_valid
     end
   end
 
   describe "scopes" do
     before do
-      create(:continuous_evaluation_result, status: "passed", agent_name: "AgentA")
-      create(:continuous_evaluation_result, status: "passed", agent_name: "AgentB")
-      create(:continuous_evaluation_result, status: "failed", agent_name: "AgentA")
-      create(:continuous_evaluation_result, status: "warning", agent_name: "AgentA")
+      create(:continuous_evaluation_result, status: "good", agent_name: "AgentA")
+      create(:continuous_evaluation_result, status: "good", agent_name: "AgentB")
+      create(:continuous_evaluation_result, status: "bad", agent_name: "AgentA")
+      create(:continuous_evaluation_result, status: "average", agent_name: "AgentA")
       create(:continuous_evaluation_result, :error, agent_name: "AgentA")
     end
 
     it "filters by status" do
-      expect(described_class.passed.count).to eq(2)
-      expect(described_class.failed.count).to eq(1)
-      expect(described_class.warning.count).to eq(1)
+      expect(described_class.good_quality.count).to eq(2)
+      expect(described_class.bad_quality.count).to eq(1)
+      expect(described_class.average_quality.count).to eq(1)
       expect(described_class.errored.count).to eq(1)
     end
 
@@ -129,31 +134,31 @@ RSpec.describe RAAF::Eval::Models::ContinuousEvaluationResult, type: :model do
     end
   end
 
-  describe "#passed?" do
-    it "returns true for passed status" do
-      result = build(:continuous_evaluation_result, status: "passed")
-      expect(result.passed?).to be true
+  describe "#good?" do
+    it "returns true for good status" do
+      result = build(:continuous_evaluation_result, status: "good")
+      expect(result.good?).to be true
     end
 
     it "returns false for other statuses" do
-      %w[failed warning error].each do |status|
+      %w[average bad error].each do |status|
         result = build(:continuous_evaluation_result, status: status)
-        expect(result.passed?).to be false
+        expect(result.good?).to be false
       end
     end
   end
 
-  describe "#failed?" do
-    it "returns true for failed status" do
-      result = build(:continuous_evaluation_result, status: "failed")
-      expect(result.failed?).to be true
+  describe "#bad?" do
+    it "returns true for bad status" do
+      result = build(:continuous_evaluation_result, status: "bad")
+      expect(result.bad?).to be true
     end
   end
 
-  describe "#warning?" do
-    it "returns true for warning status" do
-      result = build(:continuous_evaluation_result, status: "warning")
-      expect(result.warning?).to be true
+  describe "#average?" do
+    it "returns true for average status" do
+      result = build(:continuous_evaluation_result, status: "average")
+      expect(result.average?).to be true
     end
   end
 
@@ -165,13 +170,13 @@ RSpec.describe RAAF::Eval::Models::ContinuousEvaluationResult, type: :model do
   end
 
   describe "#success?" do
-    it "returns true for passed or warning" do
-      expect(build(:continuous_evaluation_result, status: "passed").success?).to be true
-      expect(build(:continuous_evaluation_result, status: "warning").success?).to be true
+    it "returns true for good or average" do
+      expect(build(:continuous_evaluation_result, status: "good").success?).to be true
+      expect(build(:continuous_evaluation_result, status: "average").success?).to be true
     end
 
-    it "returns false for failed or error" do
-      expect(build(:continuous_evaluation_result, status: "failed").success?).to be false
+    it "returns false for bad or error" do
+      expect(build(:continuous_evaluation_result, status: "bad").success?).to be false
       expect(build(:continuous_evaluation_result, status: "error").success?).to be false
     end
   end
@@ -224,28 +229,28 @@ RSpec.describe RAAF::Eval::Models::ContinuousEvaluationResult, type: :model do
 
   describe ".aggregate_by_status" do
     before do
-      create_list(:continuous_evaluation_result, 3, status: "passed")
-      create_list(:continuous_evaluation_result, 2, status: "failed")
-      create(:continuous_evaluation_result, status: "warning")
+      create_list(:continuous_evaluation_result, 3, status: "good")
+      create_list(:continuous_evaluation_result, 2, status: "bad")
+      create(:continuous_evaluation_result, status: "average")
     end
 
     it "returns counts by status" do
       aggregates = described_class.aggregate_by_status
-      expect(aggregates["passed"]).to eq(3)
-      expect(aggregates["failed"]).to eq(2)
-      expect(aggregates["warning"]).to eq(1)
+      expect(aggregates["good"]).to eq(3)
+      expect(aggregates["bad"]).to eq(2)
+      expect(aggregates["average"]).to eq(1)
     end
   end
 
   describe ".pass_rate" do
     before do
-      create_list(:continuous_evaluation_result, 7, status: "passed")
-      create_list(:continuous_evaluation_result, 2, status: "failed")
-      create(:continuous_evaluation_result, status: "warning")
+      create_list(:continuous_evaluation_result, 7, status: "good")
+      create_list(:continuous_evaluation_result, 2, status: "bad")
+      create(:continuous_evaluation_result, status: "average")
     end
 
     it "calculates pass rate as percentage" do
-      # 7 passed + 1 warning = 8 successful out of 10
+      # 7 good + 1 average = 8 acceptable out of 10
       expect(described_class.pass_rate).to be_within(0.01).of(0.8)
     end
   end

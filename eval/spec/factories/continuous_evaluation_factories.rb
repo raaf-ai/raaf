@@ -119,7 +119,8 @@ FactoryBot.define do
     trait :retrying do
       status { "pending" }
       attempts { 1 }
-      next_retry_at { 5.minutes.from_now }
+      # Due now: an item whose retry is still in the future is not yet retryable.
+      next_retry_at { 5.minutes.ago }
     end
 
     trait :high_priority do
@@ -141,7 +142,7 @@ FactoryBot.define do
     model { "gpt-4o" }
     provider { "openai" }
     environment { "production" }
-    status { "passed" }
+    status { "good" }
     score { 0.85 }
     scores { { "quality" => 0.85 } }
     metrics { { "latency_ms" => 1200, "tokens" => 500 } }
@@ -152,14 +153,14 @@ FactoryBot.define do
     evaluation_completed_at { Time.current }
     metadata { {} }
 
-    trait :failed do
-      status { "failed" }
+    trait :bad do
+      status { "bad" }
       score { 0.3 }
       reasoning { "Token usage exceeded limit" }
     end
 
-    trait :warning do
-      status { "warning" }
+    trait :average do
+      status { "average" }
       score { 0.6 }
       reasoning { "Token usage approaching limit" }
     end

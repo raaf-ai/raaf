@@ -21,7 +21,7 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
         to_h: {},
         field_results: {},
         passed?: true,
-        aggregate_score: 0.9
+        average_score: 0.9
       )
 
       expect do
@@ -40,7 +40,7 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
         to_h: {},
         field_results: {},
         passed?: true,
-        aggregate_score: 0.9
+        average_score: 0.9
       )
 
       # First call should emit warning
@@ -70,7 +70,7 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
         to_h: {},
         field_results: {},
         passed?: true,
-        aggregate_score: 0.9
+        average_score: 0.9
       )
 
       expect do
@@ -112,7 +112,7 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
         to_h: { field_results: {}, label: "good" },
         field_results: { output: { label: "good", score: 0.95 } },
         passed?: true,
-        aggregate_score: 0.95
+        average_score: 0.95
       )
 
       run = nil
@@ -143,7 +143,7 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
         to_h: {},
         field_results: {},
         passed?: true,
-        aggregate_score: 0.9
+        average_score: 0.9
       )
 
       run = nil
@@ -170,7 +170,7 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
         to_h: {},
         field_results: {},
         passed?: true,
-        aggregate_score: 0.9
+        average_score: 0.9
       )
 
       # Suppress warnings during setup
@@ -236,7 +236,7 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
         to_h: {},
         field_results: {},
         passed?: true,
-        aggregate_score: 0.9
+        average_score: 0.9
       )
 
       # Suppress warnings during setup
@@ -292,7 +292,7 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
         to_h: {},
         field_results: {},
         passed?: true,
-        aggregate_score: 0.9
+        average_score: 0.9
       )
 
       # Suppress warnings during setup
@@ -324,7 +324,7 @@ RSpec.describe RAAF::Eval::Storage::HistoricalStorage do
         to_h: {},
         field_results: {},
         passed?: true,
-        aggregate_score: 0.9
+        average_score: 0.9
       )
 
       # Suppress warnings during setup

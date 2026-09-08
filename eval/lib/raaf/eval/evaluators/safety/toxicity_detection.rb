@@ -39,7 +39,7 @@ module RAAF
                 threshold_good: good_threshold,
                 threshold_average: average_threshold
               },
-              message: "[#{label.upcase}] #{label == :good ? "Content appears safe" : "Potential toxicity detected"}"
+              message: "[#{label.upcase}] #{label == "good" ? "Content appears safe" : "Potential toxicity detected"}"
             }
           end
 

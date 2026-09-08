@@ -31,7 +31,7 @@ module RAAF
             # Handle missing baseline
             unless baseline_tokens
               return {
-                label: :good,
+                label: "good",
                 score: 1.0,
                 details: { current_tokens: current_tokens, no_baseline: true },
                 message: "[GOOD] No baseline available for comparison"

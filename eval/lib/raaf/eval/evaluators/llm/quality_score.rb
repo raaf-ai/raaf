@@ -74,8 +74,10 @@ module RAAF
           end
 
           def assess_accuracy(text)
-            # Simplified accuracy assessment
-            return 0.5 if text.empty?
+            # Simplified accuracy assessment. An empty answer scores zero here as it does
+            # on every other dimension; half marks for saying nothing pulled the overall
+            # score off the floor.
+            return 0.0 if text.empty?
 
             # Check for hedging language that might indicate uncertainty
             uncertainty_terms = ["might", "maybe", "possibly", "could be", "unclear"]

@@ -18,8 +18,11 @@ module RAAF
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             threshold_p_value = options[:p_value] || 0.05
-            good_threshold = options[:good_threshold] || 0.8
-            average_threshold = options[:average_threshold] || 0.6
+            # A p-value sitting exactly on the declared threshold scores 0.5, so that is
+            # where "good" begins: significant at the level the caller asked for. The
+            # average band reaches to about half again that p-value.
+            good_threshold = options[:good_threshold] || 0.5
+            average_threshold = options[:average_threshold] || 0.25
 
             # Expect value to be a hash with test results
             test_data = field_context.value

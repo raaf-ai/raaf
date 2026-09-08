@@ -33,7 +33,7 @@ module RAAF
               score: field_result[:score],
               delta: calculate_absolute_delta(baseline_field_result[:score], field_result[:score]),
               delta_pct: calculate_percentage_delta(baseline_field_result[:score], field_result[:score]),
-              passed: field_result[:passed]
+              label: field_result[:label]
             }
           end
         end

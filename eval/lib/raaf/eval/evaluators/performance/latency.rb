@@ -30,7 +30,7 @@ module RAAF
             # Handle invalid latency values
             unless current_latency && current_latency.is_a?(Numeric) && current_latency >= 0
               return {
-                label: :bad,
+                label: "bad",
                 score: 0.0,
                 details: {
                   current_latency: current_latency,
@@ -64,8 +64,11 @@ module RAAF
               # Legacy score-based approach (requires max_ms)
               max_ms = options[:max_ms] || 2000
               score = calculate_score(current_latency, max_ms)
-              threshold_good = options[:threshold_good] || options[:good_threshold] || 0.85
-              threshold_average = options[:threshold_average] || options[:average_threshold] || 0.7
+              # A latency of exactly max_ms scores about 0.67 on the curve below, so the
+              # good band starts just under that and the average band reaches to roughly
+              # 1.4 times the stated maximum.
+              threshold_good = options[:threshold_good] || options[:good_threshold] || 0.65
+              threshold_average = options[:threshold_average] || options[:average_threshold] || 0.4
               label = calculate_label(score, threshold_good: threshold_good, threshold_average: threshold_average)
               details = {
                 current_latency: current_latency,

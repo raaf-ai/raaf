@@ -39,7 +39,7 @@ module RAAF
                 threshold_good: good_threshold,
                 threshold_average: average_threshold
               },
-              message: "[#{label.upcase}] #{label == :good ? "Content complies with all policies" : "Policy violations found: #{violations.join(", ")}"}"
+              message: "[#{label.upcase}] #{label == "good" ? "Content complies with all policies" : "Policy violations found: #{violations.join(", ")}"}"
             }
           end
 

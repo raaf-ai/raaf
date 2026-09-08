@@ -19,18 +19,12 @@ module RAAF
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             schema = options[:schema]
-            good_threshold = options[:good_threshold] || 0.9
-            average_threshold = options[:average_threshold] || 0.7
 
             unless schema
               return {
                 label: "bad",
                 score: 0.0,
-                details: {
-                  error: "No schema provided",
-                  threshold_good: good_threshold,
-                  threshold_average: average_threshold
-                },
+                details: { error: "No schema provided" },
                 message: "[BAD] Schema validation requires :schema parameter"
               }
             end
@@ -39,7 +33,9 @@ module RAAF
             validation_errors = validate_against_schema(value, schema)
 
             score = calculate_score(validation_errors)
-            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
+            # A value either satisfies the schema or it does not; the score says how far
+            # off it is, but a missing required field is not a near miss.
+            label = validation_errors.empty? ? "good" : "bad"
 
             {
               label: label,
@@ -47,9 +43,7 @@ module RAAF
               details: {
                 validation_errors: validation_errors,
                 schema_keys: schema.keys,
-                value_type: value.class.name,
-                threshold_good: good_threshold,
-                threshold_average: average_threshold
+                value_type: value.class.name
               },
               message: if validation_errors.empty?
                          "[#{label.upcase}] Matches schema"

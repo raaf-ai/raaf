@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "raaf/eval/evaluators/all_evaluators"
 
 RSpec.describe "Quality Evaluators" do
   let(:output_result) do
@@ -19,11 +20,11 @@ RSpec.describe "Quality Evaluators" do
     end
 
     it "returns label 'good' when semantic similarity is above threshold" do
-      result = evaluator.evaluate(field_context, threshold: 0.7)
+      result = evaluator.evaluate(field_context, good_threshold: 0.7)
 
       expect(result[:label]).to eq("good")
       expect(result[:score]).to be >= 0.7
-      expect(result[:message]).to include("semantic similarity")
+      expect(result[:message]).to include("Semantic similarity")
     end
 
     it "returns label 'bad' when texts are semantically different" do
@@ -33,7 +34,7 @@ RSpec.describe "Quality Evaluators" do
           baseline_output: "Paris is the capital of France" }
       )
 
-      result = evaluator.evaluate(different_context, threshold: 0.8)
+      result = evaluator.evaluate(different_context, good_threshold: 0.8)
 
       expect(result[:label]).to eq("bad")
       expect(result[:score]).to be < 0.8
@@ -41,15 +42,16 @@ RSpec.describe "Quality Evaluators" do
 
     it "uses default threshold when not specified" do
       result = evaluator.evaluate(field_context)
-      expect(result[:details][:threshold]).to eq(0.8)
+      expect(result[:details][:threshold_good]).to eq(0.8)
+      expect(result[:details][:threshold_average]).to eq(0.6)
     end
   end
 
   # quality/coherence.rb is still an empty file, so the class these examples describe
   # does not exist yet. Naming the constant here aborted the whole eval suite at
   # load time; skip until the evaluator is implemented.
-  describe "RAAF::Eval::Evaluators::Quality::Coherence" do
-    skip "not implemented: eval/lib/raaf/eval/evaluators/quality/coherence.rb is empty"
+  describe "RAAF::Eval::Evaluators::Quality::Coherence",
+           skip: "not implemented: eval/lib/raaf/eval/evaluators/quality/coherence.rb is empty" do
 
     let(:described_class) { RAAF::Eval::Evaluators::Quality::Coherence }
     let(:evaluator) { described_class.new }
@@ -94,8 +96,8 @@ RSpec.describe "Quality Evaluators" do
   # quality/hallucination_detection.rb is still an empty file, so the class these examples describe
   # does not exist yet. Naming the constant here aborted the whole eval suite at
   # load time; skip until the evaluator is implemented.
-  describe "RAAF::Eval::Evaluators::Quality::HallucinationDetection" do
-    skip "not implemented: eval/lib/raaf/eval/evaluators/quality/hallucination_detection.rb is empty"
+  describe "RAAF::Eval::Evaluators::Quality::HallucinationDetection",
+           skip: "not implemented: eval/lib/raaf/eval/evaluators/quality/hallucination_detection.rb is empty" do
 
     let(:described_class) { RAAF::Eval::Evaluators::Quality::HallucinationDetection }
     let(:evaluator) { described_class.new }
@@ -135,8 +137,8 @@ RSpec.describe "Quality Evaluators" do
   # quality/relevance.rb is still an empty file, so the class these examples describe
   # does not exist yet. Naming the constant here aborted the whole eval suite at
   # load time; skip until the evaluator is implemented.
-  describe "RAAF::Eval::Evaluators::Quality::Relevance" do
-    skip "not implemented: eval/lib/raaf/eval/evaluators/quality/relevance.rb is empty"
+  describe "RAAF::Eval::Evaluators::Quality::Relevance",
+           skip: "not implemented: eval/lib/raaf/eval/evaluators/quality/relevance.rb is empty" do
 
     let(:described_class) { RAAF::Eval::Evaluators::Quality::Relevance }
     let(:evaluator) { described_class.new }

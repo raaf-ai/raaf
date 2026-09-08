@@ -19,14 +19,16 @@ module RAAF
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             min_tps = options[:min_tps] || 10
-            good_threshold = options[:good_threshold] || 0.85
-            average_threshold = options[:average_threshold] || 0.7
+            # Throughput of exactly min_tps scores 0.5, so that is where "good" starts;
+            # the average band covers the last tenth below the minimum.
+            good_threshold = options[:good_threshold] || 0.5
+            average_threshold = options[:average_threshold] || 0.45
             current_tps = field_context.value
 
             # Handle invalid throughput values
             unless current_tps && current_tps.is_a?(Numeric) && current_tps >= 0
               return {
-                label: :bad,
+                label: "bad",
                 score: 0.0,
                 details: { current_tps: current_tps, error: "Invalid throughput value" },
                 message: "[BAD] Invalid throughput value: #{current_tps}"

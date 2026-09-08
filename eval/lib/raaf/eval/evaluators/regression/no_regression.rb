@@ -60,20 +60,16 @@ module RAAF
           #   - :tolerance [Numeric] Maximum allowed drop from baseline (default: 0)
           #   - :alert_on_drop [Boolean] Alert on any drop (default: true)
           #   - :severity [Symbol] Severity level (unused, for compatibility)
-          #   - :good_threshold [Numeric] Score threshold for good label (default: 0.8)
-          #   - :average_threshold [Numeric] Score threshold for average label (default: 0.6)
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             current_value = field_context.value
             baseline_value = field_context.baseline_value
             tolerance = options[:tolerance] || 0
-            good_threshold = options[:good_threshold] || 0.8
-            average_threshold = options[:average_threshold] || 0.6
 
             # Handle missing baseline
             unless baseline_value
               return {
-                label: :good,
+                label: "good",
                 score: 1.0,
                 details: { current_value: current_value, no_baseline: true },
                 message: "[GOOD] No baseline available for regression check"
@@ -82,20 +78,20 @@ module RAAF
 
             # Handle array values - check each element
             if current_value.is_a?(Array) && baseline_value.is_a?(Array)
-              return evaluate_array_regression(current_value, baseline_value, tolerance, field_context,
-                                               good_threshold, average_threshold)
+              return evaluate_array_regression(current_value, baseline_value, tolerance, field_context)
             end
 
             # For numeric values, check if current is not worse (within tolerance)
             if numeric?(current_value) && numeric?(baseline_value)
               drop = baseline_value - current_value
               score = drop <= tolerance ? 1.0 : calculate_regression_score(current_value, baseline_value, tolerance)
+              label = label_for_drop(drop, tolerance)
             else
               # For non-numeric, check equality
-              score = current_value == baseline_value ? 1.0 : 0.5
+              same = current_value == baseline_value
+              score = same ? 1.0 : 0.5
+              label = same ? "good" : "bad"
             end
-
-            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
 
             {
               label: label,
@@ -105,23 +101,20 @@ module RAAF
                 baseline_value: baseline_value,
                 delta: field_context.delta,
                 tolerance: tolerance,
-                drop: baseline_value - current_value,
-                threshold_good: good_threshold,
-                threshold_average: average_threshold
+                drop: baseline_value - current_value
               },
-              message: "[#{label.upcase}] #{label == :good ? "No regression detected" : "Regression detected from baseline"}"
+              message: "[#{label.upcase}] #{label == "good" ? "No regression detected" : "Regression detected from baseline"}"
             }
           end
 
           private
 
           # Evaluate regression for array values (element-by-element comparison)
-          def evaluate_array_regression(current_array, baseline_array, tolerance, field_context,
-                                        good_threshold, average_threshold)
+          def evaluate_array_regression(current_array, baseline_array, tolerance, field_context)
             # Ensure arrays are same length
             if current_array.length != baseline_array.length
               return {
-                label: :bad,
+                label: "bad",
                 score: 0.0,
                 details: {
                   current_value: current_array,
@@ -156,7 +149,7 @@ module RAAF
               score = 0.5
             end
 
-            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
+            label = label_for_drop(max_drop, tolerance)
 
             {
               label: label,
@@ -168,12 +161,23 @@ module RAAF
                 tolerance: tolerance,
                 drops: drops,
                 max_drop: max_drop,
-                excessive_drops_count: excessive_drops.length,
-                threshold_good: good_threshold,
-                threshold_average: average_threshold
+                excessive_drops_count: excessive_drops.length
               },
-              message: "[#{label.upcase}] #{label == :good ? "No regression detected in array" : "Regression detected: #{excessive_drops.length} element(s) exceed tolerance"}"
+              message: "[#{label.upcase}] #{label == "good" ? "No regression detected in array" : "Regression detected: #{excessive_drops.length} element(s) exceed tolerance"}"
             }
+          end
+
+          # The verdict this evaluator exists to give: nothing dropped is good, a drop the
+          # caller declared tolerable is average, and a drop past that is the regression
+          # the evaluator is named after.
+          # @param drop [Numeric] How far the value fell below the baseline
+          # @param tolerance [Numeric] The drop the caller declared acceptable
+          # @return [String] "good", "average" or "bad"
+          def label_for_drop(drop, tolerance)
+            return "good" if drop <= 0
+            return "average" if drop <= tolerance
+
+            "bad"
           end
 
           def numeric?(value)

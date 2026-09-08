@@ -122,7 +122,7 @@ RSpec.describe RAAF::Eval::DslEngine::EventEmitter do
       events.clear # Clear start event
 
       # Mock result object
-      result = double("result", passed?: true, aggregate_score: 0.85)
+      result = double("result", passed?: true, average_score: 0.85)
 
       emitter.emit_config_end(:low_temp, result, 5)
 
@@ -137,7 +137,7 @@ RSpec.describe RAAF::Eval::DslEngine::EventEmitter do
     end
 
     it "uses failed status when result is not passed" do
-      result = double("result", passed?: false, aggregate_score: 0.45)
+      result = double("result", passed?: false, average_score: 0.45)
 
       emitter.emit_config_end(:config, result, 5)
 

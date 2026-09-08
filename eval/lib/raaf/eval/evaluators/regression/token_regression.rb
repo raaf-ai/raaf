@@ -19,15 +19,17 @@ module RAAF
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             max_pct = options[:max_pct] || 10
-            good_threshold = options[:good_threshold] || 0.8
-            average_threshold = options[:average_threshold] || 0.6
+            # An increase of exactly max_pct scores 0.5, so that is where "good" ends;
+            # the average band runs down to half again as much of an increase.
+            good_threshold = options[:good_threshold] || 0.5
+            average_threshold = options[:average_threshold] || 0.25
             current_tokens = field_context.value
             baseline_tokens = field_context.baseline_value
 
             # Handle missing baseline
             unless baseline_tokens
               return {
-                label: :good,
+                label: "good",
                 score: 1.0,
                 details: { current_tokens: current_tokens, no_baseline: true },
                 message: "[GOOD] No baseline for token regression check"

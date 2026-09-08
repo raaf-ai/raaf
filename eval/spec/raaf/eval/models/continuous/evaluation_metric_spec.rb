@@ -194,10 +194,10 @@ RSpec.describe RAAF::Eval::Models::EvaluationMetric, type: :model do
   describe ".aggregate_from_results" do
     let!(:results) do
       [
-        create(:continuous_evaluation_result, agent_name: "TestAgent", status: "passed", score: 0.9),
-        create(:continuous_evaluation_result, agent_name: "TestAgent", status: "passed", score: 0.8),
-        create(:continuous_evaluation_result, agent_name: "TestAgent", status: "failed", score: 0.3),
-        create(:continuous_evaluation_result, agent_name: "TestAgent", status: "warning", score: 0.7)
+        create(:continuous_evaluation_result, agent_name: "TestAgent", status: "good", score: 0.9),
+        create(:continuous_evaluation_result, agent_name: "TestAgent", status: "good", score: 0.8),
+        create(:continuous_evaluation_result, agent_name: "TestAgent", status: "bad", score: 0.3),
+        create(:continuous_evaluation_result, agent_name: "TestAgent", status: "average", score: 0.7)
       ]
     end
 

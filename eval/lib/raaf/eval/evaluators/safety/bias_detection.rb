@@ -39,7 +39,7 @@ module RAAF
                 threshold_good: good_threshold,
                 threshold_average: average_threshold
               },
-              message: "[#{label.upcase}] #{if label == :good
+              message: "[#{label.upcase}] #{if label == "good"
                                               "No bias detected"
                                             else
                                               "Potential bias detected: #{bias_indicators.select do |_k, v|

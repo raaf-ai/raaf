@@ -27,7 +27,11 @@ module RAAF
         validates :agent_name, presence: true
         validates :status, presence: true,
                            inclusion: { in: %w[good average bad error] }
-        validates :evaluation_type, inclusion: { in: %w[automated] }
+        # "automated" is a policy sampling production traffic. "manual" is a
+        # sweep somebody ran by hand against a span they chose -- the same
+        # verdict, from a population nobody sampled, so it is shown in the
+        # console and left out of the metrics MetricsAggregationJob rolls up.
+        validates :evaluation_type, inclusion: { in: %w[automated manual] }
         validates :score, numericality: { in: 0..1 }, allow_nil: true
 
         # Scopes - using quality labels: good, average, bad, error
@@ -40,29 +44,31 @@ module RAAF
         scope :for_agent, ->(name) { where(agent_name: name) }
         scope :for_evaluator, ->(name) { where(evaluator_name: name) }
         scope :for_environment, ->(env) { where(environment: env) }
+        scope :automated, -> { where(evaluation_type: "automated") }
+        scope :manual, -> { where(evaluation_type: "manual") }
         scope :for_model, ->(model) { where(model: model) }
         scope :in_date_range, ->(start_date, end_date) { where(created_at: start_date..end_date) }
         scope :recent, -> { order(created_at: :desc) }
 
         ##
-        # Check if evaluation passed
+        # Check if the evaluation judged the span good
         # @return [Boolean]
-        def passed?
-          status == "passed"
+        def good?
+          status == "good"
         end
 
         ##
-        # Check if evaluation failed
+        # Check if the evaluation judged the span average
         # @return [Boolean]
-        def failed?
-          status == "failed"
+        def average?
+          status == "average"
         end
 
         ##
-        # Check if evaluation had a warning
+        # Check if the evaluation judged the span bad
         # @return [Boolean]
-        def warning?
-          status == "warning"
+        def bad?
+          status == "bad"
         end
 
         ##
@@ -73,10 +79,10 @@ module RAAF
         end
 
         ##
-        # Check if evaluation was successful (passed or warning)
+        # Check if the verdict is one a reader can act on (good or average)
         # @return [Boolean]
         def success?
-          %w[passed warning].include?(status)
+          %w[good average].include?(status)
         end
 
         ##
@@ -110,13 +116,13 @@ module RAAF
           end
 
           ##
-          # Calculate pass rate (including warnings as success)
+          # Calculate the share of verdicts that were good or average
           # @return [Float] Rate between 0 and 1
           def pass_rate
             total = count
             return 0 if total.zero?
 
-            successful.count.to_f / total
+            acceptable.count.to_f / total
           end
 
           ##
@@ -145,8 +151,8 @@ module RAAF
             select(
               :evaluator_name,
               "COUNT(*) as total",
-              "COUNT(CASE WHEN status = 'passed' THEN 1 END) as passed",
-              "COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed",
+              "COUNT(CASE WHEN status IN ('good', 'average') THEN 1 END) as passed",
+              "COUNT(CASE WHEN status IN ('bad', 'error') THEN 1 END) as failed",
               "AVG(score) as avg_score"
             ).group(:evaluator_name).to_a.map do |row|
               [row.evaluator_name, {

@@ -8,6 +8,9 @@ module RAAF
       # Emits progress events at key evaluation milestones
       # Coordinates with CallbackManager and ProgressCalculator
       class EventEmitter
+        # Labels a run is allowed to end on. Anything else marks the step failed.
+        ACCEPTABLE_LABELS = %w[good average].freeze
+
         # Initialize event emitter
         # @param callback_manager [CallbackManager] Manages progress callbacks
         # @param progress_calculator [ProgressCalculator] Calculates progress percentages
@@ -87,7 +90,7 @@ module RAAF
         # @param result [Hash] Evaluator result with :passed and :score
         # @param duration_ms [Float] Evaluation duration in milliseconds
         def emit_evaluator_end(config_name, field_name, evaluator_name, result, duration_ms)
-          status = result[:passed] ? :completed : :failed
+          status = ACCEPTABLE_LABELS.include?(result[:label]) ? :completed : :failed
 
           event = ProgressEvent.new(
             type: :evaluator_end,
@@ -97,7 +100,7 @@ module RAAF
               configuration_name: config_name,
               field_name: field_name,
               evaluator_name: evaluator_name,
-              evaluator_result: { passed: result[:passed], score: result[:score] },
+              evaluator_result: { label: result[:label], score: result[:score] },
               duration_ms: duration_ms
             }
           )
@@ -107,7 +110,7 @@ module RAAF
 
         # Emit configuration end event
         # @param config_name [Symbol] Configuration name
-        # @param result [Object] Configuration result with #passed? and #aggregate_score
+        # @param result [Object] Configuration result with #passed? and #average_score
         # @param evaluators_run [Integer] Number of evaluators executed
         def emit_config_end(config_name, result, evaluators_run)
           duration_ms = calculate_duration_ms
@@ -119,7 +122,7 @@ module RAAF
             metadata: {
               configuration_name: config_name,
               configuration_result: {
-                passed: result.passed?,
+                label: result.passed? ? "good" : "bad",
                 aggregate_score: result.average_score
               },
               duration_ms: duration_ms,

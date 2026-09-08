@@ -19,15 +19,17 @@ module RAAF
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             max_ms = options[:max_ms] || 200
-            good_threshold = options[:good_threshold] || 0.8
-            average_threshold = options[:average_threshold] || 0.6
+            # An increase of exactly max_ms scores 0.5, so that is where "good" ends;
+            # the average band runs down to half again as much of an increase.
+            good_threshold = options[:good_threshold] || 0.5
+            average_threshold = options[:average_threshold] || 0.25
             current_latency = field_context.value
             baseline_latency = field_context.baseline_value
 
             # Handle missing baseline
             unless baseline_latency
               return {
-                label: :good,
+                label: "good",
                 score: 1.0,
                 details: { current_latency: current_latency, no_baseline: true },
                 message: "[GOOD] No baseline for latency regression check"
