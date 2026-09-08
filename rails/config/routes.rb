@@ -164,6 +164,7 @@ RAAF::Rails::Engine.routes.draw do
       member do
         post :run
         post :cancel
+        get :compare
       end
       resources :results, controller: "experiment_results", only: %i[index show]
     end

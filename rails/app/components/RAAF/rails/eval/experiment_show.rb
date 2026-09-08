@@ -77,6 +77,18 @@ module RAAF
           when "pending" then post_button("Run", "play-fill", run_path)
           when "running" then post_button("Cancel", "stop-fill", cancel_path, variant: :danger)
           end
+
+          compare_link
+        end
+
+        # The scores below stand alone, and a number with nothing to stand
+        # against cannot be judged. Offered once the run has something settled
+        # to compare.
+        def compare_link
+          return unless %w[completed failed].include?(@experiment.status)
+
+          render Atoms::Link.new("compare with another run", mono: true,
+                                 href: compare_eval_experiment_path(@experiment))
         end
 
         def post_button(label, icon, action, variant: nil)
@@ -224,7 +236,7 @@ module RAAF
           grid.row(href: eval_experiment_result_path(@experiment, result), cells: [
                      { value: Atoms::Mono.new("##{result.dataset_item_id}", tone: :muted) },
                      { value: Atoms::StatusBadge.new(result.status) },
-                     { value: Atoms::Mono.new(format_score(score), tone: score_tone(score)),
+                     { value: Atoms::Mono.new(score_text(score), tone: score_tone(score)),
                        align: :right },
                      { value: Atoms::Mono.new(output_preview(result), tone: :muted,
                                                                       class: "raaf-cell-indent") }
@@ -239,22 +251,6 @@ module RAAF
           output = result.output
           text = output.is_a?(Hash) || output.is_a?(Array) ? output.to_json : output.to_s
           text.presence&.truncate(160) || "—"
-        end
-
-        def format_score(score)
-          score.nil? ? "—" : "%.2f" % score
-        end
-
-        # The tiers the experiment list and the continuous results table use,
-        # so one score does not change colour between screens.
-        def score_tone(score)
-          return :muted if score.nil?
-
-          case score.to_f
-          when 0.8.. then :ok
-          when 0.5...0.8 then :warn
-          else :bad
-          end
         end
       end
     end

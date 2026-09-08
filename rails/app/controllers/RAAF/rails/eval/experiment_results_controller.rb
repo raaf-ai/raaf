@@ -9,8 +9,10 @@ module RAAF
 
         # GET /raaf/eval/experiments/:experiment_id/results
         def index
-          scope = @experiment.experiment_results.includes(:dataset_item).recent
+          scope = @experiment.experiment_results.includes(:dataset_item)
+          scope = params[:sort] == "worst" ? scope.worst_first : scope.recent
           scope = scope.where(status: params[:status]) if params[:status].present?
+          scope = scope.scoring_below(threshold) if params[:below].present?
 
           @results = scope.page(params[:page]).per(50)
           @counts = @experiment.experiment_results.group(:status).count
@@ -19,12 +21,11 @@ module RAAF
             format.html do
               component = RAAF::Rails::Eval::ExperimentResultList.new(
                 experiment: @experiment, results: @results, counts: @counts,
-                filters: { status: params[:status] }
+                below_count: below_count,
+                filters: { status: params[:status], sort: params[:sort], below: params[:below] }
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(
-                title: "#{@experiment.name} · results", crumb: "Evaluate", current: :experiments
-              ) { render component }
-              render layout
+              render_in_layout component, title: "#{@experiment.name} · results", crumb: "Evaluate",
+                                          current: :experiments
             end
             format.json { render json: @results }
           end
@@ -40,11 +41,8 @@ module RAAF
                 experiment: @experiment, result: @result,
                 neighbours: neighbours(@result)
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(
-                title: "Result ##{@result.dataset_item_id}", crumb: "Evaluate",
-                current: :experiments
-              ) { render component }
-              render layout
+              render_in_layout component, title: "Result ##{@result.dataset_item_id}", crumb: "Evaluate",
+                                          current: :experiments
             end
             format.json { render json: @result }
           end
@@ -65,6 +63,27 @@ module RAAF
 
         def set_experiment
           @experiment = RAAF::Eval::Models::Experiment.find(params[:experiment_id])
+        end
+
+        # The line the run itself was given, where somebody set one. Falling
+        # back to the console's own tier rather than to a number invented here,
+        # so a case is called failing against the same bar everywhere.
+        def threshold
+          @experiment.schedule[:alert_below] ||
+            RAAF::Rails::Tracing::BaseComponent::POOR_SCORE
+        end
+
+        # Counted over the whole run rather than the page, which is the point of
+        # the column: "eleven cases below the line" is a fact about the run, and
+        # "eleven of the fifty I loaded" is not.
+        #
+        # Zero without the column, so the chip stays off a console whose
+        # database has not caught up rather than offering a filter that cannot
+        # answer.
+        def below_count
+          return 0 unless RAAF::Eval::Models::ExperimentResult.overall_score_stored?
+
+          @experiment.experiment_results.scoring_below(threshold).count
         end
       end
     end

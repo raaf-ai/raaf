@@ -26,10 +26,7 @@ module RAAF
                 agents: Experiment.distinct.pluck(:agent_name).compact_blank.sort,
                 filters: { status: params[:status], agent: params[:agent] }
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(
-                title: "Experiments", crumb: "Evaluate", current: :experiments
-              ) { render component }
-              render layout
+              render_in_layout component, title: "Experiments", crumb: "Evaluate", current: :experiments
             end
             format.json { render json: @experiments }
           end
@@ -47,10 +44,7 @@ module RAAF
                 # the run recorded more than that.
                 total_results: @experiment.experiment_results.count
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(
-                title: @experiment.name, crumb: "Evaluate", current: :experiments
-              ) { render component }
-              render layout
+              render_in_layout component, title: @experiment.name, crumb: "Evaluate", current: :experiments
             end
             format.json { render json: @experiment.as_json(include: :aggregate_metrics) }
           end
@@ -64,8 +58,7 @@ module RAAF
           respond_to do |format|
             format.html do
               component = RAAF::Rails::Eval::ExperimentForm.new(experiment: @experiment, datasets: @datasets)
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "New Experiment") { render component }
-              render layout
+              render_in_layout component, title: "New Experiment"
             end
           end
         end
@@ -83,8 +76,7 @@ module RAAF
           else
             @datasets = Dataset.active.latest_versions.recent
             component = RAAF::Rails::Eval::ExperimentForm.new(experiment: @experiment, datasets: @datasets)
-            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "New Experiment") { render component }
-            render layout, status: :unprocessable_content
+            render_in_layout component, title: "New Experiment", status: :unprocessable_content
           end
         end
 
@@ -98,12 +90,37 @@ module RAAF
         end
 
         # POST /raaf/eval/experiments/:id/run
+        #
+        # Queued rather than run here. The run executes the agent once per
+        # dataset item and scores each answer, so a large dataset is a long
+        # sequence of model calls — which the request that started it has no
+        # business waiting for. The experiment's status carries the progress.
         def run
-          engine = RAAF::Eval::ExperimentEngine.new
-          engine.run_experiment(@experiment)
-          redirect_to eval_experiment_path(@experiment), notice: "Experiment completed."
+          RAAF::Rails::Eval::ExperimentRunJob.perform_later(@experiment.id)
+          redirect_to eval_experiment_path(@experiment), notice: "Experiment queued."
         rescue StandardError => e
-          redirect_to eval_experiment_path(@experiment), alert: "Experiment failed: #{e.message}"
+          redirect_to eval_experiment_path(@experiment), alert: "Could not queue experiment: #{e.message}"
+        end
+
+        # GET /raaf/eval/experiments/:id/compare?against=<id>
+        #
+        # A score on its own says nothing. This holds the run against another
+        # run of the same dataset, which is the only comparison that means
+        # anything: two runs over different cases have no item to line up and
+        # their averages answer different questions.
+        def compare
+          candidates = comparable_experiments
+          against = candidates.find { |run| run.id == params[:against].to_i }
+          against ||= candidates.first
+
+          comparison = against && RAAF::Eval::ExperimentEngine.new
+                                                              .compare_experiments(against, @experiment)
+
+          component = RAAF::Rails::Eval::ExperimentComparison.new(
+            experiment: @experiment, against: against, candidates: candidates, comparison: comparison
+          )
+          render_in_layout component, title: "#{@experiment.name} · compare", crumb: "Evaluate",
+                                      current: :experiments
         end
 
         # POST /raaf/eval/experiments/:id/cancel
@@ -138,10 +155,7 @@ module RAAF
             agents: selectable_agents,
             scorers: available_scorers
           )
-          layout = RAAF::Rails::Tracing::BaseLayout.new(
-            title: @experiment.name, crumb: "Evaluate", current: :experiments
-          ) { render component }
-          render layout, status: status
+          render_in_layout component, title: @experiment.name, crumb: "Evaluate", current: :experiments, status: status
         end
 
         # The editor writes name, description, dataset, agent, model and
@@ -239,6 +253,18 @@ module RAAF
         # the same source the continuous policy form picks from. Agents already
         # named by an experiment are added so an existing record's own agent is
         # never dropped from its picker.
+        # The other runs of this dataset, newest first. A run still going has
+        # nothing settled to compare, and comparing a run with itself answers
+        # a question nobody asked.
+        def comparable_experiments
+          Experiment.where(dataset_id: @experiment.dataset_id)
+                    .where.not(id: @experiment.id)
+                    .where(status: %w[completed failed])
+                    .order(completed_at: :desc, id: :desc)
+                    .limit(50)
+                    .to_a
+        end
+
         def selectable_agents
           from_evaluators = available_evaluators.filter_map { |detail| detail[:agent_name] }
           (from_evaluators + Experiment.distinct.pluck(:agent_name)).compact_blank.uniq.sort

@@ -20,10 +20,6 @@ module RAAF
       # how the dimensions were combined or what they had to clear.
       #
       class ExperimentResultShow < RAAF::Rails::Tracing::BaseComponent
-        # Above this a score is healthy, below the lower bound it is failing.
-        GOOD = 0.8
-        POOR = 0.5
-
         # @param neighbours [Hash] :previous and :next results in the run,
         #   either of which may be nil at the ends
         def initialize(experiment:, result:, neighbours: {})
@@ -77,6 +73,7 @@ module RAAF
             title: "Item ##{@result.dataset_item_id}", mono: true,
             description: item_description,
             status: @result.status,
+            badges: [method_badge].compact,
             meta: head_meta,
             stats: head_stats
           )
@@ -90,6 +87,21 @@ module RAAF
 
           source = @item.source_span_id.presence ? "promoted from a production span" : "written by hand"
           "Case #{@result.dataset_item_id} of #{@experiment.dataset&.name} · #{source}"
+        end
+
+        # What graded the case, beside what it scored. An experiment mixes
+        # checks from several evaluators freely, so this is as often "Mixed" as
+        # it is one method — and where it is, each bar below says which it was.
+        def method_badge
+          Atoms::Badge.for_check_type(scoring_method, size: :sm)
+        end
+
+        def scoring_method
+          @scoring_method ||= RAAF::Rails::ScoringMethod.of_checks(declared_checks)
+        end
+
+        def mixed_methods?
+          scoring_method == RAAF::Rails::ScoringMethod::MIXED
         end
 
         def head_meta
@@ -111,24 +123,122 @@ module RAAF
             if dimensions.empty?
               render Molecules::EmptyState.new(
                 icon: "sliders", title: "Not scored",
-                text: "No scorer recorded a number for this case."
+                text: not_scored_text
               )
             else
               dimensions.each { |name, value| score_row(name, value) }
+              scoring_rules
             end
+          end
+        end
+
+        # An experiment that named no scorers was never graded; one that named
+        # them and came back with nothing was. The two look identical on the
+        # screen and mean opposite things about whether to trust the run.
+        def not_scored_text
+          if @experiment.scorers.any? { |scorer| scorer[:enabled] }
+            "This experiment names scorers, and none of them returned a number for this case."
+          else
+            "No scorer is switched on for this experiment, so nothing was measured."
           end
         end
 
         def score_row(name, value)
           score = value.to_f
+          badge = (Atoms::Badge.for_check_type(dimension_type(name), size: :sm) if mixed_methods?)
 
-          render Molecules::MeterRow.new(
-            name: name.to_s.tr("_", " "),
+          row = Molecules::MeterRow.new(
+            name: check_label(name),
             value: score_text(score),
             pct: (score * 100).round,
             tone: score_tone(score),
             tip: "#{score_text(score)} of a possible 1.00"
           )
+
+          # The block is what draws the space ahead of the name, so a bar with
+          # nothing to put there is rendered without one.
+          badge ? render(row) { render badge } : render(row)
+        end
+
+        # Named per bar only where the bars disagree: repeating one method down
+        # a column of four says nothing, and the run where a judge sits among
+        # three rules is the one the reader has to be able to see.
+        def dimension_type(name)
+          RAAF::Rails::ScoringMethod.type_of(check_for(name))
+        end
+
+        # A dimension is stored as `field:evaluator`, which names where the
+        # number came from rather than what was asked. The check's own name
+        # where the run recorded one.
+        #
+        # Without one the key is spelled out rather than run together:
+        # "quality:value range" reads as one broken word, where "quality · value
+        # range" reads as the field and the scorer that graded it, which is what
+        # the key says.
+        def check_label(name)
+          declared = check_for(name)&.dig(:display_name).presence
+          return declared if declared
+
+          name.to_s.split(":").map { |part| part.tr("_", " ") }.join(" · ")
+        end
+
+        # ── The rule behind the bar ───────────────────────────────────────
+
+        # What each check asks, under the bars it produced. Declared on the
+        # evaluator and written onto the result when it was scored, so a case
+        # keeps saying what it was held to however the evaluator changes after.
+        def scoring_rules
+          return if declared_checks.empty?
+
+          div(class: "raaf-measures") do
+            render Molecules::SectionHeader.new(title: "How this scores", size: :sm)
+            declared_checks.each { |check| scoring_rule(check) }
+          end
+        end
+
+        def scoring_rule(check)
+          div(class: "raaf-measure") do
+            render Molecules::SectionHeader.new(
+              title: check[:display_name].presence || check[:field_name].to_s.tr("_", " "),
+              meta: check[:evaluator_type].to_s.tr("_", " "), size: :sm
+            )
+
+            if check[:description].present?
+              render Atoms::Text.new(check[:description], size: :"body-sm", tone: :secondary,
+                                                          wrap: true)
+            end
+
+            pairs = rule_pairs(check)
+            render Molecules::KeyValueList.new(pairs: pairs, mono: true) if pairs.any?
+          end
+        end
+
+        # The bounds and thresholds the check was given, beside what it decided.
+        def rule_pairs(check)
+          options = check[:options]
+          return {} unless options.is_a?(Hash)
+
+          options.each_with_object({}) do |(key, value), pairs|
+            pairs[key.to_s.tr("_", " ").capitalize] = value.to_s
+          end
+        end
+
+        def check_for(name)
+          field, type = name.to_s.split(":", 2)
+
+          declared_checks.find do |check|
+            check[:field_name].to_s == field && (type.nil? || check[:evaluator_type].to_s == type)
+          end
+        end
+
+        # Written as JSON, so the keys come back as strings while every reader
+        # here asks for symbols.
+        def declared_checks
+          @declared_checks ||= begin
+            stored = @result.metadata&.dig("declared_checks") ||
+                     @result.metadata&.dig(:declared_checks)
+            stored.is_a?(Array) ? stored.filter_map { |c| c.transform_keys(&:to_sym) if c.is_a?(Hash) } : []
+          end
         end
 
         # The overall score is the mean of these, which the card says out
@@ -204,14 +314,15 @@ module RAAF
 
         def metadata
           render(Organisms::Card.new(title: "Run metadata", flush: true)) do
-            render Molecules::KeyValueList.new(layout: :rows, mono: true, pairs: metadata_pairs)
+            render Molecules::KeyValueList.new(layout: :rows, mono: true, flush: true,
+                                               pairs: metadata_pairs)
           end
         end
 
         def metadata_pairs
           {
-            "Started" => timestamp(@result.started_at),
-            "Completed" => timestamp(@result.completed_at),
+            "Started" => @result.started_at && timestamp(@result.started_at),
+            "Completed" => @result.completed_at && timestamp(@result.completed_at),
             "Duration" => duration_text,
             "Tokens" => token_text,
             "Latency" => latency_text,
@@ -237,18 +348,13 @@ module RAAF
         end
 
         def step_row(label, result, icon)
-          a(href: eval_experiment_result_path(@experiment, result), class: "raaf-result-neighbour") do
-            render Atoms::Icon.new(icon, size: :sm, tone: :muted)
-
-            span(class: "raaf-result-neighbour-body") do
-              render Atoms::Mono.new("##{result.dataset_item_id}")
-              render Atoms::Mono.new(label, tone: :muted)
-            end
-
-            render Atoms::StatusBadge.new(result.status)
-            render Atoms::Mono.new(score_text(result.overall_score),
-                                   tone: score_tone(result.overall_score))
-          end
+          render Molecules::ResultRow.new(
+            href: eval_experiment_result_path(@experiment, result),
+            title: "##{result.dataset_item_id}", meta: label, icon: icon,
+            status: result.status,
+            value: score_text(result.overall_score),
+            value_tone: score_tone(result.overall_score)
+          )
         end
 
         # What the agent actually did, which no amount of stored output
@@ -257,14 +363,10 @@ module RAAF
           href = trace_span_path(@result.result_span_id, @result.result_trace_id)
           return if href.nil?
 
-          a(href: href, class: "raaf-result-neighbour") do
-            render Atoms::Icon.new("diagram-3", size: :sm, tone: :accent)
-
-            span(class: "raaf-result-neighbour-body") do
-              render Atoms::Mono.new("open trace")
-              render Atoms::Mono.new("the run behind this output", tone: :muted)
-            end
-          end
+          render Molecules::ResultRow.new(
+            href: href, title: "open trace", meta: "the run behind this output",
+            icon: "diagram-3", icon_tone: :accent
+          )
         end
 
         # ── Formatting ────────────────────────────────────────────────────
@@ -290,34 +392,6 @@ module RAAF
 
           ms = metrics["total_ms"] || metrics["latency_ms"] || metrics["duration_ms"]
           ms && "#{ms.to_i}ms"
-        end
-
-        def score_text(score)
-          return "—" if score.nil?
-
-          # `format` is not Kernel's here — Phlex's element methods take the
-          # name, so the operator form is the one that survives.
-          "%.2f" % score.to_f
-        end
-
-        def score_tone(score)
-          return nil if score.nil?
-
-          case score.to_f
-          when GOOD.. then :ok
-          when POOR...GOOD then :warn
-          else :bad
-          end
-        end
-
-        def timestamp(time)
-          return nil if time.nil?
-
-          time.utc.strftime("%Y-%m-%d %H:%M:%S UTC")
-        end
-
-        def delimited(number)
-          number.to_i.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
         end
       end
     end

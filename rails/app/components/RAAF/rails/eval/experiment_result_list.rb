@@ -13,13 +13,13 @@ module RAAF
       # experiment's identity at the top so it is still obvious what is being
       # read.
       #
-      # One departure from the canvas's filter strip: it offers All / Failed /
-      # Low score, and only the first two are queries. A result's score is the
-      # mean of a jsonb hash, computed in Ruby, so "low score" can be asked of
-      # the page already loaded or of nothing at all — and "low among these
-      # fifty" is a different question wearing the same label. The chips here
-      # are the run's own statuses, which the database can answer for the
-      # whole set.
+      # The canvas's filter strip offers All / Failed / Low score. "Low score"
+      # used to be unanswerable: a result's score was the mean of a jsonb hash
+      # computed in Ruby, so it could be asked of the fifty rows already loaded
+      # or of nothing at all, and "low among these fifty" is a different
+      # question wearing the same label. The score is a column now, so the chip
+      # is a query over the whole run, and worst-first is an ordering rather
+      # than a re-sort of the page.
       #
       class ExperimentResultList < RAAF::Rails::Tracing::BaseComponent
         # Columns and fr weights taken from RAAF Eval.dc.html.
@@ -40,12 +40,15 @@ module RAAF
 
         # @param counts [Hash] status => how many the run recorded, over the
         #   whole experiment rather than the page
-        def initialize(experiment:, results:, counts: {}, filters: {}, per_page: 50)
+        # @param below_count [Integer] how many cases scored under the run's
+        #   own line, over the whole experiment
+        def initialize(experiment:, results:, counts: {}, filters: {}, per_page: 50, below_count: 0)
           @experiment = experiment
           @results = results
           @counts = counts || {}
           @filters = filters || {}
           @per_page = per_page
+          @below_count = below_count.to_i
         end
 
         def view_template
@@ -72,9 +75,14 @@ module RAAF
         # A status nothing was recorded under is left out rather than offered
         # as a chip that empties the table.
         def filters
-          render(Molecules::FilterBar.new(chips: status_chips, panel: true)) do
+          render(Molecules::FilterBar.new(chips: chips, panel: true)) do
+            render Atoms::Link.new(sort_label, href: sort_path, mono: true)
             render Atoms::Mono.new(count_label, tone: :muted)
           end
+        end
+
+        def chips
+          status_chips + below_chip
         end
 
         def status_chips
@@ -83,14 +91,42 @@ module RAAF
             next if status[:value] && count.zero?
 
             { label: status[:label], count: count,
-              active: @filters[:status].presence == status[:value],
-              href: filtered_path(status[:value]) }
+              active: @filters[:status].presence == status[:value] && !below?,
+              href: filtered_path(status: status[:value]) }
           end
         end
 
-        def filtered_path(status)
-          params = status ? { status: status } : {}
-          eval_experiment_results_path(@experiment, params)
+        # The cases the run itself calls failing, counted over the whole run.
+        # Absent where nothing falls below the line: a chip reading zero is a
+        # question with one answer.
+        def below_chip
+          return [] if @below_count.zero?
+
+          [{ label: "Below the line", count: @below_count, active: below?,
+             href: filtered_path(status: @filters[:status], below: "1") }]
+        end
+
+        def below?
+          @filters[:below].present?
+        end
+
+        # Worst first is how a run is read when the question is what it got
+        # wrong; newest first is how it is read while it is still going.
+        def sort_label
+          worst? ? "worst first · show newest first" : "newest first · show worst first"
+        end
+
+        def sort_path
+          filtered_path(status: @filters[:status], below: @filters[:below],
+                        sort: worst? ? nil : "worst")
+        end
+
+        def worst?
+          @filters[:sort].to_s == "worst"
+        end
+
+        def filtered_path(params)
+          eval_experiment_results_path(@experiment, params.compact.reject { |_, v| v.to_s.empty? })
         end
 
         def count_label
@@ -130,7 +166,7 @@ module RAAF
           grid.row(href: eval_experiment_result_path(@experiment, result), cells: [
                      { value: Atoms::Mono.new("##{result.dataset_item_id}", tone: :muted) },
                      { value: Atoms::StatusBadge.new(result.status) },
-                     { value: Atoms::Mono.new(format_score(score), tone: score_tone(score)),
+                     { value: Atoms::Mono.new(score_text(score), tone: score_tone(score)),
                        align: :right },
                      { value: Atoms::Mono.new(output_preview(result), tone: :muted,
                                                                       class: "raaf-cell-indent") }
@@ -156,26 +192,10 @@ module RAAF
             page: @results.current_page, total_pages: @results.total_pages,
             total_count: @results.total_count, per_page: @per_page,
             href: lambda { |n|
-              eval_experiment_results_path(@experiment,
-                                           { status: @filters[:status], page: n }.compact)
+              filtered_path(status: @filters[:status], below: @filters[:below],
+                            sort: @filters[:sort], page: n)
             }
           )
-        end
-
-        def format_score(score)
-          score.nil? ? "—" : "%.2f" % score
-        end
-
-        # The tiers the experiment and continuous screens use, so one score
-        # does not change colour between pages.
-        def score_tone(score)
-          return :muted if score.nil?
-
-          case score.to_f
-          when 0.8.. then :ok
-          when 0.5...0.8 then :warn
-          else :bad
-          end
         end
       end
     end
