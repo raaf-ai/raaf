@@ -95,7 +95,7 @@ module RAAF
         # Render truncated view for large JSON data
         def render_truncated_json_view(data, data_size, use_json_highlighter = false, compact = false)
           truncated_data = truncate_large_data(data)
-          truncate_id = "truncate-#{SecureRandom.hex(4)}"
+          toggle_id = "truncate-#{SecureRandom.hex(4)}"
 
           json_data_attrs = if use_json_highlighter
                               {
@@ -116,7 +116,7 @@ module RAAF
             end
 
             # Truncated content
-            div(id: "#{truncate_id}-preview") do
+            div(id: "#{toggle_id}-preview") do
               pre(
                 class: "bg-white p-3 rounded border text-xs overflow-x-auto font-mono max-h-48 overflow-y-auto text-gray-900",
                 data: json_data_attrs
@@ -126,7 +126,7 @@ module RAAF
             end
 
             # Full content (initially hidden)
-            div(id: "#{truncate_id}-full", class: "hidden") do
+            div(id: "#{toggle_id}-full", class: "hidden") do
               pre(
                 class: "bg-white p-3 rounded border text-xs overflow-x-auto font-mono max-h-96 overflow-y-auto text-gray-900",
                 data: json_data_attrs
@@ -140,7 +140,7 @@ module RAAF
               class: "w-full px-3 py-2 text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 rounded border border-blue-300 transition-colors",
               data: {
                 action: "click->span-detail#toggleValue",
-                target: truncate_id
+                target: toggle_id
               }
             ) do
               "Show Full Content (#{format_data_size(data_size)})"
@@ -412,7 +412,7 @@ module RAAF
               ) do
                 i(class: "bi bi-diagram-3")
                 span(class: "hidden sm:inline") { "Trace:" }
-                span { truncate_id(@span.trace_id, length: 6) }
+                span { truncate_id(@span.trace_id) }
               end
               i(class: "bi bi-chevron-right text-gray-400 text-xs flex-shrink-0")
             end
@@ -420,13 +420,13 @@ module RAAF
             # Parent span navigation link (mobile-optimized)
             if @span.parent_id
               link_to(
-                tracing_span_path(@span.parent_id),
+                trace_span_path(@span.parent_id, @span.trace_id),
                 class: "text-blue-600 hover:text-blue-900 font-mono flex items-center gap-1 transition-colors flex-shrink-0 py-1 px-2 rounded hover:bg-blue-50",
                 title: "View parent span: #{@span.parent_id}"
               ) do
                 i(class: "bi bi-arrow-up-circle")
                 span(class: "hidden sm:inline") { "Parent:" }
-                span { truncate_id(@span.parent_id, length: 6) }
+                span { truncate_id(@span.parent_id) }
               end
               i(class: "bi bi-chevron-right text-gray-400 text-xs flex-shrink-0")
             end
@@ -435,7 +435,7 @@ module RAAF
             span(class: "text-gray-900 font-mono font-semibold flex items-center gap-1 flex-shrink-0 py-1 px-2 bg-gray-100 rounded") do
               i(class: "bi bi-dot")
               span(class: "hidden sm:inline") { "Current:" }
-              span { truncate_id(@span.span_id, length: 6) }
+              span { truncate_id(@span.span_id) }
             end
           end
         end
@@ -497,7 +497,7 @@ module RAAF
               if @span.parent_id
                 link_to(
                   @span.parent_id,
-                  tracing_span_path(@span.parent_id),
+                  trace_span_path(@span.parent_id, @span.trace_id),
                   class: "text-blue-600 hover:text-blue-900 transition-colors",
                   title: "View parent span"
                 )
@@ -514,7 +514,10 @@ module RAAF
               else
                 span(class: "text-gray-500 italic flex items-center gap-1") do
                   i(class: "bi bi-dash-circle")
-                  "None (Root Span)"
+                  # `plain`: a block that has already written an element
+                  # discards a trailing String, so a root span's Parent ID read
+                  # as an icon and nothing else.
+                  plain "None (Root Span)"
                 end
               end
             end
@@ -540,12 +543,6 @@ module RAAF
         end
 
         # Helper to truncate long IDs for navigation display
-        def truncate_id(id, length: 8)
-          return "N/A" unless id
-
-          id.length > length ? "#{id[0...length]}..." : id
-        end
-
         # Enhanced timing details with performance visualization
         def render_timing_details
           div(class: "bg-white overflow-hidden shadow rounded-lg mb-6") do

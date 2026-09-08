@@ -150,19 +150,12 @@ module RAAF
                      { value: Molecules::TitleMeta.new(display_name(record), subject(record)),
                        primary: true },
                      { value: Atoms::KindBadge.new(record.kind) },
-                     { value: Atoms::Mono.new(short_id(record.trace_id), tone: :accent) },
+                     { value: Atoms::Mono.new(truncate_id(record.trace_id), tone: :accent) },
                      { value: Atoms::Mono.new(format_duration(record.duration_ms)), align: :right },
                      { value: Atoms::Mono.new(tokens_for(record), tone: :muted), align: :right },
                      { value: Atoms::StatusBadge.new(record.status), align: :right },
                      { value: Atoms::Mono.new(started_at(record), tone: :muted), align: :right }
                    ])
-        end
-
-        # The trace column is the id, as the design has it — the workflow name
-        # was already the thing you filtered by to get here, so repeating it
-        # down the column named "Trace" said nothing and cost the width.
-        def short_id(id)
-          id.to_s.delete_prefix("trace_").first(8)
         end
 
         # Every emitter records usage under a different key, and only one of

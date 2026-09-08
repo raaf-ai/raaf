@@ -23,34 +23,13 @@ module RAAF
         end
 
         def view_template
-          div(id: "tracing-dashboard", class: "raaf-page", data: dashboard_data) do
-            connection_status
+          div(id: "tracing-dashboard", class: "raaf-page") do
             filters
             traces_table
           end
         end
 
         private
-
-        # Retained verbatim: the dashboard Stimulus controller reads these.
-        def dashboard_data
-          {
-            controller: "dashboard",
-            "dashboard-channel-name-value": "RubyAIAgentsFactory::Tracing::TracesChannel",
-            "dashboard-polling-interval-value": "5000",
-            "dashboard-auto-refresh-value": "true"
-          }
-        end
-
-        # Populated by the dashboard controller when the websocket connects.
-        def connection_status
-          div(id: "connection-status", class: "raaf-hidden",
-              data: { "dashboard-target": "connectionStatus" }) do
-            render Molecules::Alert.new(:info, title: "Live updates") do
-              p(class: "raaf-alert-text status-text") { "Connecting…" }
-            end
-          end
-        end
 
         STATUSES = [
           { label: "All", value: nil },
@@ -99,7 +78,7 @@ module RAAF
         end
 
         def traces_table
-          div(id: "traces-table-container", data: { "dashboard-target": "tracesContainer" }) do
+          div(id: "traces-table-container") do
             render TracesTable.new(traces: @traces, params: @params)
           end
         end

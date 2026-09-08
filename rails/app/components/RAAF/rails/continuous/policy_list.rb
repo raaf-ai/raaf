@@ -17,7 +17,7 @@ module RAAF
         COLUMNS = [
           { label: "Policy", span: 2.2 },
           { label: "Agent", span: 1.4 },
-          { label: "Scorers", span: 1.5 },
+          { label: "Evaluators", span: 1.5 },
           { label: "Sample", span: 0.6, align: :right },
           { label: "Status", span: 0.8, align: :right },
           { label: "Last run", span: 0.85, align: :right },
@@ -103,7 +103,7 @@ module RAAF
           grid.row(href: continuous_policy_path(policy), data: { policy_id: policy.id }, cells: [
                      { value: Molecules::TitleMeta.new(policy.name, trigger_for(policy)) },
                      { value: Atoms::Mono.new(policy.agent_name.presence || "any agent", tone: :muted) },
-                     { value: scorers_for(policy) },
+                     { value: evaluators_for(policy) },
                      { value: Atoms::Mono.new(sample_for(policy)), align: :right },
                      { value: Atoms::StatusBadge.new(policy.active? ? "active" : "paused"),
                        align: :right },
@@ -137,7 +137,10 @@ module RAAF
             "every environment"
         end
 
-        def scorers_for(policy)
+        # The evaluators a policy names, not the checks inside them: a policy
+        # stores one entry per evaluator, and each of those declares several
+        # checks of its own. The detail page lists those.
+        def evaluators_for(policy)
           names = Array(policy.evaluators).filter_map do |evaluator|
             evaluator.is_a?(Hash) ? (evaluator["name"] || evaluator[:name]) : evaluator
           end

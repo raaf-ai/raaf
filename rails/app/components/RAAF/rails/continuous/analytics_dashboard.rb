@@ -62,7 +62,7 @@ module RAAF
                                                icon: "graph-up", hint: "in the selected scope" },
                                              { label: "Good rate", value: format_percentage(@stats[:good_rate] || @stats[:pass_rate]),
                                                icon: "check-circle", tone: :success, hint: "came back good" },
-                                             { label: "Avg score", value: format_score(@stats[:avg_score]),
+                                             { label: "Avg score", value: score_text(@stats[:avg_score]),
                                                icon: "star", hint: "across every check" },
                                              { label: "Total cost", value: format_cost(@stats[:total_cost]),
                                                icon: "cash-stack", hint: "what evaluating cost" }
@@ -87,7 +87,7 @@ module RAAF
                      { value: Atoms::Mono.new(number(stat[:count]), tone: :muted), align: :right },
                      { value: Atoms::Mono.new(format_percentage(stat[:good_rate] || stat[:pass_rate])),
                        align: :right },
-                     { value: Atoms::Mono.new(format_score(stat[:avg_score])), align: :right },
+                     { value: Atoms::Mono.new(score_text(stat[:avg_score])), align: :right },
                      { value: Atoms::Mono.new(format_cost(stat[:avg_cost]), tone: :muted),
                        align: :right },
                      { value: Atoms::Mono.new(format_duration(stat[:avg_duration_ms]), tone: :muted),
@@ -103,12 +103,6 @@ module RAAF
           return "—" if value.nil?
 
           "#{value.to_f.round(1)}%"
-        end
-
-        def format_score(score)
-          return "—" if score.nil?
-
-          "%.2f" % score.to_f
         end
 
         def format_cost(cost)

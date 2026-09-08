@@ -27,12 +27,7 @@ module RAAF
                 environments: @environments,
                 filters: params.permit(:agent, :environment, :from, :to).to_h.symbolize_keys
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(
-                title: "Analytics", crumb: "Continuous"
-              ) do
-                render analytics_dashboard
-              end
-              render layout
+              render_in_layout analytics_dashboard, title: "Analytics", crumb: "Continuous"
             end
             format.json { render json: @overview_stats }
           end
@@ -132,9 +127,12 @@ module RAAF
         # GET /raaf/rails/continuous/analytics/failure_analysis_data
         # Returns JSON for failure breakdown
         def failure_analysis_data
+          # A failure is a bad verdict or an evaluator that broke. "failed" is not
+          # one of the four statuses this column ever holds, so this screen
+          # reported no failures at all, whatever the window contained.
           failed_results = EvaluationResult
                            .where(agent_name: @agent)
-                           .where(status: "failed")
+                           .unacceptable
                            .where(created_at: @date_range)
 
           # Group by evaluator and extract common failure reasons

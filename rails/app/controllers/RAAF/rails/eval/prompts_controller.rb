@@ -23,10 +23,7 @@ module RAAF
                 agents: Prompt.distinct.pluck(:agent_name).compact_blank.sort,
                 filters: { agent: params[:agent] }
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(
-                title: "Prompts", crumb: "Evaluate", current: :prompts
-              ) { render component }
-              render layout
+              render_in_layout component, title: "Prompts", crumb: "Evaluate", current: :prompts
             end
             format.json { render json: @prompts }
           end
@@ -42,8 +39,7 @@ module RAAF
               component = RAAF::Rails::Eval::PromptShow.new(
                 prompt: @prompt, versions: @versions, active_version: @active_version
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: @prompt.name) { render component }
-              render layout
+              render_in_layout component, title: @prompt.name
             end
             format.json { render json: @prompt.as_json(methods: :history) }
           end
@@ -55,8 +51,7 @@ module RAAF
           respond_to do |format|
             format.html do
               component = RAAF::Rails::Eval::PromptForm.new(prompt: @prompt)
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "New Prompt") { render component }
-              render layout
+              render_in_layout component, title: "New Prompt"
             end
           end
         end
@@ -77,8 +72,7 @@ module RAAF
             redirect_to eval_prompt_path(@prompt), notice: "Prompt created."
           else
             component = RAAF::Rails::Eval::PromptForm.new(prompt: @prompt)
-            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "New Prompt") { render component }
-            render layout, status: :unprocessable_content
+            render_in_layout component, title: "New Prompt", status: :unprocessable_content
           end
         end
 
@@ -88,8 +82,7 @@ module RAAF
             redirect_to eval_prompt_path(@prompt), notice: "Prompt updated."
           else
             component = RAAF::Rails::Eval::PromptForm.new(prompt: @prompt)
-            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Edit #{@prompt.name}") { render component }
-            render layout, status: :unprocessable_content
+            render_in_layout component, title: "Edit #{@prompt.name}", status: :unprocessable_content
           end
         end
 
@@ -105,8 +98,7 @@ module RAAF
           respond_to do |format|
             format.html do
               component = RAAF::Rails::Eval::PromptDiff.new(prompt: @prompt, diff: diff_result)
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Diff: #{@prompt.name}") { render component }
-              render layout
+              render_in_layout component, title: "Diff: #{@prompt.name}"
             end
             format.json { render json: diff_result }
           end

@@ -26,10 +26,13 @@ module RAAF
           # @param pairs [Hash, nil] label => value
           # @param layout [Symbol] :cols for a responsive grid, :rows for a list
           # @param mono [Boolean] applies to every pair built from `pairs`
-          def initialize(pairs: nil, layout: :cols, mono: false, class: nil, **attrs)
+          # @param flush [Boolean] the list runs to a flush card's edges, so each
+          #   row carries the padding the card body would have given it
+          def initialize(pairs: nil, layout: :cols, mono: false, flush: false, class: nil, **attrs)
             @pairs = pairs
             @layout = layout
             @mono = mono
+            @flush = flush
             @class = binding.local_variable_get(:class)
             @attrs = attrs
           end
@@ -47,7 +50,8 @@ module RAAF
           private
 
           def css
-            tokens("raaf-kv-list", modifier("raaf-kv-list", @layout, LAYOUTS), @class)
+            tokens("raaf-kv-list", modifier("raaf-kv-list", @layout, LAYOUTS),
+                   { "raaf-kv-list--flush" => @flush }, @class)
           end
         end
       end

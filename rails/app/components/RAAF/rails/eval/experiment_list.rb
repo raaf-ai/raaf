@@ -112,7 +112,7 @@ module RAAF
                      # something you can click on its own.
                      { value: Atoms::Mono.new(experiment.model.presence || "—", tone: :muted) },
                      { value: Atoms::StatusBadge.new(experiment.status), align: :right },
-                     { value: Atoms::Mono.new(format_score(score), tone: score_tone(score)),
+                     { value: Atoms::Mono.new(score_text(score), tone: score_tone(score)),
                        align: :right },
                      { value: Atoms::Mono.new(time_ago(run_at(experiment)), tone: :muted),
                        align: :right }
@@ -149,22 +149,6 @@ module RAAF
           return nil if values.empty?
 
           values.sum / values.size
-        end
-
-        def format_score(score)
-          score.nil? ? "—" : "%.2f" % score
-        end
-
-        # The same three tiers the continuous results table uses, so a score
-        # that reads green on one screen is not amber on the other.
-        def score_tone(score)
-          return :muted if score.nil?
-
-          case score
-          when 0.8.. then :ok
-          when 0.5...0.8 then :warn
-          else :bad
-          end
         end
 
         # When the run happened — the end of it, or its start while it is

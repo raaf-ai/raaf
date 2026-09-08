@@ -52,13 +52,7 @@ module RAAF
                                       :trace_id, :range)
               )
 
-              layout = RAAF::Rails::Tracing::BaseLayout.new(
-                title: "Spans", range: current_range, range_href: range_href
-              ) do
-                render spans_component
-              end
-
-              render layout
+              render_in_layout spans_component, title: "Spans", range: current_range, range_href: range_href
             end
             format.js { render :index }
             format.json { render json: serialize_spans(@paginated_spans) }
@@ -162,13 +156,7 @@ module RAAF
                 params: params.permit(:search, :function_name, :status, :trace_id, :start_time, :end_time, :range)
               )
 
-              layout = RAAF::Rails::Tracing::BaseLayout.new(
-                title: "Tools", range: current_range, range_href: range_href
-              ) do
-                render tools_component
-              end
-
-              render layout
+              render_in_layout tools_component, title: "Tools", range: current_range, range_href: range_href
             end
             format.js { render :tools }
             format.json { render json: serialize_tool_spans(@tool_spans) }
@@ -221,13 +209,7 @@ module RAAF
                 params: params.permit(:agent_name, :trace_id, :start_time, :end_time, :tab, :range)
               )
 
-              layout = RAAF::Rails::Tracing::BaseLayout.new(
-                title: "Flows", range: current_range, range_href: range_href
-              ) do
-                render flows_component
-              end
-
-              render layout
+              render_in_layout flows_component, title: "Flows", range: current_range, range_href: range_href
             end
             format.json { render json: @flow_data }
           end

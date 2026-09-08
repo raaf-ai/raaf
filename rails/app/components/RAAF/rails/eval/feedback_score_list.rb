@@ -69,12 +69,12 @@ module RAAF
           render Organisms::StatGrid.new(stats: [
                                            { label: "Scores", value: number(@stats[:count]), icon: "star",
                                              note: "numerical scores recorded" },
-                                           { label: "Average", value: figure(@stats[:avg]), icon: "graph-up",
+                                           { label: "Average", value: score_text(@stats[:avg]), icon: "graph-up",
                                              tone: score_tone(@stats[:avg]), note: "across every definition" },
-                                           { label: "Median", value: figure(@stats[:median]),
+                                           { label: "Median", value: score_text(@stats[:median]),
                                              icon: "distribute-vertical" },
-                                           { label: "Min", value: figure(@stats[:min]), icon: "arrow-down" },
-                                           { label: "Max", value: figure(@stats[:max]), icon: "arrow-up" }
+                                           { label: "Min", value: score_text(@stats[:min]), icon: "arrow-down" },
+                                           { label: "Max", value: score_text(@stats[:max]), icon: "arrow-up" }
                                          ])
         end
 
@@ -165,7 +165,7 @@ module RAAF
         def value_cell(score)
           return Atoms::Badge.new(score.category_value, variant: :"tint-violet") unless score.numerical?
 
-          Atoms::Mono.new(figure(score.value), tone: score_tone(score.value))
+          Atoms::Mono.new(score_text(score.value), tone: score_tone(score.value))
         end
 
         # The score hangs off a span or a trace, so the row opens the run it
@@ -177,31 +177,15 @@ module RAAF
         end
 
         def target_label(score)
-          return "span #{score.span_id.to_s.delete_prefix('span_').first(8)}" if score.span_level?
+          return "span #{truncate_id(score.span_id)}" if score.span_level?
 
-          "trace #{score.trace_id.to_s.delete_prefix('trace_').first(8)}"
+          "trace #{truncate_id(score.trace_id)}"
         end
 
         # ── Formatting ────────────────────────────────────────────────────
 
         def number(value)
           value.to_i.to_s.reverse.scan(/\d{1,3}/).join(",").reverse
-        end
-
-        def figure(value)
-          value.nil? ? "—" : "%.2f" % value.to_f
-        end
-
-        # The tiers the experiment screens and the continuous results table
-        # use, so one score does not change colour between screens.
-        def score_tone(value)
-          return nil if value.nil?
-
-          case value.to_f
-          when 0.8.. then :ok
-          when 0.5...0.8 then :warn
-          else :bad
-          end
         end
       end
     end

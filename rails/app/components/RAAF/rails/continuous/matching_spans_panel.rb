@@ -20,7 +20,7 @@ module RAAF
       # offers five spans and not the whole window.
       #
       # No canvas has this panel — `RAAF Continuous.dc.html` draws a policy as
-      # its header, scorers, configuration and trend, all of them readings. So
+      # its header, checks, configuration and trend, all of them readings. So
       # it follows the library the rest of that screen is built from rather
       # than inventing a look, and sits below the trend, leaving the designed
       # order intact.
@@ -44,8 +44,8 @@ module RAAF
           attributes = { id: DOM_ID }
           if work_outstanding?
             attributes[:data] = {
-              controller: "section-refresh",
-              section_refresh_interval_value: REFRESH_INTERVAL_MS
+              controller: "auto-refresh",
+              auto_refresh_interval_value: REFRESH_INTERVAL_MS
             }
           end
 
@@ -205,13 +205,6 @@ module RAAF
           # StatusBadge owns the verdict-to-colour mapping, good/average/bad
           # included, so this does not repeat it.
           render Atoms::StatusBadge.new(worst)
-        end
-
-        def truncate_id(id)
-          return id unless id.is_a?(String)
-          return id if id.length <= 12
-
-          "#{id[0..5]}...#{id[-6..-1]}"
         end
       end
     end

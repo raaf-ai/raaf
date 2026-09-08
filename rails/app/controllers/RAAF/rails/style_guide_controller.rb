@@ -10,9 +10,7 @@ module RAAF
     #
     class StyleGuideController < ApplicationController
       def show
-        render RAAF::Rails::Tracing::BaseLayout.new(title: "Style guide") {
-          render RAAF::Rails::Ui::StyleGuide.new
-        }
+        render_in_layout RAAF::Rails::Ui::StyleGuide.new, title: "Style guide"
       end
     end
   end

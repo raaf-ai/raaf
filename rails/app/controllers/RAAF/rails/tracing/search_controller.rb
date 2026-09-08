@@ -29,11 +29,7 @@ module RAAF
                 params: params.permit(:q, :kind, :status, :workflow, :traces_page, :spans_page)
               )
 
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Search") do
-                render search_component
-              end
-
-              render layout
+              render_in_layout search_component, title: "Search"
             end
             format.json { render json: serialize_search_results(@results) }
           end

@@ -11,6 +11,13 @@ module RAAF
         # a `:target` instead of an `:href` for client-side panels driven by the
         # tabs Stimulus controller.
         #
+        # An item carrying `:for` is a label over a radio input, for panels
+        # that switch without loading anything: a link would scroll the reader
+        # back to the top of a page they were reading the middle of. The
+        # checked radio then decides which tab looks active, so such a strip
+        # passes no `:active` and is not a tablist — the radio group is the
+        # control, and the labels are its face.
+        #
         # @example
         #   render Molecules::Tabs.new(variant: :underline, items: [
         #     { label: "Overview", href: span_path(span), active: true },
@@ -20,7 +27,8 @@ module RAAF
         class Tabs < Base
           VARIANTS = %i[underline].freeze
 
-          # @param items [Array<Hash>] :label, :href or :target, :active, :count, :icon
+          # @param items [Array<Hash>] :label, :href, :target or :for, plus
+          #   :active, :count, :icon
           # @param variant [Symbol, nil] :underline for in-card tabs
           def initialize(items:, variant: nil, class: nil, **attrs)
             @items = items
@@ -30,7 +38,7 @@ module RAAF
           end
 
           def view_template
-            nav(class: css, role: "tablist", **@attrs) do
+            nav(class: css, **role_attrs, **@attrs) do
               @items.each { |item| tab(item) }
             end
           end
@@ -41,9 +49,27 @@ module RAAF
             tokens("raaf-tabs", modifier("raaf-tabs", @variant, VARIANTS), @class)
           end
 
+          # A radio's label carries no tab semantics of its own: the input it
+          # names is the control, and it already says which of the group is
+          # chosen.
+          def role_attrs
+            labelled? ? {} : { role: "tablist" }
+          end
+
+          def labelled?
+            @items.any? { |item| item[:for] }
+          end
+
           def tab(item)
+            classes = tokens("raaf-tab", { "is-active" => item[:active] })
+
+            if item[:for]
+              label(for: item[:for], class: classes) { tab_label(item) }
+              return
+            end
+
             attributes = {
-              class: tokens("raaf-tab", { "is-active" => item[:active] }),
+              class: classes,
               role: "tab",
               "aria-selected": item[:active] ? "true" : "false"
             }

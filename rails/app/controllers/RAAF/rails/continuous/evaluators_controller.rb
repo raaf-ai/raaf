@@ -50,7 +50,7 @@ module RAAF
                   spans_by_policy: matching_spans_for(panelled),
                   unpanelled: policies.size - panelled.size
                 ),
-                title: @evaluator[:name].to_s
+                title: @evaluator[:name].to_s, crumb: "Continuous"
               )
             end
             format.json { render json: @evaluator }
@@ -78,13 +78,6 @@ module RAAF
             name = evaluator[:name].to_s
             counts[name] = RAAF::Eval::Models::EvaluationPolicy.using_evaluator(name).count
           end
-        end
-
-        def render_in_layout(component, title:, crumb: "Continuous")
-          layout = RAAF::Rails::Tracing::BaseLayout.new(title: title, crumb: crumb) do
-            render component
-          end
-          render layout
         end
 
         # The HTML branch used to render a 'shared/not_found' template this

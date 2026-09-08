@@ -292,9 +292,8 @@ module RAAF
 
               # Type badge (category: llm_judge, statistical, rule_based)
               div(class: "raaf-cluster") do
-                render Atoms::Badge.new(format_evaluator_type(check[:evaluator_type]),
-                                        variant: evaluator_type_variant(check[:evaluator_type]),
-                                        size: :sm)
+                render(Atoms::Badge.for_check_type(check[:evaluator_type], size: :sm) ||
+                       Atoms::Badge.new("Unknown", size: :sm))
                 render Atoms::KindBadge.new("llm") if check[:uses_llm]
               end
             end
@@ -488,13 +487,10 @@ module RAAF
           end
         end
 
+        # One wording for a scoring method across the console — see
+        # Atoms::Badge::CHECK_TYPE_LABELS.
         def format_evaluator_type(type)
-          case type.to_s
-          when "llm_judge" then "LLM Judge"
-          when "rule_based" then "Rule-based"
-          when "statistical" then "Statistical"
-          else type.to_s.split("_").map(&:capitalize).join(" ")
-          end
+          Atoms::Badge.check_type_label(type) || "Unknown"
         end
 
         def format_specific_evaluator(evaluator)
@@ -570,16 +566,6 @@ module RAAF
             continuous_policy_path(@policy)
           else
             continuous_policies_path
-          end
-        end
-
-        # Badge variants, from the library's palette.
-        def evaluator_type_variant(type)
-          case type.to_s
-          when "rule_based", "rule" then :green
-          when "statistical" then :teal
-          when "llm_judge" then :amber
-          else :slate
           end
         end
 

@@ -24,6 +24,14 @@ module RAAF
         Molecules = Ui::Molecules
         Organisms = Ui::Organisms
 
+        # Above this a score is healthy; below the lower bound it is failing.
+        # The tiers every screen colours a score against — see {#score_tone}.
+        GOOD_SCORE = 0.8
+        POOR_SCORE = 0.5
+
+        # What every id is prefixed with — see {#truncate_id}.
+        ID_PREFIX = /\A(?:trace|span)_/
+
         private
 
         # Route helper methods for the RAAF Rails engine
@@ -195,6 +203,11 @@ module RAAF
           "/raaf/continuous/queue/#{queue_id}/cancel"
         end
 
+        def continuous_trends_path(params = {})
+          path = "/raaf/continuous/trends"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
         def continuous_results_path(params = {})
           path = "/raaf/continuous/results"
           params.empty? ? path : "#{path}?#{params.to_query}"
@@ -249,6 +262,11 @@ module RAAF
 
         def edit_eval_experiment_path(id)
           "#{eval_experiment_path(id)}/edit"
+        end
+
+        def compare_eval_experiment_path(id, params = {})
+          path = "#{eval_experiment_path(id)}/compare"
+          params.empty? ? path : "#{path}?#{params.to_query}"
         end
 
         def eval_experiment_results_path(experiment_id, params = {})
@@ -371,6 +389,72 @@ module RAAF
             seconds = ((ms % 60_000) / 1000.0).round(1)
             "#{minutes}m #{seconds}s"
           end
+        end
+
+        # ── Scores ────────────────────────────────────────────────────────
+        #
+        # Every screen that prints a score — the experiment table, a case, a
+        # continuous verdict, the feedback list, the trend strip — prints it
+        # to two places and colours it against the same two thresholds. Each
+        # of them used to carry its own copy with a comment promising it
+        # matched the others, and the copies had already drifted: half
+        # returned :muted for a missing score and half returned nil.
+
+        def score_text(score)
+          return "—" if score.nil?
+
+          # `format` is not Kernel's here — Phlex's element methods take the
+          # name, so the operator form is the one that survives.
+          "%.2f" % score.to_f
+        end
+
+        # :muted for a score that does not exist, so an absent figure reads as
+        # absent rather than as a normal one. Components that pass this to a
+        # bar rather than to text get nothing, since Bar knows only ok/warn/
+        # bad and drops what it does not recognise.
+        def score_tone(score)
+          return :muted if score.nil?
+
+          case score.to_f
+          when GOOD_SCORE.. then :ok
+          when POOR_SCORE...GOOD_SCORE then :warn
+          else :bad
+          end
+        end
+
+        # Thousands separated. `number_with_delimiter` is an ActionView helper
+        # Phlex does not carry, and a console reporting eighteen thousand
+        # verdicts wants the separator.
+        def delimited(number)
+          number.to_i.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
+        end
+
+        # A count and its noun, the count delimited.
+        def counted(count, noun)
+          "#{delimited(count)} #{noun.pluralize(count.to_i)}"
+        end
+
+        # A trace or span id, as a console prints it.
+        #
+        # Ids are `trace_` or `span_` and then 32 or 24 random characters. The
+        # prefix is on every id in the column and says nothing; the leading
+        # eight of what follows identify one in practice, and are what the
+        # design prints. Seven components had written some version of this —
+        # four called it `short_id` and three `truncate_id`, one of them
+        # counting the prefix it never stripped, so a span read four ways
+        # depending on the screen.
+        def truncate_id(id)
+          return "—" if id.blank?
+
+          id.to_s.sub(ID_PREFIX, "").first(8)
+        end
+
+        # UTC throughout: the console is read by people in several places and
+        # the spans it reads are stamped in UTC.
+        def timestamp(time)
+          return "—" if time.nil?
+
+          time.utc.strftime("%Y-%m-%d %H:%M:%S UTC")
         end
 
         # The design's three health tiers, from an error rate in percent.

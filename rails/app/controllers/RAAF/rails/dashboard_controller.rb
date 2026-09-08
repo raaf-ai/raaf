@@ -48,13 +48,7 @@ module RAAF
               agent_series: @agent_series
             )
 
-            layout = RAAF::Rails::Tracing::BaseLayout.new(
-              title: "Dashboard", range: current_range, range_href: range_href
-            ) do
-              render dashboard_component
-            end
-
-            render layout
+            render_in_layout dashboard_component, title: "Dashboard", range: current_range, range_href: range_href
           end
           format.json do
             render json: {
@@ -98,13 +92,8 @@ module RAAF
               params: params.permit(:start_time, :end_time, :kind)
             )
 
-            layout = RAAF::Rails::Tracing::BaseLayout.new(
-              title: "Performance Dashboard", range: current_range, range_href: range_href
-            ) do
-              render performance_component
-            end
-
-            render layout
+            render_in_layout performance_component, title: "Performance Dashboard", range: current_range,
+                                                    range_href: range_href
           end
           format.json do
             render json: {
@@ -134,13 +123,7 @@ module RAAF
               params: params.permit(:range)
             )
 
-            layout = RAAF::Rails::Tracing::BaseLayout.new(
-              title: "Cost & usage", range: current_range, range_href: range_href
-            ) do
-              render costs_component
-            end
-
-            render layout
+            render_in_layout costs_component, title: "Cost & usage", range: current_range, range_href: range_href
           end
           # The JSON payload predates the screen and keeps its own shape, built
           # by CostManager over whole traces. It is left alone so a caller
@@ -163,13 +146,7 @@ module RAAF
               params: params.permit(:range)
             )
 
-            layout = RAAF::Rails::Tracing::BaseLayout.new(
-              title: "Errors", range: current_range, range_href: range_href
-            ) do
-              render errors_component
-            end
-
-            render layout
+            render_in_layout errors_component, title: "Errors", range: current_range, range_href: range_href
           end
           # The JSON payload predates the screen and is left as it was: the
           # ungrouped list is what a caller polling this endpoint asked for.
@@ -203,13 +180,7 @@ module RAAF
               params: params.permit(:health, :range)
             )
 
-            layout = RAAF::Rails::Tracing::BaseLayout.new(
-              title: "Agents", range: current_range, range_href: range_href
-            ) do
-              render agents_component
-            end
-
-            render layout
+            render_in_layout agents_component, title: "Agents", range: current_range, range_href: range_href
           end
           format.json { render json: { agents: @agents } }
         end

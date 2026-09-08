@@ -26,6 +26,22 @@
   border-bottom: none;
 }
 
+/* A list that runs to its card's edges instead of sitting inside a padded
+   body. Each row then carries its own gutter, at the row inset every other
+   flush list in the system uses, so the separators span the card and the
+   labels line up with the rows in the cards above and below. */
+.raaf-kv-list--rows.raaf-kv-list--flush {
+  gap: 0;
+}
+
+.raaf-kv-list--rows.raaf-kv-list--flush .raaf-kv {
+  padding: var(--raaf-space-3) var(--raaf-row-px);
+}
+
+.raaf-kv-list--rows.raaf-kv-list--flush .raaf-kv:last-child {
+  border-bottom: none;
+}
+
 /* Rows are where a span's own attribute names land, and those are dotted
    paths with no space to break at. */
 .raaf-kv-list--rows .raaf-kv-key { overflow-wrap: anywhere; }

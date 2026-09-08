@@ -7,7 +7,7 @@ module RAAF
       # Two different questions share this controller, and they are answered
       # from two different places.
       #
-      # `show` in HTML is the console's **Scorer health** screen: whether the
+      # `show` in HTML is the console's **Evaluator health** screen: whether the
       # evaluators can still be trusted, read from the evaluations they have
       # produced. `show` in JSON, and the `dashboard` action, answer the
       # operational question — is the pipeline running, is the queue backed
@@ -15,7 +15,7 @@ module RAAF
       # pointed at the JSON, so its payload is left exactly as it was.
       #
       # Endpoints:
-      # - GET /raaf/continuous/health - Scorer health (HTML), health check (JSON)
+      # - GET /raaf/continuous/health - Evaluator health (HTML), health check (JSON)
       # - GET /raaf/continuous/health/dashboard - system status
       class HealthController < BaseController
         # GET /raaf/continuous/health
@@ -47,8 +47,8 @@ module RAAF
             health_data: @health_data, alerts: @alerts, config: @config
           )
 
-          render(RAAF::Rails::Tracing::BaseLayout.new(title: "System status", crumb: "Continuous",
-                                                      current: :health, live: false) { render panel })
+          render_in_layout panel, title: "System status", crumb: "Continuous",
+                                  current: :health, live: false
         end
 
         private
@@ -60,9 +60,8 @@ module RAAF
           dashboard = RAAF::Rails::Continuous::HealthDashboard.new(health: health,
                                                                    range: current_range)
 
-          render(RAAF::Rails::Tracing::BaseLayout.new(title: "Scorer health", crumb: "Continuous",
-                                                      current: :health, range: current_range,
-                                                      range_href: range_href) { render dashboard })
+          render_in_layout dashboard, title: "Evaluator health", crumb: "Continuous",
+                                      current: :health, range: current_range, range_href: range_href
         end
 
         def gather_health_data

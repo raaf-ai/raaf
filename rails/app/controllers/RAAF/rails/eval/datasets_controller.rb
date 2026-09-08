@@ -20,10 +20,7 @@ module RAAF
                 experiment_counts: experiment_counts(@datasets),
                 params: params
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(
-                title: "Datasets", crumb: "Evaluate", current: :datasets
-              ) { render component }
-              render layout
+              render_in_layout component, title: "Datasets", crumb: "Evaluate", current: :datasets
             end
             format.json { render json: @datasets }
           end
@@ -41,10 +38,7 @@ module RAAF
                 imported_count: @dataset.dataset_items.where.not(source_span_id: nil).count,
                 experiments_count: @dataset.experiments.count
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(
-                title: @dataset.name, crumb: "Evaluate", current: :datasets
-              ) { render component }
-              render layout
+              render_in_layout component, title: @dataset.name, crumb: "Evaluate", current: :datasets
             end
             format.json { render json: @dataset.as_json(include: :dataset_items) }
           end
@@ -56,8 +50,7 @@ module RAAF
           respond_to do |format|
             format.html do
               component = RAAF::Rails::Eval::DatasetForm.new(dataset: @dataset)
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "New Dataset") { render component }
-              render layout
+              render_in_layout component, title: "New Dataset"
             end
           end
         end
@@ -67,8 +60,7 @@ module RAAF
           respond_to do |format|
             format.html do
               component = RAAF::Rails::Eval::DatasetForm.new(dataset: @dataset)
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Edit #{@dataset.name}") { render component }
-              render layout
+              render_in_layout component, title: "Edit #{@dataset.name}"
             end
           end
         end
@@ -80,8 +72,7 @@ module RAAF
             redirect_to eval_dataset_path(@dataset), notice: "Dataset created."
           else
             component = RAAF::Rails::Eval::DatasetForm.new(dataset: @dataset)
-            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "New Dataset") { render component }
-            render layout, status: :unprocessable_content
+            render_in_layout component, title: "New Dataset", status: :unprocessable_content
           end
         end
 
@@ -91,8 +82,7 @@ module RAAF
             redirect_to eval_dataset_path(@dataset), notice: "Dataset updated."
           else
             component = RAAF::Rails::Eval::DatasetForm.new(dataset: @dataset)
-            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Edit #{@dataset.name}") { render component }
-            render layout, status: :unprocessable_content
+            render_in_layout component, title: "Edit #{@dataset.name}", status: :unprocessable_content
           end
         end
 

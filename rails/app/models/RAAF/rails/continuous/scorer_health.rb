@@ -188,8 +188,8 @@ module RAAF
         # quietly disappearing — which is the failure this table exists to
         # catch.
         #
-        # @return [Array<Hash>] :name, :kind, :models, :mean, :baseline,
-        #   :drift, :p95_ms, :count, :errors, :last_at, :state
+        # @return [Array<Hash>] :name, :title, :kind, :models, :mean,
+        #   :baseline, :drift, :p95_ms, :count, :errors, :last_at, :state
         def scorers
           @scorers ||= (current_stats.keys | baseline_stats.keys)
                        .map { |name| scorer_row(name) }
@@ -348,6 +348,7 @@ module RAAF
           last_at = (stats || baseline || {})[:last_at]
 
           { name: name,
+            title: titles[name],
             kind: (stats || baseline || {})[:kind],
             models: current_models[name] || baseline_models[name] || [],
             mean: mean,
@@ -380,6 +381,10 @@ module RAAF
 
           "healthy"
         end
+
+        # The words each scorer goes by, where its class declares any. Shared
+        # across the table's rows so one evaluator is looked up once.
+        def titles = @titles ||= EvaluatorTitles.new
 
         def current_stats = @current_stats ||= stats_for(from..@now)
         def baseline_stats = @baseline_stats ||= stats_for(baseline_from...from)

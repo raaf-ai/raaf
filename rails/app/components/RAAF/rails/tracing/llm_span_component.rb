@@ -28,8 +28,20 @@ module RAAF
         def provider_name
           @provider_name ||= extract_span_attribute("llm.provider") ||
                              extract_span_attribute("provider") ||
-                             model_name.split("-").first&.capitalize ||
+                             provider_from_model ||
                              "Unknown Provider"
+        end
+
+        # A model name carries its provider in its first segment -- but only when
+        # a model was recorded. Guessing from the "Unknown Model" placeholder
+        # named the provider "Unknown model", which reads like a real answer.
+        def provider_from_model
+          model = extract_span_attribute("llm.model") ||
+                  extract_span_attribute("model") ||
+                  extract_span_attribute("model_name")
+          return nil if model.blank?
+
+          model.split("-").first&.capitalize
         end
 
         def request_data

@@ -8,9 +8,13 @@ module RAAF
         # for guardrail spans, showing blocked content, security policies,
         # and filter decision details.
         class GuardrailSpanComponent < RAAF::Rails::Tracing::SpanDetailBase
+          # Bare `super`, so the span reaches SpanDetailBase's own required
+          # keyword. Passing only the options dropped it, and every
+          # GuardrailSpanComponent.new raised ArgumentError before rendering a
+          # thing.
           def initialize(span:, **options)
             @span = span
-            super(**options)
+            super
           end
 
           def view_template
@@ -33,7 +37,7 @@ module RAAF
                 div(class: "flex-1") do
                   h3(class: "text-lg font-semibold text-orange-900") { "Security Guardrail" }
                   p(class: "text-sm text-orange-700") do
-                    "Filter: #{filter_name} | Status: #{filter_status} | Policy: #{policy_applied || 'Default'}"
+                    "Filter: #{filter_name} | Status: #{filter_status} | Policy: #{policy_name}"
                   end
                 end
                 render_security_status_badge
@@ -220,7 +224,7 @@ module RAAF
                 i(class: "#{icon_class} text-gray-600 text-lg")
                 h4(class: "text-md font-semibold text-gray-900") { title }
               end
-              i(class: "bi #{expanded ? 'bi-chevron-down' : 'bi-chevron-right'} text-gray-400")
+              i(class: "bi #{expanded ? 'bi-chevron-down' : 'bi-chevron-right'} text-gray-400 toggle-icon")
             end
           end
 
@@ -294,6 +298,17 @@ module RAAF
                                     @span.span_attributes&.dig("filter", "reasoning") ||
                                     @span.span_attributes&.dig("security_reasoning") ||
                                     @span.span_attributes&.dig("reasoning")
+          end
+
+          # A policy is recorded either as a name or as the whole rule set. The
+          # headline wants the name; interpolating the Hash put a Ruby literal
+          # in the middle of a sentence.
+          def policy_name
+            policy = policy_applied
+            return "Default" if policy.blank?
+            return policy["name"] || policy[:name] || "Default" if policy.is_a?(Hash)
+
+            policy.to_s
           end
 
           def policy_applied

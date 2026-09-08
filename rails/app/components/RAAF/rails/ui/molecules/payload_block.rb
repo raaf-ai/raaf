@@ -50,9 +50,14 @@ module RAAF
 
           private
 
+          # A block whose role is already named above it — by the tab that
+          # selected it — passes no role, and then the caption is a line that
+          # says nothing, so there is none.
           def caption
+            return if @role.blank? && @tokens.blank?
+
             div(class: "raaf-payload-head") do
-              span(class: tokens("raaf-payload-role", role_tone)) { @role }
+              span(class: tokens("raaf-payload-role", role_tone)) { @role } if @role.present?
               span(class: "raaf-payload-rule")
               render Atoms::Mono.new(@tokens, tone: :muted, class: "raaf-payload-tokens") if @tokens
             end

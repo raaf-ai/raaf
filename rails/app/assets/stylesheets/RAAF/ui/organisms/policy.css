@@ -127,8 +127,10 @@
 
 /* ── Matching spans ─────────────────────────────────────────────────────
    No canvas draws this panel — a policy is four readings there, and this is
-   the one place on the screen that does something. It follows the row idiom
-   the rest of the console uses rather than inventing one.
+   the one place on the screen that does something. It reads as the result-row
+   molecule and is not one: the row carries an Evaluate form, and a form
+   cannot live inside the anchor that molecule wraps everything in. Rows you
+   open are `.raaf-result-row`; these are the rows you act on inside.
    ===================================================================== */
 
 .raaf-matching-span {

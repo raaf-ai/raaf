@@ -115,7 +115,7 @@ module RAAF
         def trace_hit(trace)
           { kind: "pipeline",
             name: trace.workflow_name.presence || "Unnamed workflow",
-            meta: "#{short_id(trace.trace_id)} · #{ago(trace.started_at)}",
+            meta: "#{truncate_id(trace.trace_id)} · #{ago(trace.started_at)}",
             tone: tone_for(trace.status),
             snippet: "#{pluralize(trace.spans.size, 'span')} · #{duration(trace.duration_ms)} · #{trace.status}",
             href: tracing_trace_path(trace.trace_id) }
@@ -124,7 +124,7 @@ module RAAF
         def span_hit(span)
           { kind: span.kind,
             name: span.display_name,
-            meta: "#{short_id(span.trace_id)} · #{ago(span.start_time)}",
+            meta: "#{truncate_id(span.trace_id)} · #{ago(span.start_time)}",
             tone: tone_for(span.status),
             snippet: snippet_for(span),
             href: trace_span_path(span.span_id, span.trace_id) }
@@ -160,10 +160,6 @@ module RAAF
           when "cancelled", "skipped" then :warn
           else :ok
           end
-        end
-
-        def short_id(id)
-          id.to_s.sub(/\A(trace|span)_/, "").first(8)
         end
 
         def duration(milliseconds)

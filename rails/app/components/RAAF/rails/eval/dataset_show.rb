@@ -31,8 +31,6 @@ module RAAF
 
         # Above this a score is healthy, below the lower bound it is failing.
         # The same two bounds the policy screen reads by.
-        GOOD = 0.8
-        POOR = 0.5
 
         # @param dataset [RAAF::Eval::Models::Dataset]
         # @param items [Enumerable<DatasetItem>] the page being shown
@@ -182,18 +180,6 @@ module RAAF
                        align: :right },
                      { value: Atoms::StatusBadge.new(experiment.status), align: :right }
                    ])
-        end
-
-        def score_text(score)
-          score.nil? ? "—" : "%.2f" % score
-        end
-
-        def score_tone(score)
-          return :muted if score.nil?
-          return :ok if score >= GOOD
-          return :bad if score < POOR
-
-          :warn
         end
       end
     end

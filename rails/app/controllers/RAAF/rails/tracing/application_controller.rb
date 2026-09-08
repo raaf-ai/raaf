@@ -15,6 +15,7 @@ module RAAF
       class ApplicationController < ActionController::Base
         include RAAF::Logger
         include RAAF::Rails::TimeRange
+        include RAAF::Rails::RendersInLayout
 
         protect_from_forgery with: :exception
 
@@ -47,12 +48,8 @@ module RAAF
 
         # Handle record not found errors
         def record_not_found
-          not_found_component = RAAF::Rails::Tracing::NotFoundPage.new
-          layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Not Found") do
-            render not_found_component
-          end
-
-          render layout, status: :not_found
+          render_in_layout RAAF::Rails::Tracing::NotFoundPage.new,
+                           title: "Not Found", status: :not_found
         end
 
         # Handle general errors
@@ -62,12 +59,8 @@ module RAAF
                     error_class: exception.class.name,
                     backtrace: exception.backtrace&.first(5)&.join("\n"))
 
-          error_component = RAAF::Rails::Tracing::ErrorPage.new(error: exception)
-          layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Error") do
-            render error_component
-          end
-
-          render layout, status: :internal_server_error
+          render_in_layout RAAF::Rails::Tracing::ErrorPage.new(error: exception),
+                           title: "Error", status: :internal_server_error
         end
 
         # Format duration for display

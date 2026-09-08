@@ -52,6 +52,25 @@ module RAAF
             "response" => :blue
           }.freeze
 
+          # How a score was arrived at, as the eval screens name it. The three
+          # methods differ in what a reader can do with the number: a judge's
+          # is an opinion, a statistic is a comparison across runs, a rule is
+          # arithmetic on the output. "Mixed" is one row's several checks
+          # disagreeing about which of those they are.
+          CHECK_TYPE_LABELS = {
+            "llm_judge" => "LLM judge",
+            "statistical" => "Statistical",
+            "rule_based" => "Rule-based",
+            "mixed" => "Mixed"
+          }.freeze
+
+          CHECK_TYPE_VARIANTS = {
+            "llm_judge" => :amber,
+            "statistical" => :teal,
+            "rule_based" => :slate,
+            "mixed" => :blue
+          }.freeze
+
           class << self
             # Badge coloured by span status, falling back to a neutral pill.
             def for_status(status, **options)
@@ -61,6 +80,27 @@ module RAAF
             # Badge coloured by span kind.
             def for_kind(kind, **options)
               new(titleize(kind), variant: KIND_VARIANTS.fetch(kind.to_s.downcase, :slate), **options)
+            end
+
+            # Badge naming how something was scored.
+            #
+            # Nil for a type nobody declared, so a screen prints a dash rather
+            # than an empty pill: "we were not told" and "a rule did it" are
+            # different things, and the fallback the discovery layer applies
+            # already makes them hard enough to tell apart.
+            def for_check_type(type, **options)
+              label = check_type_label(type)
+              return nil if label.nil?
+
+              new(label, variant: CHECK_TYPE_VARIANTS.fetch(type.to_s, :slate), **options)
+            end
+
+            # @return [String, nil] the human name for a check type
+            def check_type_label(type)
+              key = type.to_s
+              return nil if key.empty? || key == "unknown"
+
+              CHECK_TYPE_LABELS.fetch(key) { titleize(key) }
             end
 
             private

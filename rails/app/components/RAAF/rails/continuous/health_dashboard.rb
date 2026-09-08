@@ -4,9 +4,9 @@ module RAAF
   module Rails
     module Continuous
       ##
-      # Scorer health, from the `isHealth` screen in RAAF Continuous.dc.html:
+      # Evaluator health, from the `isHealth` screen in RAAF Continuous.dc.html:
       # a drift banner, four headline cards each over its own sparkline, then
-      # the scorer table beside Coverage by agent and Recent events.
+      # the evaluator table beside Coverage by agent and Recent events.
       #
       # The screen holds no SQL. Every figure comes from {ScorerHealth}, which
       # is also where each measurement's definition is written down.
@@ -32,7 +32,7 @@ module RAAF
       #   resampled, so the list is the alerts it does record.
       class HealthDashboard < RAAF::Rails::Tracing::BaseComponent
         SCORER_COLUMNS = [
-          { label: "Scorer", span: 1.6 },
+          { label: "Evaluator", span: 1.6 },
           { label: "Mean", span: 0.7, align: :right },
           { label: "Drift", span: 0.7, align: :right },
           { label: "p95", span: 0.7, align: :right },
@@ -88,8 +88,8 @@ module RAAF
         # ── Banner ────────────────────────────────────────────────────────
 
         # One line at the top, or none. An unresolved alert first — somebody
-        # still has to answer it — then a judge model that changed underneath a
-        # scorer, which moves its scores without anything about the agent
+        # still has to answer it — then a judge model that changed underneath an
+        # evaluator, which moves its scores without anything about the agent
         # having changed.
         def banner
           alert = @health.headline_alert
@@ -182,7 +182,7 @@ module RAAF
         def latency_card(series)
           p95 = @health.latency_p95_ms
 
-          { label: "Scorer latency p95", icon: "stopwatch",
+          { label: "Evaluator latency p95", icon: "stopwatch",
             value: p95 ? format_duration(p95) : "—",
             tone: p95 && p95 > 5_000 ? :warn : nil,
             series: series[:latency],
@@ -190,7 +190,7 @@ module RAAF
             note: slowest_note }
         end
 
-        # The design's note reads "llm judges dominate the tail". Which scorer
+        # The design's note reads "llm judges dominate the tail". Which evaluator
         # actually owns the tail is a fact rather than a generalisation, so the
         # card names it.
         def slowest_note
@@ -232,7 +232,7 @@ module RAAF
         end
 
         def cost_note
-          return "no scorer called a judge model" if @health.total_cost.zero?
+          return "no evaluator called a judge model" if @health.total_cost.zero?
 
           "#{Kernel.format('$%.2f', @health.total_cost)} across #{number(@health.evaluations)} evaluations"
         end
@@ -249,24 +249,24 @@ module RAAF
           end
         end
 
-        # ── Scorer table ──────────────────────────────────────────────────
+        # ── Evaluator table ───────────────────────────────────────────────
 
         def scorer_table
           rows = @health.scorers
 
-          render(Organisms::Card.new(title: "Scorer health", subtitle: scorer_subtitle,
+          render(Organisms::Card.new(title: "Evaluator health", subtitle: scorer_subtitle,
                                      flush: true)) do
             grid = Organisms::DataGrid.new(
               columns: SCORER_COLUMNS,
-              empty: { icon: "clipboard-data", title: "No scorer has run",
-                       text: "A policy's checks appear here once they have graded something." }
+              empty: { icon: "clipboard-data", title: "No evaluator has run",
+                       text: "A policy's evaluators appear here once they have graded something." }
             )
             render(grid) { rows.each { |row| scorer_row(grid, row) } }
           end
         end
 
         def scorer_subtitle
-          "Mean score against the previous #{@range}. A scorer that has not run " \
+          "Mean score against the previous #{@range}. An evaluator that has not run " \
             "recently is stale rather than steady."
         end
 
@@ -282,16 +282,27 @@ module RAAF
                    ])
         end
 
-        # The design's second line is the scorer's kind. Errors go on the same
-        # line when there are any: a judge failing half its calls is the reason
-        # its mean moved, and the two belong side by side.
+        # The title the evaluator declares for itself, where it declares one:
+        # a reader looking for the evaluator that grades job titles is looking for
+        # "DMU Title Relevance", not for the symbol a policy names it with. The
+        # symbol still has to appear — it is what a policy is written in and
+        # what every other table shows — so it leads the second line.
+        #
+        # An evaluator whose class declares no title, or whose class is gone, keeps
+        # the symbol as its title, set in mono because that is what it is.
         def scorer_cell(row)
-          Molecules::TitleMeta.new(row[:name], scorer_meta(row), mono: true)
+          title = row[:title].presence
+          Molecules::TitleMeta.new(title || row[:name], scorer_meta(row, slug: title.present?),
+                                   mono: title.blank?)
         end
 
-        def scorer_meta(row)
+        # The design's second line is the evaluator's kind. Errors go on the same
+        # line when there are any: a judge failing half its calls is the reason
+        # its mean moved, and the two belong side by side.
+        def scorer_meta(row, slug: false)
           kind = KIND_LABELS.fetch(row[:kind].to_s, row[:kind].presence || "unknown")
           parts = [kind]
+          parts.unshift(row[:name]) if slug
           parts << row[:models].join(", ") if row[:models].any?
           parts << "#{row[:errors]} errored" if row[:errors].positive?
           parts.join(" · ")
@@ -416,10 +427,10 @@ module RAAF
         end
 
         def nothing_scored
-          render(Organisms::Card.new(title: "Scorer health")) do
+          render(Organisms::Card.new(title: "Evaluator health")) do
             render Molecules::EmptyState.new(
               icon: "clipboard-data", title: "Nothing was scored in this window",
-              text: "A scorer can only be measured against its own output. Widen the range, " \
+              text: "An evaluator can only be measured against its own output. Widen the range, " \
                     "or check that a policy is active and matching spans."
             )
           end

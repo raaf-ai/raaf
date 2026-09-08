@@ -1010,6 +1010,12 @@ module RAAF
         def render_full_content_with_formatting(content, section_id)
           return div(class: "text-gray-500 italic") { "No content provided" } if content.blank?
 
+          # A recorded prompt is not always a string: a structured one arrives as
+          # a Hash or an Array, and the plain-text branch below hands it to
+          # `plain`, which refuses anything it cannot format and took the whole
+          # page down with it. Serialised here, it goes down the JSON branch.
+          content = JSON.pretty_generate(content) unless content.is_a?(String)
+
           if looks_like_json?(content)
             render_full_json_content(content, section_id)
           elsif looks_like_markdown?(content)

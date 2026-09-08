@@ -28,12 +28,7 @@ module RAAF
               # No range passed: this list is not filtered by time, and a pill
               # that navigates without changing the rows is worse than an
               # inert one.
-              layout = RAAF::Rails::Tracing::BaseLayout.new(
-                title: "Policies", crumb: "Continuous"
-              ) do
-                render policy_list
-              end
-              render layout
+              render_in_layout policy_list, title: "Policies", crumb: "Continuous"
             end
             format.json { render json: @policies }
           end
@@ -57,13 +52,8 @@ module RAAF
                 trend_window: TREND_WINDOWS.fetch(current_range),
                 trend_unit: TREND_BUCKETS.fetch(current_range)[:unit]
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(
-                title: @policy.name, crumb: "Policy",
-                range: current_range, range_href: range_href
-              ) do
-                render policy_show
-              end
-              render layout
+              render_in_layout policy_show, title: @policy.name, crumb: "Policy", range: current_range,
+                                            range_href: range_href
             end
             format.json { render json: @policy }
           end
@@ -80,10 +70,7 @@ module RAAF
                 policy: @policy,
                 evaluators: @available_evaluators
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "New Evaluation Policy") do
-                render policy_form
-              end
-              render layout
+              render_in_layout policy_form, title: "New Evaluation Policy"
             end
           end
         end
@@ -98,10 +85,7 @@ module RAAF
                 policy: @policy,
                 evaluators: @available_evaluators
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Edit #{@policy.name}") do
-                render policy_form
-              end
-              render layout
+              render_in_layout policy_form, title: "Edit #{@policy.name}"
             end
           end
         end
@@ -119,10 +103,7 @@ module RAAF
               policy: @policy,
               evaluators: @available_evaluators
             )
-            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "New Evaluation Policy") do
-              render policy_form
-            end
-            render layout, status: :unprocessable_content
+            render_in_layout policy_form, title: "New Evaluation Policy", status: :unprocessable_content
           end
         end
 
@@ -139,10 +120,7 @@ module RAAF
               policy: @policy,
               evaluators: @available_evaluators
             )
-            layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Edit #{@policy.name}") do
-              render policy_form
-            end
-            render layout, status: :unprocessable_content
+            render_in_layout policy_form, title: "Edit #{@policy.name}", status: :unprocessable_content
           end
         end
 
@@ -359,21 +337,29 @@ module RAAF
           }
         end
 
-        # Each scorer's average, taken from the per-check `scores` hash the
-        # results carry. Weights and thresholds are not stored anywhere, so
-        # the design's weight column and threshold marker have nothing to draw
+        # Each check's average, taken from the `scores` hash the results
+        # carry. Weights and thresholds are not stored anywhere, so the
+        # design's weight column and threshold marker have nothing to draw
         # from and are left out rather than invented.
+        #
+        # Keyed by field name, because that is how a result is written: one
+        # row per graded field, its `scores` being `{ field_name => score }`.
+        # A policy names its checks `field:evaluator`, and the page resolves
+        # the one spelling to the other — see PolicyShow#measured_for.
+        #
+        # Plucked rather than loaded: a row carries the whole evaluation in
+        # `details`, and this needs one JSON column of it.
         def check_scores(policy)
           totals = Hash.new { |h, k| h[k] = { sum: 0.0, count: 0 } }
 
-          policy.continuous_evaluation_results.where.not(scores: nil).find_each do |result|
-            next unless result.scores.is_a?(Hash)
+          policy.continuous_evaluation_results.where.not(scores: nil).pluck(:scores).each do |scores|
+            next unless scores.is_a?(Hash)
 
-            result.scores.each do |check, value|
+            scores.each do |field, value|
               next unless value.is_a?(Numeric)
 
-              totals[check.to_s][:sum] += value.to_f
-              totals[check.to_s][:count] += 1
+              totals[field.to_s][:sum] += value.to_f
+              totals[field.to_s][:count] += 1
             end
           end
 

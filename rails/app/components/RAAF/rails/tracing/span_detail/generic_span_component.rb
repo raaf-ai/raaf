@@ -86,7 +86,11 @@ module RAAF
               div(class: "bg-gray-50 px-4 py-2 border-b border-gray-200") do
                 h5(class: "text-sm font-medium text-gray-800 flex items-center gap-2") do
                   render_category_icon(category)
-                  category.to_s.humanize
+                  # `plain`, because a bare expression in a Phlex block is
+                  # discarded unless it is the last one -- so every group in this
+                  # breakdown was headed by an icon and a count, and nothing
+                  # saying which group it was.
+                  plain category.to_s.humanize
                   span(class: "px-2 py-0.5 text-xs bg-gray-200 text-gray-600 rounded") { "#{attributes.length} items" }
                 end
               end

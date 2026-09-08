@@ -18,14 +18,12 @@ module RAAF
         # back with an empty string rather than a fallback, which is most of
         # them in practice. That is reported as unknown instead of rendered as
         # an empty badge.
+        #
+        # The wording itself belongs to the badge: a result screen and an
+        # evaluator screen naming the same thing two ways is how "LLM Judge"
+        # and "LLM judge" both came to exist.
         def self.format_type(type)
-          case type.to_s
-          when "" then nil
-          when "llm_judge" then "LLM Judge"
-          when "rule_based" then "Rule-based"
-          when "statistical" then "Statistical"
-          else type.to_s.split("_").map(&:capitalize).join(" ")
-          end
+          RAAF::Rails::Ui::Atoms::Badge.check_type_label(type)
         end
 
         # @param evaluator [Hash] one entry from EvaluatorDiscovery#evaluator_details

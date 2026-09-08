@@ -75,7 +75,7 @@ module RAAF
         def call_row(grid, span)
           grid.row(href: trace_span_path(span.span_id, span.trace_id), cells: [
                      { value: tool_name(span), primary: true },
-                     { value: Atoms::Mono.new(short_id(span.trace_id), tone: :muted) },
+                     { value: Atoms::Mono.new(truncate_id(span.trace_id), tone: :muted) },
                      { value: Atoms::StatusBadge.new(span.status) },
                      { value: Atoms::Mono.new(duration(span.duration_ms)), align: :right },
                      { value: Atoms::Mono.new(started(span), tone: :muted), align: :right }
@@ -231,10 +231,6 @@ module RAAF
 
         def humanise(count)
           count >= 1000 ? "#{(count / 1000.0).round(1)}k" : count.to_s
-        end
-
-        def short_id(id)
-          id.to_s.delete_prefix("trace_").first(8)
         end
 
         def started(span)

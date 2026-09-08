@@ -45,13 +45,7 @@ module RAAF
                   params: params.permit(:search, :workflow, :status, :start_time, :end_time, :range)
                 )
 
-                layout = RAAF::Rails::Tracing::BaseLayout.new(
-                  title: "Traces", range: current_range, range_href: range_href
-                ) do
-                  render traces_component
-                end
-
-                render layout
+                render_in_layout traces_component, title: "Traces", range: current_range, range_href: range_href
               end
             end
             format.json { render json: serialize_traces(@traces) }
@@ -74,13 +68,8 @@ module RAAF
               # The workflow is what identifies this trace to a reader, so it is
               # the page title; "Trace" is the crumb above it. The trace id and
               # its stats sit in the bar at the top of the component.
-              layout = RAAF::Rails::Tracing::BaseLayout.new(
-                title: @trace.workflow_name.presence || "Unnamed workflow", crumb: "Trace"
-              ) do
-                render trace_component
-              end
-
-              render layout
+              render_in_layout trace_component, title: @trace.workflow_name.presence || "Unnamed workflow",
+                                                crumb: "Trace"
             end
             format.json { render json: serialize_trace_detail(@trace) }
           end
@@ -117,11 +106,7 @@ module RAAF
                                                                             :span, :tab
                                                                           ))
 
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Trace Analytics") do
-                render analytics_component
-              end
-
-              render layout
+              render_in_layout analytics_component, title: "Trace Analytics"
             end
             format.json do
               render json: {

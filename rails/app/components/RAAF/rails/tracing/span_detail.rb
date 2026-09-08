@@ -126,7 +126,7 @@ module RAAF
           def inspector_tabs
             tab_definitions.map do |item|
               { id: item[:id], label: item[:label],
-                href: "#{tracing_span_path(@span.span_id)}?tab=#{item[:id]}" }
+                href: trace_span_path(@span.span_id, @span.trace_id, tab: item[:id]) }
             end
           end
 
@@ -155,7 +155,11 @@ module RAAF
           def inspector_error
             return nil unless failed?
 
-            details = @error_details || @span.error_details || {}
+            # A caller may hand this in from somewhere other than SpanRecord,
+            # and a hash that came back through JSON has string keys. Read
+            # either, rather than showing "no exception was recorded" over a
+            # hash that records one.
+            details = (@error_details || @span.error_details || {}).transform_keys(&:to_sym)
 
             { klass: details[:exception_type].presence || "Error",
               message: details[:exception_message].presence ||
@@ -212,7 +216,7 @@ module RAAF
               detail_line("Trace", @span.trace_id, href: tracing_trace_path(@span.trace_id))
               detail_line("Workflow", @trace&.workflow_name.presence || "—")
               detail_line("Parent", @span.parent_id.presence || "none",
-                          href: @span.parent_id.presence && tracing_span_path(@span.parent_id))
+                          href: @span.parent_id.presence && trace_span_path(@span.parent_id, @span.trace_id))
               detail_line("Children", @span.children.count.to_s)
               detail_line("Started", @span.start_time&.strftime("%Y-%m-%d %H:%M:%S") || "—")
             end
@@ -305,20 +309,17 @@ module RAAF
             render SpanDetail::PipelineSpanComponent.new(span: @span, trace: @trace)
           end
 
+          # A response span, and the speech and MCP kinds, have no deep dive of
+          # their own yet, so they get the generic one: the same overview,
+          # timing and attributes, rendered by a component rather than by
+          # reaching into another instance's protected methods and handing
+          # `render` the nil they return.
           def render_response_span_component
-            base_component = SpanDetailBase.new(span: @span, trace: @trace)
-            render base_component.render_span_overview
-            render base_component.render_timing_details
-            render_attributes_section
-            # Response-specific sections will be added in later tasks
+            render_generic_span_component
           end
 
           def render_specialized_span_component
-            base_component = SpanDetailBase.new(span: @span, trace: @trace)
-            render base_component.render_span_overview
-            render base_component.render_timing_details
-            render_attributes_section
-            # Specialized span sections will be added in later tasks
+            render_generic_span_component
           end
 
           def render_component_span
@@ -578,7 +579,7 @@ module RAAF
                         td(class: "px-4 py-3 text-sm") do
                           link_to(
                             child.name,
-                            tracing_span_path(child.span_id),
+                            trace_span_path(child.span_id, child.trace_id),
                             class: "text-blue-600 hover:text-blue-900"
                           )
                         end

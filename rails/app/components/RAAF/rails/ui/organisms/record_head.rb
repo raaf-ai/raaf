@@ -33,15 +33,18 @@ module RAAF
           #   does not for a policy or an experiment
           # @param description [String, nil] prose, given its own measure
           # @param status [String, nil] rendered through Atoms::StatusBadge
+          # @param badges [Array] further pills for the status line — components,
+          #   already built, so the header stays ignorant of what they say
           # @param meta [String, nil] the mono line beside the status
           # @param action [Hash, nil] arguments for Atoms::Button
           # @param stats [Array<Hash>] :label, :value, and an optional :tone
-          def initialize(title:, mono: false, description: nil, status: nil, meta: nil,
-                         action: nil, stats: [], class: nil, **attrs)
+          def initialize(title:, mono: false, description: nil, status: nil, badges: [],
+                         meta: nil, action: nil, stats: [], class: nil, **attrs)
             @title = title
             @mono = mono
             @description = description
             @status = status
+            @badges = Array(badges).compact
             @meta = meta
             @action = action
             @stats = Array(stats)
@@ -70,13 +73,14 @@ module RAAF
                 render Atoms::Text.new(@description, tone: :secondary, class: "raaf-rechead-desc")
               end
 
-              badges if @status.present? || @meta.present?
+              badges if @status.present? || @badges.any? || @meta.present?
             end
           end
 
           def badges
             div(class: "raaf-cluster") do
               render Atoms::StatusBadge.new(@status) if @status.present?
+              @badges.each { |badge| render badge }
               render Atoms::Mono.new(@meta, tone: :muted) if @meta.present?
             end
           end

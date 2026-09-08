@@ -64,6 +64,7 @@ module RAAF
             div(class: "flex items-center gap-2") do
               render_result_status_badge(result)
               span(class: "text-sm font-medium text-gray-700") { display_name }
+              render_method_badge(result, check_details[:check_type])
             end
             span(class: "text-xs text-gray-400") { time_ago_in_words(result.created_at) + " ago" }
           end
@@ -112,7 +113,8 @@ module RAAF
                 div(class: "flex items-center gap-2") do
                   span(class: "font-medium text-gray-900") { display_name }
                   render_result_status_badge(result)
-                  span(class: "text-sm text-gray-600") { "Score: #{format_score(result.score)}" } if result.score
+                  render_method_badge(result, check_details[:check_type])
+                  span(class: "text-sm text-gray-600") { "Score: #{score_percent(result.score)}" } if result.score
                 end
 
                 # Description if available
@@ -187,6 +189,31 @@ module RAAF
           end
         end
 
+        # Whether a model was asked or a rule was computed, beside the verdict.
+        # The panel is read on a policy and on a span, where the question is
+        # "what has been grading this?" — and a row that costs a call each time
+        # it fires answers it differently from one that does not.
+        #
+        # The check the row named comes first; the evaluator's declared type is
+        # the fallback, and says nothing where neither is on record.
+        def render_method_badge(result, check_type)
+          type = check_type.presence || RAAF::Rails::ScoringMethod.for_result(result)
+          label = RAAF::Rails::Ui::Atoms::Badge.check_type_label(type)
+          return if label.nil?
+
+          classes = "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+          span(class: "#{classes} #{method_badge_classes(type)}") { label }
+        end
+
+        def method_badge_classes(type)
+          case type.to_s
+          when "llm_judge" then "bg-amber-100 text-amber-800"
+          when "statistical" then "bg-teal-100 text-teal-800"
+          when "mixed" then "bg-blue-100 text-blue-800"
+          else "bg-gray-100 text-gray-700"
+          end
+        end
+
         def render_badge(text, color)
           color_classes = case color
                           when "green" then "bg-green-100 text-green-800"
@@ -201,7 +228,7 @@ module RAAF
           end
         end
 
-        def format_score(score)
+        def score_percent(score)
           return "N/A" unless score
 
           "#{(score.to_f * 100).round(1)}%"
@@ -215,7 +242,8 @@ module RAAF
 
           {
             display_name: check_details&.dig(:display_name),
-            description: check_details&.dig(:description)
+            description: check_details&.dig(:description),
+            check_type: check_details&.dig(:check_type)
           }
         end
 

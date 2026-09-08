@@ -30,7 +30,7 @@ module RAAF
             format.html do
               render_in_layout(
                 RAAF::Rails::Tracing::Replay::IndexComponent.new(span: @span, replays: @replays),
-                title: @span ? "Replays of #{@span.display_name}" : "Replays"
+                title: @span ? "Replays of #{@span.display_name}" : "Replays", current: :replays
               )
             end
             format.json { render json: serialize_replays(@replays) }
@@ -48,7 +48,7 @@ module RAAF
                   original_span: @span,
                   view: params[:view]
                 ),
-                title: "Replay ##{@replay.id}",
+                title: "Replay ##{@replay.id}", current: :replays,
                 bundles: [ :diff ]
               )
             end
@@ -72,7 +72,7 @@ module RAAF
             format.html do
               render_in_layout(
                 RAAF::Rails::Tracing::Replay::NewComponent.new(span: @span, replay: @replay),
-                title: "Replay #{@span.display_name}"
+                title: "Replay #{@span.display_name}", current: :replays
               )
             end
             format.json { render json: build_replay_form_data(@span) }
@@ -119,7 +119,7 @@ module RAAF
               format.html do
                 render_in_layout(
                   RAAF::Rails::Tracing::Replay::NewComponent.new(span: @span, replay: @replay),
-                  title: "Replay #{@span.display_name}"
+                  title: "Replay #{@span.display_name}", current: :replays
                 )
               end
               format.json { render json: { errors: @replay.errors.full_messages }, status: :unprocessable_content }
@@ -140,20 +140,6 @@ module RAAF
 
         def span_scoped?
           params[:span_id].present?
-        end
-
-        # @param bundles [Array<Symbol>] front-end libraries this screen needs;
-        #   see {RAAF::Rails::Tracing::BaseLayout::BUNDLES}. The list and the
-        #   form ask for none — only the comparison view renders a diff or
-        #   prints a payload.
-        def render_in_layout(component, title:, bundles: [])
-          layout = RAAF::Rails::Tracing::BaseLayout.new(
-            title: title, current: :replays, bundles: bundles
-          ) do
-            render component
-          end
-
-          render layout
         end
 
         def set_span

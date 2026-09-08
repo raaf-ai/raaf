@@ -53,7 +53,7 @@ module RAAF
 
         def row(grid, trace)
           grid.row(href: tracing_trace_path(trace.trace_id), cells: [
-                     { value: Atoms::Mono.new(short_id(trace.trace_id), tone: :accent) },
+                     { value: Atoms::Mono.new(truncate_id(trace.trace_id), tone: :accent) },
                      { value: trace.workflow_name.presence || "Unnamed workflow", primary: true },
                      { value: Atoms::StatusBadge.new(trace.status) },
                      { value: Atoms::Mono.new(trace.spans.count, tone: :muted), align: :right },
@@ -81,12 +81,6 @@ module RAAF
         def cost_for(trace)
           value = totals.dig(trace.trace_id, :cost)
           value ? "$#{'%.3f' % value.to_f}" : "—"
-        end
-
-        # The full id is 32 hex characters; the leading eight identify a trace
-        # in practice and are what the design prints.
-        def short_id(id)
-          id.to_s.delete_prefix("trace_").first(8)
         end
 
         def started(trace)

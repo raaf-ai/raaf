@@ -50,8 +50,8 @@ module RAAF
           attributes = { id: DOM_ID }
           if work_outstanding?
             attributes[:data] = {
-              controller: "section-refresh",
-              section_refresh_interval_value: REFRESH_INTERVAL_MS
+              controller: "auto-refresh",
+              auto_refresh_interval_value: REFRESH_INTERVAL_MS
             }
           end
 
@@ -123,14 +123,14 @@ module RAAF
           results = @results_by_policy[policy.id]
           graded = results&.first&.created_at
 
-          [scorer_names(policy).presence,
+          [evaluator_names(policy).presence,
            graded ? "graded #{time_ago(graded)}" : "never graded"].compact.join(" · ")
         end
 
-        # The checks this policy runs, named the way the policy list names
-        # them: an evaluator is stored either as a bare name or as a config
-        # hash, and both spellings are in the column.
-        def scorer_names(policy)
+        # The evaluators this policy runs, named the way the policy list
+        # names them: an evaluator is stored either as a bare name or as a
+        # config hash, and both spellings are in the column.
+        def evaluator_names(policy)
           Array(policy.evaluators).filter_map do |evaluator|
             evaluator.is_a?(Hash) ? (evaluator["name"] || evaluator[:name]) : evaluator
           end.join(", ")

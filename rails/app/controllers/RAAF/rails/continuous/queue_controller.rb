@@ -25,11 +25,7 @@ module RAAF
           respond_to do |format|
             format.html do
               queue_list = RAAF::Rails::Continuous::QueueList.new(queue: @queue)
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Queue", crumb: "Continuous",
-                                                            current: :queue) do
-                render queue_list
-              end
-              render layout
+              render_in_layout queue_list, title: "Queue", crumb: "Continuous", current: :queue
             end
             format.json { render json: queue_items_for_json }
           end
@@ -45,10 +41,7 @@ module RAAF
                 queue_item: @queue_item,
                 results: @results
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Queue item", crumb: "Continuous") do
-                render queue_show
-              end
-              render layout
+              render_in_layout queue_show, title: "Queue item", crumb: "Continuous"
             end
             format.json { render json: @queue_item }
           end

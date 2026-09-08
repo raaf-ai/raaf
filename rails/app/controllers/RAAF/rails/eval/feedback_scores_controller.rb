@@ -22,10 +22,7 @@ module RAAF
                 distribution: FeedbackScore.category_distribution,
                 definitions: score_definitions
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(
-                title: "Feedback scores", crumb: "Evaluate", current: :feedback
-              ) { render component }
-              render layout
+              render_in_layout component, title: "Feedback scores", crumb: "Evaluate", current: :feedback
             end
             format.json { render json: @scores.limit(100) }
           end
@@ -37,8 +34,7 @@ module RAAF
           respond_to do |format|
             format.html do
               component = RAAF::Rails::Eval::FeedbackScoreShow.new(score: @score)
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Feedback Score") { render component }
-              render layout
+              render_in_layout component, title: "Feedback Score"
             end
             format.json { render json: @score }
           end
@@ -102,8 +98,7 @@ module RAAF
           respond_to do |format|
             format.html do
               component = RAAF::Rails::Eval::FeedbackStatistics.new(stats: stats, distribution: distribution)
-              layout = RAAF::Rails::Tracing::BaseLayout.new(title: "Feedback Statistics") { render component }
-              render layout
+              render_in_layout component, title: "Feedback Statistics"
             end
             format.json { render json: { statistics: stats, distribution: distribution } }
           end
