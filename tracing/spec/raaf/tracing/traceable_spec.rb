@@ -11,7 +11,7 @@ RSpec.describe RAAF::Tracing::Traceable do
 
       trace_as :agent
 
-      attr_reader :name, :current_span, :parent_component
+      attr_reader :name, :parent_component
 
       def initialize(name: "TestAgent", parent_component: nil)
         @name = name
@@ -34,7 +34,7 @@ RSpec.describe RAAF::Tracing::Traceable do
 
       trace_as :pipeline
 
-      attr_reader :name, :current_span
+      attr_reader :name
 
       def initialize(name: "TestPipeline")
         @name = name
@@ -56,7 +56,7 @@ RSpec.describe RAAF::Tracing::Traceable do
 
       trace_as :tool
 
-      attr_reader :name, :current_span
+      attr_reader :name
 
       def initialize(name: "TestTool")
         @name = name
@@ -686,11 +686,11 @@ RSpec.describe RAAF::Tracing::Traceable do
         expect(tracer).to eq(mock_registry_tracer)
       end
 
-      it "returns TraceProvider when no instance or registry tracer (third priority)" do
+      it "returns TraceProvider when it has processors and there is no instance tracer (third priority)" do
         # Mock TracingRegistry to return nil (simulate no tracer configured)
         allow(RAAF::Tracing::TracingRegistry).to receive(:current_tracer).and_return(nil)
 
-        mock_provider = double("provider", respond_to?: true, processors: [])
+        mock_provider = double("provider", respond_to?: true, processors: [double("processor")])
         allow(RAAF::Tracing::TraceProvider).to receive(:instance).and_return(mock_provider)
 
         tracer = agent.send(:get_tracer_for_span_sending)
@@ -709,10 +709,11 @@ RSpec.describe RAAF::Tracing::Traceable do
         expect(tracer).to eq(mock_raaf_tracer)
       end
 
-      it "returns NoOpTracer when no tracers available (lowest priority)" do
-        # TracingRegistry will return NoOpTracer as fallback
+      it "returns nil when no tracer with processors is available (lowest priority)" do
+        # TracingRegistry falls back to a NoOpTracer, which span sending skips,
+        # so there is nothing left to send spans to.
         tracer = agent.send(:get_tracer_for_span_sending)
-        expect(tracer).to be_a(RAAF::Tracing::NoOpTracer)
+        expect(tracer).to be_nil
       end
 
       it "prioritizes instance tracer over TracingRegistry" do
@@ -723,7 +724,7 @@ RSpec.describe RAAF::Tracing::Traceable do
         expect(tracer).to eq(mock_instance_tracer)
       end
 
-      it "prioritizes TracingRegistry over TraceProvider" do
+      it "prefers the TracingRegistry tracer over a TraceProvider that has no processors" do
         RAAF::Tracing::TracingRegistry.set_process_tracer(mock_registry_tracer)
         mock_provider = double("provider", respond_to?: true, processors: [])
         allow(RAAF::Tracing::TraceProvider).to receive(:instance).and_return(mock_provider)
@@ -734,22 +735,23 @@ RSpec.describe RAAF::Tracing::Traceable do
     end
 
     context "NoOpTracer handling" do
-      it "returns NoOpTracer when TracingRegistry provides NoOpTracer" do
-        noop_tracer = RAAF::Tracing::NoOpTracer.new
-        RAAF::Tracing::TracingRegistry.set_process_tracer(noop_tracer)
+      it "skips a NoOpTracer from the TracingRegistry" do
+        RAAF::Tracing::TracingRegistry.set_process_tracer(RAAF::Tracing::NoOpTracer.new)
 
         tracer = agent.send(:get_tracer_for_span_sending)
-        expect(tracer).to be_a(RAAF::Tracing::NoOpTracer)
-        expect(tracer.disabled?).to be(true)
+        expect(tracer).to be_nil
       end
 
-      it "properly differentiates NoOpTracer from nil" do
-        noop_tracer = RAAF::Tracing::NoOpTracer.new
-        RAAF::Tracing::TracingRegistry.set_process_tracer(noop_tracer)
+      it "falls through a NoOpTracer to the RAAF global tracer" do
+        # The registry returns a NoOpTracer whenever nothing is configured, so
+        # treating it as a real tracer would let an unconfigured registry
+        # silently swallow the spans a configured global tracer should receive.
+        RAAF::Tracing::TracingRegistry.set_process_tracer(RAAF::Tracing::NoOpTracer.new)
+        allow(RAAF).to receive(:respond_to?).with(:tracer).and_return(true)
+        allow(RAAF).to receive(:tracer).and_return(mock_raaf_tracer)
 
         tracer = agent.send(:get_tracer_for_span_sending)
-        expect(tracer).not_to be_nil
-        expect(tracer).to be_a(RAAF::Tracing::NoOpTracer)
+        expect(tracer).to eq(mock_raaf_tracer)
       end
     end
 
@@ -791,7 +793,7 @@ RSpec.describe RAAF::Tracing::Traceable do
         allow(RAAF::Tracing::TracingRegistry).to receive(:current_tracer).and_return(nil)
 
         # Mock TraceProvider
-        mock_provider = double("provider", respond_to?: true, processors: [])
+        mock_provider = double("provider", respond_to?: true, processors: [double("processor")])
         allow(RAAF::Tracing::TraceProvider).to receive(:instance).and_return(mock_provider)
 
         tracer = agent.send(:get_tracer_for_span_sending)

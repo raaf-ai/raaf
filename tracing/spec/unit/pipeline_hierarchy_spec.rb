@@ -62,8 +62,22 @@ RSpec.describe "RAAF Pipeline Hierarchy Tracing" do
           "pipeline.name" => name,
           "pipeline.type" => "outer",
           "pipeline.has_inner_pipelines" => !inner_pipelines.empty?,
-          "pipeline.inner_count" => inner_pipelines.length
+          "pipeline.inner_count" => inner_pipelines.length,
+          "pipeline.nesting_level" => calculate_nesting_level
         }
+      end
+
+      private
+
+      def calculate_nesting_level
+        level = 1
+        parent = @parent_component
+        while parent && parent.class.respond_to?(:trace_component_type) &&
+              parent.class.trace_component_type == :pipeline
+          level += 1
+          parent = parent.instance_variable_get(:@parent_component)
+        end
+        level
       end
     end
   end
@@ -88,12 +102,15 @@ RSpec.describe "RAAF Pipeline Hierarchy Tracing" do
           agent_results = []
 
           if execution_mode == :parallel
-            # Simulate parallel execution
+            # Simulate parallel execution. Span storage is thread-local, so the
+            # pipeline's span has to be handed to each branch explicitly - a
+            # thread cannot see its spawner's current span.
+            parent_span = current_span
             threads = agents.map do |agent|
+              agent.instance_variable_set(:@parent_component, self)
               Thread.new do
                 # Each thread gets isolated context
-                agent.instance_variable_set(:@parent_component, self)
-                agent.run
+                agent.run(parent_span: parent_span)
               end
             end
             agent_results = threads.map(&:value)
@@ -130,7 +147,8 @@ RSpec.describe "RAAF Pipeline Hierarchy Tracing" do
       def calculate_nesting_level
         level = 1
         parent = @parent_component
-        while parent && parent.respond_to?(:trace_component_type) && parent.class.trace_component_type == :pipeline
+        while parent && parent.class.respond_to?(:trace_component_type) &&
+              parent.class.trace_component_type == :pipeline
           level += 1
           parent = parent.instance_variable_get(:@parent_component)
         end
@@ -153,8 +171,10 @@ RSpec.describe "RAAF Pipeline Hierarchy Tracing" do
         @task_id = task_id || SecureRandom.hex(4)
       end
 
-      def run
-        with_tracing(:run) do
+      def run(parent_span: nil)
+        # parent_span is only supplied when the agent runs on its own thread;
+        # otherwise with_tracing falls back to @parent_component.
+        with_tracing(:run, parent_component: parent_span) do
           # Simulate agent work
           sleep(0.005)
 
@@ -183,7 +203,7 @@ RSpec.describe "RAAF Pipeline Hierarchy Tracing" do
         parent = @parent_component
         return "none" unless parent
 
-        if parent.respond_to?(:trace_component_type) && parent.class.trace_component_type == :pipeline
+        if parent.class.respond_to?(:trace_component_type) && parent.class.trace_component_type == :pipeline
           parent.respond_to?(:name) ? parent.name : "unknown_pipeline"
         else
           "not_pipeline"
@@ -193,7 +213,8 @@ RSpec.describe "RAAF Pipeline Hierarchy Tracing" do
       def calculate_nesting_depth
         depth = 0
         parent = @parent_component
-        while parent && parent.respond_to?(:trace_component_type) && parent.class.trace_component_type == :pipeline
+        while parent && parent.class.respond_to?(:trace_component_type) &&
+              parent.class.trace_component_type == :pipeline
           depth += 1
           parent = parent.instance_variable_get(:@parent_component)
         end
@@ -431,7 +452,7 @@ RSpec.describe "RAAF Pipeline Hierarchy Tracing" do
 
       spans = memory_processor.spans
       agent_spans = spans.select { |s| s[:kind] == :agent }
-                         .sort_by { |s| Time.parse(s[:start_time]) }
+                         .sort_by { |s| span_time(s[:start_time]) }
 
       # Sequential execution means Agent1 starts before Agent2, etc.
       agent_names = agent_spans.map { |s| s[:attributes]["agent.name"] }
@@ -439,8 +460,8 @@ RSpec.describe "RAAF Pipeline Hierarchy Tracing" do
 
       # Each agent should start after the previous one finishes (sequential)
       (0...agent_spans.length - 1).each do |i|
-        current_end = Time.parse(agent_spans[i][:end_time])
-        next_start = Time.parse(agent_spans[i + 1][:start_time])
+        current_end = span_time(agent_spans[i][:end_time])
+        next_start = span_time(agent_spans[i + 1][:start_time])
         expect(next_start).to be >= current_end
       end
     end
@@ -506,7 +527,7 @@ RSpec.describe "RAAF Pipeline Hierarchy Tracing" do
       agent_spans = spans.select { |s| s[:kind] == :agent }
 
       # All agents should start around the same time (parallel execution)
-      start_times = agent_spans.map { |s| Time.parse(s[:start_time]) }
+      start_times = agent_spans.map { |s| span_time(s[:start_time]) }
       start_time_spread = start_times.max - start_times.min
 
       # Parallel execution should have minimal start time spread
@@ -514,10 +535,10 @@ RSpec.describe "RAAF Pipeline Hierarchy Tracing" do
 
       # All agent spans should overlap (indicating parallel execution)
       agent_spans.combination(2).each do |span1, span2|
-        start1 = Time.parse(span1[:start_time])
-        end1 = Time.parse(span1[:end_time])
-        start2 = Time.parse(span2[:start_time])
-        end2 = Time.parse(span2[:end_time])
+        start1 = span_time(span1[:start_time])
+        end1 = span_time(span1[:end_time])
+        start2 = span_time(span2[:start_time])
+        end2 = span_time(span2[:end_time])
 
         # Check for time overlap (parallel execution)
         overlap = [end1, end2].min - [start1, start2].max
@@ -665,12 +686,12 @@ RSpec.describe "RAAF Pipeline Hierarchy Tracing" do
 
       # Verify timing coherence
       root_span = spans.find { |s| s[:attributes]["pipeline.name"] == "RootPipeline" }
-      root_start = Time.parse(root_span[:start_time])
-      root_end = Time.parse(root_span[:end_time])
+      root_start = span_time(root_span[:start_time])
+      root_end = span_time(root_span[:end_time])
 
       spans.each do |span|
-        span_start = Time.parse(span[:start_time])
-        span_end = Time.parse(span[:end_time])
+        span_start = span_time(span[:start_time])
+        span_end = span_time(span[:end_time])
 
         # All spans should be within root pipeline timeframe
         expect(span_start).to be >= root_start

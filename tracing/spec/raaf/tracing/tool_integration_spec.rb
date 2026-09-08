@@ -48,7 +48,7 @@ RSpec.describe RAAF::Tracing::ToolIntegration do
 
       trace_as :agent
 
-      attr_reader :name, :current_span
+      attr_reader :name
 
       def initialize(name: "TestAgent")
         @name = name
@@ -105,7 +105,8 @@ RSpec.describe RAAF::Tracing::ToolIntegration do
 
         expect(span_data[:attributes]["tool.name"]).to eq("TestTool")
         expect(span_data[:attributes]["tool.method"]).to eq("test_method")
-        expect(span_data[:attributes]).not_to have_key("tool.agent_context")
+        # ToolCollector always reports the field; with no agent detected it is nil
+        expect(span_data[:attributes]["tool.agent_context"]).to be_nil
       end
     end
 

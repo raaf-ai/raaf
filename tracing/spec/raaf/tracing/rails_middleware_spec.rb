@@ -403,7 +403,11 @@ RSpec.describe RAAF::Tracing::RailsMiddleware do
   end
 
   describe "thread safety" do
+    let(:response) { [200, { "Content-Type" => "application/json" }, ["{}"]] }
+
     it "isolates tracer context across concurrent requests" do
+      allow(app).to receive(:call).and_return(response)
+
       tracer1 = double("tracer1")
       tracer2 = double("tracer2")
       span1 = double("span1")
@@ -423,17 +427,12 @@ RSpec.describe RAAF::Tracing::RailsMiddleware do
       middleware1 = described_class.new(app, tracer: tracer1)
       middleware2 = described_class.new(app, tracer: tracer2)
 
-      threads = []
-      results = []
-
-      threads << Thread.new do
-        results << middleware1.call(env.dup)
-      end
-
-      threads << Thread.new do
-        results << middleware2.call(env.dup)
-      end
-
+      # Index the slots: appending from two threads makes the order arbitrary.
+      results = Array.new(2)
+      threads = [
+        Thread.new { results[0] = middleware1.call(env.dup) },
+        Thread.new { results[1] = middleware2.call(env.dup) }
+      ]
       threads.each(&:join)
 
       expect(results.size).to eq(2)

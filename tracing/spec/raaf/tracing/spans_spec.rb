@@ -14,7 +14,7 @@ RSpec.describe "RAAF::Tracing spans" do
         subject(:span) { described_class.new(name: span_name) }
 
         it "creates a span with auto-generated IDs" do
-          expect(span.span_id).to match(/^span_[a-f0-9]{24}$/)
+          expect(span.span_id).to match(/^span_[a-f0-9]{32}$/)
           expect(span.trace_id).to match(/^trace_[a-f0-9]{32}$/)
           expect(span.name).to eq(span_name)
           expect(span.kind).to eq(:internal)
@@ -47,7 +47,7 @@ RSpec.describe "RAAF::Tracing spans" do
         end
 
         it "uses provided parameters" do
-          expect(span.span_id).to match(/^span_[a-f0-9]{24}$/)
+          expect(span.span_id).to match(/^span_[a-f0-9]{32}$/)
           expect(span.trace_id).to eq(trace_id)
           expect(span.parent_id).to eq(parent_id)
           expect(span.name).to eq(span_name)

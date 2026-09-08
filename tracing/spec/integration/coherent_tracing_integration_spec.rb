@@ -84,42 +84,43 @@ RSpec.describe "TracingRegistry End-to-End Integration", :integration do
       private
 
       def create_span(name, attributes = {})
-        OpenStruct.new({
-          name: name,
-          type: attributes[:type] || :unknown,
-          parent_id: attributes[:parent_id],
-          trace_id: attributes[:trace_id] || "trace_#{SecureRandom.hex(8)}",
-          attributes: attributes,
-          events: [],
-          status: :ok,
-          start_time: Time.now,
-          end_time: nil,
-          finished: false
-        }.tap do |span|
-          # Add span methods
-          span.define_singleton_method(:set_attribute) do |key, value|
-            span.attributes[key] = value
-            span
-          end
-          span.define_singleton_method(:add_event) do |name, attrs = {}|
-            span.events << { name: name, attributes: attrs }
-            span
-          end
-          span.define_singleton_method(:set_status) do |status, description: nil|
-            span.status = status
-            span.description = description
-            span
-          end
-          span.define_singleton_method(:finish) do
-            span.end_time = Time.now
-            span.finished = true
-            span
-          end
-          span.define_singleton_method(:finished?) { span.finished }
-          # Add method_missing to handle any other span methods
-          span.define_singleton_method(:method_missing) { |_method, *_args, **_kwargs| span }
-          span.define_singleton_method(:respond_to_missing?) { |_method, _include_private = false| true }
-        end)
+        # The singleton methods have to go on the OpenStruct itself. Defining
+        # them inside a tap on the attribute hash put them on the hash, and the
+        # OpenStruct built from it came out without any of them.
+        span = OpenStruct.new({
+                                name: name,
+                                type: attributes[:type] || :unknown,
+                                parent_id: attributes[:parent_id],
+                                trace_id: attributes[:trace_id] || "trace_#{SecureRandom.hex(8)}",
+                                attributes: attributes,
+                                events: [],
+                                status: :ok,
+                                start_time: Time.now,
+                                end_time: nil,
+                                finished: false
+                              })
+
+        span.define_singleton_method(:set_attribute) do |key, value|
+          span.attributes[key] = value
+          span
+        end
+        span.define_singleton_method(:add_event) do |event_name, attrs = {}|
+          span.events << { name: event_name, attributes: attrs }
+          span
+        end
+        span.define_singleton_method(:set_status) do |status, description: nil|
+          span.status = status
+          span.description = description
+          span
+        end
+        span.define_singleton_method(:finish) do
+          span.end_time = Time.now
+          span.finished = true
+          span
+        end
+        span.define_singleton_method(:finished?) { span.finished }
+
+        span
       end
     end.new
   end

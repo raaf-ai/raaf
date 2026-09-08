@@ -11,7 +11,7 @@ RSpec.describe "End-to-End Tool Tracing Integration", :integration do
 
       trace_as :agent
 
-      attr_reader :name, :current_span, :tools
+      attr_reader :name, :tools
 
       def initialize(name: "ProductionAgent")
         @name = name
@@ -100,6 +100,9 @@ RSpec.describe "End-to-End Tool Tracing Integration", :integration do
 
       def initialize(agent:)
         @agent = agent
+        # The runner is the agent's parent, which is how the agent span ends up
+        # under the runner span.
+        agent.instance_variable_set(:@parent_component, self)
       end
 
       def self.name
@@ -139,10 +142,11 @@ RSpec.describe "End-to-End Tool Tracing Integration", :integration do
   end
 
   before do
-    # Set up mock tracer for all components
-    allow(runner).to receive(:tracer).and_return(mock_tracer)
-    allow(agent).to receive(:tracer).and_return(mock_tracer)
-    allow(modern_tool).to receive(:tracer).and_return(mock_tracer)
+    # Set up mock tracer for all components. Traceable reads @tracer directly,
+    # so stubbing a #tracer method would leave span sending without a tracer.
+    runner.instance_variable_set(:@tracer, mock_tracer)
+    agent.instance_variable_set(:@tracer, mock_tracer)
+    modern_tool.instance_variable_set(:@tracer, mock_tracer)
 
     # Clear any existing agent context
     Thread.current[:current_agent] = nil
@@ -267,7 +271,7 @@ RSpec.describe "End-to-End Tool Tracing Integration", :integration do
       end
     end
 
-    let(:failing_tool) { failing_tool_class.new }
+    let(:failing_tool) { failing_tool_class.new.tap { |t| t.instance_variable_set(:@tracer, mock_tracer) } }
 
     it "properly handles tool failures while maintaining span hierarchy" do
       agent.add_tool(failing_tool)
@@ -307,8 +311,8 @@ RSpec.describe "End-to-End Tool Tracing Integration", :integration do
       tools = [modern_tool_class.new(name: "Tool1"), modern_tool_class.new(name: "Tool2")]
 
       # Set up tracers for new components
-      agents.each { |a| allow(a).to receive(:tracer).and_return(mock_tracer) }
-      tools.each { |t| allow(t).to receive(:tracer).and_return(mock_tracer) }
+      agents.each { |a| a.instance_variable_set(:@tracer, mock_tracer) }
+      tools.each { |t| t.instance_variable_set(:@tracer, mock_tracer) }
 
       agents.each_with_index { |agent, i| agent.add_tool(tools[i]) }
 

@@ -33,8 +33,10 @@ RSpec.describe "RAAF Pipeline Hierarchy - Comprehensive Integration" do
         @context_data = context_data
       end
 
-      def run
-        with_tracing(:run) do
+      def run(parent_span: nil)
+        # parent_span is supplied when this pipeline runs as a parallel branch on
+        # its own thread; otherwise with_tracing falls back to @parent_component.
+        with_tracing(:run, parent_component: parent_span) do
           # Comprehensive pipeline execution with all hierarchy features
           hierarchy_info = analyze_hierarchy
 
@@ -121,38 +123,43 @@ RSpec.describe "RAAF Pipeline Hierarchy - Comprehensive Integration" do
       end
 
       def execute_parallel_with_isolation
+        # Span storage is thread-local, so a branch thread can neither see this
+        # pipeline's span nor append events to it via current_span. Capture the
+        # span here and carry it across the thread boundary.
+        pipeline_span = current_span
+
         # Parallel execution with context isolation
         threads = children.map.with_index do |child, index|
-          Thread.new do
-            # Create isolated context for each branch
-            isolated_context = create_isolated_context(index)
+          # Create isolated context for each branch
+          isolated_context = create_isolated_context(index)
 
-            # Set up parent relationship with isolation
-            child.instance_variable_set(:@parent_component, self)
-            child.instance_variable_set(:@branch_index, index)
-            child.instance_variable_set(:@isolated_context, isolated_context)
+          # Set up parent relationship with isolation
+          child.instance_variable_set(:@parent_component, self)
+          child.instance_variable_set(:@branch_index, index)
+          child.instance_variable_set(:@isolated_context, isolated_context)
 
-            # Add branch execution event
-            if current_span
-              current_span[:events] << {
-                name: "pipeline.parallel_branch_start",
-                timestamp: Time.now.utc.iso8601,
-                attributes: {
-                  branch_index: index,
-                  child_name: child.respond_to?(:name) ? child.name : "child_#{index}",
-                  thread_id: Thread.current.object_id,
-                  isolation_id: isolated_context[:isolation_id]
-                }
+          # Add branch execution event
+          if pipeline_span
+            pipeline_span[:events] << {
+              name: "pipeline.parallel_branch_start",
+              timestamp: Time.now.utc.iso8601,
+              attributes: {
+                branch_index: index,
+                child_name: child.respond_to?(:name) ? child.name : "child_#{index}",
+                thread_id: Thread.current.object_id,
+                isolation_id: isolated_context[:isolation_id]
               }
-            end
+            }
+          end
 
-            result = child.run
+          Thread.new do
+            result = child.run(parent_span: pipeline_span)
 
             result.merge({
                            branch_index: index,
                            thread_id: Thread.current.object_id,
                            isolated_context: isolated_context,
-                           execution_mode: :parallel
+                           parent_execution_mode: :parallel
                          })
           end
         end
@@ -160,8 +167,8 @@ RSpec.describe "RAAF Pipeline Hierarchy - Comprehensive Integration" do
         results = threads.map(&:value)
 
         # Add parallel completion event
-        if current_span
-          current_span[:events] << {
+        if pipeline_span
+          pipeline_span[:events] << {
             name: "pipeline.parallel_execution_completed",
             timestamp: Time.now.utc.iso8601,
             attributes: {
@@ -204,10 +211,12 @@ RSpec.describe "RAAF Pipeline Hierarchy - Comprehensive Integration" do
           # Accumulate context from child result
           accumulated_context.merge!(result[:context_data]) if result.is_a?(Hash) && result[:context_data]
 
+          # parent_execution_mode, not execution_mode: the child reports its own
+          # mode in its result and must not have it overwritten by its parent's.
           result_with_context = result.merge({
                                                child_index: index,
                                                accumulated_context: accumulated_context.dup,
-                                               execution_mode: :sequential
+                                               parent_execution_mode: :sequential
                                              })
 
           results << result_with_context
@@ -246,7 +255,7 @@ RSpec.describe "RAAF Pipeline Hierarchy - Comprehensive Integration" do
       end
 
       def detect_component_type(component)
-        if component.respond_to?(:trace_component_type)
+        if component.class.respond_to?(:trace_component_type)
           component.class.trace_component_type
         elsif component.class.name&.include?("Pipeline")
           :pipeline
@@ -283,8 +292,8 @@ RSpec.describe "RAAF Pipeline Hierarchy - Comprehensive Integration" do
                 (complexity[:nested_pipelines] * 3)
 
         {
-          details: complexity,
-          score: score.round(1)
+          "details" => complexity,
+          "score" => score.round(1)
         }
       end
 
@@ -321,8 +330,8 @@ RSpec.describe "RAAF Pipeline Hierarchy - Comprehensive Integration" do
       def verify_parent_context_propagation(child_results)
         child_results.all? do |result|
           # Each child should have reference to this pipeline as parent
-          result.key?(:execution_mode) &&
-            (result[:execution_mode] == execution_mode)
+          result.key?(:parent_execution_mode) &&
+            (result[:parent_execution_mode] == execution_mode)
         end
       end
 
@@ -368,8 +377,9 @@ RSpec.describe "RAAF Pipeline Hierarchy - Comprehensive Integration" do
         @capabilities = capabilities
       end
 
-      def run
-        with_tracing(:run) do
+      def run(parent_span: nil)
+        # parent_span is supplied when the agent runs on a parallel branch thread.
+        with_tracing(:run, parent_component: parent_span) do
           # Comprehensive agent execution with hierarchy awareness
           execution_context = analyze_execution_context
 
@@ -411,8 +421,8 @@ RSpec.describe "RAAF Pipeline Hierarchy - Comprehensive Integration" do
         {
           "agent.name" => name,
           "agent.pipeline_nesting_depth" => execution_context[:pipeline_nesting_depth],
-          "agent.immediate_parent_type" => execution_context[:immediate_parent_type],
-          "agent.execution_mode" => execution_context[:execution_mode],
+          "agent.immediate_parent_type" => execution_context[:immediate_parent_type].to_s,
+          "agent.execution_mode" => execution_context[:execution_mode].to_s,
           "agent.has_isolation" => execution_context[:has_isolation],
           "agent.has_accumulated_context" => execution_context[:has_accumulated_context],
           "agent.capabilities" => capabilities.keys.sort,
@@ -441,7 +451,7 @@ RSpec.describe "RAAF Pipeline Hierarchy - Comprehensive Integration" do
         parent = @parent_component
         return :none unless parent
 
-        if parent.respond_to?(:trace_component_type)
+        if parent.class.respond_to?(:trace_component_type)
           parent.class.trace_component_type
         elsif parent.class.name&.include?("Pipeline")
           :pipeline
@@ -499,7 +509,7 @@ RSpec.describe "RAAF Pipeline Hierarchy - Comprehensive Integration" do
       end
 
       def detect_component_type(component)
-        if component.respond_to?(:trace_component_type)
+        if component.class.respond_to?(:trace_component_type)
           component.class.trace_component_type
         elsif component.class.name&.include?("Pipeline")
           :pipeline
@@ -716,12 +726,12 @@ RSpec.describe "RAAF Pipeline Hierarchy - Comprehensive Integration" do
 
         # Verify timing relationships
         root_span = spans.find { |s| s[:attributes]["pipeline.name"] == "ComprehensiveRootPipeline" }
-        root_start = Time.parse(root_span[:start_time])
-        root_end = Time.parse(root_span[:end_time])
+        root_start = span_time(root_span[:start_time])
+        root_end = span_time(root_span[:end_time])
 
         spans.each do |span|
-          span_start = Time.parse(span[:start_time])
-          span_end = Time.parse(span[:end_time])
+          span_start = span_time(span[:start_time])
+          span_end = span_time(span[:end_time])
 
           # All spans should be within root timeframe
           expect(span_start).to be >= root_start

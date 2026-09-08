@@ -32,8 +32,10 @@ RSpec.describe "RAAF Parallel Branch Context Isolation" do
         @isolation_mode = isolation_mode
       end
 
-      def run
-        with_tracing(:run) do
+      def run(parent_span: nil)
+        # parent_span is supplied when this pipeline runs as a branch on its own
+        # thread; otherwise with_tracing falls back to @parent_component.
+        with_tracing(:run, parent_component: parent_span) do
           # Add parallel execution start event
           if current_span
             current_span[:events] << {
@@ -87,49 +89,52 @@ RSpec.describe "RAAF Parallel Branch Context Isolation" do
       private
 
       def execute_parallel_branches
+        # Span storage is thread-local: a branch thread can neither see this
+        # pipeline's current span nor append events to it through current_span,
+        # so hold on to the span here and hand it across the thread boundary.
+        pipeline_span = current_span
+
         # Create isolated execution contexts for each branch
         threads = branches.map.with_index do |branch, index|
+          # Create isolated context for this branch
+          isolated_context = create_isolated_context(index)
+
+          # Set parent component with isolated state
+          branch.instance_variable_set(:@parent_component, self)
+          branch.instance_variable_set(:@branch_index, index)
+          branch.instance_variable_set(:@isolated_context, isolated_context)
+
           Thread.new do
-            # Create isolated context for this branch
-            isolated_context = create_isolated_context(index)
+            # Execute branch with isolated context
+            result = branch.run(parent_span: pipeline_span)
 
-            # Set parent component with isolated state
-            branch.instance_variable_set(:@parent_component, self)
-            branch.instance_variable_set(:@branch_index, index)
-            branch.instance_variable_set(:@isolated_context, isolated_context)
-
-            begin
-              # Execute branch with isolated context
-              result = branch.run
-
-              # Add branch completion event to parent span
-              if current_span
-                current_span[:events] << {
-                  name: "parallel.branch_completed",
-                  timestamp: Time.now.utc.iso8601,
-                  attributes: {
-                    branch_index: index,
-                    branch_name: branch.respond_to?(:name) ? branch.name : "branch_#{index}",
-                    success: result[:success] != false,
-                    thread_id: Thread.current.object_id
-                  }
+            # Add branch completion event to parent span
+            if pipeline_span
+              pipeline_span[:events] << {
+                name: "parallel.branch_completed",
+                timestamp: Time.now.utc.iso8601,
+                attributes: {
+                  branch_index: index,
+                  branch_name: branch.respond_to?(:name) ? branch.name : "branch_#{index}",
+                  success: result[:success] != false,
+                  thread_id: Thread.current.object_id
                 }
-              end
-
-              result.merge({
-                             branch_index: index,
-                             thread_id: Thread.current.object_id,
-                             isolated_context: isolated_context
-                           })
-            rescue StandardError => e
-              {
-                success: false,
-                error: e.message,
-                branch_index: index,
-                thread_id: Thread.current.object_id,
-                isolated_context: isolated_context
               }
             end
+
+            result.merge({
+                           branch_index: index,
+                           thread_id: Thread.current.object_id,
+                           isolated_context: isolated_context
+                         })
+          rescue StandardError => e
+            {
+              success: false,
+              error: e.message,
+              branch_index: index,
+              thread_id: Thread.current.object_id,
+              isolated_context: isolated_context
+            }
           end
         end
 
@@ -200,8 +205,9 @@ RSpec.describe "RAAF Parallel Branch Context Isolation" do
         @state_modifications = state_modifications
       end
 
-      def run
-        with_tracing(:run) do
+      def run(parent_span: nil)
+        # parent_span is supplied when the agent runs on a branch thread.
+        with_tracing(:run, parent_component: parent_span) do
           # Capture execution context
           execution_context = capture_execution_context
 
@@ -304,7 +310,7 @@ RSpec.describe "RAAF Parallel Branch Context Isolation" do
         parent = @parent_component
         return "none" unless parent
 
-        if parent.respond_to?(:trace_component_type) && parent.class.trace_component_type == :pipeline
+        if parent.class.respond_to?(:trace_component_type) && parent.class.trace_component_type == :pipeline
           parent.respond_to?(:name) ? parent.name : "unknown_pipeline"
         else
           "not_pipeline"
@@ -447,8 +453,8 @@ RSpec.describe "RAAF Parallel Branch Context Isolation" do
       # Check timing overlap
       timings = agent_spans.map do |span|
         {
-          start: Time.parse(span[:start_time]),
-          end: Time.parse(span[:end_time]),
+          start: span_time(span[:start_time]),
+          end: span_time(span[:end_time]),
           name: span[:attributes]["agent.name"]
         }
       end
@@ -476,8 +482,8 @@ RSpec.describe "RAAF Parallel Branch Context Isolation" do
 
     let(:state_modifying_agent_class) do
       Class.new(context_aware_agent_class) do
-        def run
-          with_tracing(:run) do
+        def run(parent_span: nil)
+          with_tracing(:run, parent_component: parent_span) do
             execution_context = capture_execution_context
 
             # Try to modify shared state based on isolation mode

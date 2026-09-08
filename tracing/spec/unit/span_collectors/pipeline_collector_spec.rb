@@ -40,7 +40,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::PipelineCollector do
       custom_attrs = described_class.instance_variable_get(:@span_custom)
       expect(custom_attrs).to have_key(:name)
       expect(custom_attrs).to have_key(:flow_structure)
-      expect(custom_attrs).to have_key(:agent_count)
+      expect(custom_attrs).to have_key(:total_agents)
       expect(custom_attrs).to have_key(:context_fields)
     end
 
@@ -97,7 +97,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::PipelineCollector do
 
     it "collects agent count from flow" do
       attributes = collector.collect_attributes(pipeline)
-      agent_count_key = attributes.keys.find { |k| k.end_with?(".agent_count") }
+      agent_count_key = attributes.keys.find { |k| k.end_with?(".total_agents") }
       expect(attributes[agent_count_key]).to eq(3)
     end
 
@@ -105,7 +105,7 @@ RSpec.describe RAAF::Tracing::SpanCollectors::PipelineCollector do
       allow(pipeline).to receive(:respond_to?).with(:count_agents_in_flow).and_return(false)
 
       attributes = collector.collect_attributes(pipeline)
-      agent_count_key = attributes.keys.find { |k| k.end_with?(".agent_count") }
+      agent_count_key = attributes.keys.find { |k| k.end_with?(".total_agents") }
       expect(attributes[agent_count_key]).to be_nil
     end
 

@@ -112,7 +112,7 @@ RSpec.describe RAAF::Tracing::Traceable, "collector integration" do
 
       trace_as :agent
 
-      attr_reader :name, :model, :max_turns, :current_span
+      attr_reader :name, :model, :max_turns
 
       def initialize(name: "TestAgent", model: "gpt-4o", max_turns: 5)
         @name = name
@@ -132,7 +132,7 @@ RSpec.describe RAAF::Tracing::Traceable, "collector integration" do
 
       trace_as :agent
 
-      attr_reader :agent_name, :context, :current_span
+      attr_reader :agent_name, :context
 
       def initialize(agent_name: "TestDSLAgent", context: { test: "data" })
         @agent_name = agent_name
@@ -151,7 +151,7 @@ RSpec.describe RAAF::Tracing::Traceable, "collector integration" do
 
       trace_as :tool
 
-      attr_reader :method_name, :current_span
+      attr_reader :method_name
 
       def initialize(method_name: "execute")
         @method_name = method_name
@@ -169,7 +169,7 @@ RSpec.describe RAAF::Tracing::Traceable, "collector integration" do
 
       trace_as :pipeline
 
-      attr_reader :pipeline_name, :agent_count, :current_span
+      attr_reader :pipeline_name, :agent_count
 
       def initialize(pipeline_name: "TestPipeline", agent_count: 3)
         @pipeline_name = pipeline_name
@@ -188,7 +188,7 @@ RSpec.describe RAAF::Tracing::Traceable, "collector integration" do
 
       trace_as :job
 
-      attr_reader :queue_name, :arguments, :current_span
+      attr_reader :queue_name, :arguments
 
       def initialize(queue_name: "default", arguments: %w[arg1 arg2])
         @queue_name = queue_name

@@ -17,6 +17,8 @@ ENV["OPENAI_API_KEY"] = "test-api-key" if ENV["OPENAI_API_KEY"].to_s.empty?
 require "raaf-tracing"
 require "rspec/collection_matchers"
 
+Dir[File.expand_path("support/**/*.rb", __dir__)].each { |file| require file }
+
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
   config.example_status_persistence_file_path = ".rspec_status"
@@ -26,5 +28,14 @@ RSpec.configure do |config|
 
   config.expect_with :rspec do |c|
     c.syntax = :expect
+  end
+
+  config.include SpanTimeHelpers
+
+  # TracingRegistry keeps a process-level tracer, so an example that sets one
+  # leaks it into every later example - including doubles, which expire and then
+  # blow up wherever a span is sent.
+  config.after do
+    RAAF::Tracing::TracingRegistry.clear_all_contexts!
   end
 end

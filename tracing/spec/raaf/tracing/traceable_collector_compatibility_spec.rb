@@ -14,7 +14,7 @@ RSpec.describe RAAF::Tracing::Traceable, "collector system compatibility" do
 
       trace_as :agent
 
-      attr_reader :name, :current_span
+      attr_reader :name
 
       def initialize(name: "TestAgent")
         @name = name

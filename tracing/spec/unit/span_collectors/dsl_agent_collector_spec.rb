@@ -107,12 +107,12 @@ RSpec.describe RAAF::Tracing::SpanCollectors::DSL::AgentCollector do
       expect(attributes[temperature_key]).to eq(0.7)
     end
 
-    it "handles missing temperature gracefully" do
+    it "reports temperature as N/A when the context config is unavailable" do
       allow(dsl_agent.class).to receive(:respond_to?).with(:_context_config).and_return(false)
 
       attributes = collector.collect_attributes(dsl_agent)
       temperature_key = attributes.keys.find { |k| k.end_with?(".temperature") }
-      expect(attributes[temperature_key]).to be_nil
+      expect(attributes[temperature_key]).to eq("N/A")
     end
 
     it "collects context size" do

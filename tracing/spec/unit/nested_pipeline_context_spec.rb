@@ -100,7 +100,7 @@ RSpec.describe "RAAF Nested Pipeline Context Management" do
           "pipeline.name" => name,
           "pipeline.nesting_level" => nesting_level,
           "pipeline.children_count" => children.length,
-          "pipeline.context_keys" => context_data.keys.sort,
+          "pipeline.context_keys" => context_data.keys.map(&:to_s).sort,
           "pipeline.execution_mode" => "nested",
           "pipeline.parent_type" => detect_parent_type
         }
@@ -112,7 +112,7 @@ RSpec.describe "RAAF Nested Pipeline Context Management" do
         parent = @parent_component
         return "none" unless parent
 
-        if parent.respond_to?(:trace_component_type)
+        if parent.class.respond_to?(:trace_component_type)
           parent.class.trace_component_type.to_s
         else
           "unknown"
@@ -193,7 +193,7 @@ RSpec.describe "RAAF Nested Pipeline Context Management" do
         parent = @parent_component
         return "none" unless parent
 
-        if parent.respond_to?(:trace_component_type) && parent.class.trace_component_type == :pipeline
+        if parent.class.respond_to?(:trace_component_type) && parent.class.trace_component_type == :pipeline
           parent.respond_to?(:name) ? parent.name : "unknown_pipeline"
         else
           "not_pipeline"
@@ -216,7 +216,8 @@ RSpec.describe "RAAF Nested Pipeline Context Management" do
         depth = 0
         parent = @parent_component
 
-        while parent && parent.respond_to?(:trace_component_type) && parent.class.trace_component_type == :pipeline
+        while parent && parent.class.respond_to?(:trace_component_type) &&
+              parent.class.trace_component_type == :pipeline
           depth += 1
           parent = parent.instance_variable_get(:@parent_component)
         end
@@ -455,8 +456,8 @@ RSpec.describe "RAAF Nested Pipeline Context Management" do
 
       # All spans should be within execution window
       spans.each do |span|
-        span_start = Time.parse(span[:start_time])
-        span_end = Time.parse(span[:end_time])
+        span_start = span_time(span[:start_time])
+        span_end = span_time(span[:end_time])
 
         expect(span_start).to be >= start_time
         expect(span_end).to be <= end_time
@@ -468,12 +469,12 @@ RSpec.describe "RAAF Nested Pipeline Context Management" do
       level2_span = spans.find { |s| s[:attributes]["pipeline.name"] == "Level2Pipeline" }
       level3_span = spans.find { |s| s[:attributes]["pipeline.name"] == "Level3Pipeline" }
 
-      level1_start = Time.parse(level1_span[:start_time])
-      level1_end = Time.parse(level1_span[:end_time])
-      level2_start = Time.parse(level2_span[:start_time])
-      level2_end = Time.parse(level2_span[:end_time])
-      level3_start = Time.parse(level3_span[:start_time])
-      level3_end = Time.parse(level3_span[:end_time])
+      level1_start = span_time(level1_span[:start_time])
+      level1_end = span_time(level1_span[:end_time])
+      level2_start = span_time(level2_span[:start_time])
+      level2_end = span_time(level2_span[:end_time])
+      level3_start = span_time(level3_span[:start_time])
+      level3_end = span_time(level3_span[:end_time])
 
       # Level 1 encompasses Level 2
       expect(level2_start).to be >= level1_start
@@ -515,7 +516,7 @@ RSpec.describe "RAAF Nested Pipeline Context Management" do
 
           def collect_span_attributes
             super.merge({
-                          "agent.context_modifications" => context_modifications.keys.sort,
+                          "agent.context_modifications" => context_modifications.keys.map(&:to_s).sort,
                           "agent.isolation_test" => "isolated_#{name}"
                         })
           end

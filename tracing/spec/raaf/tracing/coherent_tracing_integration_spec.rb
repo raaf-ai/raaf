@@ -10,7 +10,7 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
 
       trace_as :pipeline
 
-      attr_reader :name, :current_span, :agents
+      attr_reader :name, :agents
 
       def initialize(name: "TestPipeline", agents: [])
         @name = name
@@ -43,7 +43,7 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
 
       trace_as :agent
 
-      attr_reader :name, :current_span, :parent_component
+      attr_reader :name, :parent_component
 
       def initialize(name: "TestAgent", parent_component: nil)
         @name = name
@@ -75,7 +75,7 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
 
       trace_as :tool
 
-      attr_reader :name, :current_span, :parent_component
+      attr_reader :name, :parent_component
 
       def initialize(name: "TestTool", parent_component: nil)
         @name = name
@@ -134,9 +134,9 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
       agent2.instance_variable_set(:@parent_component, pipeline)
       tool1.instance_variable_set(:@parent_component, agent1)
 
-      # Mock the tracer method on all components
+      # Traceable reads @tracer directly, so stubbing a #tracer method does nothing
       [pipeline, agent1, agent2, tool1].each do |component|
-        allow(component).to receive(:tracer).and_return(mock_tracer)
+        component.instance_variable_set(:@tracer, mock_tracer)
       end
 
       # Execute the workflow
@@ -169,16 +169,17 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
       # Verify captured spans structure
       expect(captured_spans).not_to be_empty
 
-      # Find spans by name patterns
+      # Span names carry the class, which is the same for both agents, so the
+      # two are told apart by the name they report in their attributes.
       pipeline_span = captured_spans.find { |s| s[:name].include?("pipeline") }
-      agent1_span = captured_spans.find { |s| s[:name].include?("Agent1") }
-      agent2_span = captured_spans.find { |s| s[:name].include?("Agent2") }
+      agent1_span = captured_spans.find { |s| s[:attributes]["agent.name"] == "Agent1" }
+      agent2_span = captured_spans.find { |s| s[:attributes]["agent.name"] == "Agent2" }
       tool_span = captured_spans.find { |s| s[:name].include?("tool") }
 
-      expect(pipeline_span).to be_present
-      expect(agent1_span).to be_present
-      expect(agent2_span).to be_present
-      expect(tool_span).to be_present
+      expect(pipeline_span).not_to be_nil
+      expect(agent1_span).not_to be_nil
+      expect(agent2_span).not_to be_nil
+      expect(tool_span).not_to be_nil
 
       # Verify hierarchy
       expect(pipeline_span[:parent_id]).to be_nil # Root span
@@ -240,7 +241,7 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
       tool = test_tool_class.new(name: "TestTool", parent_component: agent)
 
       [pipeline, agent, tool].each do |component|
-        allow(component).to receive(:tracer).and_return(mock_tracer)
+        component.instance_variable_set(:@tracer, mock_tracer)
       end
 
       # Execute nested workflow
@@ -286,7 +287,7 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
       allow(mock_tracer).to receive(:processors).and_return([mock_processor])
 
       agent = test_agent_class.new
-      allow(agent).to receive(:tracer).and_return(mock_tracer)
+      agent.instance_variable_set(:@tracer, mock_tracer)
 
       # Execute with a small delay to measure timing
       agent.with_tracing(:run) do
@@ -311,7 +312,7 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
       allow(mock_tracer).to receive(:processors).and_return([mock_processor])
 
       agent = test_agent_class.new
-      allow(agent).to receive(:tracer).and_return(mock_tracer)
+      agent.instance_variable_set(:@tracer, mock_tracer)
 
       # Execute with error
       expect do
@@ -345,7 +346,7 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
       tool = test_tool_class.new(parent_component: agent)
 
       [pipeline, agent, tool].each do |component|
-        allow(component).to receive(:tracer).and_return(mock_tracer)
+        component.instance_variable_set(:@tracer, mock_tracer)
       end
 
       # Execute workflow with different methods
@@ -379,7 +380,7 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
       allow(mock_tracer).to receive(:processors).and_return([mock_processor])
 
       agent = test_agent_class.new
-      allow(agent).to receive(:tracer).and_return(mock_tracer)
+      agent.instance_variable_set(:@tracer, mock_tracer)
 
       # Execute nested run methods that should reuse spans
       agent.with_tracing(:run) do
@@ -423,7 +424,7 @@ RSpec.describe "RAAF Coherent Tracing Integration" do
       agent2 = test_agent_class.new(name: "Agent2")
 
       [agent1, agent2].each do |agent|
-        allow(agent).to receive(:tracer).and_return(mock_tracer)
+        agent.instance_variable_set(:@tracer, mock_tracer)
       end
 
       threads = []

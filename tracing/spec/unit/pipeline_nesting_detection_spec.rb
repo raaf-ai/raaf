@@ -135,7 +135,8 @@ RSpec.describe "RAAF Pipeline Nesting Detection" do
       end
 
       def detect_component_type(component)
-        if component.respond_to?(:trace_component_type)
+        # trace_component_type is declared by trace_as, so it lives on the class.
+        if component.class.respond_to?(:trace_component_type)
           component.class.trace_component_type
         elsif component.class.name&.include?("Pipeline")
           :pipeline
@@ -163,8 +164,10 @@ RSpec.describe "RAAF Pipeline Nesting Detection" do
       end
 
       def calculate_max_depth
-        # Calculate maximum possible nesting depth for this pipeline
-        current_depth = detect_nesting_context[:nesting_level]
+        # Calculate maximum possible nesting depth for this pipeline.
+        # Derive the depth from the parent chain directly: going back through
+        # detect_nesting_context would recurse into this method forever.
+        current_depth = build_parent_chain.length + 1
         child_pipeline_count = children.count { |c| detect_child_type(c) == :pipeline }
 
         if child_pipeline_count > 0
@@ -180,14 +183,14 @@ RSpec.describe "RAAF Pipeline Nesting Detection" do
         pipeline_ancestors = parent_chain.select { |p| p[:type] == :pipeline }
         agent_ancestors = parent_chain.select { |p| p[:type] == :agent }
 
-        if pipeline_ancestors.length == parent_chain.length
-          "pure_pipeline_nesting"
-        elsif agent_ancestors.any?
+        if agent_ancestors.any?
           "mixed_component_nesting"
         elsif pipeline_ancestors.length == 1
           "single_level_nesting"
-        else
+        elsif pipeline_ancestors.length > 1
           "deep_pipeline_nesting"
+        else
+          "unknown_nesting"
         end
       end
 
@@ -310,7 +313,8 @@ RSpec.describe "RAAF Pipeline Nesting Detection" do
       end
 
       def detect_component_type(component)
-        if component.respond_to?(:trace_component_type)
+        # trace_component_type is declared by trace_as, so it lives on the class.
+        if component.class.respond_to?(:trace_component_type)
           component.class.trace_component_type
         elsif component.class.name&.include?("Pipeline")
           :pipeline
@@ -635,7 +639,8 @@ RSpec.describe "RAAF Pipeline Nesting Detection" do
 
         spans = memory_processor.spans
         root_span = spans.find { |s| s[:attributes]["pipeline.name"] == "MultiBranchPipeline" }
-        branch_spans = spans.select { |s| s[:attributes]["pipeline.name"]&.include?("Branch") }
+        # start_with?, not include?: "MultiBranchPipeline" contains "Branch" too
+        branch_spans = spans.select { |s| s[:attributes]["pipeline.name"]&.start_with?("Branch") }
 
         # Both branches should have the same parent
         branch_spans.each do |branch_span|

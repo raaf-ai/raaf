@@ -581,17 +581,13 @@ RSpec.describe RAAF::Tracing::RackMiddleware do
       env1 = env.merge("PATH_INFO" => "/request1")
       env2 = env.merge("PATH_INFO" => "/request2")
 
-      threads = []
-      results = []
-
-      threads << Thread.new do
-        results << middleware1.call(env1)
-      end
-
-      threads << Thread.new do
-        results << middleware2.call(env2)
-      end
-
+      # Index the slots: appending from two threads makes the order arbitrary,
+      # so results[0] was not reliably the first request.
+      results = Array.new(2)
+      threads = [
+        Thread.new { results[0] = middleware1.call(env1) },
+        Thread.new { results[1] = middleware2.call(env2) }
+      ]
       threads.each(&:join)
 
       expect(results.size).to eq(2)

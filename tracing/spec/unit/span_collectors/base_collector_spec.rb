@@ -188,9 +188,9 @@ RSpec.describe RAAF::Tracing::SpanCollectors::BaseCollector do
 
   describe "#component_prefix" do
     it "generates prefix from collector class name" do
-      # Test with the base collector
+      # Only the final class-name segment is used, minus the "Collector" suffix
       collector = described_class.new
-      expect(collector.send(:component_prefix)).to eq("raaf::tracing::spancollectors::base")
+      expect(collector.send(:component_prefix)).to eq("base")
     end
 
     it "removes 'collector' suffix" do
@@ -214,23 +214,22 @@ RSpec.describe RAAF::Tracing::SpanCollectors::BaseCollector do
       expect(collector.send(:safe_value, nil)).to be_nil
     end
 
-    it "converts arrays recursively with size limit" do
+    it "converts arrays recursively without dropping elements" do
       large_array = (1..15).to_a
       result = collector.send(:safe_value, large_array)
 
       expect(result).to be_an(Array)
-      expect(result.length).to eq(10) # Limited to first 10 elements
-      expect(result).to eq((1..10).to_a)
+      expect(result).to eq((1..15).to_a)
     end
 
-    it "converts hashes recursively" do
+    it "converts hashes recursively, stringifying keys" do
       hash = { name: "test", count: 42, nested: { value: "inner" } }
       result = collector.send(:safe_value, hash)
 
       expect(result).to eq({
-                             name: "test",
-                             count: 42,
-                             nested: { value: "inner" }
+                             "name" => "test",
+                             "count" => 42,
+                             "nested" => { "value" => "inner" }
                            })
     end
 

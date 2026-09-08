@@ -3,6 +3,21 @@
 require "spec_helper"
 
 RSpec.describe RAAF::Tracing do
+  # enable!/disable! mutate the TraceProvider singleton, and enable! also
+  # installs the default processors - which send spans to the OpenAI API.
+  # Leaving that on leaked into every later example in the suite.
+  around do |example|
+    provider = RAAF::Tracing::TraceProvider.instance
+    was_disabled = provider.disabled?
+    processors = provider.processors.dup
+    begin
+      example.run
+    ensure
+      provider.set_processors(*processors)
+      was_disabled ? provider.disable! : provider.enable!
+    end
+  end
+
   describe ".tracer" do
     it "returns a tracer instance" do
       tracer = described_class.tracer

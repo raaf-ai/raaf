@@ -11,7 +11,7 @@ RSpec.describe "Tool Span Parenting Integration" do
 
       trace_as :agent
 
-      attr_reader :name, :current_span, :tools
+      attr_reader :name, :tools
 
       def initialize(name: "TestAgent")
         @name = name
@@ -42,7 +42,7 @@ RSpec.describe "Tool Span Parenting Integration" do
 
       trace_as :tool
 
-      attr_reader :name, :current_span, :agent_context
+      attr_reader :name, :agent_context
 
       def initialize(name: "TestTool", agent_context: nil)
         @name = name

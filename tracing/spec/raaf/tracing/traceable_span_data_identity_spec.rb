@@ -43,7 +43,7 @@ RSpec.describe RAAF::Tracing::Traceable, "span data identity with collectors" do
 
       trace_as :agent
 
-      attr_reader :name, :current_span
+      attr_reader :name
 
       def initialize(name: "TestAgent")
         @name = name
@@ -61,8 +61,6 @@ RSpec.describe RAAF::Tracing::Traceable, "span data identity with collectors" do
 
       trace_as :pipeline
 
-      attr_reader :current_span
-
       def self.name
         "TestPipeline"
       end
@@ -75,8 +73,6 @@ RSpec.describe RAAF::Tracing::Traceable, "span data identity with collectors" do
 
       trace_as :tool
 
-      attr_reader :current_span
-
       def self.name
         "TestTool"
       end
@@ -87,15 +83,24 @@ RSpec.describe RAAF::Tracing::Traceable, "span data identity with collectors" do
   let(:pipeline) { test_pipeline_class.new }
   let(:tool) { test_tool_class.new }
 
+  # Traceable only falls back to its own attribute collection when the collector
+  # system raises. `defined?` is a keyword rather than a method, so stubbing it
+  # on the component does nothing at all; making collector_for raise is what
+  # actually exercises the pre-collector code path.
+  def without_collectors
+    stub_const("RAAF::Tracing::SpanCollectors", Class.new do
+      def self.collector_for(_component)
+        raise "collectors unavailable"
+      end
+    end)
+    yield
+  end
+
   describe "span attribute identity" do
     it "produces identical span attributes with and without collectors" do
       # Capture original behavior (without collectors)
-      nil
-      allow(agent).to receive(:defined?).with(RAAF::Tracing::SpanCollectors).and_return(false)
-      original_attributes = agent.collect_span_attributes
+      original_attributes = without_collectors { agent.collect_span_attributes }
 
-      # Reset the mock and enable collectors
-      allow(agent).to receive(:defined?).and_call_original
       stub_const("RAAF::Tracing::SpanCollectors", identity_collector_class)
 
       # Capture collector behavior
@@ -111,12 +116,8 @@ RSpec.describe RAAF::Tracing::Traceable, "span data identity with collectors" do
       result = "test result"
 
       # Capture original behavior (without collectors)
-      nil
-      allow(agent).to receive(:defined?).with(RAAF::Tracing::SpanCollectors).and_return(false)
-      original_attributes = agent.collect_result_attributes(result)
+      original_attributes = without_collectors { agent.collect_result_attributes(result) }
 
-      # Reset the mock and enable collectors
-      allow(agent).to receive(:defined?).and_call_original
       stub_const("RAAF::Tracing::SpanCollectors", identity_collector_class)
 
       # Capture collector behavior
@@ -132,12 +133,8 @@ RSpec.describe RAAF::Tracing::Traceable, "span data identity with collectors" do
       result = nil
 
       # Capture original behavior (without collectors)
-      nil
-      allow(agent).to receive(:defined?).with(RAAF::Tracing::SpanCollectors).and_return(false)
-      original_attributes = agent.collect_result_attributes(result)
+      original_attributes = without_collectors { agent.collect_result_attributes(result) }
 
-      # Reset the mock and enable collectors
-      allow(agent).to receive(:defined?).and_call_original
       stub_const("RAAF::Tracing::SpanCollectors", identity_collector_class)
 
       # Capture collector behavior
@@ -153,11 +150,9 @@ RSpec.describe RAAF::Tracing::Traceable, "span data identity with collectors" do
   describe "span data identity across component types" do
     it "produces identical attributes for agents" do
       # Without collectors
-      allow(agent).to receive(:defined?).with(RAAF::Tracing::SpanCollectors).and_return(false)
-      original = agent.collect_span_attributes
+      original = without_collectors { agent.collect_span_attributes }
 
       # With collectors
-      allow(agent).to receive(:defined?).and_call_original
       stub_const("RAAF::Tracing::SpanCollectors", identity_collector_class)
       collector = agent.collect_span_attributes
 
@@ -167,11 +162,9 @@ RSpec.describe RAAF::Tracing::Traceable, "span data identity with collectors" do
 
     it "produces identical attributes for pipelines" do
       # Without collectors
-      allow(pipeline).to receive(:defined?).with(RAAF::Tracing::SpanCollectors).and_return(false)
-      original = pipeline.collect_span_attributes
+      original = without_collectors { pipeline.collect_span_attributes }
 
       # With collectors
-      allow(pipeline).to receive(:defined?).and_call_original
       stub_const("RAAF::Tracing::SpanCollectors", identity_collector_class)
       collector = pipeline.collect_span_attributes
 
@@ -181,11 +174,9 @@ RSpec.describe RAAF::Tracing::Traceable, "span data identity with collectors" do
 
     it "produces identical attributes for tools" do
       # Without collectors
-      allow(tool).to receive(:defined?).with(RAAF::Tracing::SpanCollectors).and_return(false)
-      original = tool.collect_span_attributes
+      original = without_collectors { tool.collect_span_attributes }
 
       # With collectors
-      allow(tool).to receive(:defined?).and_call_original
       stub_const("RAAF::Tracing::SpanCollectors", identity_collector_class)
       collector = tool.collect_span_attributes
 
@@ -198,17 +189,15 @@ RSpec.describe RAAF::Tracing::Traceable, "span data identity with collectors" do
     it "produces identical span data throughout complete tracing lifecycle" do
       # Collect span data without collectors
       original_span_data = nil
-      nil
 
-      allow(agent).to receive(:defined?).with(RAAF::Tracing::SpanCollectors).and_return(false)
-
-      agent.with_tracing(:test_method) do
-        original_span_data = agent.current_span[:attributes].dup
-        "test result"
+      without_collectors do
+        agent.with_tracing(:test_method) do
+          original_span_data = agent.current_span[:attributes].dup
+          "test result"
+        end
       end
 
       # Reset and collect with collectors
-      allow(agent).to receive(:defined?).and_call_original
       stub_const("RAAF::Tracing::SpanCollectors", identity_collector_class)
 
       collector_span_data = nil
@@ -259,38 +248,29 @@ RSpec.describe RAAF::Tracing::Traceable, "span data identity with collectors" do
 
   describe "error handling identity" do
     it "produces identical error attributes with and without collectors" do
-      # Test error handling produces same attributes
-      nil
-      nil
-
-      # Without collectors - capture error attributes
-      allow(agent).to receive(:defined?).with(RAAF::Tracing::SpanCollectors).and_return(false)
-
-      begin
-        agent.with_tracing(:error_method) do
-          raise StandardError, "Test error"
+      # Capture the failed span from each path. The span is popped on the way
+      # out, so it has to be read from inside send_span.
+      capture = lambda do |component|
+        captured = nil
+        allow(component).to receive(:send_span) { |span| captured = span }
+        begin
+          component.with_tracing(:error_method) { raise StandardError, "Test error" }
+        rescue StandardError
+          # Expected: with_tracing re-raises after marking the span
         end
-      rescue StandardError
-        # Error expected
+        captured
       end
 
-      # With collectors - should produce same error attributes
-      allow(agent).to receive(:defined?).and_call_original
+      original_span = without_collectors { capture.call(agent) }
+
       stub_const("RAAF::Tracing::SpanCollectors", identity_collector_class)
+      collector_span = capture.call(test_agent_class.new)
 
-      new_agent = test_agent_class.new
-
-      begin
-        new_agent.with_tracing(:error_method) do
-          raise StandardError, "Test error"
-        end
-      rescue StandardError
-        # Error expected
-      end
-
-      # Both should have processed errors the same way
-      # This test verifies collectors don't interfere with error handling
-      expect(true).to be(true) # If we get here, collectors didn't break error handling
+      error_keys = %w[success error.type error.message]
+      expect(collector_span[:status]).to eq(original_span[:status])
+      expect(collector_span[:attributes].slice(*error_keys))
+        .to eq(original_span[:attributes].slice(*error_keys))
+      expect(collector_span[:attributes]["error.message"]).to eq("Test error")
     end
   end
 end
