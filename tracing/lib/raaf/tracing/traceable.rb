@@ -664,8 +664,11 @@ module RAAF
         # 2. Try parent component tracer (critical for tool execution context)
         if defined?(@parent_component) && @parent_component&.respond_to?(:trace_parent_span)
           parent_span = @parent_component.trace_parent_span
-          if parent_span && @parent_component.respond_to?(:get_tracer_for_span_sending)
-            parent_tracer = @parent_component.get_tracer_for_span_sending
+          # get_tracer_for_span_sending is private, so respond_to? has to be
+          # told to look at private methods or this branch never fires and a
+          # tool silently loses its agent's tracer.
+          if parent_span && @parent_component.respond_to?(:get_tracer_for_span_sending, true)
+            parent_tracer = @parent_component.send(:get_tracer_for_span_sending)
             return parent_tracer if parent_tracer && !parent_tracer.is_a?(RAAF::Tracing::NoOpTracer)
           end
         end
