@@ -43,12 +43,22 @@ RSpec.describe RAAF::Rails::Continuous::EvaluationJob, type: :job do
 
   # What an evaluator hands back: a verdict per field, and the individual
   # evaluators that produced each one.
-  def evaluation_result(score: 0.95, field: "quality")
+  def evaluation_result(score: 0.95, field: "quality", label: nil)
+    field_result = { passed: true, score: score, message: "Test passed" }
+    field_result[:label] = label if label
+
     instance_double(
       RAAF::Eval::DSL::EvaluationResult,
-      field_results: { field.to_sym => { passed: true, score: score, message: "Test passed" } },
+      field_results: { field.to_sym => field_result },
       evaluator_results: {}
     )
+  end
+
+  def stored_status(score:, label: nil)
+    stub_evaluator(result: evaluation_result(score: score, label: label))
+    described_class.perform_now(span_id: span.span_id, policy_id: policy.id)
+
+    RAAF::Eval::Models::ContinuousEvaluationResult.last.status
   end
 
   let(:policy) { policy_with(evaluator_config("token_limit")) }
@@ -196,6 +206,69 @@ RSpec.describe RAAF::Rails::Continuous::EvaluationJob, type: :job do
 
         stored = RAAF::Eval::Models::ContinuousEvaluationResult.last.details["declared_checks"]
         expect(stored.map { |check| check["field_name"] }).to eq(["quality"])
+      end
+    end
+
+    # An evaluator declares what good means for its own metric: a latency check
+    # names the budget it measured against, a judge grades against its rubric,
+    # and StakeholderCoverageEvaluator calls 0.7 good. Re-deriving a verdict
+    # from the bare score substitutes one set of bands for all of them, and the
+    # row then says something no evaluator said.
+    context "with an evaluator that states its own verdict" do
+      it "keeps a judge's good at a score the fixed bands call average" do
+        expect(stored_status(score: 0.75, label: "good")).to eq("good")
+      end
+
+      it "keeps a rule-based breach bad at a score the fixed bands call average" do
+        expect(stored_status(score: 0.53, label: "bad")).to eq("bad")
+      end
+
+      # The one direction that hides a defect rather than inventing one.
+      it "keeps a failing check bad at a score the fixed bands call good" do
+        expect(stored_status(score: 0.857, label: "bad")).to eq("bad")
+      end
+
+      it "keeps average average" do
+        expect(stored_status(score: 0.95, label: "average")).to eq("average")
+      end
+
+      # status only holds the four verdicts the model validates, so a label
+      # outside them is not a verdict this column can carry.
+      it "falls back to the score bands for a label it cannot store" do
+        expect(stored_status(score: 0.95, label: "excellent")).to eq("good")
+      end
+
+      # A crashed check combines to "bad" because the stand-in it contributes
+      # scores zero, but it reached no verdict at all. The error flag says so
+      # and outranks the label built around it.
+      it "files a crashed check as an error even though it combined to bad" do
+        result = evaluation_result(score: 0.0, label: "bad")
+        allow(result).to receive(:field_results)
+          .and_return(quality: { passed: false, score: 0.0, label: "bad", error: true,
+                                 message: "Evaluator failed: boom" })
+        stub_evaluator(result: result)
+
+        described_class.perform_now(span_id: span.span_id, policy_id: policy.id)
+
+        expect(RAAF::Eval::Models::ContinuousEvaluationResult.last).to have_attributes(
+          status: "error", score: nil
+        )
+      end
+    end
+
+    # Nothing forces an evaluator to label its result, and a score still says
+    # something on its own.
+    context "with an evaluator that states no verdict" do
+      it "derives good from the score" do
+        expect(stored_status(score: 0.95)).to eq("good")
+      end
+
+      it "derives average from the score" do
+        expect(stored_status(score: 0.6)).to eq("average")
+      end
+
+      it "derives bad from the score" do
+        expect(stored_status(score: 0.2)).to eq("bad")
       end
     end
 

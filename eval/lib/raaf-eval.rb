@@ -25,6 +25,7 @@ require_relative "raaf/eval/version"
 # Load core utilities and configuration
 require_relative "raaf/eval/errors"
 require_relative "raaf/eval/configuration"
+require_relative "raaf/eval/field_status"
 
 # Load database models
 require_relative "raaf/eval/models/evaluation_run"

@@ -1316,27 +1316,17 @@ module RAAF
         end
 
         ##
-        # Determine status for a single field result
-        # @param field_result [Hash] Result hash with :score key
+        # Determine status for a single field result.
+        #
+        # The rule itself lives in RAAF::Eval::FieldStatus, because a row
+        # written before a fix has to be re-stamped by something other than
+        # this job, and the two must not be able to disagree about what the
+        # column holds.
+        #
+        # @param field_result [Hash] Result hash with :label, :score, :error
         # @return [String] Status: "good", "average", "bad", or "error"
         def determine_field_status(field_result)
-          # A check whose evaluator raised reached no verdict. The combination
-          # arithmetic still handed back a zero, and filing that as "bad" says
-          # the agent answered badly when what happened is that the scorer
-          # broke — which is the one reading that sends somebody to look at the
-          # agent instead of at the check.
-          return "error" if field_result[:error]
-
-          score = field_result[:score]
-          return "bad" if score.nil?
-
-          if score >= 0.8
-            "good"
-          elsif score >= 0.5
-            "average"
-          else
-            "bad"
-          end
+          RAAF::Eval::FieldStatus.for(field_result)
         end
 
         ##
