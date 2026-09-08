@@ -48,6 +48,48 @@ RSpec.describe RAAF::Eval::ExperimentEngine do
       scores = experiment.experiment_results.map { |r| r.scores["custom_score"] }
       expect(scores).to all(eq(0.95))
     end
+
+    # The console runs an experiment with no block, and used to record every
+    # case unscored — which is why an experiment's results could be counted but
+    # never judged.
+    context "when the experiment names its own scorers" do
+      before do
+        experiment.update!(configuration: {
+                             "scorers" => [{ "key" => "briefing/quality:value_range",
+                                             "evaluator" => "briefing",
+                                             "check" => "quality:value_range",
+                                             "enabled" => true, "weight" => 1.0 }]
+                           })
+
+        evaluator = instance_double(RAAF::Eval::DSL::Evaluator)
+        allow(RAAF::Eval::Continuous::EvaluatorDiscovery).to receive(:build).and_return(evaluator)
+        allow(evaluator).to receive(:evaluate).and_return(
+          instance_double(RAAF::Eval::DSL::EvaluationResult,
+                          field_results: { quality: { score: 0.75 } })
+        )
+      end
+
+      it "scores every case with them, without being handed a block" do
+        engine.run_experiment(experiment)
+
+        scores = experiment.experiment_results.map { |r| r.scores["quality:value_range"] }
+        expect(scores).to all(eq(0.75))
+      end
+
+      it "gives the run an overall score the screens can order and colour by" do
+        engine.run_experiment(experiment)
+
+        expect(experiment.experiment_results.map(&:overall_score)).to all(eq(0.75))
+      end
+
+      # A block passed in is the caller being explicit, and stays in charge.
+      it "yields to a block the caller brings" do
+        engine.run_experiment(experiment) { |_item, _output| { custom_score: 0.1 } }
+
+        expect(experiment.experiment_results.map { |r| r.scores.keys }.flatten.uniq)
+          .to eq(["custom_score"])
+      end
+    end
   end
 
   describe "#compare_experiments" do

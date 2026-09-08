@@ -64,8 +64,20 @@ module RAAF
       def run_experiment(experiment, agent: nil, runner: nil, &scoring_block)
         experiment.start!
 
+        # An experiment names its scorers on its own edit screen and used to be
+        # run with no block at all, so every case came back unscored and every
+        # screen had a dash where its verdict belonged. The declared scorers are
+        # that block when the caller brings none.
+        scorer = ExperimentScorer.new(experiment)
+        scoring = scoring_block || (scorer.scorable? ? ->(item, output) { scorer.call(item, output) } : nil)
+        # Written onto every result, so a case can say what was asked of it
+        # however the evaluator moves on afterwards. A caller's own block scores
+        # by rules the experiment never declared, so there is nothing to record.
+        checks = scoring_block ? [] : scorer.declared_checks
+
         experiment.dataset.dataset_items.find_each do |item|
-          run_single_item(experiment, item, agent: agent, runner: runner, &scoring_block)
+          run_single_item(experiment, item, agent: agent, runner: runner,
+                                            declared_checks: checks, &scoring)
         end
 
         experiment.complete!
@@ -93,7 +105,7 @@ module RAAF
 
       private
 
-      def run_single_item(experiment, item, agent: nil, runner: nil, &scoring_block)
+      def run_single_item(experiment, item, agent: nil, runner: nil, declared_checks: [], &scoring_block)
         start_time = Time.current
         output = execute_agent(item, agent: agent, runner: runner, experiment: experiment)
         end_time = Time.current
@@ -105,7 +117,8 @@ module RAAF
           output: output,
           scores: scores,
           token_metrics: extract_token_metrics(output),
-          latency_metrics: { duration_ms: ((end_time - start_time) * 1000).round(1) }
+          latency_metrics: { duration_ms: ((end_time - start_time) * 1000).round(1) },
+          metadata: declared_checks.any? ? { declared_checks: declared_checks } : {}
         )
       rescue StandardError => e
         experiment.record_failure!(dataset_item: item, error: e.message)
@@ -122,10 +135,57 @@ module RAAF
           result = temp_runner.run(item.input_messages)
           { messages: result.messages,
             content: result.messages.last&.dig(:content) || result.messages.last&.dig("content") }
+        elsif (agent_class = resolve_agent_class(experiment))
+          run_declared_agent(agent_class, item)
         else
-          # Dry run - return input as output for testing
-          { messages: item.input_messages, content: "dry_run", dry_run: true }
+          dry_run(item)
         end
+      end
+
+      ##
+      # The agent the experiment says it is about.
+      #
+      # An experiment stores an agent name and the console ran it with no agent
+      # at all, so every case fell through to the dry run below and came back
+      # with the literal string "dry_run" as the agent's answer. A DSL agent
+      # declares the same name on itself, which is enough to find it.
+      #
+      # Only classes already loaded can be found. Under eager loading that is
+      # all of them; in a lazily loaded development console it is those that
+      # have been referenced, and a miss leaves a dry run that says so rather
+      # than an error.
+      #
+      # @param experiment [Models::Experiment]
+      # @return [Class, nil]
+      def resolve_agent_class(experiment)
+        name = experiment.agent_name
+        return nil if name.blank?
+        return nil unless defined?(RAAF::DSL::Agent) && RAAF::DSL::Agent.respond_to?(:descendants)
+
+        RAAF::DSL::Agent.descendants.find do |klass|
+          klass.respond_to?(:agent_name) && klass.agent_name.to_s == name.to_s
+        end
+      rescue StandardError => e
+        RAAF::Eval.logger.warn("Could not resolve agent '#{experiment.agent_name}': #{e.message}")
+        nil
+      end
+
+      # A DSL agent takes a context rather than a list of messages, and a
+      # dataset item's input is that context — the keys the agent would have
+      # been handed in production.
+      def run_declared_agent(agent_class, item)
+        context = item.input.is_a?(Hash) ? item.input.transform_keys(&:to_sym) : {}
+        result = agent_class.new(**context).run
+
+        result.is_a?(Hash) ? result : { content: result.to_s }
+      end
+
+      # Marked as what it is. Recorded as `content: "dry_run"` it read as an
+      # agent that had answered, which is how a run that executed nothing came
+      # to look like a run that scored badly.
+      def dry_run(item)
+        { messages: item.input_messages, content: nil, dry_run: true,
+          note: "No agent was available for this experiment, so nothing was executed." }
       end
 
       def extract_token_metrics(output)
@@ -186,10 +246,13 @@ module RAAF
         all_item_ids.map do |item_id|
           ra = results_a[item_id]
           rb = results_b[item_id]
+          # The result ids travel with the comparison so a reader can open the
+          # case that moved. Without them a screen has the dataset item and no
+          # way to reach either run's answer for it.
           {
             dataset_item_id: item_id,
-            a: ra ? { status: ra.status, scores: ra.scores, overall_score: ra.overall_score } : nil,
-            b: rb ? { status: rb.status, scores: rb.scores, overall_score: rb.overall_score } : nil
+            a: ra ? { id: ra.id, status: ra.status, scores: ra.scores, overall_score: ra.overall_score } : nil,
+            b: rb ? { id: rb.id, status: rb.status, scores: rb.scores, overall_score: rb.overall_score } : nil
           }
         end
       end

@@ -65,6 +65,7 @@ require_relative "raaf/eval/span_replayer"
 require_relative "raaf/eval/evaluation_engine"
 
 # Load experiment engine (Opik-inspired)
+require_relative "raaf/eval/experiment_scorer"
 require_relative "raaf/eval/experiment_engine"
 
 # Load metrics system
