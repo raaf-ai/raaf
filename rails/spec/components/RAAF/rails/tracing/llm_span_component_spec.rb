@@ -3,7 +3,6 @@
 require "spec_helper"
 require "phlex"
 require "phlex/rails"
-require "phlex/testing/view_helper"
 
 # Load the component files
 require_relative "../../../../../app/components/RAAF/rails/tracing/base_component"
@@ -14,7 +13,7 @@ module RAAF
   module Rails
     module Tracing
       RSpec.describe LlmSpanComponent, type: :component do
-        include Phlex::Testing::ViewHelper
+        include ComponentRendering
 
         let(:base_span_attributes) do
           {
@@ -47,9 +46,9 @@ module RAAF
               "total_tokens" => 175
             },
             "llm.cost" => {
-              "input_cost" => 0.00075,
-              "output_cost" => 0.009,
-              "total_cost" => 0.00975,
+              "input_cost" => 0.075,
+              "output_cost" => 0.9,
+              "total_cost" => 0.975,
               "currency" => "USD"
             }
           }
@@ -85,9 +84,11 @@ module RAAF
             expect(output).to include("bi-cpu")
           end
 
-          it "includes the span duration badge" do
+          # The LLM deep dive is the call's own detail; the duration belongs to
+          # the span header the page puts above it.
+          it "does not repeat the span's duration badge" do
             output = render(component)
-            expect(output).to include("3200ms")
+            expect(output).not_to include("3200ms")
           end
         end
 
@@ -204,9 +205,9 @@ module RAAF
 
           it "displays token counts" do
             output = render(component)
-            expect(output).to include("Prompt Tokens")
+            expect(output).to include("Input Tokens")
             expect(output).to include("25")
-            expect(output).to include("Completion Tokens")
+            expect(output).to include("Output Tokens")
             expect(output).to include("150")
             expect(output).to include("Total Tokens")
             expect(output).to include("175")
@@ -446,8 +447,8 @@ module RAAF
             end
 
             it "renders without crashing" do
-              expect { render(component) }.not_to raise_error
-              output = render(component)
+              output = nil
+              expect { output = render(component) }.not_to raise_error
               expect(output).to include("Unknown Model")
               expect(output).to include("Unknown Provider")
             end

@@ -7,6 +7,8 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
     {
       "span_id" => "span_123",
       "trace_id" => "trace_456",
+      "parent_id" => nil,
+      "depth" => 0,
       "name" => "DataProcessingPipeline",
       "kind" => "pipeline",
       "status" => "success",
@@ -21,9 +23,11 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
     context "with comprehensive pipeline data" do
       let(:span_attributes) do
         {
+          "pipeline.name" => "MarketDiscoveryPipeline",
+          "pipeline.total_agents" => 3,
+          "pipeline.execution_mode" => "sequential",
+          "result.execution_status" => "completed",
           "pipeline" => {
-            "name" => "MarketDiscoveryPipeline",
-            "status" => "completed",
             "stages" => [
               {
                 "name" => "DataAnalysis",
@@ -88,9 +92,9 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
         expect(rendered_component).to have_css(".bg-purple-50")
         expect(rendered_component).to have_css(".bi-diagram-3")
         expect(rendered_component).to have_content("Pipeline Execution")
-        expect(rendered_component).to have_content("Pipeline: MarketDiscoveryPipeline")
-        expect(rendered_component).to have_content("Stages: 3")
-        expect(rendered_component).to have_content("Status: completed")
+        expect(rendered_component).to have_content("MarketDiscoveryPipeline")
+        expect(rendered_component).to have_content("3 agents")
+        expect(rendered_component).to have_content("Sequential execution")
       end
 
       it "renders pipeline status badge with correct color" do
@@ -113,7 +117,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
         expect(rendered_component).to have_content("SearchTermGeneration")
 
         # Should show stage statuses
-        expect(rendered_component).to have_content("SUCCESS").at_least(3).times
+        expect(rendered_component).to have_text("SUCCESS", count: 3)
       end
 
       it "renders stage indicators with proper status colors" do
@@ -138,8 +142,8 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
         expect(rendered_component).to have_content("Search term generation")
 
         # Should show input/output data
-        expect(rendered_component).to have_content("Input: company_data")
-        expect(rendered_component).to have_content("Output: markets")
+        expect(rendered_component).to have_content("company_data")
+        expect(rendered_component).to have_content("markets")
       end
 
       it "renders pipeline metadata section" do
@@ -147,11 +151,11 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
 
         expect(rendered_component).to have_css("#pipeline-metadata-content")
         expect(rendered_component).to have_content("Pipeline Metadata")
-        expect(rendered_component).to have_content("Total Agents")
+        expect(rendered_component).to have_content("Total agents")
         expect(rendered_component).to have_content("3")
-        expect(rendered_component).to have_content("Pipeline Version")
+        expect(rendered_component).to have_content("Pipeline version")
         expect(rendered_component).to have_content("v2.1")
-        expect(rendered_component).to have_content("Execution Mode")
+        expect(rendered_component).to have_content("Execution mode")
         expect(rendered_component).to have_content("sequential")
       end
 
@@ -177,10 +181,8 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
     context "with minimal pipeline data" do
       let(:span_attributes) do
         {
-          "pipeline" => {
-            "name" => "SimplePipeline",
-            "status" => "running"
-          }
+          "pipeline.name" => "SimplePipeline",
+          "result.execution_status" => "running"
         }
       end
 
@@ -188,9 +190,8 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
         render_inline(component)
 
         expect(rendered_component).to have_content("Pipeline Execution")
-        expect(rendered_component).to have_content("Pipeline: SimplePipeline")
-        expect(rendered_component).to have_content("Status: running")
-        expect(rendered_component).to have_content("Stages: 0")
+        expect(rendered_component).to have_content("SimplePipeline")
+        expect(rendered_component).to have_content("Running")
       end
 
       it "shows running status badge" do
@@ -212,9 +213,9 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
     context "with failed pipeline data" do
       let(:span_attributes) do
         {
+          "pipeline.name" => "FailedPipeline",
+          "result.execution_status" => "failed",
           "pipeline" => {
-            "name" => "FailedPipeline",
-            "status" => "failed",
             "stages" => [
               {
                 "name" => "Stage1",
@@ -284,7 +285,6 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
         render_inline(component)
 
         expect(rendered_component).to have_content("Pipeline Execution")
-        expect(rendered_component).to have_content("Stages: 2")
         expect(rendered_component).to have_content("Step1")
         expect(rendered_component).to have_content("Step2")
       end
@@ -297,9 +297,9 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
         render_inline(component)
 
         expect(rendered_component).to have_content("Pipeline Execution")
-        expect(rendered_component).to have_content("Pipeline: Unknown Pipeline")
-        expect(rendered_component).to have_content("Status: success")
-        expect(rendered_component).to have_content("Stages: 0")
+        # No pipeline.name attribute, so the span's own name stands in.
+        expect(rendered_component).to have_content("DataProcessingPipeline")
+        expect(rendered_component).to have_content("Success")
       end
     end
 
@@ -307,11 +307,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
       %w[success completed failed error running in_progress paused waiting].each do |status|
         context "when status is #{status}" do
           let(:span_attributes) do
-            {
-              "pipeline" => {
-                "status" => status
-              }
-            }
+            { "result.execution_status" => status }
           end
 
           it "renders appropriate status badge color" do
@@ -338,9 +334,9 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::PipelineSpanComponent, type: :c
   describe "data extraction methods" do
     let(:span_attributes) do
       {
+        "pipeline.name" => "TestPipeline",
+        "result.execution_status" => "completed",
         "pipeline" => {
-          "name" => "TestPipeline",
-          "status" => "completed",
           "stages" => [{ "name" => "Stage1" }],
           "data_flow" => [{ "step" => "flow1" }],
           "metadata" => { "version" => "v1.0" },

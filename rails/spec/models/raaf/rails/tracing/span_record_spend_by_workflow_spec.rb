@@ -20,8 +20,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
       usage["input_tokens"] = input if input
       usage["output_tokens"] = output if output
 
-      described_class.create!(
-        span_id: "span_#{SecureRandom.hex(12)}",
+      create_span(
         trace_id: trace_id,
         parent_id: parent_id,
         name: name,

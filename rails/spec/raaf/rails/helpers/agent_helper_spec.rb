@@ -32,6 +32,10 @@ RSpec.describe RAAF::Rails::Helpers::AgentHelper do
         "<p>#{text}</p>"
       end
 
+      def safe_join(parts, separator = "")
+        parts.join(separator)
+      end
+
       def blank?
         false
       end

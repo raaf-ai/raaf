@@ -3,7 +3,6 @@
 require "spec_helper"
 require "phlex"
 require "phlex/rails"
-require "phlex/testing/view_helper"
 
 # Load the component files
 require_relative "../../../../../app/components/RAAF/rails/tracing/base_component"
@@ -14,7 +13,7 @@ module RAAF
   module Rails
     module Tracing
       RSpec.describe ToolSpanComponent, type: :component do
-        include Phlex::Testing::ViewHelper
+        include ComponentRendering
 
         let(:base_span_attributes) do
           {
@@ -116,10 +115,12 @@ module RAAF
               allow(mock_span).to receive(:name).and_return("fallback_tool")
             end
 
+            # A payload that is a bare string is the tool's name, not JSON, and
+            # is read as one rather than discarded.
             it "gracefully handles malformed data" do
-              expect { render(component) }.not_to raise_error
-              output = render(component)
-              expect(output).to include("fallback_tool")
+              output = nil
+              expect { output = render(component) }.not_to raise_error
+              expect(output).to include("invalid_json_string")
             end
           end
         end
@@ -127,15 +128,16 @@ module RAAF
         describe "input/output flow visualization" do
           it "renders input parameters section" do
             output = render(component)
-            expect(output).to include("Input Parameters")
-            expect(output).to include("bi-arrow-right")
+            expect(output).to include("Query")
+            expect(output).to include("Input Data")
+            expect(output).to include("bi-search")
             expect(output).to include("Ruby programming")
           end
 
           it "renders output results section" do
             output = render(component)
-            expect(output).to include("Output Results")
-            expect(output).to include("bi-arrow-left")
+            expect(output).to include("Results")
+            expect(output).to include("bi-body-text")
             expect(output).to include("Ruby Tutorial")
           end
 
@@ -222,11 +224,12 @@ module RAAF
           context "when span has no attributes" do
             before do
               allow(mock_span).to receive(:span_attributes).and_return(nil)
+              allow(mock_span).to receive(:name).and_return(nil)
             end
 
             it "renders without crashing" do
-              expect { render(component) }.not_to raise_error
-              output = render(component)
+              output = nil
+              expect { output = render(component) }.not_to raise_error
               expect(output).to include("Unknown Tool")
             end
           end

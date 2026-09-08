@@ -7,6 +7,8 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
     {
       "span_id" => "span_123",
       "trace_id" => "trace_456",
+      "parent_id" => nil,
+      "depth" => 0,
       "name" => "SecurityFilter",
       "kind" => "guardrail",
       "status" => "success"
@@ -83,9 +85,9 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
         expect(rendered_component).to have_content("Filter Results")
 
         # Should show table with check results
-        expect(rendered_component).to have_content("Pii Check")
-        expect(rendered_component).to have_content("Toxicity Check")
-        expect(rendered_component).to have_content("Profanity Check")
+        expect(rendered_component).to have_content("Pii check")
+        expect(rendered_component).to have_content("Toxicity check")
+        expect(rendered_component).to have_content("Profanity check")
 
         # Should show scores and statuses
         expect(rendered_component).to have_content("85.0%")
@@ -111,8 +113,9 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
         expect(rendered_component).to have_css("#policy-details-content")
         expect(rendered_component).to have_content("Policy Applied")
         expect(rendered_component).to have_content("Enterprise Security Policy v2.1")
-        expect(rendered_component).to have_content("pii_protection")
-        expect(rendered_component).to have_content("toxicity_filter")
+        # A list value is summarised rather than enumerated in this table.
+        expect(rendered_component).to have_content("Applied rules")
+        expect(rendered_component).to have_content("Array (2 items)")
       end
 
       it "renders blocked content section (initially collapsed)" do
@@ -178,7 +181,8 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
         expect { render_inline(component) }.not_to raise_error
 
         expect(rendered_component).to have_content("Security Guardrail")
-        expect(rendered_component).to have_content("Filter: Unknown Filter")
+        # No guardrail data, so the span's own name is the filter name.
+        expect(rendered_component).to have_content("Filter: SecurityFilter")
       end
     end
 
@@ -189,7 +193,8 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GuardrailSpanComponent, type: :
         render_inline(component)
 
         expect(rendered_component).to have_content("Security Guardrail")
-        expect(rendered_component).to have_content("Filter: Unknown Filter")
+        # No guardrail data, so the span's own name is the filter name.
+        expect(rendered_component).to have_content("Filter: SecurityFilter")
         expect(rendered_component).to have_content("Status: success")
         expect(rendered_component).to have_content("Policy: Default")
       end

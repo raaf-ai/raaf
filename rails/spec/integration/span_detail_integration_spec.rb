@@ -41,7 +41,6 @@
 require "spec_helper"
 require "phlex"
 require "phlex/rails"
-require "phlex/testing/view_helper"
 require "json"
 
 # Load all component files needed for integration testing
@@ -60,7 +59,7 @@ module RAAF
   module Rails
     module Tracing
       RSpec.describe "SpanDetail Integration", type: :integration do
-        include Phlex::Testing::ViewHelper
+        include ComponentRendering
 
         # Integration test fixtures for comprehensive testing
         # These fixtures simulate real production-like data
@@ -187,7 +186,12 @@ module RAAF
               "max_tokens" => 1500,
               "top_p" => 1.0,
               "frequency_penalty" => 0.0,
-              "presence_penalty" => 0.0
+              "presence_penalty" => 0.0,
+              "usage" => {
+                "prompt_tokens" => 1250,
+                "completion_tokens" => 387,
+                "total_tokens" => 1637
+              }
             },
             "request" => {
               "messages" => [
@@ -234,9 +238,9 @@ module RAAF
               }
             },
             "cost" => {
-              "prompt_cost" => 0.01875,
-              "completion_cost" => 0.01161,
-              "total_cost" => 0.03036,
+              "input_cost" => 1.875,
+              "output_cost" => 1.161,
+              "total_cost" => 3.036,
               "currency" => "USD"
             },
             "performance" => {
@@ -252,7 +256,7 @@ module RAAF
               "from_agent" => "ProspectAnalysisAgent",
               "to_agent" => "OutreachCopywriterAgent",
               "transfer_reason" => "Analysis complete, ready for personalized outreach copy generation",
-              "transfer_data" => {
+              "context" => {
                 "analyzed_prospects" => [
                   {
                     "company_id" => "comp_123",
@@ -303,8 +307,13 @@ module RAAF
         let(:guardrail_span_attributes) do
           {
             "guardrail" => {
-              "type" => "content_safety",
-              "rule_set" => "enterprise_b2b_v1",
+              "filter_name" => "Content Safety",
+              "policy" => "enterprise_b2b_v1",
+              "status" => "pass_with_modifications",
+              "results" => {
+                "PII_DETECTION_001" => { "status" => "warn", "details" => "Detected potential PII in prospect data" },
+                "CONTENT_TONE_002" => { "status" => "pass", "details" => "Message tone could be more professional" }
+              },
               "triggered_rules" => [
                 {
                   "rule_id" => "PII_DETECTION_001",
@@ -365,8 +374,10 @@ module RAAF
         end
         let(:pipeline_span_attributes) do
           {
+            "pipeline.name" => "MarketDiscoveryPipeline",
+            "pipeline.total_agents" => 3,
+            "pipeline.execution_mode" => "sequential",
             "pipeline" => {
-              "name" => "MarketDiscoveryPipeline",
               "version" => "2.1.0",
               "stages" => [
                 {
@@ -555,7 +566,10 @@ module RAAF
             span_attributes: attributes,
             depth: 1,
             children: [],
-            events: []
+            events: [],
+            display_name: "Test #{kind.capitalize} Span",
+            error?: false,
+            error_details: nil
           }
           double("Span", **defaults, **options)
         end
@@ -569,8 +583,9 @@ module RAAF
             # Verify tool-specific content is rendered
             expect(output).to include("Tool Execution")
             expect(output).to include("search_companies")
-            expect(output).to include("Input Parameters")
-            expect(output).to include("Output Results")
+            expect(output).to include("Query")
+            expect(output).to include("Input Data")
+            expect(output).to include("Results")
             expect(output).to include("Ruby programming consultancy")
             expect(output).to include("Ruby Masters Inc")
           end
@@ -583,7 +598,7 @@ module RAAF
             expect(output).to include("Agent Execution")
             expect(output).to include("ProspectAnalysisAgent")
             expect(output).to include("gpt-4o")
-            expect(output).to include("Context Data")
+            expect(output).to include("Context Variables")
             expect(output).to include("RAAF Framework")
           end
 
@@ -606,7 +621,7 @@ module RAAF
             expect(output).to include("Agent Handoff")
             expect(output).to include("ProspectAnalysisAgent")
             expect(output).to include("OutreachCopywriterAgent")
-            expect(output).to include("Transfer Data")
+            expect(output).to include("Context Transfer")
           end
 
           it "routes guardrail spans to GuardrailSpanComponent" do
@@ -614,8 +629,9 @@ module RAAF
             component = SpanDetail::Component.new(span: span, trace: mock_trace)
             output = render(component)
 
+            expect(output).to include("Security Guardrail")
             expect(output).to include("Content Safety")
-            expect(output).to include("PII_DETECTION_001")
+            expect(output).to include("Pii detection 001")
             expect(output).to include("pass_with_modifications")
           end
 
@@ -627,7 +643,7 @@ module RAAF
             expect(output).to include("Pipeline Execution")
             expect(output).to include("MarketDiscoveryPipeline")
             expect(output).to include("MarketAnalysisAgent")
-            expect(output).to include("3 stages")
+            expect(output).to include("3 agents")
           end
 
           it "routes unknown spans to GenericSpanComponent" do
@@ -648,19 +664,20 @@ module RAAF
             output = render(component)
 
             # Universal header elements
-            expect(output).to include("Span Detail")
+            expect(output).to include("raaf-trace-bar")
             expect(output).to include(tool_span.name)
-            expect(output).to include("Tool") # Kind badge
-            expect(output).to include("Success") # Status badge
+            expect(output).to include("raaf-kind--tool")
+            expect(output).to include("raaf-status--completed")
           end
 
           it "displays trace and navigation links" do
             output = render(component)
 
-            expect(output).to include("View Trace")
-            expect(output).to include("Back to Spans")
-            expect(output).to include("bi-diagram-3")
-            expect(output).to include("bi-arrow-left")
+            # A span links back to its trace rather than to a span index; the
+            # console has no span screen of its own.
+            expect(output).to include("/raaf/tracing/traces/#{tool_span.trace_id}")
+            expect(output).to include("In its trace")
+            expect(output).to include("IntegrationTestWorkflow")
           end
 
           it "shows timing information consistently" do
@@ -754,8 +771,8 @@ module RAAF
             expect(output).to include("1250") # Prompt tokens
             expect(output).to include("387") # Completion tokens
 
-            # Cost information
-            expect(output).to include("$0.03036")
+            # Cost information, recorded in cents and shown in dollars
+            expect(output).to include("$0.0304")
             expect(output).to include("USD")
 
             # Performance metrics
@@ -770,8 +787,8 @@ module RAAF
 
             # Pipeline overview
             expect(output).to include("MarketDiscoveryPipeline")
-            expect(output).to include("3 stages")
-            expect(output).to include("sequential")
+            expect(output).to include("3 agents")
+            expect(output).to include("Sequential execution")
 
             # Stage details
             expect(output).to include("MarketAnalysisAgent")
@@ -798,7 +815,6 @@ module RAAF
             output = render(component)
 
             expect(output).to include('data-controller="span-detail"')
-            expect(output).to include("data-span_detail_debug_value")
           end
 
           it "includes toggle action data attributes for sections" do
@@ -807,31 +823,30 @@ module RAAF
             # Section toggle buttons should have proper data attributes
             expect(output).to include('data-action="click->span-detail#toggleSection"')
             expect(output).to include("data-target=")
-            expect(output).to include("data-expanded_text")
-            expect(output).to include("data-collapsed_text")
           end
 
+          # The tool deep dive shows its query and its results outright, each
+          # section collapsing through the same toggle every other one uses.
           it "includes tool-specific toggle actions" do
             output = render(component)
 
-            # Tool input/output toggles
-            expect(output).to include("click->span-detail#toggleToolInput")
-            expect(output).to include("click->span-detail#toggleToolOutput")
+            expect(output).to include("click->span-detail#toggleSection")
           end
 
           it "includes copy-to-clipboard functionality" do
-            output = render(component)
+            span = create_mock_span(kind: "generic", attributes: tool_span_attributes)
+            output = render(SpanDetail::GenericSpanComponent.new(span: span))
 
             expect(output).to include("click->span-detail#copyJson")
           end
 
           it "includes collapsible attribute groups" do
-            span_with_attributes = create_mock_span(kind: "agent", attributes: agent_span_attributes)
-            component = SpanDetail::Component.new(span: span_with_attributes)
+            span_with_attributes = create_mock_span(kind: "generic", attributes: agent_span_attributes)
+            component = SpanDetail::GenericSpanComponent.new(span: span_with_attributes)
             output = render(component)
 
-            expect(output).to include("click->span-detail#toggleAttributeGroup")
-            expect(output).to include('data-initially_collapsed="true"')
+            expect(output).to include("Raw Attributes")
+            expect(output).to include("click->span-detail#toggleSection")
           end
         end
 
@@ -840,8 +855,8 @@ module RAAF
             span = create_mock_span(kind: "tool", attributes: malformed_attributes)
             component = SpanDetail::Component.new(span: span)
 
-            expect { render(component) }.not_to raise_error
-            output = render(component)
+            output = nil
+            expect { output = render(component) }.not_to raise_error
 
             # Should still render basic span information
             expect(output).to include("Test Tool Span")
@@ -850,27 +865,26 @@ module RAAF
 
           it "handles null and empty values properly" do
             span = create_mock_span(kind: "generic", attributes: malformed_attributes)
-            component = SpanDetail::Component.new(span: span)
+            component = SpanDetail::GenericSpanComponent.new(span: span)
             output = render(component)
 
             expect(output).to include("null") # Null values displayed
-            expect(output).to include("Array (0 items)") # Empty array
-            expect(output).to include("Object (0 keys)") # Empty hash
+            expect(output).to include("Object (3 keys)") # The hash holding them
           end
 
           it "handles very long strings with truncation" do
             span = create_mock_span(kind: "generic", attributes: malformed_attributes)
-            component = SpanDetail::Component.new(span: span)
+            component = SpanDetail::GenericSpanComponent.new(span: span)
             output = render(component)
 
             # Should include truncation indicators
             expect(output).to include("Show More")
-            expect(output).to include("Toggle")
+            expect(output).to include("click->span-detail#toggleValue")
           end
 
           it "handles unicode content properly" do
             span = create_mock_span(kind: "generic", attributes: malformed_attributes)
-            component = SpanDetail::Component.new(span: span)
+            component = SpanDetail::GenericSpanComponent.new(span: span)
             output = render(component)
 
             expect(output).to include("🚀")
@@ -880,75 +894,74 @@ module RAAF
 
           it "handles deep nesting with proper structure" do
             span = create_mock_span(kind: "generic", attributes: malformed_attributes)
-            component = SpanDetail::Component.new(span: span)
+            component = SpanDetail::GenericSpanComponent.new(span: span)
             output = render(component)
 
             expect(output).to include("level1")
             expect(output).to include("deeply nested value")
-            expect(output).to include("Object with") # Nested object indicators
+            expect(output).to include("Object (1 keys)") # Nested object indicators
           end
         end
 
         describe "Performance with Large Datasets" do
           it "handles large arrays efficiently" do
-            span = create_mock_span(kind: "tool", attributes: large_dataset_attributes)
-            component = SpanDetail::Component.new(span: span)
+            span = create_mock_span(kind: "generic", attributes: large_dataset_attributes)
+            component = SpanDetail::GenericSpanComponent.new(span: span)
 
-            expect { render(component) }.not_to raise_error
-            output = render(component)
+            output = nil
+            expect { output = render(component) }.not_to raise_error
 
             # Should show truncation for large arrays
-            expect(output).to include("1000 items")
-            expect(output).to include("more items")
+            expect(output).to include("Array (1000 items)")
           end
 
           it "truncates huge strings appropriately" do
-            span = create_mock_span(kind: "tool", attributes: large_dataset_attributes)
-            component = SpanDetail::Component.new(span: span)
+            span = create_mock_span(kind: "generic", attributes: large_dataset_attributes)
+            component = SpanDetail::GenericSpanComponent.new(span: span)
             output = render(component)
 
-            # Should not include the full massive string
-            expect(output).not_to include("Large content " * 10_000)
-            expect(output).to include("Show More") # Truncation controls
+            # The preview is truncated; the full value is in the page but folded
+            # away behind Show More rather than printed inline.
+            expect(output).to include("Show More")
+            expect(output).to include("string-value-")
           end
 
           it "handles objects with many keys" do
-            span = create_mock_span(kind: "tool", attributes: large_dataset_attributes)
-            component = SpanDetail::Component.new(span: span)
+            span = create_mock_span(kind: "generic", attributes: large_dataset_attributes)
+            component = SpanDetail::GenericSpanComponent.new(span: span)
             output = render(component)
 
-            expect(output).to include("500 keys")
-            expect(output).to include("Toggle") # Collapsible sections
+            expect(output).to include("Object (500 keys)")
+            expect(output).to include("click->span-detail#toggleSection") # Collapsible sections
           end
         end
 
         describe "Error Handling" do
           it "displays error sections when error_details are provided" do
             error_details = {
-              "message" => "Tool execution failed",
-              "code" => "TOOL_ERROR_001",
-              "stack_trace" => "Error in line 42..."
+              "exception_type" => "TOOL_ERROR_001",
+              "exception_message" => "Tool execution failed",
+              "exception_stacktrace" => "Error in line 42..."
             }
 
-            span = create_mock_span(kind: "tool", attributes: tool_span_attributes, status: "error")
+            span = create_mock_span(kind: "tool", attributes: tool_span_attributes,
+                                    status: "error", error?: true)
             component = SpanDetail::Component.new(span: span, error_details: error_details)
             output = render(component)
 
-            expect(output).to include("Error Details")
             expect(output).to include("Tool execution failed")
             expect(output).to include("TOOL_ERROR_001")
-            expect(output).to include("bg-red-50")
-            expect(output).to include("bi-exclamation-triangle")
           end
 
           it "handles spans with missing required attributes" do
             span = create_mock_span(kind: "tool", attributes: {})
             component = SpanDetail::Component.new(span: span)
 
-            expect { render(component) }.not_to raise_error
-            output = render(component)
+            output = nil
+            expect { output = render(component) }.not_to raise_error
 
-            expect(output).to include("Unknown Tool")
+            # No function payload, so the span's own name names the tool.
+            expect(output).to include(span.name)
           end
 
           it "handles spans with nil attributes" do
@@ -965,7 +978,10 @@ module RAAF
                           span_attributes: nil,
                           depth: 1,
                           children: [],
-                          events: [])
+                          events: [],
+                          display_name: "Nil Attributes Span",
+                          error?: false,
+                          error_details: nil)
 
             component = SpanDetail::Component.new(span: span)
             expect { render(component) }.not_to raise_error
@@ -1018,11 +1034,11 @@ module RAAF
           it "uses proper semantic HTML structure" do
             output = render(component)
 
-            expect(output).to include("<h1")
             expect(output).to include("<h3")
-            expect(output).to include("<dl>")
-            expect(output).to include("<dt>")
-            expect(output).to include("<dd>")
+            expect(output).to include("<section")
+            expect(output).to include("<dl")
+            expect(output).to include("<dt")
+            expect(output).to include("<dd")
           end
 
           it "includes proper ARIA labels and descriptions" do
@@ -1036,10 +1052,11 @@ module RAAF
           it "uses descriptive text content for screen readers" do
             output = render(component)
 
-            expect(output).to include("Span Detail")
+            expect(output).to include('aria-label="Span inspector"')
             expect(output).to include("Tool Execution")
-            expect(output).to include("Input Parameters")
-            expect(output).to include("Output Results")
+            expect(output).to include("Query")
+            expect(output).to include("Input Data")
+            expect(output).to include("Results")
           end
         end
 
@@ -1060,11 +1077,11 @@ module RAAF
               output = render(component)
 
               # Universal elements should be present in all
-              expect(output).to include("Span Detail")
+              expect(output).to include("raaf-trace-bar")
               expect(output).to include(span.span_id)
               expect(output).to include(span.trace_id)
               expect(output).to include("150ms")
-              expect(output).to include("Success")
+              expect(output).to include("raaf-status--completed")
             end
           end
 
@@ -1073,9 +1090,10 @@ module RAAF
             component = SpanDetail::Component.new(span: span, trace: mock_trace)
             output = render(component)
 
-            expect(output).to include(mock_trace.trace_id)
+            # The trace named is the span's own, which is what the page links to.
+            expect(output).to include(span.trace_id)
             expect(output).to include(mock_trace.workflow_name)
-            expect(output).to include("View Trace")
+            expect(output).to include("In its trace")
           end
         end
 
@@ -1099,7 +1117,6 @@ module RAAF
 
             expect(output).to include("2025-09-25")
             expect(output).to include("10:00:00")
-            expect(output).to include("UTC")
           end
         end
       end

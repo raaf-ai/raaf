@@ -1,0 +1,6 @@
+test:
+  adapter: postgresql
+  encoding: unicode
+  database: <%= ENV.fetch("RAAF_RAILS_TEST_DATABASE", "raaf_rails_test") %>
+  host: <%= ENV.fetch("RAAF_RAILS_TEST_DATABASE_HOST", "localhost") %>
+  pool: 5

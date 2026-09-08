@@ -4,7 +4,15 @@ require "rails_helper"
 
 RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
   describe "continuous evaluation hook" do
-    let(:trace) { create(:trace_record) }
+    let(:trace) do
+      RAAF::Rails::Tracing::TraceRecord.create!(
+        trace_id: "trace_#{SecureRandom.hex(16)}",
+        workflow_name: "SpecWorkflow",
+        status: "completed",
+        started_at: Time.current
+      )
+    end
+
     let(:span_attributes) do
       {
         span_id: "span_#{SecureRandom.hex(12)}",
@@ -15,12 +23,23 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
         start_time: Time.current,
         end_time: Time.current + 1.second,
         duration_ms: 1000,
-        span_attributes: { agent: { name: "TestAgent" } }
+        span_attributes: { "agent_name" => "TestAgent" }
       }
     end
 
+    def create_policy(name:, agent_name:)
+      RAAF::Eval::Models::EvaluationPolicy.create!(
+        name: name,
+        description: "Policy for specs",
+        agent_name: agent_name,
+        environment: "all",
+        sampling_mode: "all",
+        active: true,
+        evaluators: [{ "name" => "test_evaluator", "type" => "rule_based", "config" => {} }]
+      )
+    end
+
     before do
-      # Ensure continuous evaluation module is loaded
       require "raaf/eval/continuous"
     end
 
@@ -36,60 +55,36 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
 
       it "calls the hook on span creation" do
         expect_any_instance_of(described_class).to receive(:enqueue_continuous_evaluations).and_call_original
+
         described_class.create!(span_attributes)
       end
 
       context "with matching policies" do
-        let!(:policy) do
-          RAAF::Eval::Models::EvaluationPolicy.create!(
-            name: "Test Policy",
-            description: "Test policy for specs",
-            target_agent_names: ["TestAgent"],
-            target_environments: [Rails.env],
-            sampling_mode: "all",
-            active: true,
-            evaluators: [{ name: "test_evaluator", config: {} }]
-          )
-        end
+        let!(:policy) { create_policy(name: "Test Policy", agent_name: "TestAgent") }
+
+        before { allow(RAAF::Rails::Continuous::EvaluationJob).to receive(:perform_later) }
 
         it "enqueues evaluation jobs for matching policies" do
-          expect(RAAF::Eval::Continuous::EvaluationJob).to receive(:perform_later).with(
-            hash_including(
-              policy_id: policy.id
-            )
-          )
-
           described_class.create!(span_attributes)
+
+          expect(RAAF::Rails::Continuous::EvaluationJob).to have_received(:perform_later)
+            .with(hash_including(policy_id: policy.id))
         end
 
         it "passes the correct span_id to the job" do
           span = described_class.create!(span_attributes)
 
-          expect(RAAF::Eval::Continuous::EvaluationJob).to have_received(:perform_later).with(
-            hash_including(
-              span_id: span.span_id,
-              policy_id: policy.id
-            )
-          )
+          expect(RAAF::Rails::Continuous::EvaluationJob).to have_received(:perform_later)
+            .with(hash_including(span_id: span.span_id, policy_id: policy.id))
         end
       end
 
       context "with no matching policies" do
-        before do
-          # Create a policy that doesn't match
-          RAAF::Eval::Models::EvaluationPolicy.create!(
-            name: "Other Policy",
-            description: "Policy for different agent",
-            target_agent_names: ["OtherAgent"],
-            target_environments: [Rails.env],
-            sampling_mode: "all",
-            active: true,
-            evaluators: [{ name: "test_evaluator", config: {} }]
-          )
-        end
+        before { create_policy(name: "Other Policy", agent_name: "OtherAgent") }
 
         it "does not enqueue any jobs" do
-          expect(RAAF::Eval::Continuous::EvaluationJob).not_to receive(:perform_later)
+          expect(RAAF::Rails::Continuous::EvaluationJob).not_to receive(:perform_later)
+
           described_class.create!(span_attributes)
         end
       end
@@ -101,15 +96,15 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
         end
 
         it "logs the error but does not raise" do
-          expect(Rails.logger).to receive(:warn).with(
-            /Failed to enqueue evaluations: Test error/
-          )
+          allow(::Rails.logger).to receive(:warn)
 
           expect { described_class.create!(span_attributes) }.not_to raise_error
+          expect(::Rails.logger).to have_received(:warn).with(/Failed to enqueue evaluations: Test error/)
         end
 
         it "still creates the span successfully" do
           span = nil
+
           expect { span = described_class.create!(span_attributes) }.not_to raise_error
           expect(span).to be_persisted
           expect(span.span_id).to be_present
@@ -117,33 +112,22 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
       end
 
       context "when job enqueueing fails" do
-        let!(:policy) do
-          RAAF::Eval::Models::EvaluationPolicy.create!(
-            name: "Test Policy",
-            description: "Test policy",
-            target_agent_names: ["TestAgent"],
-            target_environments: [Rails.env],
-            sampling_mode: "all",
-            active: true,
-            evaluators: [{ name: "test_evaluator", config: {} }]
-          )
-        end
-
         before do
-          allow(RAAF::Eval::Continuous::EvaluationJob)
+          create_policy(name: "Test Policy", agent_name: "TestAgent")
+          allow(RAAF::Rails::Continuous::EvaluationJob)
             .to receive(:perform_later).and_raise(StandardError, "Queue error")
         end
 
         it "logs the error but does not raise" do
-          expect(Rails.logger).to receive(:warn).with(
-            /Failed to enqueue evaluations: Queue error/
-          )
+          allow(::Rails.logger).to receive(:warn)
 
           expect { described_class.create!(span_attributes) }.not_to raise_error
+          expect(::Rails.logger).to have_received(:warn).with(/Failed to enqueue evaluations: Queue error/)
         end
 
         it "still creates the span successfully" do
           span = nil
+
           expect { span = described_class.create!(span_attributes) }.not_to raise_error
           expect(span).to be_persisted
         end
@@ -151,22 +135,23 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
     end
 
     context "when continuous evaluation is disabled via enabled?" do
-      before do
-        RAAF::Eval::Continuous.disable!
-      end
+      before { RAAF::Eval::Continuous.disable! }
 
       it "does not call PolicyMatcher" do
         expect(RAAF::Eval::Continuous::PolicyMatcher).not_to receive(:new)
+
         described_class.create!(span_attributes)
       end
 
       it "does not enqueue any jobs" do
-        expect(RAAF::Eval::Continuous::EvaluationJob).not_to receive(:perform_later)
+        expect(RAAF::Rails::Continuous::EvaluationJob).not_to receive(:perform_later)
+
         described_class.create!(span_attributes)
       end
 
       it "still creates the span successfully" do
         span = described_class.create!(span_attributes)
+
         expect(span).to be_persisted
         expect(span.span_id).to be_present
       end
@@ -180,37 +165,24 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
 
       after do
         RAAF::Eval::Continuous.disable!
+        RAAF::Eval::Continuous.configuration.hook_enabled = true
       end
 
       it "does not call PolicyMatcher" do
         expect(RAAF::Eval::Continuous::PolicyMatcher).not_to receive(:new)
+
         described_class.create!(span_attributes)
       end
 
       it "does not enqueue any jobs" do
-        expect(RAAF::Eval::Continuous::EvaluationJob).not_to receive(:perform_later)
+        expect(RAAF::Rails::Continuous::EvaluationJob).not_to receive(:perform_later)
+
         described_class.create!(span_attributes)
       end
 
       it "still creates the span successfully" do
         span = described_class.create!(span_attributes)
-        expect(span).to be_persisted
-        expect(span.span_id).to be_present
-      end
-    end
 
-    context "when RAAF::Eval::Continuous is not defined" do
-      before do
-        # Simulate the module not being loaded
-        hide_const("RAAF::Eval::Continuous")
-      end
-
-      it "does not raise an error" do
-        expect { described_class.create!(span_attributes) }.not_to raise_error
-      end
-
-      it "still creates the span successfully" do
-        span = described_class.create!(span_attributes)
         expect(span).to be_persisted
         expect(span.span_id).to be_present
       end
@@ -220,54 +192,47 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
       before do
         RAAF::Eval::Continuous.enable!
         RAAF::Eval::Continuous.configuration.hook_enabled = true
+        allow(RAAF::Rails::Continuous::EvaluationJob).to receive(:perform_later)
       end
 
-      after do
-        RAAF::Eval::Continuous.disable!
+      after { RAAF::Eval::Continuous.disable! }
+
+      # The hook is what makes continuous evaluation safe to leave on in
+      # production: it runs on every span written, so what it costs is what
+      # tracing costs. Measured against the same writes with no policy to match
+      # rather than against a fixed number of milliseconds, so a slow machine
+      # moves both figures.
+      it "adds under 5ms to a span write" do
+        baseline = average_create_time
+        create_policy(name: "Overhead Test Policy", agent_name: "TestAgent")
+        with_policy = average_create_time
+
+        expect((with_policy - baseline) * 1000).to be < 5.0
       end
 
-      it "completes span creation in under 5ms additional overhead" do
-        # Measure baseline span creation time (no policies)
-        baseline_times = []
-        5.times do
-          start_time = Time.now
-          described_class.create!(span_attributes.merge(
-                                    span_id: "span_#{SecureRandom.hex(12)}"
-                                  ))
-          baseline_times << (Time.now - start_time)
+      def average_create_time
+        times = Array.new(5) do
+          started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          described_class.create!(span_attributes.merge(span_id: "span_#{SecureRandom.hex(12)}"))
+          Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
         end
-        baseline_avg = baseline_times.sum / baseline_times.size
 
-        # Create a policy to trigger the hook
-        RAAF::Eval::Models::EvaluationPolicy.create!(
-          name: "Overhead Test Policy",
-          description: "Policy for overhead testing",
-          target_agent_names: ["TestAgent"],
-          target_environments: [Rails.env],
-          sampling_mode: "all",
-          active: true,
-          evaluators: [{ name: "test_evaluator", config: {} }]
-        )
+        times.sum / times.size
+      end
+    end
 
-        # Stub job enqueueing to just measure hook overhead
-        allow(RAAF::Eval::Continuous::EvaluationJob).to receive(:perform_later)
+    context "when RAAF::Eval::Continuous is not defined" do
+      before { hide_const("RAAF::Eval::Continuous") }
 
-        # Measure with hook enabled
-        hook_times = []
-        5.times do
-          start_time = Time.now
-          described_class.create!(span_attributes.merge(
-                                    span_id: "span_#{SecureRandom.hex(12)}"
-                                  ))
-          hook_times << (Time.now - start_time)
-        end
-        hook_avg = hook_times.sum / hook_times.size
+      it "does not raise an error" do
+        expect { described_class.create!(span_attributes) }.not_to raise_error
+      end
 
-        # Calculate overhead
-        overhead_ms = (hook_avg - baseline_avg) * 1000
+      it "still creates the span successfully" do
+        span = described_class.create!(span_attributes)
 
-        # Verify overhead is under 5ms
-        expect(overhead_ms).to be < 5.0
+        expect(span).to be_persisted
+        expect(span.span_id).to be_present
       end
     end
   end

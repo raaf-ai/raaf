@@ -7,6 +7,8 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GenericSpanComponent, type: :co
     {
       "span_id" => "span_123",
       "trace_id" => "trace_456",
+      "parent_id" => nil,
+      "depth" => 0,
       "name" => "CustomSpan",
       "kind" => "unknown",
       "status" => "success",
@@ -149,9 +151,10 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GenericSpanComponent, type: :co
         expect(rendered_component).to have_content("Object (3 keys)")
         expect(rendered_component).to have_content("Object (3 keys)")
 
-        # Arrays should show array indicators
-        expect(rendered_component).to have_content("Array (2 items)")
-        expect(rendered_component).to have_content("Array (3 items)")
+        # A short array is listed inline; only a long one collapses behind a
+        # count, which the large-array example below covers.
+        expect(rendered_component).to have_content("[0]")
+        expect(rendered_component).to have_content("[1]")
       end
 
       it "includes expand/collapse functionality for attributes" do
@@ -270,10 +273,12 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GenericSpanComponent, type: :co
       it "does not render additional data sections" do
         render_inline(component)
 
-        expect(rendered_component).not_to have_content("Events")
-        expect(rendered_component).not_to have_content("Metrics")
-        expect(rendered_component).not_to have_content("Logs")
-        expect(rendered_component).not_to have_content("Custom Data")
+        # By section rather than by word: the Performance Metrics panel is on
+        # every generic span, so "Metrics" is on the page either way.
+        expect(rendered_component).not_to have_css("#additional-events-content")
+        expect(rendered_component).not_to have_css("#additional-metrics-content")
+        expect(rendered_component).not_to have_css("#additional-logs-content")
+        expect(rendered_component).not_to have_css("#additional-custom-content")
       end
     end
 
@@ -291,6 +296,8 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GenericSpanComponent, type: :co
     end
 
     context "with different status values" do
+      let(:span_attributes) { {} }
+
       %w[success ok error failed warning].each do |status|
         context "when status is #{status}" do
           let(:base_span_attributes) { super().merge("status" => status) }
@@ -314,6 +321,8 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::GenericSpanComponent, type: :co
     end
 
     context "with different span kinds" do
+      let(:span_attributes) { {} }
+
       %w[unknown custom experimental deprecated].each do |kind|
         context "when kind is #{kind}" do
           let(:base_span_attributes) { super().merge("kind" => kind) }

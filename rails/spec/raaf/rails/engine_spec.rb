@@ -6,8 +6,8 @@ RSpec.describe RAAF::Rails::Engine do
   end
 
   it "isolates namespace to RAAF::Rails" do
-    # Engine.isolate_namespace is called during class definition
-    expect(described_class).to respond_to(:isolated_namespace)
+    expect(described_class).to be_isolated
+    expect(described_class.railtie_namespace).to eq(RAAF::Rails)
   end
 
   describe "configuration" do
@@ -21,24 +21,20 @@ RSpec.describe RAAF::Rails::Engine do
       expect(config.eager_load_paths).to be_an(Array)
     end
 
-    it "enables assets" do
-      config = described_class.config
-      expect(config.assets.enabled).to be true
-    end
-
-    it "configures asset paths" do
-      config = described_class.config
-      expect(config.assets.paths).to be_an(Array)
-    end
-
-    it "configures assets to precompile" do
-      config = described_class.config
-      expect(config.assets.precompile).to include("raaf-rails.css", "raaf-rails.js")
+    # The console's CSS and JavaScript are assembled by Ui::Stylesheet and
+    # Ui::Javascript and served from the engine's own routes, so neither goes
+    # through the host's pipeline -- and `config.assets` exists only once
+    # Sprockets or Propshaft has declared it. Reading it unconditionally while
+    # the class body was still being evaluated took the whole engine down in a
+    # host running neither, which is the host this suite boots.
+    it "loads in a host with no asset pipeline" do
+      expect(described_class.config).not_to respond_to(:assets)
     end
 
     it "configures generators" do
-      config = described_class.config
-      expect(config.generators).to respond_to(:test_framework)
+      generators = described_class.config.generators.options
+
+      expect(generators[:rails][:test_framework]).to eq(:rspec)
     end
   end
 

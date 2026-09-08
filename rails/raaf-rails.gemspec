@@ -47,7 +47,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "turbo-rails", ">= 1.0"
 
   # Development dependencies
-  spec.add_development_dependency "capybara"
+  spec.add_development_dependency "capybara" # Capybara.string, for matchers over rendered components
   spec.add_development_dependency "rake"
   spec.add_development_dependency "rspec"
   spec.add_development_dependency "rspec_junit_formatter"
@@ -56,5 +56,4 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rubocop-rails"
   spec.add_development_dependency "rubocop-rake"
   spec.add_development_dependency "rubocop-rspec"
-  spec.add_development_dependency "selenium-webdriver"
 end

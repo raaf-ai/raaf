@@ -3,7 +3,6 @@
 require "spec_helper"
 require "phlex"
 require "phlex/rails"
-require "phlex/testing/view_helper"
 
 # Load the component files
 require_relative "../../../../../app/components/RAAF/rails/tracing/base_component"
@@ -14,13 +13,13 @@ module RAAF
   module Rails
     module Tracing
       RSpec.describe HandoffSpanComponent, type: :component do
-        include Phlex::Testing::ViewHelper
+        include ComponentRendering
 
         let(:base_span_attributes) do
           {
             "handoff.source_agent" => "SalesAgent",
             "handoff.target_agent" => "TechnicalSupportAgent",
-            "handoff.reason" => "User has technical questions that require specialized expertise. Sales agent completed initial qualification and is now transferring to technical support for detailed product discussion.",
+            "handoff.reason" => "User has technical questions that require specialized expertise. Sales agent completed initial qualification and is now transferring to technical support for a detailed product discussion, including pricing tiers, deployment options and the integration work their team would have to do.",
             "handoff.type" => "escalation",
             "handoff.success" => true,
             "handoff.conversation_id" => "conv_abc123",
@@ -185,9 +184,11 @@ module RAAF
           it "shows context summary with key badges" do
             output = render(component)
             expect(output).to include("Transferred Context Summary")
-            expect(output).to include("Customer Id")
-            expect(output).to include("Product Interest")
-            expect(output).to include("Previous Discussion")
+            # Humanized: "customer_id" loses its _id suffix, and only the
+            # first word is capitalised.
+            expect(output).to include("Customer")
+            expect(output).to include("Product interest")
+            expect(output).to include("Previous discussion")
           end
 
           it "includes collapsible full context data" do
@@ -331,8 +332,8 @@ module RAAF
             end
 
             it "renders without crashing" do
-              expect { render(component) }.not_to raise_error
-              output = render(component)
+              output = nil
+              expect { output = render(component) }.not_to raise_error
               expect(output).to include("Unknown Source Agent")
               expect(output).to include("Unknown Target Agent")
             end

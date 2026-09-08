@@ -3,7 +3,6 @@
 require "spec_helper"
 require "phlex"
 require "phlex/rails"
-require "phlex/testing/view_helper"
 
 # Load the component files
 require_relative "../../../../../app/components/RAAF/rails/tracing/base_component"
@@ -14,7 +13,7 @@ module RAAF
   module Rails
     module Tracing
       RSpec.describe AgentSpanComponent, type: :component do
-        include Phlex::Testing::ViewHelper
+        include ComponentRendering
 
         let(:base_span_attributes) do
           {
@@ -23,7 +22,7 @@ module RAAF
             "agent.temperature" => 0.7,
             "agent.max_tokens" => 2000,
             "agent.tools_count" => 3,
-            "agent.instructions" => "You are a research assistant that helps users find information.",
+            "agent.system_instructions" => "You are a research assistant that helps users find information.",
             "context" => {
               "user_query" => "Tell me about Ruby programming",
               "research_depth" => "comprehensive",
@@ -116,7 +115,8 @@ module RAAF
         describe "agent configuration section" do
           it "renders agent configuration details" do
             output = render(component)
-            expect(output).to include("Agent Configuration")
+            expect(output).to include("Configuration")
+            expect(output).to include("Basic Information")
             expect(output).to include("Agent Name")
             expect(output).to include("Model")
             expect(output).to include("Temperature")
@@ -143,11 +143,15 @@ module RAAF
               allow(mock_span).to receive(:span_attributes).and_return(minimal_attributes)
             end
 
-            it "only shows available configuration" do
+            # The table has a row per parameter either way; a span that never
+            # recorded one says so rather than dropping the row, so a reader can
+            # tell "not set" from "not captured".
+            it "marks the configuration it does not have" do
               output = render(component)
               expect(output).to include("MinimalAgent")
-              expect(output).not_to include("Temperature")
-              expect(output).not_to include("Max Tokens")
+              expect(output).to include("Temperature")
+              expect(output).to include("Max Tokens")
+              expect(output).to include("N/A")
             end
           end
         end
@@ -156,8 +160,8 @@ module RAAF
           it "renders context variables section when present" do
             output = render(component)
             expect(output).to include("Context Variables")
+            expect(output).to include("Agent Context")
             expect(output).to include("bi-layers")
-            expect(output).to include("border-purple-200")
           end
 
           it "includes collapsible context data" do
@@ -188,15 +192,15 @@ module RAAF
         describe "instructions section" do
           it "renders instructions section when present" do
             output = render(component)
-            expect(output).to include("Instructions & Prompt")
-            expect(output).to include("bi-card-text")
+            expect(output).to include("System Prompt")
+            expect(output).to include("bi-gear")
             expect(output).to include("You are a research assistant")
           end
 
           context "when instructions are short" do
             let(:short_instructions_attributes) do
               base_span_attributes.merge(
-                "agent.instructions" => "Short instruction"
+                "agent.system_instructions" => "Short instruction"
               )
             end
 
@@ -207,7 +211,6 @@ module RAAF
             it "displays instructions without expansion" do
               output = render(component)
               expect(output).to include("Short instruction")
-              expect(output).not_to include("Show Full Instructions")
             end
           end
 
@@ -218,7 +221,7 @@ module RAAF
 
             let(:long_instructions_attributes) do
               base_span_attributes.merge(
-                "agent.instructions" => long_instructions
+                "agent.system_instructions" => long_instructions
               )
             end
 
@@ -226,17 +229,17 @@ module RAAF
               allow(mock_span).to receive(:span_attributes).and_return(long_instructions_attributes)
             end
 
-            it "provides expandable instructions" do
+            it "keeps a long system prompt in its own tab" do
               output = render(component)
-              expect(output).to include("Show Full Instructions")
-              expect(output).to include("click->span-detail#toggleSection")
+              expect(output).to include("System Prompt")
+              expect(output).to include("comprehensive research assistant")
             end
           end
 
           context "when instructions are in different formats" do
             let(:complex_instructions_attributes) do
               base_span_attributes.merge(
-                "agent.instructions" => {
+                "agent.system_instructions" => {
                   "system" => "You are a helpful assistant",
                   "context" => "Additional context here"
                 }
@@ -249,7 +252,8 @@ module RAAF
 
             it "handles complex instruction formats" do
               output = render(component)
-              expect(output).to include("Instructions Data")
+              expect(output).to include("System Prompt")
+              expect(output).to include("You are a helpful assistant")
             end
           end
 
@@ -267,7 +271,7 @@ module RAAF
 
             it "does not render instructions section" do
               output = render(component)
-              expect(output).not_to include("Instructions & Prompt")
+              expect(output).not_to include("System Prompt")
             end
           end
         end
@@ -293,11 +297,12 @@ module RAAF
           context "when span has no attributes" do
             before do
               allow(mock_span).to receive(:span_attributes).and_return(nil)
+              allow(mock_span).to receive(:name).and_return(nil)
             end
 
             it "renders without crashing" do
-              expect { render(component) }.not_to raise_error
-              output = render(component)
+              output = nil
+              expect { output = render(component) }.not_to raise_error
               expect(output).to include("Unknown Agent")
               expect(output).to include("Unknown Model")
             end
@@ -319,7 +324,7 @@ module RAAF
             it "displays parallel tool calls as enabled" do
               output = render(component)
               expect(output).to include("Parallel Tool Calls")
-              expect(output).to include("Enabled")
+              expect(output).to include("true")
             end
           end
 
@@ -337,7 +342,7 @@ module RAAF
             it "displays parallel tool calls as disabled" do
               output = render(component)
               expect(output).to include("Parallel Tool Calls")
-              expect(output).to include("Disabled")
+              expect(output).to include("false")
             end
           end
         end

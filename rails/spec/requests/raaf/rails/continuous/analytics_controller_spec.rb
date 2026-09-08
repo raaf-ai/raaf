@@ -3,48 +3,45 @@
 require "rails_helper"
 
 RSpec.describe RAAF::Rails::Continuous::AnalyticsController, type: :request do
-  let(:policy) { EvaluationPolicy.create!(name: "Test Policy", agent_name: "TestAgent", evaluators: []) }
-  let(:queue_item) { EvaluationQueue.create!(evaluation_policy: policy, span_id: "span-1") }
+  let(:policy) { create_policy }
+  let(:queue_item) { create_queue_item(evaluation_policy: policy) }
 
   before do
     # Create sample evaluation results
     5.times do |i|
-      EvaluationResult.create!(
-        evaluation_queue: queue_item,
+      create_result(
+        evaluation_queue_item: queue_item,
         evaluation_policy: policy,
         span_id: "span-#{i}",
-        agent_name: "TestAgent",
         model: "gpt-4o",
         evaluator_name: "test_evaluator",
-        evaluator_type: "rule_based",
-        status: i < 4 ? "passed" : "failed",
+        status: i < 4 ? "good" : "bad",
         score: i < 4 ? 0.9 : 0.3,
         metrics: { latency_ms: 1000, cost: 0.01 }
       )
     end
   end
 
-  describe "GET /raaf/rails/continuous/analytics" do
+  describe "GET /raaf/continuous/analytics" do
     it "returns a successful response" do
-      get raaf_rails_continuous_analytics_path
+      get continuous_analytics_path
       expect(response).to have_http_status(:success)
     end
 
     it "calculates overview stats" do
-      get raaf_rails_continuous_analytics_path(agent: "TestAgent")
+      get continuous_analytics_path(agent: "TestAgent")
       expect(response).to have_http_status(:success)
     end
   end
 
-  describe "GET /raaf/rails/continuous/analytics/pass_rate_data" do
+  describe "GET /raaf/continuous/analytics/pass_rate_data" do
     before do
       # Create metrics for time-series data
       3.days.ago.to_date.upto(Date.current) do |date|
-        EvaluationMetric.create!(
+        create_metric(
           agent_name: "TestAgent",
           period_type: "daily",
           period_start: date.beginning_of_day,
-          period_end: date.end_of_day,
           total_evaluations: 10,
           passed_count: 8,
           failed_count: 2,
@@ -54,7 +51,7 @@ RSpec.describe RAAF::Rails::Continuous::AnalyticsController, type: :request do
     end
 
     it "returns JSON data for time-series chart" do
-      get pass_rate_data_raaf_rails_continuous_analytics_path(agent: "TestAgent"), as: :json
+      get pass_rate_data_continuous_analytics_path(agent: "TestAgent"), as: :json
       expect(response).to have_http_status(:success)
 
       data = JSON.parse(response.body)
@@ -65,7 +62,7 @@ RSpec.describe RAAF::Rails::Continuous::AnalyticsController, type: :request do
     end
 
     it "filters by date range" do
-      get pass_rate_data_raaf_rails_continuous_analytics_path(
+      get pass_rate_data_continuous_analytics_path(
         agent: "TestAgent",
         from: 2.days.ago.to_date,
         to: Date.current
@@ -75,14 +72,13 @@ RSpec.describe RAAF::Rails::Continuous::AnalyticsController, type: :request do
     end
   end
 
-  describe "GET /raaf/rails/continuous/analytics/score_distribution_data" do
+  describe "GET /raaf/continuous/analytics/score_distribution_data" do
     before do
       # Create metric with score distribution
-      EvaluationMetric.create!(
+      create_metric(
         agent_name: "TestAgent",
         period_type: "daily",
         period_start: Date.current.beginning_of_day,
-        period_end: Date.current.end_of_day,
         total_evaluations: 100,
         passed_count: 80,
         failed_count: 20,
@@ -98,7 +94,7 @@ RSpec.describe RAAF::Rails::Continuous::AnalyticsController, type: :request do
     end
 
     it "returns JSON data for histogram" do
-      get score_distribution_data_raaf_rails_continuous_analytics_path(agent: "TestAgent"), as: :json
+      get score_distribution_data_continuous_analytics_path(agent: "TestAgent"), as: :json
       expect(response).to have_http_status(:success)
 
       data = JSON.parse(response.body)
@@ -109,19 +105,19 @@ RSpec.describe RAAF::Rails::Continuous::AnalyticsController, type: :request do
     end
   end
 
-  describe "GET /raaf/rails/continuous/analytics/model_comparison_data" do
+  describe "GET /raaf/continuous/analytics/model_comparison_data" do
     before do
       # Add some results with different models
       2.times do |i|
-        EvaluationResult.create!(
-          evaluation_queue: queue_item,
+        create_result(
+          evaluation_queue_item: queue_item,
           evaluation_policy: policy,
           span_id: "span-claude-#{i}",
           agent_name: "TestAgent",
           model: "claude-3-5-sonnet-20241022",
           evaluator_name: "test_evaluator",
           evaluator_type: "rule_based",
-          status: "passed",
+          status: "good",
           score: 0.95,
           metrics: { latency_ms: 1500, cost: 0.02 }
         )
@@ -129,39 +125,39 @@ RSpec.describe RAAF::Rails::Continuous::AnalyticsController, type: :request do
     end
 
     it "returns JSON data for model comparison" do
-      get model_comparison_data_raaf_rails_continuous_analytics_path(agent: "TestAgent"), as: :json
+      get model_comparison_data_continuous_analytics_path(agent: "TestAgent"), as: :json
       expect(response).to have_http_status(:success)
 
       data = JSON.parse(response.body)
       expect(data).to be_an(Array)
-      expect(data.first).to have_key("model")
-      expect(data.first).to have_key("total_evaluations")
-      expect(data.first).to have_key("pass_rate")
+      expect(data.first).to have_key("model_name")
+      expect(data.first).to have_key("count")
+      expect(data.first).to have_key("good_rate")
       expect(data.first).to have_key("avg_score")
-      expect(data.first).to have_key("avg_latency_ms")
-      expect(data.first).to have_key("total_cost")
+      expect(data.first).to have_key("avg_duration_ms")
+      expect(data.first).to have_key("avg_cost")
     end
   end
 
-  describe "GET /raaf/rails/continuous/analytics/failure_analysis_data" do
+  describe "GET /raaf/continuous/analytics/failure_analysis_data" do
     before do
       # Create failed results with different evaluators
       3.times do |i|
-        EvaluationResult.create!(
-          evaluation_queue: queue_item,
+        create_result(
+          evaluation_queue_item: queue_item,
           evaluation_policy: policy,
           span_id: "failed-span-#{i}",
           agent_name: "TestAgent",
           evaluator_name: "evaluator_#{i % 2}",
           evaluator_type: "rule_based",
-          status: "failed",
+          status: "bad",
           score: 0.2
         )
       end
     end
 
     it "returns JSON data for failure breakdown" do
-      get failure_analysis_data_raaf_rails_continuous_analytics_path(agent: "TestAgent"), as: :json
+      get failure_analysis_data_continuous_analytics_path(agent: "TestAgent"), as: :json
       expect(response).to have_http_status(:success)
 
       data = JSON.parse(response.body)
@@ -172,7 +168,7 @@ RSpec.describe RAAF::Rails::Continuous::AnalyticsController, type: :request do
     end
 
     it "sorts by count descending" do
-      get failure_analysis_data_raaf_rails_continuous_analytics_path(agent: "TestAgent"), as: :json
+      get failure_analysis_data_continuous_analytics_path(agent: "TestAgent"), as: :json
       data = JSON.parse(response.body)
 
       counts = data.map { |d| d["count"] }

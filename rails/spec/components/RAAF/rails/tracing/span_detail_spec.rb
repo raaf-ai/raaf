@@ -3,7 +3,6 @@
 require "spec_helper"
 require "phlex"
 require "phlex/rails"
-require "phlex/testing/view_helper"
 
 # Load the component files
 require_relative "../../../../../app/components/RAAF/rails/tracing/base_component"
@@ -12,8 +11,8 @@ require_relative "../../../../../app/components/RAAF/rails/tracing/span_detail"
 module RAAF
   module Rails
     module Tracing
-      RSpec.describe SpanDetail, type: :component do
-        include Phlex::Testing::ViewHelper
+      RSpec.describe SpanDetail::Component, type: :component do
+        include ComponentRendering
 
         let(:base_span_attributes) do
           {
@@ -25,12 +24,16 @@ module RAAF
           }
         end
 
+        # A stand-in rather than a record: the routing examples below set kinds
+        # and statuses SpanRecord's own validations reject, which is the point --
+        # the screen has to answer for a span written before those rules existed.
         let(:mock_span) do
           double("Span",
                  span_id: "span_123",
                  trace_id: "trace_456",
                  parent_id: "parent_789",
                  name: "Test Span",
+                 display_name: "Test Span",
                  kind: "tool",
                  status: "success",
                  start_time: Time.parse("2025-09-25 10:00:00 UTC"),
@@ -39,7 +42,9 @@ module RAAF
                  span_attributes: base_span_attributes,
                  depth: 1,
                  children: [],
-                 events: [])
+                 events: [],
+                 error?: false,
+                 error_details: nil)
         end
 
         let(:component) { described_class.new(span: mock_span) }
@@ -140,24 +145,28 @@ module RAAF
               allow(mock_span).to receive(:kind).and_return("unknown_type")
             end
 
+            # There is no deep dive for a kind the console does not know, so
+            # the page stops at what every span has.
             it "routes to generic component logic" do
               output = render(component)
-              expect(output).to include("Unknown_type")
+              expect(output).to include("unknown_type")
+              expect(output).not_to include("detail</")
             end
           end
         end
 
         describe "shared functionality" do
-          it "renders span overview section" do
+          # The screen puts a span back beside the run it belongs to, so its
+          # own id and its trace's are both on the page.
+          it "renders the span in the context of its trace" do
             output = render(component)
-            expect(output).to include("Overview")
+            expect(output).to include("In its trace")
             expect(output).to include("span_123")
             expect(output).to include("trace_456")
           end
 
-          it "renders timing information section" do
+          it "renders the duration in the summary bar" do
             output = render(component)
-            expect(output).to include("Timing Information")
             expect(output).to include("150ms")
           end
 

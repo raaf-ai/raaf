@@ -9,8 +9,7 @@ RSpec.describe RAAF::Rails::Continuous::ResetDailyCountersJob, type: :job do
         name: "test-policy-#{i}",
         agent_name: "TestAgent",
         environment: "test",
-        sampling_mode: "percentage",
-        sample_rate: 50,
+        sampling_mode: "all",
         today_evaluation_count: 10 + i,
         count_reset_date: 1.day.ago
       )
@@ -37,7 +36,7 @@ RSpec.describe RAAF::Rails::Continuous::ResetDailyCountersJob, type: :job do
     end
 
     it "logs success information" do
-      expect(RAAF::Rails.logger).to receive(:info).with(
+      expect(RAAF.logger).to receive(:info).with(
         a_string_matching(/Reset daily counters/)
       )
 
@@ -52,7 +51,7 @@ RSpec.describe RAAF::Rails::Continuous::ResetDailyCountersJob, type: :job do
       end
 
       it "continues processing other policies" do
-        expect(RAAF::Rails.logger).to receive(:error).at_least(:once)
+        expect(RAAF.logger).to receive(:error).at_least(:once)
 
         described_class.perform_now
 
@@ -60,7 +59,7 @@ RSpec.describe RAAF::Rails::Continuous::ResetDailyCountersJob, type: :job do
       end
 
       it "logs errors for failed policies" do
-        expect(RAAF::Rails.logger).to receive(:error).with(
+        expect(RAAF.logger).to receive(:error).with(
           a_string_matching(/Failed to reset counter/)
         ).at_least(:once)
 
@@ -80,7 +79,7 @@ RSpec.describe RAAF::Rails::Continuous::ResetDailyCountersJob, type: :job do
       end
 
       it "logs zero policies processed" do
-        expect(RAAF::Rails.logger).to receive(:info).with(
+        expect(RAAF.logger).to receive(:info).with(
           a_string_matching(/policies_count.*0/)
         )
 
@@ -135,19 +134,22 @@ RSpec.describe RAAF::Rails::Continuous::ResetDailyCountersJob, type: :job do
   end
 
   describe "retry behavior" do
-    it "retries on transient failures" do
-      allow_any_instance_of(RAAF::Eval::Models::EvaluationPolicy)
-        .to receive(:reset_daily_counter!)
-        .and_raise(StandardError).once
-        .and_call_original
-
-      described_class.perform_now
+    before do
+      allow(RAAF::Eval::Models::EvaluationPolicy).to receive(:find_each).and_raise(StandardError)
     end
 
-    it "has limited retry attempts" do
-      expect(described_class.retry_on_block_arguments).to include(
-        a_hash_including(attempts: 3)
-      )
+    # A failure of one policy is swallowed and counted; a failure of the sweep
+    # itself has to come back, or every policy keeps yesterday's count and
+    # every limit stays reached.
+    it "reschedules itself when the sweep fails" do
+      expect { described_class.perform_now }.to have_enqueued_job(described_class)
+    end
+
+    it "gives up rather than retrying forever" do
+      job = described_class.new
+      job.exception_executions = { "[StandardError]" => 3 }
+
+      expect { job.perform_now }.to raise_error(StandardError)
     end
   end
 

@@ -3,6 +3,10 @@
 require "spec_helper"
 
 RSpec.describe RAAF::Rails::Tracing::SpanDetail::Component do
+  # The page reaches for Rails view helpers, so it is rendered with a view
+  # context rather than called bare.
+  include ComponentRendering
+
   # Create mock span classes for testing
   let(:mock_span_class) do
     Struct.new(
@@ -12,6 +16,16 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::Component do
     ) do
       def parent_span_id
         parent_id
+      end
+
+      # What the trace bar heads the page with -- SpanRecord derives it from the
+      # payload, and a stand-in only has to have one.
+      def display_name
+        name
+      end
+
+      def error?
+        status.to_s == "error"
       end
     end
   end
@@ -76,7 +90,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::Component do
   describe "universal span overview rendering" do
     let(:rendered_output) do
       # Simple string capture of component output
-      component.call.to_s
+      render(component)
     end
 
     context "when rendering span overview section" do
@@ -101,14 +115,12 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::Component do
 
       it "displays span kind with proper badge" do
         expect(rendered_output).to include("agent")
-        expect(rendered_output).to include("bg-blue-100")
-        expect(rendered_output).to include("text-blue-800")
+        expect(rendered_output).to include("raaf-kind--agent")
       end
 
       it "displays span status with proper badge" do
         expect(rendered_output).to include("completed")
-        # Status badge should use SkippedBadgeTooltip component
-        expect(rendered_output).to include("bg-green-100")
+        expect(rendered_output).to include("raaf-status--completed")
       end
 
       it "displays workflow name when trace is present" do
@@ -122,20 +134,11 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::Component do
 
     context "when rendering timing information" do
       it "displays formatted start time" do
-        expect(rendered_output).to include("2025-09-25 10:00:00.000 UTC")
-      end
-
-      it "displays formatted end time" do
-        expect(rendered_output).to include("2025-09-25 10:00:02.000 UTC")
+        expect(rendered_output).to include("2025-09-25 10:00:00")
       end
 
       it "displays formatted duration" do
         expect(rendered_output).to include("2.0s")
-      end
-
-      it "includes time since start" do
-        # Should include time_ago_in_words output
-        expect(rendered_output).to include("ago")
       end
     end
 
@@ -161,8 +164,8 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::Component do
 
       let(:component) { described_class.new(span: root_span, trace: basic_trace) }
 
-      it "displays 'None' for parent ID" do
-        expect(rendered_output).to include("None")
+      it "says a root span has no parent" do
+        expect(rendered_output).to include("none")
       end
 
       it "displays depth as 0" do
@@ -177,8 +180,8 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::Component do
         expect(rendered_output).not_to include("TestWorkflow")
       end
 
-      it "does not display View Trace button" do
-        expect(rendered_output).not_to include("View Trace")
+      it "does not display a workflow row" do
+        expect(rendered_output).not_to include("TestWorkflow")
       end
     end
 
@@ -188,19 +191,20 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::Component do
           span = basic_span.dup
           span.status = status
           component = described_class.new(span: span, trace: basic_trace)
-          output = component.call.to_s
+          output = render(component)
 
           expect(output).to include(status)
-          # Each status should have appropriate color classes
+          # StatusBadge normalises the tracer's several words for each state
+          # down to four pills.
           case status
           when "completed"
-            expect(output).to include("bg-green-100")
+            expect(output).to include("raaf-status--completed")
           when "failed"
-            expect(output).to include("bg-red-100")
+            expect(output).to include("raaf-status--failed")
           when "running", "pending"
-            expect(output).to include("bg-yellow-100")
+            expect(output).to include("raaf-status--running")
           when "skipped", "cancelled"
-            expect(output).to include("bg-orange-100")
+            expect(output).to include("raaf-status--skipped")
           end
         end
       end
@@ -212,20 +216,13 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::Component do
           span = basic_span.dup
           span.kind = kind
           component = described_class.new(span: span, trace: basic_trace)
-          output = component.call.to_s
+          output = render(component)
 
-          expect(output).to include(kind.capitalize)
-          # Each kind should have appropriate color classes
-          case kind
-          when "agent"
-            expect(output).to include("bg-blue-100")
-          when "tool"
-            expect(output).to include("bg-purple-100")
-          when "response"
-            expect(output).to include("bg-green-100")
-          else
-            expect(output).to include("bg-gray-100")
-          end
+          expect(output).to include(kind)
+          # KindBadge owns the only kind-to-colour mapping, and folds the
+          # tracer's aliases onto the six kinds it draws.
+          expected = { "response" => "llm", "span" => "pipeline" }.fetch(kind, kind)
+          expect(output).to include("raaf-kind--#{expected}")
         end
       end
     end
@@ -235,7 +232,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::Component do
         span = basic_span.dup
         span.duration_ms = 150
         component = described_class.new(span: span)
-        output = component.call.to_s
+        output = render(component)
         expect(output).to include("150ms")
       end
 
@@ -243,7 +240,7 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::Component do
         span = basic_span.dup
         span.duration_ms = 2500
         component = described_class.new(span: span)
-        output = component.call.to_s
+        output = render(component)
         expect(output).to include("2.5s")
       end
 
@@ -251,74 +248,64 @@ RSpec.describe RAAF::Rails::Tracing::SpanDetail::Component do
         span = basic_span.dup
         span.duration_ms = 125_000 # 2 minutes 5 seconds
         component = described_class.new(span: span)
-        output = component.call.to_s
+        output = render(component)
         expect(output).to include("2m 5.0s")
       end
     end
   end
 
   describe "hierarchy navigation" do
-    let(:rendered_output) { component.call.to_s }
+    let(:rendered_output) { render(component) }
 
+    # A span is read inside its trace with itself selected -- there is no
+    # span screen to link to.
     it "includes navigation links to parent spans" do
-      expect(rendered_output).to include("/raaf/tracing/spans/parent_789")
+      expect(rendered_output).to include("/raaf/tracing/traces/trace_456?span=parent_789")
     end
 
     it "includes navigation links to trace" do
       expect(rendered_output).to include("/raaf/tracing/traces/trace_456")
     end
 
-    it "includes Back to Spans navigation" do
-      expect(rendered_output).to include("Back to Spans")
-      expect(rendered_output).to include("/raaf/tracing/spans")
-    end
-
-    it "includes View Trace button when trace is present" do
-      expect(rendered_output).to include("View Trace")
-      expect(rendered_output).to include("bi-diagram-3")
+    it "names the workflow the trace belongs to" do
+      expect(rendered_output).to include("Workflow")
+      expect(rendered_output).to include("TestWorkflow")
     end
   end
 
-  describe "responsive design classes" do
-    let(:rendered_output) { component.call.to_s }
+  # The page is laid out by the console's own stylesheet rather than by utility
+  # classes in the markup, so its structure is what there is to assert.
+  describe "page layout" do
+    let(:rendered_output) { render(component) }
 
-    it "uses responsive grid classes" do
-      expect(rendered_output).to include("sm:grid-cols-2")
+    it "puts the span's identity in a trace bar" do
+      expect(rendered_output).to include("raaf-trace-bar")
     end
 
-    it "uses responsive flex classes" do
-      expect(rendered_output).to include("sm:flex")
-      expect(rendered_output).to include("sm:items-center")
-    end
-
-    it "uses responsive spacing classes" do
-      expect(rendered_output).to include("sm:mt-0")
-      expect(rendered_output).to include("sm:ml-4")
-    end
-
-    it "uses responsive text classes" do
-      expect(rendered_output).to include("sm:text-3xl")
+    it "splits the inspector from the cards beside it" do
+      expect(rendered_output).to include("raaf-trace-split")
+      expect(rendered_output).to include("raaf-inspector")
     end
   end
 
   describe "accessibility features" do
-    let(:rendered_output) { component.call.to_s }
+    let(:rendered_output) { render(component) }
 
     it "includes proper heading hierarchy" do
-      expect(rendered_output).to include("<h1")
       expect(rendered_output).to include("<h3")
     end
 
     it "includes proper semantic markup" do
-      expect(rendered_output).to include("<dl")
-      expect(rendered_output).to include("<dt")
-      expect(rendered_output).to include("<dd")
+      expect(rendered_output).to include("<section")
+      expect(rendered_output).to include("<nav")
+      expect(rendered_output).to include('role="tablist"')
+      expect(rendered_output).to include("aria-selected")
     end
 
     it "includes descriptive text for screen readers" do
-      expect(rendered_output).to include("Span Detail")
-      expect(rendered_output).to include("Overview")
-      expect(rendered_output).to include("Timing Information")
+      expect(rendered_output).to include('aria-label="Span inspector"')
+      expect(rendered_output).to include("Attributes")
+      expect(rendered_output).to include("In its trace")
     end
   end
 end

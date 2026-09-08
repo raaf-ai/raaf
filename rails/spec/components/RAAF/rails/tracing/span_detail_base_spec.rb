@@ -3,7 +3,6 @@
 require "spec_helper"
 require "phlex"
 require "phlex/rails"
-require "phlex/testing/view_helper"
 
 # Load the component files
 require_relative "../../../../../app/components/RAAF/rails/tracing/base_component"
@@ -13,7 +12,7 @@ module RAAF
   module Rails
     module Tracing
       RSpec.describe SpanDetailBase, type: :component do
-        include Phlex::Testing::ViewHelper
+        include ComponentRendering
 
         let(:base_span_attributes) do
           {
@@ -194,8 +193,10 @@ module RAAF
             component = json_component.new(span: mock_span, data: test_data)
             output = render(component)
             expect(output).to include("Test Data")
-            expect(output).to include('"key"')
-            expect(output).to include('"value"')
+            # The JSON is escaped into the page, so read it back the way a
+            # browser would.
+            expect(CGI.unescapeHTML(output)).to include('"key"')
+            expect(CGI.unescapeHTML(output)).to include('"value"')
           end
 
           it "handles collapsed state" do
@@ -452,10 +453,10 @@ module RAAF
             end
 
             it "truncates long string data" do
-              long_string = "x" * 2000
+              long_string = "x" * 6000
               result = component_instance.send(:truncate_large_data, long_string)
-              expect(result.length).to eq(1000)
-              expect(result).to eq("x" * 1000)
+              expect(result.length).to eq(5000)
+              expect(result).to eq("x" * 5000)
             end
           end
         end

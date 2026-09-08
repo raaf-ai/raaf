@@ -11,7 +11,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
   # 5. Results are stored correctly
   # 6. Queue item status is updated
 
-  let(:trace) { create(:trace_record) }
+  let(:trace) { create_trace(workflow_name: "IntegrationWorkflow") }
   let(:span_attributes) do
     {
       span_id: "span_#{SecureRandom.hex(12)}",
@@ -23,21 +23,22 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
       end_time: Time.current + 1.second,
       duration_ms: 1000,
       span_attributes: {
-        agent: { name: "IntegrationTestAgent" },
-        llm: {
-          request: { model: "gpt-4o" },
-          usage: { input_tokens: 100, output_tokens: 50, total_tokens: 150 }
-        },
-        response: {
-          content: "Test response content"
-        }
-      },
-      metadata: {
-        agent_name: "IntegrationTestAgent",
-        model: "gpt-4o",
-        provider: "openai"
+        "agent_name" => "IntegrationTestAgent",
+        "agent.model" => "gpt-4o",
+        "input_tokens" => 100,
+        "output_tokens" => 50,
+        "total_tokens" => 150
       }
     }
+  end
+
+  # One field's verdict, in the shape the job stores results from.
+  def field_result(score:, reasoning: "Test passed", field: :output)
+    instance_double(
+      RAAF::Eval::DSL::EvaluationResult,
+      field_results: { field => { passed: true, score: score, message: reasoning } },
+      evaluator_results: {}
+    )
   end
 
   before do
@@ -69,15 +70,14 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
       RAAF::Eval::Models::EvaluationPolicy.create!(
         name: "Integration Test Policy",
         description: "Policy for integration testing",
-        target_agent_names: ["IntegrationTestAgent"],
-        target_environments: [Rails.env],
+        agent_name: "IntegrationTestAgent",
+        environment: "all",
         sampling_mode: "all",
-        sample_rate: 100,
         max_daily_evaluations: 1000,
         priority: 50,
         active: true,
         evaluators: [
-          { "name" => "test_evaluator", "type" => "rule_based", "config" => {} }
+          { "name" => "test_evaluator", "type" => "rule_based", "checks" => ["output"], "config" => {} }
         ]
       )
     end
@@ -101,15 +101,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
       let(:mock_evaluator) do
         double("Evaluator").tap do |evaluator|
           allow(evaluator).to receive(:evaluate).and_return(
-            OpenStruct.new(
-              score: 0.85,
-              passed?: true,
-              failed?: false,
-              warning?: false,
-              reasoning: "Test passed",
-              field_scores: { output: 0.85 },
-              to_h: { score: 0.85, passed: true }
-            )
+field_result(score: 0.85, reasoning: "Test passed")
           )
         end
       end
@@ -153,7 +145,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
         expect(result.span_id).to eq(span.span_id)
         expect(result.trace_id).to eq(span.trace_id)
         expect(result.evaluation_policy_id).to eq(policy.id)
-        expect(result.status).to eq("passed")
+        expect(result.status).to eq("good")
         expect(result.score).to eq(0.85)
         expect(result.agent_name).to eq("IntegrationTestAgent")
       end
@@ -166,7 +158,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
             span_id: span.span_id,
             policy_id: policy.id
           )
-        end.to change { policy.reload.evaluation_count }.by(1)
+        end.to change { policy.reload.today_evaluation_count }.by(1)
       end
     end
 
@@ -175,13 +167,13 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
         RAAF::Eval::Models::EvaluationPolicy.create!(
           name: "Multi-Evaluator Policy",
           description: "Policy with multiple evaluators",
-          target_agent_names: ["IntegrationTestAgent"],
-          target_environments: [Rails.env],
+          agent_name: "IntegrationTestAgent",
+          environment: "all",
           sampling_mode: "all",
           active: true,
           evaluators: [
-            { "name" => "evaluator_1", "type" => "rule_based", "config" => {} },
-            { "name" => "evaluator_2", "type" => "rule_based", "config" => {} }
+            { "name" => "evaluator_1", "type" => "rule_based", "checks" => ["output"], "config" => {} },
+            { "name" => "evaluator_2", "type" => "rule_based", "checks" => ["output"], "config" => {} }
           ]
         )
       end
@@ -189,15 +181,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
       let(:mock_evaluator_1) do
         double("Evaluator1").tap do |evaluator|
           allow(evaluator).to receive(:evaluate).and_return(
-            OpenStruct.new(
-              score: 0.90,
-              passed?: true,
-              failed?: false,
-              warning?: false,
-              reasoning: "First evaluator passed",
-              field_scores: { output: 0.90 },
-              to_h: { score: 0.90, passed: true }
-            )
+field_result(score: 0.90, reasoning: "First evaluator passed")
           )
         end
       end
@@ -205,15 +189,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
       let(:mock_evaluator_2) do
         double("Evaluator2").tap do |evaluator|
           allow(evaluator).to receive(:evaluate).and_return(
-            OpenStruct.new(
-              score: 0.75,
-              passed?: true,
-              failed?: false,
-              warning?: false,
-              reasoning: "Second evaluator passed",
-              field_scores: { output: 0.75 },
-              to_h: { score: 0.75, passed: true }
-            )
+field_result(score: 0.75, reasoning: "Second evaluator passed")
           )
         end
       end
@@ -240,13 +216,13 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
         RAAF::Eval::Models::EvaluationPolicy.create!(
           name: "Partial Failure Policy",
           description: "Policy to test partial failure",
-          target_agent_names: ["IntegrationTestAgent"],
-          target_environments: [Rails.env],
+          agent_name: "IntegrationTestAgent",
+          environment: "all",
           sampling_mode: "all",
           active: true,
           evaluators: [
-            { "name" => "successful_evaluator", "type" => "rule_based", "config" => {} },
-            { "name" => "failing_evaluator", "type" => "rule_based", "config" => {} }
+            { "name" => "successful_evaluator", "type" => "rule_based", "checks" => ["output"], "config" => {} },
+            { "name" => "failing_evaluator", "type" => "rule_based", "checks" => ["output"], "config" => {} }
           ]
         )
       end
@@ -254,15 +230,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
       let(:successful_evaluator) do
         double("SuccessfulEvaluator").tap do |evaluator|
           allow(evaluator).to receive(:evaluate).and_return(
-            OpenStruct.new(
-              score: 0.85,
-              passed?: true,
-              failed?: false,
-              warning?: false,
-              reasoning: "Success",
-              field_scores: {},
-              to_h: {}
-            )
+field_result(score: 0.85, reasoning: "Success")
           )
         end
       end
@@ -304,7 +272,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
 
         results = RAAF::Eval::Models::ContinuousEvaluationResult.where(span_id: span.span_id)
         expect(results.count).to eq(2)
-        expect(results.pluck(:status)).to include("passed", "error")
+        expect(results.pluck(:status)).to include("good", "error")
       end
     end
   end
@@ -314,11 +282,11 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
       RAAF::Eval::Models::EvaluationPolicy.create!(
         name: "Backpressure Test Policy",
         description: "Policy for backpressure testing",
-        target_agent_names: ["IntegrationTestAgent"],
-        target_environments: [Rails.env],
+        agent_name: "IntegrationTestAgent",
+        environment: "all",
         sampling_mode: "all",
         active: true,
-        evaluators: [{ "name" => "test_evaluator", "type" => "rule_based", "config" => {} }]
+        evaluators: [{ "name" => "test_evaluator", "type" => "rule_based", "checks" => ["output"], "config" => {} }]
       )
     end
 
@@ -340,21 +308,21 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
   end
 
   describe "sampling modes" do
-    context "with percentage sampling" do
+    context "with every_n sampling" do
       let!(:percentage_policy) do
         RAAF::Eval::Models::EvaluationPolicy.create!(
-          name: "Percentage Sampling Policy",
-          description: "Policy with 50% sampling",
-          target_agent_names: ["IntegrationTestAgent"],
-          target_environments: [Rails.env],
-          sampling_mode: "percentage",
-          sample_rate: 50,
+          name: "Every-Other Sampling Policy",
+          description: "Policy that grades one span in two",
+          agent_name: "IntegrationTestAgent",
+          environment: "all",
+          sampling_mode: "every_n",
+          sample_every_n: 2,
           active: true,
-          evaluators: [{ "name" => "test_evaluator", "type" => "rule_based", "config" => {} }]
+          evaluators: [{ "name" => "test_evaluator", "type" => "rule_based", "checks" => ["output"], "config" => {} }]
         )
       end
 
-      it "samples approximately the expected percentage" do
+      it "samples one span in every n" do
         enqueue_count = 0
         allow(RAAF::Rails::Continuous::EvaluationJob).to receive(:perform_later) { enqueue_count += 1 }
 
@@ -365,8 +333,8 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
           )
         end
 
-        # With 50% sampling and 100 spans, expect roughly 50 enqueues (allow variance)
-        expect(enqueue_count).to be_between(30, 70)
+        # One in two, counted rather than sampled at random.
+        expect(enqueue_count).to eq(50)
       end
     end
 
@@ -375,29 +343,32 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
         RAAF::Eval::Models::EvaluationPolicy.create!(
           name: "Limited Policy",
           description: "Policy with daily limit",
-          target_agent_names: ["IntegrationTestAgent"],
-          target_environments: [Rails.env],
+          agent_name: "IntegrationTestAgent",
+          environment: "all",
           sampling_mode: "all",
           max_daily_evaluations: 2,
           active: true,
-          evaluators: [{ "name" => "test_evaluator", "type" => "rule_based", "config" => {} }]
+          evaluators: [{ "name" => "test_evaluator", "type" => "rule_based", "checks" => ["output"], "config" => {} }]
         )
       end
 
+      # The counter advances when an evaluation actually runs, so a burst of
+      # spans is admitted before the first of them finishes -- which is why the
+      # job checks the cap again before it spends anything. Here the counter is
+      # advanced by hand to stand in for those completed runs.
       it "stops enqueueing after daily limit is reached" do
         enqueue_count = 0
-        allow(RAAF::Rails::Continuous::EvaluationJob).to receive(:perform_later) { enqueue_count += 1 }
+        allow(RAAF::Rails::Continuous::EvaluationJob).to receive(:perform_later) do
+          enqueue_count += 1
+          limited_policy.increment_evaluation_count!
+        end
 
-        # Simulate the policy already having evaluations today
-        limited_policy.update!(evaluation_count: 0, last_evaluation_at: Time.current)
+        limited_policy.update!(today_evaluation_count: 0, count_reset_date: Date.current)
 
-        # Create spans (should only enqueue up to the limit)
-        5.times do |_i|
+        5.times do
           RAAF::Rails::Tracing::SpanRecord.create!(
             span_attributes.merge(span_id: "span_#{SecureRandom.hex(12)}")
           )
-          # Simulate incrementing the policy counter
-          limited_policy.increment_evaluation_count! if enqueue_count < 2
         end
 
         expect(enqueue_count).to eq(2)
@@ -410,11 +381,11 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
       RAAF::Eval::Models::EvaluationPolicy.create!(
         name: "Error Test Policy",
         description: "Policy for error testing",
-        target_agent_names: ["IntegrationTestAgent"],
-        target_environments: [Rails.env],
+        agent_name: "IntegrationTestAgent",
+        environment: "all",
         sampling_mode: "all",
         active: true,
-        evaluators: [{ "name" => "test_evaluator", "type" => "rule_based", "config" => {} }]
+        evaluators: [{ "name" => "test_evaluator", "type" => "rule_based", "checks" => ["output"], "config" => {} }]
       )
     end
 
