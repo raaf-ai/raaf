@@ -54,7 +54,8 @@ RSpec.describe RAAF::Eval::Models::Dataset, type: :model do
 
       item = dataset.add_item_from_span(span_data)
       expect(item).to be_persisted
-      expect(item.input["messages"]).to eq(span_data[:input_messages])
+      # Stored as jsonb, so it reads back with string keys.
+      expect(item.input["messages"]).to eq([{ "role" => "user", "content" => "Test" }])
     end
   end
 

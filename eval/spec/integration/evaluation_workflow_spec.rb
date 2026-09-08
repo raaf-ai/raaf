@@ -37,21 +37,24 @@ RSpec.describe "Evaluation Workflow Integration", type: :integration do
       ]
     end
 
-    before do
-      # Mock RAAF::Runner to avoid actual API calls
-      allow_any_instance_of(RAAF::Runner).to receive(:run).and_return(
-        double(
-          messages: [
-            { role: "user", content: "What's the weather?" },
-            { role: "assistant", content: "It's sunny and warm today!" }
-          ],
-          usage: {
-            total_tokens: 55,
-            input_tokens: 10,
-            output_tokens: 45
-          }
-        )
+    let(:run_result) do
+      double(
+        messages: [
+          { role: "user", content: "What's the weather?" },
+          { role: "assistant", content: "It's sunny and warm today!" }
+        ],
+        usage: {
+          total_tokens: 55,
+          input_tokens: 10,
+          output_tokens: 45
+        }
       )
+    end
+
+    before do
+      # Stand in for the whole runner: building one asks for an API key, so stubbing
+      # only #run left the engine failing every configuration before it got there.
+      allow(RAAF::Runner).to receive(:new).and_return(instance_double(RAAF::Runner, run: run_result))
     end
 
     it "creates and executes evaluation run successfully" do
@@ -95,20 +98,24 @@ RSpec.describe "Evaluation Workflow Integration", type: :integration do
       results = engine.execute_run(run)
       result = results.first
 
-      expect(result.token_metrics).to include(:baseline, :result, :delta, :percentage_change)
-      expect(result.baseline_comparison).to include(:token_delta, :latency_delta, :quality_change, :regression_detected)
+      expect(result.token_metrics).to include("baseline", "result", "delta", "percentage_change")
+      expect(result.baseline_comparison).to include("token_delta", "latency_delta", "quality_change",
+                                                    "regression_detected")
     end
 
     it "detects regressions when metrics degrade significantly" do
-      # Mock a result with significantly more tokens
-      allow_any_instance_of(RAAF::Runner).to receive(:run).and_return(
-        double(
-          messages: [{ role: "assistant", content: "Long response" * 100 }],
-          usage: {
-            total_tokens: 200, # 4x increase
-            input_tokens: 10,
-            output_tokens: 190
-          }
+      # A result with significantly more tokens
+      allow(RAAF::Runner).to receive(:new).and_return(
+        instance_double(
+          RAAF::Runner,
+          run: double(
+            messages: [{ role: "assistant", content: "Long response" * 100 }],
+            usage: {
+              total_tokens: 200, # 4x increase
+              input_tokens: 10,
+              output_tokens: 190
+            }
+          )
         )
       )
 
@@ -121,7 +128,7 @@ RSpec.describe "Evaluation Workflow Integration", type: :integration do
       results = engine.execute_run(run)
       result = results.first
 
-      expect(result.baseline_comparison[:regression_detected]).to be true
+      expect(result.baseline_comparison["regression_detected"]).to be true
       expect(result.quality_change).to eq("degraded")
     end
   end

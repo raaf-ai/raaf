@@ -213,8 +213,8 @@ RSpec.describe RAAF::Eval::DSL::FieldEvaluatorSet do
       it "marks failed evaluator but continues" do
         combined = field_set.evaluate(field_context)[:combined]
 
-        # The crash scores zero, and AND takes the minimum
-        expect(combined[:passed]).to be false
+        # The crash scores zero, and AND takes the weakest label and the minimum score
+        expect(combined[:label]).to eq("bad")
         expect(combined[:score]).to eq(0.0)
       end
 

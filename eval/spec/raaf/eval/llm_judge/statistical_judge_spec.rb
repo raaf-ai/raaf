@@ -6,6 +6,21 @@ require "raaf/eval/llm_judge"
 RSpec.describe RAAF::Eval::LLMJudge::StatisticalJudge do
   subject(:judge) { described_class.new(model: "gpt-4o", temperature: 0.0) }
 
+  # Calibration is only meaningful against a judge that answers, and #judge_output turns
+  # any failure to reach a model into a "did not pass". Left to a real model the suite
+  # would calibrate against thirty failed calls and read as a judge no better than a coin
+  # toss. This one does the arithmetic the criteria ask about.
+  before do
+    allow(judge).to receive(:judge_output) do |input, output, _criteria|
+      operands = input.to_s.scan(/\d+/).map(&:to_i)
+      {
+        passed: operands.sum == output.to_i,
+        confidence: 0.9,
+        reasoning: "Checked #{operands.join(" + ")} against #{output}"
+      }
+    end
+  end
+
   let(:calibration_set) do
     set = RAAF::Eval::LLMJudge::CalibrationSet.new
 

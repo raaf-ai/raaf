@@ -15,7 +15,7 @@ RSpec.describe RAAF::Eval::RunResultAdapter do
 
   let(:run_result) do
     RAAF::RunResult.new(
-      agent_name: "TestAgent",
+      last_agent: agent,
       messages: [
         { role: "user", content: "What is 2+2?" },
         { role: "assistant", content: "2+2 equals 4" }
@@ -26,7 +26,6 @@ RSpec.describe RAAF::Eval::RunResultAdapter do
         output_tokens: 40,
         output_tokens_details: { reasoning_tokens: 5 }
       },
-      final_output: "2+2 equals 4",
       turns: 1
     )
   end
@@ -148,7 +147,7 @@ RSpec.describe RAAF::Eval::RunResultAdapter do
     context "with empty messages" do
       let(:empty_run_result) do
         RAAF::RunResult.new(
-          agent_name: "TestAgent",
+          last_agent: agent,
           messages: [],
           usage: {}
         )
@@ -165,7 +164,7 @@ RSpec.describe RAAF::Eval::RunResultAdapter do
     context "with tool results" do
       let(:run_result_with_tools) do
         RAAF::RunResult.new(
-          agent_name: "ToolAgent",
+          last_agent: RAAF::Agent.new(name: "ToolAgent"),
           messages: [
             { role: "user", content: "Search for Ruby" },
             { role: "assistant", content: "Here are the results" }
@@ -209,7 +208,7 @@ RSpec.describe RAAF::Eval::RunResultAdapter do
 
       it "handles missing reasoning tokens gracefully" do
         result_without_reasoning = RAAF::RunResult.new(
-          agent_name: "TestAgent",
+          last_agent: agent,
           messages: [{ role: "user", content: "Hello" }, { role: "assistant", content: "Hi" }],
           usage: { total_tokens: 20, input_tokens: 10, output_tokens: 10 }
         )
@@ -223,10 +222,9 @@ RSpec.describe RAAF::Eval::RunResultAdapter do
     context "with minimal RunResult" do
       let(:minimal_run_result) do
         RAAF::RunResult.new(
-          agent_name: "MinimalAgent",
+          last_agent: RAAF::Agent.new(name: "MinimalAgent"),
           messages: [
-            { role: "user", content: "Test" },
-            { role: "assistant", content: "Response" }
+            { role: "user", content: "Test" }
           ]
         )
       end

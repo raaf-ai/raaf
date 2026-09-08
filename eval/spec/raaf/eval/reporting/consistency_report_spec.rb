@@ -216,7 +216,7 @@ RSpec.describe RAAF::Eval::Reporting::ConsistencyReport do
     it "analyzer can access aggregated data" do
       analysis = subject.analyzer.analyze_field(:individual_scores)
 
-      expect(analysis[:mean]).to be_within(0.1).of(93.5) # (95+90+97+92+100+95)/6
+      expect(analysis[:mean]).to be_within(0.1).of(94.83) # (95+90+97+92+100+95)/6
       expect(analysis[:sample_size]).to eq(6)
     end
 

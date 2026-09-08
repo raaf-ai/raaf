@@ -103,36 +103,10 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorConfig do
   describe "history configuration" do
     let(:definition) { described_class.new }
 
-    it "stores history configuration settings" do
-      history_config = {
-        auto_save: true,
-        retention_days: 30,
-        retention_count: 100,
-        tags: ["production", "v1.0"]
-      }
-
-      definition.configure_history(history_config)
-      expect(definition.history_config).to eq(history_config)
-    end
-
-    it "provides default history configuration" do
-      expect(definition.history_config).to eq({
-                                                auto_save: false,
-                                                retention_days: nil,
-                                                retention_count: nil,
-                                                tags: []
-                                              })
-    end
-
-    it "merges partial history configuration" do
-      definition.configure_history(auto_save: true, tags: ["test"])
-
-      expect(definition.history_config).to include(
-        auto_save: true,
-        tags: ["test"],
-        retention_days: nil,
-        retention_count: nil
-      )
+    it "refuses the removed DSL and says where retention lives now" do
+      expect do
+        definition.configure_history(auto_save: true, retention_days: 30)
+      end.to raise_error(RAAF::Eval::DeprecatedDSLError, /EvaluationPolicy/)
     end
   end
 
@@ -142,12 +116,10 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorConfig do
     it "provides read access to all stored data" do
       definition.add_field("output", as: "result")
       definition.add_field_evaluator("output", { evaluators: [{ name: :quality }] })
-      definition.configure_history(auto_save: true)
 
       expect(definition.name).to eq("test_evaluator")
       expect(definition.selected_fields).not_to be_empty
       expect(definition.field_evaluators).to have_key("output")
-      expect(definition.history_config[:auto_save]).to be true
     end
   end
 end

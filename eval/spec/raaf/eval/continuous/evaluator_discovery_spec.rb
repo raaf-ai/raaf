@@ -40,6 +40,23 @@ module Eval
   end
 end
 
+# An evaluator that names itself. The one above declares no title, which is
+# the other half of what discovery has to report.
+module Eval
+  class TitledEvaluator
+    include RAAF::Eval::DSL::EvaluatorDefinition
+
+    evaluator_name :titled_evaluator
+    display_name "Titled Evaluator"
+
+    select "output", as: :output
+
+    evaluate_field :output do
+      evaluate_with :semantic_similarity
+    end
+  end
+end
+
 RSpec.describe RAAF::Eval::Continuous::EvaluatorDiscovery do
   let(:test_evaluator_class) { Eval::TestEvaluator }
 
@@ -47,6 +64,9 @@ RSpec.describe RAAF::Eval::Continuous::EvaluatorDiscovery do
     # Also register in the registry for .build and .available_evaluators tests
     allow(RAAF::Eval::DSL::EvaluatorRegistry.instance).to receive(:all_names).and_return(%i[test_evaluator
                                                                                             token_limit])
+    # Discovery also looks up the evaluators a check names (:threshold here), so every
+    # other name has to keep resolving against the real registry.
+    allow(RAAF::Eval::DSL::EvaluatorRegistry.instance).to receive(:get).and_call_original
     allow(RAAF::Eval::DSL::EvaluatorRegistry.instance).to receive(:get).with(:test_evaluator).and_return(test_evaluator_class)
     allow(RAAF::Eval::DSL::EvaluatorRegistry.instance).to receive(:get).with(:token_limit).and_return(test_evaluator_class)
   end
@@ -82,6 +102,20 @@ RSpec.describe RAAF::Eval::Continuous::EvaluatorDiscovery do
       details = described_class.evaluator_details
       test_detail = details.find { |d| d[:name] == "test_evaluator" }
       expect(test_detail[:description]).to eq("A test evaluator for testing")
+    end
+
+    # Every screen that lists a scorer reads this: without it the console can
+    # only show the registry symbol a policy names the evaluator with.
+    it "includes the title an evaluator declares for itself" do
+      details = described_class.evaluator_details
+      titled = details.find { |d| d[:name] == "titled_evaluator" }
+      expect(titled[:display_name]).to eq("Titled Evaluator")
+    end
+
+    it "reports no title for an evaluator that declares none" do
+      details = described_class.evaluator_details
+      test_detail = details.find { |d| d[:name] == "test_evaluator" }
+      expect(test_detail[:display_name]).to be_nil
     end
 
     it "includes configurable options when available" do

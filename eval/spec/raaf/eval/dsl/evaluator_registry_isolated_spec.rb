@@ -216,8 +216,11 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
       registry = described_class.instance
       registry.auto_register_built_ins
 
-      # Should have 22 built-in evaluators
-      expect(registry.all_names.size).to eq(22)
+      # Every declared built-in, under its own name. Counting the declaration rather
+      # than a literal keeps the check honest as evaluators are added.
+      built_ins = registry.send(:built_in_evaluators)
+      expect(built_ins).not_to be_empty
+      expect(registry.all_names).to match_array(built_ins.map(&:evaluator_name))
 
       # Verify some key evaluators are registered
       expect(registry.registered?(:semantic_similarity)).to be true
@@ -233,8 +236,8 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
       registry.auto_register_built_ins
       count2 = registry.all_names.size
 
+      expect(count1).to be_positive
       expect(count1).to eq(count2)
-      expect(count1).to eq(22)
     end
   end
 end

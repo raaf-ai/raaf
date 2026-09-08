@@ -8,6 +8,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
   # Reset registry between tests
   before do
     described_class.instance.instance_variable_set(:@evaluators, {})
+    described_class.instance.instance_variable_set(:@built_ins_registered, false)
   end
 
   describe ".instance" do
@@ -82,7 +83,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
       expect do
         registry.register(:test_evaluator, mismatched_evaluator)
       end.to raise_error(RAAF::Eval::DSL::EvaluatorRegistry::InvalidEvaluatorError,
-                         /evaluator_name must match registration name/)
+                         /must match registration name/)
     end
 
     it "is thread-safe during registration" do
@@ -94,14 +95,11 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
           evaluator = Class.new do
             include RAAF::Eval::DSL::Evaluator
 
-            define_singleton_method(:evaluator_name) { :"test_evaluator_#{i}" }
-
             def evaluate(field_context, **options)
               { label: "good", message: "Test" }
             end
           end
 
-          evaluator.extend(RAAF::Eval::DSL::Evaluator::ClassMethods)
           evaluator.evaluator_name(:"test_evaluator_#{i}")
 
           registry.register(:"test_evaluator_#{i}", evaluator)
@@ -149,7 +147,19 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
     end
 
     it "provides suggestions for similar evaluator names" do
-      described_class.instance.register(:semantic_similarity, test_evaluator)
+      # Registration insists the class name its own name, so the stand-in has to be one
+      # that calls itself :semantic_similarity.
+      semantic_sim_evaluator = Class.new do
+        include RAAF::Eval::DSL::Evaluator
+
+        evaluator_name :semantic_similarity
+
+        def evaluate(field_context, **options)
+          { label: "good", message: "Test passed" }
+        end
+      end
+
+      described_class.instance.register(:semantic_similarity, semantic_sim_evaluator)
 
       expect do
         described_class.instance.get(:semantic_similary) # typo
@@ -230,8 +240,11 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
       registry = described_class.instance
       registry.auto_register_built_ins
 
-      # Should have 22 built-in evaluators
-      expect(registry.all_names.size).to eq(22)
+      # Every declared built-in, under its own name. Counting the declaration rather
+      # than a literal keeps the check honest as evaluators are added.
+      built_ins = registry.send(:built_in_evaluators)
+      expect(built_ins).not_to be_empty
+      expect(registry.all_names).to match_array(built_ins.map(&:evaluator_name))
 
       # Verify some key evaluators are registered
       expect(registry.registered?(:semantic_similarity)).to be true
@@ -247,6 +260,7 @@ RSpec.describe RAAF::Eval::DSL::EvaluatorRegistry do
       registry.auto_register_built_ins
       count2 = registry.all_names.size
 
+      expect(count1).to be_positive
       expect(count1).to eq(count2)
     end
   end

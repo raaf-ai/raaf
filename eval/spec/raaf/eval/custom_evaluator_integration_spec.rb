@@ -11,7 +11,7 @@ RSpec.describe "Custom Evaluator Integration" do
     Class.new do
       include RAAF::Eval::DSL::Evaluator
 
-      evaluator_name :citation_grounding
+      evaluator_name :custom_citation_grounding
 
       def evaluate(field_context, **options)
         text = field_context.value
@@ -26,7 +26,7 @@ RSpec.describe "Custom Evaluator Integration" do
           details: {
             field_evaluated: field_context.field_name,
             total_citations: citations.count,
-            verified: grounded[:verified].count,
+            verified: grounded[:verified],
             unverified: grounded[:unverified],
             ratio: grounded[:verified_ratio]
           },
@@ -133,26 +133,26 @@ RSpec.describe "Custom Evaluator Integration" do
 
   describe "global registration" do
     it "registers custom evaluator globally via RAAF::Eval.register_evaluator" do
-      RAAF::Eval.register_evaluator(:citation_grounding, citation_grounding_evaluator)
+      RAAF::Eval.register_evaluator(:custom_citation_grounding, citation_grounding_evaluator)
 
       registry = RAAF::Eval::DSL::EvaluatorRegistry.instance
-      expect(registry.registered?(:citation_grounding)).to be true
-      expect(registry.get(:citation_grounding)).to eq(citation_grounding_evaluator)
+      expect(registry.registered?(:custom_citation_grounding)).to be true
+      expect(registry.get(:custom_citation_grounding)).to eq(citation_grounding_evaluator)
     end
 
     it "can use globally registered evaluator in DSL" do
-      RAAF::Eval.register_evaluator(:citation_grounding, citation_grounding_evaluator)
+      RAAF::Eval.register_evaluator(:custom_citation_grounding, citation_grounding_evaluator)
 
       # Should not raise error
       expect do
-        RAAF::Eval::DSL::EvaluatorRegistry.instance.get(:citation_grounding)
+        RAAF::Eval::DSL::EvaluatorRegistry.instance.get(:custom_citation_grounding)
       end.not_to raise_error
     end
   end
 
   describe "parameter passing" do
     before do
-      RAAF::Eval.register_evaluator(:citation_grounding, citation_grounding_evaluator)
+      RAAF::Eval.register_evaluator(:custom_citation_grounding, citation_grounding_evaluator)
     end
 
     it "passes parameters to custom evaluator via keyword arguments" do
@@ -204,7 +204,7 @@ RSpec.describe "Custom Evaluator Integration" do
       result = evaluator_instance.evaluate(field_context)
 
       expect(result[:label]).to eq("good")
-      expect(result[:details][:evaluated_field]).to eq(:output)
+      expect(result[:details][:evaluated_field]).to eq("output")
     end
 
     it "provides cross-field context access via field_context[]" do
@@ -274,7 +274,7 @@ RSpec.describe "Custom Evaluator Integration" do
   describe "example custom evaluators" do
     describe "CitationGroundingEvaluator" do
       before do
-        RAAF::Eval.register_evaluator(:citation_grounding, citation_grounding_evaluator)
+        RAAF::Eval.register_evaluator(:custom_citation_grounding, citation_grounding_evaluator)
       end
 
       it "verifies citations against knowledge base" do
@@ -355,7 +355,7 @@ RSpec.describe "Custom Evaluator Integration" do
       RAAF::Eval::DSL::EvaluatorRegistry.instance.auto_register_built_ins
 
       # Register custom evaluator
-      RAAF::Eval.register_evaluator(:citation_grounding, citation_grounding_evaluator)
+      RAAF::Eval.register_evaluator(:custom_citation_grounding, citation_grounding_evaluator)
     end
 
     it "can retrieve both built-in and custom evaluators" do
@@ -366,16 +366,16 @@ RSpec.describe "Custom Evaluator Integration" do
       expect(registry.registered?(:token_efficiency)).to be true
 
       # Custom evaluator
-      expect(registry.registered?(:citation_grounding)).to be true
+      expect(registry.registered?(:custom_citation_grounding)).to be true
     end
 
     it "lists all registered evaluators (built-in + custom)" do
       registry = RAAF::Eval::DSL::EvaluatorRegistry.instance
       names = registry.all_names
 
-      # Should have 22 built-ins + 1 custom
-      expect(names.size).to eq(23)
-      expect(names).to include(:semantic_similarity, :citation_grounding)
+      # Every built-in, plus the custom one registered above
+      expect(names.size).to eq(registry.send(:built_in_evaluators).size + 1)
+      expect(names).to include(:semantic_similarity, :custom_citation_grounding)
     end
   end
 end

@@ -52,8 +52,6 @@ RSpec.describe "Evaluator Definition DSL Integration" do
         on_progress do |event|
           # Progress callback
         end
-
-        history auto_save: true, retention_count: 10, retention_days: 30
       end
     end
 
@@ -67,7 +65,18 @@ RSpec.describe "Evaluator Definition DSL Integration" do
       expect(config[:selections].count).to eq(3)
       expect(config[:field_evaluations].keys).to contain_exactly(:tokens, :output)
       expect(config[:progress_callback]).not_to be_nil
-      expect(config[:history_options]).to include(auto_save: true, retention_count: 10, retention_days: 30)
+    end
+  end
+
+  describe "retired history DSL" do
+    it "refuses `history` and points at the policy that replaced it" do
+      expect do
+        Class.new do
+          include RAAF::Eval::DSL::EvaluatorDefinition
+
+          history auto_save: true, retention_days: 30
+        end
+      end.to raise_error(RAAF::Eval::DeprecatedDSLError, /EvaluationPolicy/)
     end
   end
 

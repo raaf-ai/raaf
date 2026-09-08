@@ -318,7 +318,9 @@ RSpec.describe RAAF::Eval::Continuous::PolicyMatcher do
       end
 
       it "extracts from span_data if attributes not directly available" do
-        # Skip this test if the span doesn't respond to these methods
+        # Skip this test if the span doesn't respond to these methods. The matcher asks
+        # about more than the four named here, so the rest answer for themselves.
+        allow(span_with_data).to receive(:respond_to?).and_return(false)
         allow(span_with_data).to receive(:respond_to?).with(:agent_name).and_return(false)
         allow(span_with_data).to receive(:respond_to?).with(:environment).and_return(false)
         allow(span_with_data).to receive(:respond_to?).with(:model).and_return(false)

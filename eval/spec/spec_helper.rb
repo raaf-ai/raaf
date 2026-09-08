@@ -10,7 +10,14 @@ require "factory_bot"
 ActiveSupport::Inflector.inflections(:en) { |inflect| inflect.acronym "RAAF" }
 
 # Load the gem
-require_relative "../lib/raaf/eval"
+# The gem's own entry point loads raaf-core, and the library leans on what it
+# defines — RAAF.logger above all, which 46 call sites reach for. Loading only
+# lib/raaf/eval left those raising NoMethodError inside the suite.
+require "raaf-core"
+# The gem's own entry point, not lib/raaf/eval — that inner file skips the ActiveRecord
+# models, so running a subset of the suite left constants like Models::EvaluationSpan
+# undefined depending on which other spec happened to load first.
+require_relative "../lib/raaf-eval"
 require_relative "../lib/raaf/eval/rspec"
 
 # Configure RAAF Eval for testing
@@ -78,6 +85,22 @@ RSpec.configure do |config|
       end
     else
       example.run
+    end
+  end
+
+  # The evaluator registry is a process-wide singleton, so a spec that registers an
+  # evaluator, or empties the table to test registration, otherwise decides what every
+  # later spec finds in it. Put it back the way it was found.
+  config.around do |example|
+    registry = RAAF::Eval::DSL::EvaluatorRegistry.instance
+    evaluators = registry.instance_variable_get(:@evaluators).dup
+    built_ins_registered = registry.instance_variable_get(:@built_ins_registered)
+
+    begin
+      example.run
+    ensure
+      registry.instance_variable_set(:@evaluators, evaluators)
+      registry.instance_variable_set(:@built_ins_registered, built_ins_registered)
     end
   end
 

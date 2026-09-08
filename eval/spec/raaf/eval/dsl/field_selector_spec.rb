@@ -142,7 +142,7 @@ RSpec.describe RAAF::Eval::DSL::FieldSelector do
       selector.add_field("usage.total_tokens", as: :tokens)
 
       expect(selector.fields).to include("usage.total_tokens")
-      expect(selector.aliases[:tokens]).to eq("usage.total_tokens")
+      expect(selector.aliases["tokens"]).to eq("usage.total_tokens")
     end
 
     it "allows alias usage in field context" do
@@ -176,8 +176,8 @@ RSpec.describe RAAF::Eval::DSL::FieldSelector do
       selector.add_field("usage.total_tokens", as: :tokens)
       selector.add_field("usage.total_tokens", as: :total)
 
-      expect(selector.aliases[:tokens]).to eq("usage.total_tokens")
-      expect(selector.aliases[:total]).to eq("usage.total_tokens")
+      expect(selector.aliases["tokens"]).to eq("usage.total_tokens")
+      expect(selector.aliases["total"]).to eq("usage.total_tokens")
     end
 
     it "stores fields in order of addition" do

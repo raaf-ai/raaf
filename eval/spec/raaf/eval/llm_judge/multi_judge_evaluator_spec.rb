@@ -246,6 +246,17 @@ RSpec.describe RAAF::Eval::LLMJudge::MultiJudgeEvaluator do
       set
     end
 
+    # Without a model to ask, every judgement comes back as "did not pass" and the
+    # judges calibrate to no better than a coin toss. These read the sample's own
+    # prefix instead, so calibration measures the code rather than the network.
+    before do
+      evaluator.judges.each do |judge|
+        allow(judge).to receive(:judge_output) do |input, _output, _criteria|
+          { passed: input.to_s.start_with?("P"), confidence: 0.9, reasoning: "Stubbed" }
+        end
+      end
+    end
+
     it "calibrates all judges" do
       results = evaluator.calibrate_all(calibration_set, criteria: "Is correct?")
 
