@@ -77,8 +77,6 @@ module RAAF
               )
             end
           rescue StandardError => e
-            RAAF.logger.error "[SelfCritique] Critique failed: #{e.message}"
-            RAAF.logger.error e.backtrace.first(5).join("\n") if e.backtrace
 
             # On error, pass through (fail open for reliability)
             CritiqueResult.success(
@@ -211,7 +209,6 @@ module RAAF
               ).to_h
             end
           rescue JSON::ParserError => e
-            RAAF.logger.warn "[SelfCritique] Failed to parse JSON response: #{e.message}"
             # Try simple text-based parsing as fallback
             violations = parse_text_response(response, guidelines)
           end

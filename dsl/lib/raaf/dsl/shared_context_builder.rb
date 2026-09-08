@@ -18,7 +18,6 @@ module RAAF
     # - DSL rule application (defaults, requirements, validation)
     #
     module SharedContextBuilder
-      include RAAF::Logging
 
       # Build context automatically from provided arguments
       #

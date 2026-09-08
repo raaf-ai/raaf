@@ -34,7 +34,6 @@ module RAAF
           @custom_output_field = @options.delete(:to)&.to_sym
           @custom_field_name = @options.delete(:as)&.to_sym
 
-          RAAF.logger.debug "IteratingAgent initialized: class=#{agent_class}, field=#{field}, as=#{@custom_field_name}, to=#{@custom_output_field}, options=#{options.inspect}"
         end
 
         # Create a new wrapper with merged options (required by WrapperDSL)
@@ -97,11 +96,8 @@ module RAAF
             items = extract_items(context)
 
             if items.empty?
-              RAAF.logger.info "No items found in field '#{@field}' for iteration"
               return context
             end
-
-            RAAF.logger.info "#{@parallel ? 'Parallel' : 'Sequential'} iteration over #{items.length} items in field '#{@field}'"
 
             results = if @parallel
                         execute_parallel(items, context)
@@ -129,7 +125,6 @@ module RAAF
           # Apply limit if specified
           if @options[:limit]
             items = items.first(@options[:limit])
-            RAAF.logger.info "Limited iteration to #{@options[:limit]} items"
           end
 
           items
@@ -139,14 +134,12 @@ module RAAF
           results = []
 
           items.each_with_index do |item, index|
-            RAAF.logger.debug "Processing item #{index + 1}/#{items.length} in field '#{@field}'"
 
             begin
               result = execute_single_item(item, context, index)
               results << result
             rescue StandardError => e
               error_msg = "Error processing item #{index + 1} in field '#{@field}': #{e.message}"
-              RAAF.logger.error error_msg
 
               # For sequential execution, we can choose to continue or stop
               # For now, continue but mark the failure
@@ -166,13 +159,11 @@ module RAAF
           # Use thread pool pattern similar to existing ParallelAgents
           threads = items.map.with_index do |item, index|
             Thread.new do
-              RAAF.logger.debug "Processing item #{index + 1}/#{items.length} in field '#{@field}' (parallel)"
 
               begin
                 execute_single_item(item, context.dup, index)
               rescue StandardError => e
                 error_msg = "Error processing item #{index + 1} in field '#{@field}': #{e.message}"
-                RAAF.logger.error error_msg
 
                 # Return error result for this item
                 {
@@ -190,7 +181,6 @@ module RAAF
           threads.each_with_index do |thread, index|
             results[index] = thread.value
           rescue StandardError => e
-            RAAF.logger.error "Thread error for item #{index + 1}: #{e.message}"
             results[index] = {
               error: true,
               message: e.message,
@@ -218,8 +208,6 @@ module RAAF
           # Services and Agents have different context initialization patterns
           if @agent_class < RAAF::DSL::Service
             # For Services, pass context explicitly to ensure proper ContextAccess resolution
-            RAAF.logger.debug "Instantiating Service #{@agent_class.name} with explicit context"
-            RAAF.logger.debug "Custom field name: #{@custom_field_name.inspect}, Field: #{@field.inspect}"
 
             agent = @agent_class.new(context: item_context)
           else
@@ -229,9 +217,6 @@ module RAAF
                            else
                              item_context
                            end
-
-            RAAF.logger.debug "Instantiating Agent #{@agent_class.name} with context keys: #{context_hash.keys.inspect}"
-            RAAF.logger.debug "Custom field name: #{@custom_field_name.inspect}, Field: #{@field.inspect}"
 
             agent = @agent_class.new(**context_hash)
           end

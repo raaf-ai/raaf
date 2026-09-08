@@ -205,7 +205,6 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Configuration", type: :unit do
 
         tool_execution do
           enable_validation true
-          enable_logging true
         end
       end
 
@@ -357,7 +356,6 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Configuration", type: :unit do
 
         tool_execution do
           enable_validation false
-          enable_logging false
           enable_metadata true
         end
       end
@@ -376,7 +374,6 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Configuration", type: :unit do
 
         tool_execution do
           enable_validation false
-          enable_logging false
           enable_metadata false
         end
       end

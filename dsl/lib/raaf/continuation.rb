@@ -10,7 +10,6 @@ module RAAF
     autoload :TruncationError, "raaf/continuation/errors"
     autoload :PartialResultBuilder, "raaf/continuation/partial_result_builder"
     autoload :ErrorHandler, "raaf/continuation/error_handler"
-    autoload :Logging, "raaf/continuation/logging"
     autoload :CostCalculator, "raaf/continuation/cost_calculator"
 
     module Mergers

@@ -14,7 +14,6 @@ module RAAF
       #   manager = Manager.new
       #   scopes = manager.detect_scopes(flow_chain)
       class Manager
-        include RAAF::Logger if defined?(RAAF::Logger)
 
         # Detect streaming scopes from a pipeline flow chain
         #

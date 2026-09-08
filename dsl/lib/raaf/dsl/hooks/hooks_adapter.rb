@@ -141,19 +141,13 @@ module RAAF
               # Method reference - call method on the current agent instance
               # Note: We need access to the DSL agent instance to call the method
               # This would need to be passed during adapter creation
-              RAAF.logger.warn "Method hooks not yet implemented in adapter: #{hook}"
 
             when Proc
               # Block - call directly with comprehensive data hash
               last_result = hook.call(data)
 
-            else
-              RAAF.logger.warn "Unknown hook type: #{hook.class}"
             end
           rescue StandardError => e
-            RAAF.logger.error "❌ Hook execution failed: #{e.message}"
-            RAAF.logger.error "🔍 Hook: #{hook.inspect}"
-            RAAF.logger.error "📄 Data: #{data.except(:context, :agent).inspect}"
             # Continue with other hooks even if one fails
           end
 

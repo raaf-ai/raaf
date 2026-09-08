@@ -133,7 +133,6 @@ module RAAF
 
           build_prompt_from_file(file_path, context)
         rescue StandardError => e
-          log_error("Failed to resolve file prompt", error: e.message, file: file_path)
           nil
         end
 

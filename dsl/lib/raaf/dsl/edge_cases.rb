@@ -40,9 +40,8 @@ module RAAF
           # Fallback to replace for incompatible types
           new_data
         end
-      rescue StandardError => e
+      rescue StandardError
         # Graceful fallback for any unexpected errors
-        RAAF.logger&.warn("EdgeCases merge error: #{e.message}, falling back to replace")
         new_data
       end
 

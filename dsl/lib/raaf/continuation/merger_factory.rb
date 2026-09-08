@@ -27,10 +27,8 @@ module RAAF
       # Initialize the factory with configuration
       #
       # @param output_format [Symbol] Format indicator: :csv, :markdown, :json, :auto
-      # @param logger [Logger] Logger for format detection results (optional)
-      def initialize(output_format: :auto, logger: nil)
+      def initialize(output_format: :auto)
         @output_format = output_format
-        @logger = logger || (defined?(Rails) && Rails.logger) || default_logger
       end
 
       # Get the appropriate merger instance for the configured format
@@ -57,7 +55,6 @@ module RAAF
         when :auto
           raise ArgumentError, "Cannot get merger for :auto format without content. Use get_merger_for_content(content) instead."
         else
-          log_warning("Unknown output format: #{@output_format}. Using default merger.")
           Mergers::BaseMerger.new
         end
       end
@@ -77,8 +74,7 @@ module RAAF
       #   # => CSVMerger instance (detected from content)
       def get_merger_for_content(content)
         if @output_format == :auto
-          detected_format, confidence = detect_format(content)
-          log_format_detection(detected_format, confidence)
+          detected_format, = detect_format(content)
           get_merger_for_format(detected_format)
         else
           get_merger
@@ -117,37 +113,8 @@ module RAAF
         when :json
           Mergers::JSONMerger.new
         else
-          log_warning("Unable to detect format or unknown format. Using default merger.")
           Mergers::BaseMerger.new
         end
-      end
-
-      # Log format detection results
-      #
-      # @param format [Symbol] Detected format
-      # @param confidence [Float] Confidence score (0.0-1.0)
-
-      def log_format_detection(format, confidence)
-        confidence_percent = (confidence * 100).round(1)
-        @logger.debug "📋 Format Detection: #{format} (confidence: #{confidence_percent}%)"
-      end
-
-      # Log a warning message
-      #
-      # @param message [String] Warning message
-
-      def log_warning(message)
-        @logger.warn "⚠️ #{message}"
-      end
-
-      # Get a default logger if Rails is not available
-      #
-      # @return [Logger] A basic Ruby Logger instance
-
-      def default_logger
-        require "logger"
-        # ::Logger, not RAAF::Logger, which lexical scope would otherwise find here.
-        ::Logger.new($stdout)
       end
     end
   end

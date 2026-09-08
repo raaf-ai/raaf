@@ -70,7 +70,6 @@ module RAAF
       # @since 0.1.0
       #
       class Base
-        include RAAF::Logger
         include RAAF::DSL::ContextAccess
 
         # Inheritance callback for setup

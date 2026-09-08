@@ -24,7 +24,7 @@ module RAAF
       #         next unless store_to_database && campaign_id
       #
       #         # Direct variable access works here
-      #         logger.info "Storing for campaign: #{campaign_id}"
+      #         Campaign.find(campaign_id).store(result)
       #       end
       #     end
       #   end
@@ -43,7 +43,7 @@ module RAAF
         # @example Basic usage
         #   agent.with_context_variables do
         #     next unless store_to_database
-        #     logger.info "Value: #{some_variable}"
+        #     Record.create!(value: some_variable)
         #   end
         #
         # @example Accessing agent methods
@@ -95,13 +95,6 @@ module RAAF
           def current_agent
             @agent
           end
-
-          # Provide access to RAAF logger
-          #
-          # @return [Logger] RAAF logger instance
-          # @example
-          #   logger.info "Hook executed successfully"
-          delegate :logger, to: :RAAF
 
           # Allow safe access to agent instance variables
           #

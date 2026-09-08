@@ -114,7 +114,6 @@ module RAAF
 
         # Guard against infinite recursion - return nil if max depth reached
         if context_access_depth >= MAX_RECURSION_DEPTH
-          RAAF.logger.warn "[ContextAccess] Max recursion depth (#{MAX_RECURSION_DEPTH}) reached for '#{method_name}', returning nil"
           return nil
         end
 

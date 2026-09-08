@@ -27,7 +27,6 @@ module RAAF
       #   end
       #
       class SmartBuilder
-        include RAAF::Logger
 
         def initialize(**options)
           @context_variables = ContextVariables.new({}, **options)

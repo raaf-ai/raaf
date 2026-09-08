@@ -68,7 +68,6 @@ module RAAF
             metadata: build_metadata(chunks, true)
           }
         rescue StandardError => e
-          RAAF.logger.error "CSV merge failed: #{e.class.name}: #{e.message}"
 
           {
             content: nil,

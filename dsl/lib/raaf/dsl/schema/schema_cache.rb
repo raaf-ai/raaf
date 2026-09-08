@@ -138,9 +138,8 @@ module RAAF
           def get_development_timestamp(model_class)
             model_file = model_class_file(model_class)
             File.mtime(model_file)
-          rescue StandardError => e
+          rescue StandardError
             # If we can't get file timestamp, always regenerate
-            Rails.logger.debug { "Could not get file timestamp for #{model_class.name}: #{e.message}" }
             Time.current
           end
 

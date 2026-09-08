@@ -69,7 +69,6 @@ module RAAF
             metadata: build_metadata(chunks, true)
           }
         rescue StandardError => e
-          RAAF.logger.error "Markdown merge failed: #{e.class.name}: #{e.message}"
 
           {
             content: nil,

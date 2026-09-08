@@ -93,8 +93,6 @@ module RAAF
         # Update context (capturing the new instance)
         @context = @context.set(key, value)
 
-        debug_log("Added #{key}: #{value.inspect}") if @debug_enabled
-
         self
       end
 
@@ -260,8 +258,6 @@ module RAAF
       def build(strict: true)
         validate_all! if strict && @validate_enabled
 
-        debug_log("Built context with #{@context.size} variables") if @debug_enabled
-
         @context
       end
 
@@ -337,13 +333,6 @@ module RAAF
       # Get list of required keys
       def required_keys
         @validations.select { |_, rules| rules[:required] }.keys
-      end
-
-      # Debug logging helper
-      def debug_log(message)
-        return unless @debug_enabled
-
-        RAAF.logger.debug("[ContextBuilder] #{message}", category: :context)
       end
     end
   end

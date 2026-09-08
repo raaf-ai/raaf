@@ -10,7 +10,6 @@ module RAAF
     # execution, and advanced workflow patterns.
     #
     class WorkflowBuilder
-      include RAAF::Logger
 
       @@count = 0
 
@@ -270,7 +269,6 @@ module RAAF
           end
         end
 
-        log_info("Workflow built successfully", workflow_name: @workflow_name, agents: @agents.size)
         workflow
       end
 

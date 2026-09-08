@@ -79,7 +79,6 @@ module RAAF
     # syntax with support for nested configurations, validation, and templates.
     #
     class ConfigurationBuilder
-      include RAAF::Logging
 
       # @return [Hash] Configuration data
       attr_reader :config

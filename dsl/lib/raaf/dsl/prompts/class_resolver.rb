@@ -62,11 +62,6 @@ module RAAF
             backtrace: e.backtrace.first(10)
           }
 
-          # Log error if logger is available
-          if defined?(RAAF::Logger) && self.class.included_modules.include?(RAAF::Logger)
-            log_error("Failed to resolve prompt class", **error_details)
-          end
-
           # Re-raise with full context and stack trace
           full_error_message = "Failed to resolve prompt class #{prompt_spec.name}: #{e.class.name} - #{e.message}\n" \
                                "This usually indicates an error in the prompt's system/user methods or missing required context.\n" \

@@ -59,7 +59,6 @@ module RAAF
           sorted = applicable.sort_by(&:priority_order)
 
           execution_log.complete!
-          log_execution(execution_log) if sorted.any?
 
           sorted
         end
@@ -162,11 +161,9 @@ module RAAF
             if condition.respond_to?(:evaluate_with_llm)
               condition.evaluate_with_llm(@llm_provider, context, input)
             else
-              RAAF.logger.warn "[Guidelines] Condition cannot be evaluated with LLM: #{guideline.name}"
               false
             end
           rescue StandardError => e
-            RAAF.logger.error "[Guidelines] LLM condition evaluation failed for #{guideline.name}: #{e.message}"
             false
           end
         end
@@ -193,12 +190,6 @@ module RAAF
           end
         end
 
-        # Log guideline execution
-        def log_execution(execution_log)
-          return unless RAAF.logger
-
-          RAAF.logger.info execution_log.summary
-        end
       end
     end
   end

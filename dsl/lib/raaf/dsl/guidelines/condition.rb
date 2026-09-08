@@ -207,7 +207,6 @@ module RAAF
           result = @proc.call(context, input)
           result == true
         rescue StandardError => e
-          RAAF.logger.warn "[Guidelines] ProcCondition raised error: #{e.message}"
           false
         end
 
@@ -245,7 +244,6 @@ module RAAF
 
           parse_llm_response(response)
         rescue StandardError => e
-          RAAF.logger.error "[Guidelines] LLMCondition evaluation failed: #{e.message}"
           false
         end
 

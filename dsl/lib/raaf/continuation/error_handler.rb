@@ -26,10 +26,7 @@ module RAAF
     #   end
     class ErrorHandler
       # Initialize a new ErrorHandler
-      #
-      # @param logger [Logger, nil] Optional logger for error details
-      def initialize(logger: nil)
-        @logger = logger || get_default_logger
+      def initialize
         @partial_result_builder = PartialResultBuilder.new
       end
 
@@ -62,8 +59,6 @@ module RAAF
       #   handler.handle_merge_failure(merger, chunks, config)
       #   # Raises MergeError with context
       def handle_merge_failure(merger, chunks, config, original_error = nil)
-        log_failure_start(merger, chunks, original_error)
-
         # Try Level 1: Format-specific merge
         result = attempt_level_1_format_merge(merger, chunks, config, original_error)
         return result if result[:metadata][:merge_success]
@@ -92,17 +87,13 @@ module RAAF
       # @param original_error [StandardError, nil] Original error if retrying
       # @return [Hash] Result with fallback_level metadata
 
-      def attempt_level_1_format_merge(merger, chunks, config, original_error)
-        log_info("Attempting Level 1: Format-specific merge")
-
+      def attempt_level_1_format_merge(merger, chunks, _config, _original_error)
         result = merger.merge(chunks)
         result[:metadata][:fallback_level] = 1
         result[:metadata][:fallback_used] = false
 
         result
       rescue StandardError => e
-        log_warn("Level 1 failed: #{e.class.name}: #{e.message}")
-
         {
           content: nil,
           metadata: {
@@ -131,12 +122,9 @@ module RAAF
       # @param original_error [StandardError, nil] Original error
       # @return [Hash] Result with fallback_level metadata
 
-      def attempt_level_2_concatenation(chunks, config, original_error)
-        log_info("Attempting Level 2: Simple line concatenation")
-
+      def attempt_level_2_concatenation(chunks, _config, _original_error)
         begin
           combined_content = simple_concatenate(chunks)
-          log_success("Level 2: Concatenation succeeded")
 
           {
             content: combined_content,
@@ -150,8 +138,6 @@ module RAAF
             }
           }
         rescue StandardError => e
-          log_warn("Level 2 failed: #{e.class.name}: #{e.message}")
-
           {
             content: nil,
             metadata: {
@@ -180,14 +166,11 @@ module RAAF
       # @param original_error [StandardError, nil] Original error
       # @return [Hash] Result with fallback_level metadata
 
-      def attempt_level_3_first_chunk(chunks, config, original_error)
-        log_info("Attempting Level 3: First chunk only")
-
+      def attempt_level_3_first_chunk(chunks, _config, _original_error)
         begin
           first_content = extract_first_valid_chunk(chunks)
 
           if first_content
-            log_success("Level 3: Got first chunk")
 
             {
               content: first_content,
@@ -201,8 +184,6 @@ module RAAF
               }
             }
           else
-            log_error("Level 3: No valid content found in any chunk")
-
             {
               content: nil,
               metadata: {
@@ -216,8 +197,6 @@ module RAAF
             }
           end
         rescue StandardError => e
-          log_error("Level 3 failed unexpectedly: #{e.class.name}: #{e.message}")
-
           {
             content: nil,
             metadata: {
@@ -256,10 +235,8 @@ module RAAF
         # No content from any fallback level
         case config.on_failure
         when :return_partial
-          log_info("No content available, returning empty partial result")
           result
         when :raise_error
-          log_error("All fallback levels failed, raising MergeError")
           raise MergeError.new(
             "All merge fallback strategies failed",
             original_error: original_error,
@@ -317,39 +294,6 @@ module RAAF
           chunk
         else
           nil
-        end
-      end
-
-      # Logging helpers
-
-      def log_failure_start(merger, chunks, original_error)
-        message = "Starting merge error handling"
-        message += " (#{original_error.class.name})" if original_error
-        log_warn(message)
-      end
-
-      def log_info(message)
-        @logger.info("ℹ️ #{message}") if @logger
-      end
-
-      def log_warn(message)
-        @logger.warn("⚠️ #{message}") if @logger
-      end
-
-      def log_error(message)
-        @logger.error("❌ #{message}") if @logger
-      end
-
-      def log_success(message)
-        @logger.info("✅ #{message}") if @logger
-      end
-
-      def get_default_logger
-        if defined?(Rails) && Rails.logger
-          Rails.logger
-        else
-          # ::Logger, not RAAF::Logger, which lexical scope would otherwise find here.
-          ::Logger.new($stdout)
         end
       end
     end

@@ -50,7 +50,6 @@ module RAAF
     #   end
     #
     class Agent
-      include RAAF::Logger
       include RAAF::DSL::ContextAccess
       include RAAF::DSL::ContextConfiguration
       include RAAF::DSL::Pipelineable
@@ -1312,7 +1311,6 @@ module RAAF
       #
       # @return [Hash] Results with processed and skipped items merged
       def run_with_incremental_processing(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
-        log_info "🔄 [#{self.class.name}] Running with incremental processing"
 
         # DEFENSIVE FIX: Ensure @context is always initialized
         @context ||= RAAF::DSL::ContextVariables.new({}, debug: @debug_enabled)
@@ -1325,13 +1323,9 @@ module RAAF
         output_field = detect_output_field
         raise ArgumentError, "No array output field found in schema" unless output_field
 
-        log_info "📥 [#{self.class.name}] Input field: #{input_field}"
-        log_info "📤 [#{self.class.name}] Output field: #{output_field}"
-
         # Get input data from context with defensive check
         input_data = @context[input_field]
         if input_data.nil?
-          log_warn "⚠️ [#{self.class.name}] Input field '#{input_field}' not found in context - using empty array"
           input_data = []
         end
 
@@ -1370,15 +1364,11 @@ module RAAF
               end
             end
 
-            log_debug "🔍 [#{self.class.name}::run_with_incremental_processing] Accumulated usage from batch: #{accumulated_usage.inspect}"
           end
 
           # Extract results from agent response
           agent_result[output_field] || []
         end
-
-        log_info "✅ [#{self.class.name}] Incremental processing complete: #{processed_results.count} total items"
-        log_debug "🔍 [#{self.class.name}::run_with_incremental_processing] Final accumulated usage: #{accumulated_usage.inspect}"
 
         # Return results in standard format with accumulated usage
         result = {
@@ -1468,16 +1458,12 @@ module RAAF
 
         # Categorize and handle error
         if error.message.include?("rate limit")
-          log_error "🚫 [#{agent_name}] Rate limit exceeded: #{error.message}"
           { success: false, error: "Rate limit exceeded. Please try again later.", error_type: "rate_limit" }
         elsif error.is_a?(CircuitBreakerOpenError)
-          log_error "🚫 [#{agent_name}] Circuit breaker open: #{error.message}"
           { success: false, error: "Service temporarily unavailable", error_type: "circuit_breaker" }
         elsif error.is_a?(JSON::ParserError)
-          log_error "❌ [#{agent_name}] JSON parsing error: #{error.message}"
           { success: false, error: "Failed to parse AI response", error_type: "json_error" }
         elsif error.is_a?(RAAF::DSL::SchemaError) || error.is_a?(RAAF::DSL::ValidationError)
-          log_error "❌ [#{agent_name}] Schema validation error: #{error.message}"
 
           # Fire DSL hook: on_validation_failed
           fire_dsl_hook(:on_validation_failed, {
@@ -1490,7 +1476,6 @@ module RAAF
 
           { success: false, error: error.message, error_type: "validation_error" }
         elsif error.is_a?(ArgumentError) && error.message.include?("context")
-          log_error "❌ [#{agent_name}] Context validation error: #{error.message}"
 
           # Fire DSL hook: on_validation_failed
           fire_dsl_hook(:on_validation_failed, {
@@ -1517,7 +1502,6 @@ module RAAF
         end
 
         @circuit_breaker_state = :half_open
-        log_info "🔄 [#{self.class.name}] Circuit breaker transitioning to half-open"
       end
 
       def reset_circuit_breaker!
@@ -1538,7 +1522,6 @@ module RAAF
         return unless @circuit_breaker_failures >= config[:threshold]
 
         @circuit_breaker_state = :open
-        log_error "🚫 [#{self.class.name}] Circuit breaker opened after #{@circuit_breaker_failures} failures"
       end
 
       def execute_with_retry(&block)
@@ -1553,8 +1536,6 @@ module RAAF
           raise unless retry_config && attempts < retry_config[:max_attempts]
 
           delay = calculate_retry_delay(retry_config, attempts)
-
-          log_warn "🔄 [#{self.class.name}] Retrying in #{delay}s (attempt #{attempts}/#{retry_config[:max_attempts]}): #{e.message}"
 
           sleep(delay)
           retry
@@ -1750,14 +1731,12 @@ module RAAF
 
       def run_with_timeout(timeout_seconds, context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
         agent_name = self.class._context_config&.dig(:name) || self.class.name
-        log_info "⏰ [#{agent_name}] Starting execution with #{timeout_seconds}s timeout"
 
         begin
           Timeout.timeout(timeout_seconds) do
             run_without_timeout(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker, skip_retries: skip_retries, previous_result: previous_result)
           end
         rescue Timeout::Error
-          log_error "⏰ [#{agent_name}] Execution timed out after #{timeout_seconds} seconds"
           {
             workflow_status: "timeout",
             success: false,
@@ -1779,7 +1758,6 @@ module RAAF
         if self.class._execution_conditions
           resolved_context = resolve_run_context(context || input_context_variables)
           unless should_execute?(resolved_context, previous_result)
-            log_info "⏭️ [#{self.class.name}] Skipping execution due to conditions not met"
 
             # Create a span for the skipped agent to make it visible in traces
             skip_result = {
@@ -1796,19 +1774,13 @@ module RAAF
         # Check if we should use smart features
         agent_name = self.class._context_config&.dig(:name) || self.class.name
         has_smart = has_smart_features?
-        log_debug "🔍 [#{agent_name}] Smart features check: skip_retries=#{skip_retries}, has_smart_features=#{has_smart}"
-        log_debug "🔍 [#{agent_name}] Retry config present: #{self.class._retry_config.present?}"
-        log_debug "🔍 [#{agent_name}] Retry config keys: #{self.class._retry_config&.keys&.inspect}"
 
         if skip_retries || !has_smart_features?
-          log_debug "🔍 [#{agent_name}] Using direct execution (no smart features)"
           # Direct execution without retries/circuit breaker, but still apply transformations
           raaf_result = direct_run(context: context, input_context_variables: input_context_variables, stop_checker: stop_checker)
           process_raaf_result(raaf_result)
         else
-          log_debug "🔍 [#{agent_name}] Using smart execution with retries"
           # Smart execution with retries and circuit breaker
-          log_info "🤖 [#{agent_name}] Starting execution"
 
           begin
             # Check circuit breaker
@@ -1823,7 +1795,6 @@ module RAAF
             # Reset circuit breaker on success
             reset_circuit_breaker!
 
-            log_info "✅ [#{agent_name}] Execution completed successfully"
             result
           rescue StandardError => e
             handle_smart_error(e)
@@ -2028,7 +1999,6 @@ module RAAF
           rescue StandardError => e
             # Log but don't fail on other errors during dry-run
             # These might be legitimate errors that only occur with real data
-            log_debug "Computed field '#{field_name}' dry-run warning: #{e.class.name}: #{e.message}"
           end
         end
 
@@ -2096,20 +2066,17 @@ module RAAF
       def build_base_instructions
         # First check for DSL-configured static instructions
         if self.class._prompt_config[:static_instructions]
-          log_debug "Using static instructions from DSL"
           return self.class._prompt_config[:static_instructions]
         end
 
         # Then check for instruction template with context
         if self.class._prompt_config[:instruction_template]
-          log_debug "Using instruction template from DSL"
           # TODO: Implement template interpolation with context
           return self.class._prompt_config[:instruction_template]
         end
 
         # Fall back to prompt resolver system
         prompt_spec = determine_prompt_spec
-        log_debug "Building system instructions", prompt_spec: prompt_spec, agent_class: self.class.name
 
         error_message = "No system prompt resolved for #{self.class.name}. "
 
@@ -2117,14 +2084,11 @@ module RAAF
           error_message += "No prompt class configured and could not infer one. " \
                            "Expected to find prompt class at: #{infer_prompt_class_name_string}"
         else
-          log_debug "Found prompt spec", spec_class: prompt_spec.class.name, spec_value: prompt_spec.inspect
 
           resolved_prompt = DSL.prompt_resolvers.resolve(prompt_spec, @context.to_h)
-          log_debug "Resolver result", resolved: !!resolved_prompt, resolvers_count: DSL.prompt_resolvers.resolvers.count
 
           if resolved_prompt
             system_message = resolved_prompt.messages.find { |m| m[:role] == "system" }
-            log_debug "System message found", found: !!system_message
             return system_message[:content] if system_message
 
             error_message += "Prompt was resolved but no system message found. " \
@@ -2221,7 +2185,6 @@ module RAAF
       def build_user_prompt
         # First check for DSL-configured user prompt block
         if self.class._user_prompt_block
-          log_debug "Using user prompt block from DSL"
           begin
             return self.class._user_prompt_block.call(@context)
           rescue StandardError => e
@@ -2256,7 +2219,6 @@ module RAAF
       def determine_prompt_spec
         # Check for configured prompt class first
         if self.class._prompt_config[:class]
-          log_debug "Found configured prompt class", class: self.class._prompt_config[:class]
           return self.class._prompt_config[:class]
         end
 
@@ -2266,23 +2228,19 @@ module RAAF
         # Try to infer prompt class by convention (e.g., Ai::Agents::MyAgent -> Ai::Prompts::MyAgent)
         inferred_prompt_class = infer_prompt_class_name
         if inferred_prompt_class
-          log_debug "Trying inferred prompt class", class: inferred_prompt_class.name
           return inferred_prompt_class
         end
 
         # Try multiple naming conventions for prompt class inference
         alternative_prompt_class = try_alternative_prompt_conventions
         if alternative_prompt_class
-          log_debug "Found alternative prompt class", class: alternative_prompt_class.name
           return alternative_prompt_class
         end
 
         # Try to infer from agent name (e.g., MyAgent -> "my_agent.md")
         agent_name_file = agent_name.underscore
-        log_debug "Trying to infer prompt from agent name", agent_name: agent_name_file
         return agent_name_file if agent_name_file
 
-        log_debug "No prompt spec found for agent", agent_class: self.class.name
         nil
       end
 
@@ -2367,14 +2325,12 @@ module RAAF
         end
 
         alternative_patterns.each do |pattern|
-          log_debug "Trying alternative prompt pattern", pattern: pattern
 
           begin
             if defined?(Rails) && Rails.respond_to?(:application)
               # Use Rails constantize for proper autoloading/eager loading
               prompt_class = pattern.constantize
               if prompt_class.is_a?(Class)
-                log_debug "Found alternative prompt class", class: prompt_class.name
                 return prompt_class
               end
             else
@@ -2382,21 +2338,17 @@ module RAAF
               if Object.const_defined?(pattern)
                 prompt_class = pattern.constantize
                 if prompt_class.is_a?(Class)
-                  log_debug "Found alternative prompt class", class: prompt_class.name
                   return prompt_class
                 end
               end
             end
           rescue NameError => e
-            log_debug "Alternative pattern failed", pattern: pattern, error: e.message
             # Continue to next pattern
           rescue StandardError => e
-            log_debug "Unexpected error trying alternative pattern", pattern: pattern, error: e.message
             # Continue to next pattern
           end
         end
 
-        log_debug "No alternative prompt patterns found", agent_class: agent_class_name
         nil
       end
 
@@ -2700,7 +2652,6 @@ module RAAF
           }
         }
 
-        log_debug("Final response_format object created", category: :agents)
         response_format_obj
       end
 
@@ -2750,20 +2701,14 @@ module RAAF
       def find_retry_config(error)
         return nil unless self.class._retry_config
 
-        log_debug "🔍 [#{self.class.name}] Finding retry config for error: #{error.class.name} - #{error.message}"
-        log_debug "🔍 [#{self.class.name}] Available retry configs: #{self.class._retry_config.keys.inspect}"
-
         self.class._retry_config.each do |error_type, config|
-          log_debug "🔍 [#{self.class.name}] Checking error_type: #{error_type} (#{error_type.class.name})"
           case error_type
           when :rate_limit
             if error.message.include?("rate limit")
-              log_debug "✅ [#{self.class.name}] Matched :rate_limit"
               return config
             end
           when :timeout
             if error.is_a?(Timeout::Error)
-              log_debug "✅ [#{self.class.name}] Matched :timeout"
               return config
             end
           when :network
@@ -2775,19 +2720,15 @@ module RAAF
               network_match = false
             end
             if network_match || error.message.include?("connection") || error.message.include?("503")
-              log_debug "✅ [#{self.class.name}] Matched :network"
               return config
             end
           when Class
-            log_debug "🔍 [#{self.class.name}] Checking Class match: #{error_type.name} vs #{error.class.name}"
             if error.is_a?(error_type)
-              log_debug "✅ [#{self.class.name}] Matched Class: #{error_type.name}"
               return config
             end
           end
         end
 
-        log_debug "❌ [#{self.class.name}] No retry config found for error: #{error.class.name}"
         nil
       end
 
@@ -2832,8 +2773,6 @@ module RAAF
                         user_prompt: user_prompt
                       })
 
-        log_debug "Executing agent #{self.class.name} with prompt length: #{user_prompt.to_s.length}"
-
         # Create RAAF runner and delegate execution
         runner_params = { agent: openai_agent }
         runner_params[:provider] = @provider if @provider # Pass agent's provider if configured
@@ -2846,14 +2785,10 @@ module RAAF
         runner = RAAF::Runner.new(**runner_params)
 
         # Pure delegation to raaf-ruby
-        log_debug "Calling RAAF runner for #{self.class.name}"
         run_result = runner.run(user_prompt, context: run_context)
 
         # Store runner result for usage tracking and other metadata access
         @runner_result = run_result
-
-        # Generic response logging
-        log_debug "Received AI response for #{agent_name}"
 
         # Fire DSL hook: on_tokens_counted - After token counting
         if run_result.respond_to?(:usage) && run_result.usage
@@ -2913,13 +2848,10 @@ module RAAF
 
         # Extract usage data from run_result if available
         usage_data = if run_result.respond_to?(:usage)
-                       log_info "🔍 [#{self.class.name}::transform_ai_result] run_result.usage = #{run_result.usage.inspect}"
                        run_result.usage
                      elsif run_result.is_a?(Hash) && (run_result[:usage] || run_result["usage"])
-                       log_info "🔍 [#{self.class.name}::transform_ai_result] run_result hash usage = #{(run_result[:usage] || run_result['usage']).inspect}"
                        run_result[:usage] || run_result["usage"]
                      else
-                       log_warn "⚠️ [#{self.class.name}::transform_ai_result] No usage data found in run_result! Class: #{run_result.class.name}"
                        nil
                      end
 
@@ -3309,8 +3241,6 @@ module RAAF
       def build_auto_context(params, debug = nil)
         require_relative "core/context_builder"
 
-        log_debug "Building auto context for #{self.class.name}"
-
         rules = self.class._context_config[:context_rules] || {}
         builder = RAAF::DSL::ContextBuilder.new({}, debug: debug)
 
@@ -3384,7 +3314,6 @@ module RAAF
             else
               # Initialize as nil to prevent NameError, but log a warning
               builder.with(field_name, nil)
-              log_warn "🤔 [#{self.class.name}] Computed method '#{method_name}' not found for field '#{field_name}'"
             end
           end
         end
@@ -3392,8 +3321,6 @@ module RAAF
         # Final build with all values
         final_context = builder.build
         @context = final_context
-
-        log_debug "Final context built for #{self.class.name} with #{final_context.keys.size} keys"
 
         # NEW: Create dynamic methods for all context variables
         define_context_accessors(final_context.keys)
@@ -3781,7 +3708,6 @@ module RAAF
       def extract_result_data(results)
         # NEW: Handle plain String results (CSV, text output) when no schema defined
         if results.is_a?(String) && !has_schema_defined?
-          log_debug "📄 [#{self.class.name}] No schema defined - returning raw string result (#{results.length} chars)"
           return { success: true, raw_content: results, data: results }
         end
 
@@ -3797,7 +3723,6 @@ module RAAF
                 schema_fields = schema_properties.keys
                 # Check if results contains any of the schema fields
                 if schema_fields.any? { |field| results.key?(field.to_sym) || results.key?(field.to_s) }
-                  log_debug "✅ [#{self.class.name}] Schema-based extraction successful - found #{schema_fields.length} schema fields"
                   return ActiveSupport::HashWithIndifferentAccess.new({ success: true }.merge(results))
                 end
               end
@@ -3810,7 +3735,6 @@ module RAAF
           unless has_schema_defined?
             content = extract_provider_text_content(results)
             if content && content.is_a?(String) && !content.empty?
-              log_debug "📄 [#{self.class.name}] Extracted text from provider response (#{content.length} chars)"
               # Return with both :result and :data keys for result_transform compatibility
               return { success: true, result: content, data: content }
             end
@@ -3833,7 +3757,6 @@ module RAAF
 
           # NEW: If no schema defined and content is plain text, return raw content directly
           if !has_schema_defined? && content.is_a?(String) && !content.to_s.empty?
-            log_debug "📄 [#{self.class.name}] No schema defined - returning raw content (#{content.length} chars)"
             return { success: true, raw_content: content, data: content }
           end
 
@@ -3848,7 +3771,6 @@ module RAAF
 
             # NEW: If no schema defined and content is plain text, return raw content directly
             if !has_schema_defined? && content.is_a?(String)
-              log_debug "📄 [#{self.class.name}] No schema defined - returning raw content (#{content.length} chars)"
               return { success: true, raw_content: content, data: content }
             end
 
@@ -3868,7 +3790,6 @@ module RAAF
 
             # NEW: If no schema defined and content is plain text, return raw content directly
             if !has_schema_defined? && content.is_a?(String)
-              log_debug "📄 [#{self.class.name}] No schema defined - returning raw content (#{content.length} chars)"
               return { success: true, raw_content: content, data: content }
             end
 
@@ -3876,8 +3797,6 @@ module RAAF
           end
         end
 
-        log_warn "🤔 [#{self.class.name}] Could not extract result data from #{results.class.name}"
-        log_debug "Result details: #{results.inspect[0..500]}" if @debug_enabled
         { success: false, error: "Could not extract result data", transformation_metadata: {} }
       end
 
@@ -3931,7 +3850,6 @@ module RAAF
           parsed = RAAF::Utils.parse_json(content)
           { success: true, data: parsed }
         rescue JSON::ParserError => e
-          log_debug "ℹ️ [#{self.class.name}] Content is not JSON, returning as-is: #{e.message}"
           # Return content as-is since core Agent handles repair when needed
           { success: true, data: content }
         end
@@ -3967,8 +3885,6 @@ module RAAF
         # Extract data from the appropriate location in base_result
         source_data = base_result[:parsed_output] || base_result[:data] || base_result
         return base_result unless source_data.respond_to?(:[])
-
-        log_debug "Auto-generating transformations for output fields: #{output_fields.inspect}"
 
         # Create result with only declared output fields in :results
         result = base_result.dup
@@ -4180,13 +4096,10 @@ module RAAF
 
         # Extract usage data from run_result if available (for token tracking in evaluations)
         usage_data = if run_result.respond_to?(:usage)
-                       log_info "🔍 [#{self.class.name}::transform_ai_result] run_result.usage = #{run_result.usage.inspect}"
                        run_result.usage
                      elsif run_result.is_a?(Hash) && (run_result[:usage] || run_result["usage"])
-                       log_info "🔍 [#{self.class.name}::transform_ai_result] run_result hash usage = #{(run_result[:usage] || run_result['usage']).inspect}"
                        run_result[:usage] || run_result["usage"]
                      else
-                       log_warn "⚠️ [#{self.class.name}::transform_ai_result] No usage data found in run_result! Class: #{run_result.class.name}"
                        nil
                      end
 
@@ -4325,9 +4238,6 @@ module RAAF
           transformation_metadata: metadata
         )
 
-        # Generic transformation logging
-        log_debug "Transformation completed for #{agent_name} with #{final_result.keys.size} result keys"
-
         final_result
       end
 
@@ -4341,7 +4251,6 @@ module RAAF
           if respond_to?(method_name, true)
             send(method_name, input_data)
           else
-            log_warn "🤔 [#{self.class.name}] Computed method '#{method_name}' not found"
             nil
           end
         else

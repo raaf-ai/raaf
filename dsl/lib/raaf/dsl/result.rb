@@ -181,7 +181,6 @@ module RAAF
         end
       rescue JSON::ParserError
         # Not an error - just plain text response (no schema or CSV output)
-        RAAF.logger.debug "[RAAF] String is not JSON, returning raw text: #{raw_data[0..100]}"
         raw_data # Return raw string instead of raising error
       end
 

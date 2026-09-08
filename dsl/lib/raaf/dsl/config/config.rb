@@ -184,17 +184,14 @@ module RAAF
                         end
 
           unless File.exist?(config_path)
-            RAAF.logger.warn "AI agents configuration file not found: #{config_path}"
             return {}
           end
 
           begin
             YAML.load_file(config_path, aliases: true) || {}
           rescue Psych::SyntaxError => e
-            RAAF.logger.error "Invalid YAML in AI agents configuration: #{e.message}"
             {}
           rescue StandardError => e
-            RAAF.logger.error "Error loading AI agents configuration: #{e.message}"
             {}
           end
         end

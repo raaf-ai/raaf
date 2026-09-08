@@ -27,7 +27,6 @@ module RAAF
       #   executor = Executor.new(scope: scope, context: context, config: config)
       #   results = executor.execute(agent_chain)
       class Executor
-        include RAAF::Logger if defined?(RAAF::Logger)
 
         attr_reader :scope, :context, :config, :accumulated_results, :execution_stats
 
@@ -258,7 +257,6 @@ module RAAF
         end
 
         def handle_stream_error(stream_num, total_streams, stream_items, error)
-          log_error("Stream #{stream_num}/#{total_streams} failed: #{error.message}") if respond_to?(:log_error)
 
           # Fire error hook if configured
           return unless config.blocks[:on_stream_error]
@@ -290,18 +288,6 @@ module RAAF
               new_val
             end
           end
-        end
-
-        def log_error(message)
-          return unless defined?(Rails) && Rails.logger
-
-          Rails.logger.error "[IntelligentStreaming::Executor] #{message}"
-        end
-
-        def warn(message)
-          return unless defined?(Rails) && Rails.logger
-
-          Rails.logger.warn "[IntelligentStreaming::Executor] #{message}"
         end
       end
     end

@@ -25,13 +25,8 @@ module RAAF
 
         @streaming_manager = IntelligentStreaming::Manager.new
         @streaming_scopes = @streaming_manager.detect_scopes(self.class.flow_chain)
-      rescue StandardError => e
-        # Log error but don't fail pipeline initialization
-        if defined?(Rails)
-          Rails.logger&.warn "Failed to detect streaming scopes: #{e.message}"
-        elsif ENV["DEBUG"]
-          puts "Failed to detect streaming scopes: #{e.message}"
-        end
+      rescue StandardError
+        # Scope detection is best-effort; a pipeline without it still runs.
         @streaming_scopes = []
       end
 
@@ -64,15 +59,7 @@ module RAAF
         #    - Merge results from all streams
         # 3. Continue with agents after streaming scope
 
-        # For now, just execute normally and log that streaming would happen
-        if defined?(Rails)
-          Rails.logger&.info "Pipeline has #{streaming_scopes.size} streaming scope(s)"
-          streaming_scopes.each_with_index do |scope, i|
-            Rails.logger&.info "  Scope #{i + 1}: trigger=#{scope.trigger_agent.name}, " \
-                               "stream_size=#{scope.stream_size}, field=#{scope.array_field}"
-          end
-        end
-
+        # For now, just execute normally
         # Delegate to normal execution for now
         execute_without_streaming if respond_to?(:execute_without_streaming)
       end

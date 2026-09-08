@@ -61,7 +61,6 @@ module RAAF
     # Registry for managing prompt resolvers
     #
     class PromptResolverRegistry
-      include RAAF::Logger
 
       def initialize
         @resolvers = []
@@ -78,7 +77,6 @@ module RAAF
         @mutex.synchronize do
           @resolvers << resolver
           @resolvers.sort_by! { |r| -r.priority } # Sort by priority descending
-          log_debug("Registered prompt resolver", name: resolver.name, priority: resolver.priority)
         end
         self
       end
@@ -93,7 +91,6 @@ module RAAF
         @mutex.synchronize do
           resolver = @resolvers.find { |r| r.name == name }
           @resolvers.delete(resolver) if resolver
-          log_debug("Unregistered prompt resolver", name: name) if resolver
           resolver
         end
       end
@@ -106,7 +103,6 @@ module RAAF
       def clear
         @mutex.synchronize do
           @resolvers.clear
-          log_debug("Cleared all prompt resolvers")
         end
         self
       end

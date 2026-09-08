@@ -212,7 +212,6 @@ RSpec.describe "Tool Execution Integration Tests" do
 
           tool_execution do
             enable_validation true
-            enable_logging true
             enable_metadata true
           end
 
@@ -264,7 +263,6 @@ RSpec.describe "Tool Execution Integration Tests" do
 
           tool_execution do
             enable_validation true
-            enable_logging true
           end
 
           def build_instructions
@@ -338,7 +336,6 @@ RSpec.describe "Tool Execution Integration Tests" do
 
           tool_execution do
             enable_validation true
-            enable_logging true
             enable_metadata true
           end
 
@@ -456,7 +453,6 @@ RSpec.describe "Tool Execution Integration Tests" do
 
           tool_execution do
             enable_validation false # Disable to measure pure overhead
-            enable_logging false
             enable_metadata true
           end
 
@@ -695,7 +691,6 @@ RSpec.describe "Tool Execution Integration Tests" do
 
           tool_execution do
             enable_validation true
-            enable_logging true
             enable_metadata true
           end
 

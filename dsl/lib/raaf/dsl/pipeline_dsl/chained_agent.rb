@@ -211,7 +211,6 @@ module RAAF
 
         def execute_single_agent(agent_class, context, agent_results = nil)
           agent_name = agent_class.respond_to?(:agent_name) ? agent_class.agent_name : agent_class.name
-          log_debug "Executing agent: #{agent_name}"
 
           # Check requirements
           if agent_class.respond_to?(:requirements_met?)
@@ -287,7 +286,6 @@ module RAAF
           symbolized_params = regular_hash.transform_keys(&:to_sym)
 
           agent = agent_class.new(**symbolized_params)
-          log_debug "Agent #{agent_name} initialized"
 
           # Inject pipeline schema into agent if available
           # pipeline_instance is already retrieved above

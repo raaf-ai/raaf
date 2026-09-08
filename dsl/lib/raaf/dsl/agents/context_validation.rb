@@ -145,8 +145,6 @@ module RAAF
 
           # Handle validation errors (can be overridden)
           def handle_validation_error(error)
-            RAAF.logger.error "[#{self.class.name}] Context validation failed: #{error.errors.join('; ')}"
-            RAAF.logger.debug "[#{self.class.name}] Available context keys: #{error.context.keys.inspect}"
           end
         end
 

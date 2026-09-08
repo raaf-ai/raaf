@@ -86,7 +86,6 @@ module RAAF
         }
 
         @stages << stage
-        debug_log("Added stage: #{agent_class.name} -> :#{result_key}")
 
         self
       end
@@ -116,7 +115,6 @@ module RAAF
         }
 
         @stages << stage
-        debug_log("Added conditional stage: #{agent_class.name} -> :#{result_key}")
 
         self
       end
@@ -163,7 +161,6 @@ module RAAF
       #
       def execute(halt_on_error: true)
         @metadata[:started_at] = Time.current
-        debug_log("Starting pipeline execution with #{@stages.size} stages")
 
         @stages.each_with_index do |stage, index|
           stage_info = {
@@ -175,7 +172,6 @@ module RAAF
           begin
             # Check condition if present
             if stage[:condition] && !evaluate_condition(stage[:condition], @context)
-              debug_log("Skipping #{stage[:agent_class].name} - condition not met")
               @results[stage[:result_key]] = { skipped: true, reason: "condition_not_met" }
               next
             end
@@ -273,7 +269,6 @@ module RAAF
         # Before hook
         @before_stage_hook&.call(stage_info, stage_context)
 
-        debug_log("Executing #{stage[:agent_class].name}")
 
         # Create and run agent
         agent = stage[:agent_class].new(context: stage_context)
@@ -283,7 +278,6 @@ module RAAF
         duration_ms = ((Time.current - start_time) * 1000).round(2)
         @metadata[:stage_durations][stage[:result_key]] = duration_ms
 
-        debug_log("Completed #{stage[:agent_class].name} in #{duration_ms}ms")
 
         # After hook
         @after_stage_hook&.call(stage_info, result, stage_context)
@@ -327,7 +321,6 @@ module RAAF
       def evaluate_condition(condition, context)
         condition.call(context)
       rescue StandardError => e
-        debug_log("Condition evaluation failed: #{e.message}")
         false
       end
 
@@ -343,7 +336,6 @@ module RAAF
 
       # Handle execution error
       def handle_execution_error(error, stage_info)
-        debug_log("Stage failed with error: #{error.message}")
 
         @error_handler&.call(error, stage_info)
 
@@ -371,13 +363,6 @@ module RAAF
           metadata: @metadata,
           summary: summary
         }
-      end
-
-      # Debug logging helper
-      def debug_log(message)
-        return unless @debug
-
-        RAAF.logger.debug("[ContextPipeline] #{message}", category: :context)
       end
     end
   end

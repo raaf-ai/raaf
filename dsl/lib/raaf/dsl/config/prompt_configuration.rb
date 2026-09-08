@@ -10,7 +10,6 @@ module RAAF
     # Configuration for prompt resolution system
     #
     class PromptConfiguration
-      include RAAF::Logger
 
       attr_reader :paths, :resolvers, :default_format
 

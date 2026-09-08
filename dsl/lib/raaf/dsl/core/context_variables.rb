@@ -102,7 +102,6 @@ module RAAF
 
         @created_at = Time.now
 
-        debug_log("Context Initialized", variables: @variables)
         validate_variables! if @validate_enabled
       end
 
@@ -129,13 +128,6 @@ module RAAF
 
         # Track changes for debugging
         changes = calculate_changes(@variables, merged_variables)
-
-        debug_log("Context Update", {
-                    before: @variables,
-                    updates: new_variables,
-                    after: merged_variables,
-                    changes: changes
-                  })
 
         # Create new instance
         new_instance = self.class.new(
@@ -531,45 +523,6 @@ module RAAF
         details
       end
 
-      # Debug logging helper with recursion protection
-      def debug_log(action, data = {})
-        return unless @debug_enabled
-
-        begin
-          # Ensure proxies are handled properly in debug output
-          # usage of safe_data_transform to prevent recursion
-          safe_data = safe_data_transform(data)
-          RAAF.logger.debug("[ContextVariables] #{action}", category: :context, data: safe_data)
-        rescue SystemStackError, StandardError => e
-          RAAF.logger.debug("[ContextVariables] #{action} (Error logging data: #{e.message})", category: :context)
-        end
-      end
-
-      # Safe transformation of data for logging
-      def safe_data_transform(data, depth = 0)
-        return "..." if depth > 5 # strict depth limit for logs
-
-        if data.is_a?(Hash)
-          data.transform_values { |v| safe_value_transform(v, depth + 1) }
-        elsif data.is_a?(Array)
-          data.take(20).map { |v| safe_value_transform(v, depth + 1) } # Limit array size
-        else
-          safe_value_transform(data, depth)
-        end
-      end
-
-      def safe_value_transform(value, depth)
-        if value.respond_to?(:proxy?) && value.proxy?
-          "<ObjectProxy:#{value.__target__.class.name}>"
-        elsif defined?(ActiveRecord::Base) && value.is_a?(ActiveRecord::Base)
-          "<#{value.class.name}:#{value.id}>"
-        elsif value.is_a?(Hash) || value.is_a?(Array)
-          safe_data_transform(value, depth)
-        else
-          value
-        end
-      end
-
       # Basic variable validation
       def validate_variables!
         return unless @validate_enabled
@@ -579,11 +532,6 @@ module RAAF
           # so we just check for basic validity
           unless key.respond_to?(:to_s)
             raise ContextError, "Invalid context key: #{key.inspect}. Must be convertible to string"
-          end
-
-          # Check for non-serializable values (in strict mode)
-          if value.is_a?(Proc) || value.is_a?(Method)
-            debug_log("Warning: Non-serializable value for key #{key}: #{value.class}")
           end
         end
       end

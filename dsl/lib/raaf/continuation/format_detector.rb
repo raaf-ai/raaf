@@ -53,8 +53,7 @@ module RAAF
 
         # Only return if confidence is reasonable (> 0.3)
         confidence > 0.3 ? [format_symbol, confidence] : [:unknown, confidence]
-      rescue StandardError => e
-        RAAF.logger.debug { "FormatDetector error: #{e.message}" }
+      rescue StandardError
         [:unknown, 0.0]
       end
 

@@ -11,7 +11,6 @@ require "rails/railtie"
 # - **Configuration Loading**: Automatically loads config/ai_agents.yml during Rails boot
 # - **Generator Integration**: Provides Rails generators for agent and config scaffolding
 # - **Environment Detection**: Uses Rails environment for configuration selection
-# - **Logger Integration**: Integrates with Rails logger for consistent logging
 # - **Eager Loading**: Configures proper eager loading for production environments
 # - **Initializer Setup**: Sets up proper initialization order and dependencies
 #

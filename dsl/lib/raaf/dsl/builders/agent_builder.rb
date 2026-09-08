@@ -9,7 +9,6 @@ module RAAF
     # Supports declarative agent definition with tools, configurations, and behaviors.
     #
     class AgentBuilder
-      include RAAF::Logger
 
       @@count = 0
 
@@ -406,7 +405,6 @@ module RAAF
         # Add conditions
         add_conditions_to_agent(agent)
 
-        log_info("Agent built successfully", agent_name: @agent_name, tools: @tools.size)
         agent
       end
 

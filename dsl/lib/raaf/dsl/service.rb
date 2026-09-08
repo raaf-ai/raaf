@@ -84,7 +84,6 @@ module RAAF
     #   end
     #
     class Service
-      include RAAF::Logger
       include RAAF::DSL::ContextAccess
       include RAAF::DSL::ContextConfiguration
       include RAAF::DSL::Pipelineable
