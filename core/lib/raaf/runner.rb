@@ -1519,9 +1519,15 @@ module RAAF
           usage = response["usage"]
 
           # Support both RAAF-style (input_tokens, output_tokens) and OpenAI-style (prompt_tokens, completion_tokens)
-          state[:accumulated_usage][:input_tokens] += usage["input_tokens"] || usage[:input_tokens] || usage["prompt_tokens"] || usage[:prompt_tokens] || 0
-          state[:accumulated_usage][:output_tokens] += usage["output_tokens"] || usage[:output_tokens] || usage["completion_tokens"] || usage[:completion_tokens] || 0
-          state[:accumulated_usage][:total_tokens] += usage["total_tokens"] || usage[:total_tokens] || 0
+          turn_input = usage["input_tokens"] || usage[:input_tokens] || usage["prompt_tokens"] || usage[:prompt_tokens] || 0
+          turn_output = usage["output_tokens"] || usage[:output_tokens] || usage["completion_tokens"] || usage[:completion_tokens] || 0
+
+          state[:accumulated_usage][:input_tokens] += turn_input
+          state[:accumulated_usage][:output_tokens] += turn_output
+          # Providers that report no total (Anthropic among them) leave it to be worked
+          # out; taking the missing field as zero made the run look like it cost nothing.
+          state[:accumulated_usage][:total_tokens] +=
+            usage["total_tokens"] || usage[:total_tokens] || (turn_input + turn_output)
 
           # Preserve nested token details (reasoning tokens, cached tokens, etc.)
           # Handle both string and symbol keys
