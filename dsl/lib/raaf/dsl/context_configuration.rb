@@ -112,7 +112,14 @@ module RAAF
         end
 
         def _context_config=(value)
-          @_context_config = value.is_a?(Concurrent::Hash) ? value : Concurrent::Hash.new(value)
+          # Concurrent::Hash.new(value) would make `value` the hash's *default*
+          # object rather than its contents, so every missing key would answer
+          # with it instead of nil. Copy the entries in instead.
+          @_context_config = if value.is_a?(Concurrent::Hash)
+                               value
+                             else
+                               Concurrent::Hash.new.merge!(value || {})
+                             end
         end
 
         # Control auto-context behavior (default: true)

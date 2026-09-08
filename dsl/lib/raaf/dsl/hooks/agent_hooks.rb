@@ -67,13 +67,17 @@ module RAAF
         ].freeze
 
         included do
-          # Class-level hook storage
-          class_attribute :_agent_hooks, default: {}
-
-          # Initialize hooks for each hook type
-          HOOK_TYPES.each do |hook_type|
-            _agent_hooks[hook_type] = []
-          end
+          # Class-level hook storage.
+          #
+          # The default is frozen on purpose. `class_attribute` hands the same
+          # object to every class in the hierarchy, so mutating it in place
+          # would register a subclass's hook on its parent and on every other
+          # agent class in the process. Registration therefore copies the hash
+          # and assigns it back, giving each class its own set while still
+          # inheriting whatever its parent had. Freezing turns any future
+          # in-place mutation into a loud error instead of that silent leak.
+          class_attribute :_agent_hooks,
+                          default: HOOK_TYPES.to_h { |hook_type| [hook_type, [].freeze] }.freeze
         end
 
         class_methods do
@@ -528,9 +532,7 @@ module RAAF
           # Clear all registered hooks (primarily for testing)
           #
           def clear_agent_hooks!
-            HOOK_TYPES.each do |hook_type|
-              _agent_hooks[hook_type] = []
-            end
+            self._agent_hooks = HOOK_TYPES.to_h { |hook_type| [hook_type, []] }
           end
 
           private
@@ -552,8 +554,13 @@ module RAAF
 
             hook = method_name || block
 
-            _agent_hooks[hook_type] ||= []
-            _agent_hooks[hook_type] << hook
+            # Copy on write: this class gets its own hash and its own array for
+            # the hook type being registered, seeded with whatever it inherited.
+            # A subclass therefore ends up with its parent's hooks followed by
+            # its own, and the parent keeps only its own.
+            hooks = _agent_hooks.dup
+            hooks[hook_type] = (hooks[hook_type] || []) + [hook]
+            self._agent_hooks = hooks
           end
         end
 

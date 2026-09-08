@@ -164,7 +164,7 @@ module RAAF
         if args.empty? && !block_given?
           # Skip context variable handling for method calls (ending with ! or ?)
           # These should be handled by the class's actual methods, not context access
-          return super if method_str.end_with?("!", "?")
+          raise_no_method_error(method_name) if method_str.end_with?("!", "?")
 
           # FIRST: Check restrictions if context is restricted
           # This prevents access to undeclared variables even if they exist in the underlying context
@@ -210,8 +210,15 @@ module RAAF
           end
         end
 
-        # For all other method calls, delegate to super
-        super
+        # Anything else (calls with arguments or a block) is not context access.
+        raise_no_method_error(method_name)
+      end
+
+      # Raise the NoMethodError Ruby itself would raise for an unknown method.
+      # Calling super from method_missing_impl cannot do this: there is no
+      # super definition of method_missing_impl to fall through to.
+      def raise_no_method_error(method_name)
+        raise NoMethodError, "undefined method '#{method_name}' for an instance of #{self.class}"
       end
 
       # Respond to missing for Ruby introspection
