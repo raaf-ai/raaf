@@ -35,8 +35,14 @@ module RAAF
 
         # Retry on transient errors with exponential backoff
         retry_on RAAF::Eval::RateLimitError, wait: :polynomially_longer, attempts: 5
-        retry_on Faraday::ConnectionFailed, wait: :polynomially_longer, attempts: 3
         retry_on Timeout::Error, wait: :polynomially_longer, attempts: 3
+
+        # Faraday is not a dependency of this engine — it arrives, or does not,
+        # with whatever HTTP client the host's providers use. Naming the
+        # constant unconditionally raised NameError while the class was being
+        # loaded, so the job could not be defined at all in an application
+        # without it.
+        retry_on Faraday::ConnectionFailed, wait: :polynomially_longer, attempts: 3 if defined?(Faraday::ConnectionFailed)
 
         ##
         # Execute evaluation for a span
@@ -1147,14 +1153,88 @@ module RAAF
               details: {
                 field_name: field_name.to_s,
                 result: field_result,
+                checks: per_check_results(field_evaluators),
+                declared_checks: declared_checks_for(evaluator_name, field_name),
                 formatted_markdown: formatted_markdown
-              },
+              }.compact,
               evaluation_duration_ms: per_field_duration,
               evaluation_started_at: started_at,
               evaluation_completed_at: completed_at,
               metadata: result_metadata
             )
           end
+        end
+
+        ##
+        # What each evaluator behind a field decided, kept beside the merged
+        # verdict.
+        #
+        # A field graded by several evaluators keeps only the combination in
+        # `result`: the messages joined into one line, the measurements merged
+        # into one hash, and nothing left saying which check contributed what.
+        # A reader then sees four numbers and cannot tell which check they
+        # belong to. So each check's own verdict is stored under its alias.
+        #
+        # A field with a single evaluator needs none of this — `result` already
+        # is that evaluator's result, unmerged — and storing it twice would
+        # double every judge transcript on the row.
+        #
+        # @param field_evaluators [Hash] evaluator results keyed by alias
+        # @return [Hash, nil] per-check results, or nil for a single check
+        def per_check_results(field_evaluators)
+          return nil unless field_evaluators.is_a?(Hash) && field_evaluators.size > 1
+
+          field_evaluators.each_with_object({}) do |(alias_name, check), checks|
+            next unless check.is_a?(Hash)
+
+            checks[alias_name.to_s] = check.slice(:passed, :score, :label, :error, :message, :details)
+          end
+        end
+
+        ##
+        # What the evaluator declares it is asking of this field, written onto
+        # the row that answers it.
+        #
+        # The console used to reconstruct this when a result was read, by
+        # looking the evaluator class up by name at render time. That answers
+        # for today's evaluator rather than the one that did the scoring: a
+        # renamed class dropped the explanation entirely, and a check whose
+        # bounds were since widened claimed the verdict had been reached
+        # against the new ones. Storing it here means a result keeps saying
+        # what was asked of it and what it had to clear, however the evaluator
+        # moves on afterwards.
+        #
+        # @param evaluator_name [String] the evaluator that graded the field
+        # @param field_name [String, Symbol] the field this row is about
+        # @return [Array<Hash>, nil] the checks declared for the field, or nil
+        #   when the evaluator declares none the console can read
+        def declared_checks_for(evaluator_name, field_name)
+          checks = evaluator_declared_checks(evaluator_name)
+          return nil if checks.blank?
+
+          checks.select { |check| check[:field_name].to_s == field_name.to_s }.presence
+        end
+
+        # Read once per job: one evaluator writes a row per field, and the
+        # class answers the same for all of them.
+        def evaluator_declared_checks(evaluator_name)
+          @evaluator_declared_checks ||= {}
+          key = evaluator_name.to_s
+          return @evaluator_declared_checks[key] if @evaluator_declared_checks.key?(key)
+
+          @evaluator_declared_checks[key] = read_declared_checks(evaluator_name)
+        end
+
+        # An evaluator that cannot be found, or that declares no checks, leaves
+        # the row without them rather than failing the evaluation it just did.
+        def read_declared_checks(evaluator_name)
+          klass = RAAF::Eval::Continuous::EvaluatorDiscovery.find_custom_evaluator_by_name(evaluator_name)
+          return nil unless klass.respond_to?(:evaluated_checks)
+
+          klass.evaluated_checks
+        rescue StandardError => e
+          ::Rails.logger.warn "[EvaluationJob] Could not read checks for '#{evaluator_name}': #{e.message}"
+          nil
         end
 
         ##

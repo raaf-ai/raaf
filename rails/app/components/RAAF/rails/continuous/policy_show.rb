@@ -5,13 +5,13 @@ module RAAF
     module Continuous
       ##
       # One policy, from RAAF Continuous.dc.html: a header panel carrying the
-      # name, what it does and its headline numbers; the scorers beside the
+      # name, what it does and its headline numbers; the checks beside the
       # configuration; and the score trend underneath.
       #
       # Two of the design's sections are not here, and both are data rather
       # than layout:
       #
-      # - **Weights and thresholds.** The design gives each scorer a weight and
+      # - **Weights and thresholds.** The design gives each check a weight and
       #   draws a threshold marker on its bar. Neither is stored — every
       #   evaluator's `config` is empty — so the bar shows the score alone.
       # - **Alert routing.** The design lists where a breach is sent. There is
@@ -20,10 +20,8 @@ module RAAF
       #
       class PolicyShow < RAAF::Rails::Tracing::BaseComponent
         # Above this a score is healthy, below the lower bound it is failing.
-        GOOD = 0.8
-        POOR = 0.5
 
-        # @param check_scores [Hash] check name => { average:, count: }
+        # @param check_scores [Hash] field name => { average:, count: }
         # @param trend [Array<Hash>] one bucket per bar, oldest first, each
         #   carrying :at, its axis :label and a :score that is nil where
         #   nothing ran
@@ -47,7 +45,7 @@ module RAAF
           div(class: "raaf-page") do
             header_panel
             div(class: "raaf-policy-split") do
-              scorers
+              checks_card
               configuration
             end
             trend
@@ -72,7 +70,7 @@ module RAAF
         end
 
         # The individual verdicts behind every number above. The page reported
-        # averages, a trend and a scorer breakdown, and gave no way to read a
+        # averages, a trend and a check breakdown, and gave no way to read a
         # single one of the results they are made of — the controller has
         # loaded them since this page was written, and nothing rendered them.
         #
@@ -104,21 +102,17 @@ module RAAF
                                    href: continuous_results_path(policy: @policy.id))
         end
 
+        # The same row the result screens list a neighbour with, so a result
+        # reads the same wherever it is listed — and in the order the results
+        # table puts it in: what it is, then its score, then its status. The
+        # spans below stay their own idiom because their row holds a form.
         def result_row(result)
-          div(class: "raaf-matching-span") do
-            div(class: "raaf-matching-span-body") do
-              div(class: "raaf-cluster") do
-                a(href: continuous_result_path(result), class: "raaf-matching-span-name") do
-                  plain result_label(result)
-                end
-                render Atoms::StatusBadge.new(result.status)
-              end
-
-              render Atoms::Mono.new(result_meta(result), tone: :muted)
-            end
-
-            render Atoms::Mono.new(score_text(result.score), tone: score_tone(result.score))
-          end
+          render Molecules::ResultRow.new(
+            href: continuous_result_path(result),
+            title: result_label(result), meta: result_meta(result),
+            status: result.status,
+            value: score_text(result.score), value_tone: score_tone(result.score)
+          )
         end
 
         # A result is about one field of one evaluator, and the field is what
@@ -127,16 +121,20 @@ module RAAF
         # left.
         def result_label(result)
           field = result.details&.dig("field_name") || result.metadata&.dig("field_name")
-          return result.evaluator_name.to_s.tr("_", " ") if field.blank?
+          return titles.label(result.evaluator_name) if field.blank?
 
-          field.to_s.tr("_", " ")
+          titles.check_label(result.evaluator_name, field)
         end
 
         def result_meta(result)
-          [result.evaluator_name.presence&.tr("_", " "),
+          [result.evaluator_name.presence && titles.label(result.evaluator_name),
            result.agent_name.presence,
            result.created_at && time_ago(result.created_at)].compact.join(" · ")
         end
+
+        # What each evaluator calls itself, so the line under a result says
+        # "DMU Title Relevance" rather than the symbol the policy names it with.
+        def titles = @titles ||= EvaluatorTitles.new
 
         # ── Header ────────────────────────────────────────────────────────
 
@@ -194,25 +192,31 @@ module RAAF
           "#{((@today_stats[:good].to_i / total.to_f) * 100).round}%"
         end
 
-        # ── Scorers ───────────────────────────────────────────────────────
+        # ── Checks ────────────────────────────────────────────────────────
 
-        def scorers
-          render(Organisms::Card.new(title: "Scorers", flush: true)) do
+        def checks_card
+          render(Organisms::Card.new(title: "Checks", flush: true)) do
             if checks.empty?
-              render Molecules::EmptyState.new(icon: "sliders", title: "No scorers",
+              render Molecules::EmptyState.new(icon: "sliders", title: "No checks",
                                                text: "This policy declares no checks.")
             else
-              checks.each { |check| scorer_row(check) }
+              checks.each { |evaluator, check| check_row(evaluator, check) }
             end
           end
         end
 
-        def scorer_row(check)
-          measured = @check_scores[check]
+        # A check is named by whoever wrote it — "Confidence In Range" — and
+        # `confidence:value_range` is the key a policy stores it under. The
+        # name goes above the bar and the key under it, because the key is what
+        # the results below are grouped by and what an edit form is written in.
+        def check_row(evaluator, check)
+          measured = measured_for(check)
+          title = titles.check(evaluator, check)&.dig(:display_name).presence
 
           div(class: "raaf-scorer") do
             div(class: "raaf-scorer-head") do
-              render Atoms::Mono.new(check.to_s.tr("_", " "), class: "raaf-scorer-name")
+              render Atoms::Text.new(title || check.to_s.tr("_", " "), as: :span,
+                                     mono: title.blank?, class: "raaf-scorer-name")
               render Atoms::Mono.new(score_text(measured&.dig(:average)),
                                      tone: score_tone(measured&.dig(:average)))
             end
@@ -220,21 +224,46 @@ module RAAF
             render Atoms::ProgressBar.new(value: (measured&.dig(:average).to_f * 100).round,
                                           tone: bar_tone(measured&.dig(:average)))
 
-            render Atoms::Text.new(scorer_note(measured), size: :sm, tone: :muted)
+            render Atoms::Text.new(check_note(measured, key: title && check),
+                                   size: :sm, tone: :muted)
           end
         end
 
-        def scorer_note(measured)
-          return "No results yet" if measured.nil?
-
-          "#{pluralize(measured[:count], 'evaluation')} scored"
+        # A check is named `field:evaluator`; a result is recorded under the
+        # field alone, one row per graded field whatever graded it. So the
+        # full name is tried first, and the field it names second. Matching
+        # only on the full name is what left every bar here reading "No
+        # results yet" while the evaluations sat in the table — the two
+        # spellings can never be equal.
+        #
+        # Two checks on the same field therefore report the same number.
+        # That number is the one that was measured: a field's evaluators are
+        # combined before the row is written, and no score survives per
+        # evaluator.
+        def measured_for(check)
+          @check_scores[check] || @check_scores[check.to_s.split(":", 2).first]
         end
 
-        # The checks every evaluator on the policy declares, in order.
+        # The key is printed as the policy stores it, underscores and all: it is
+        # an identifier to match against the edit form, not a phrase to read.
+        def check_note(measured, key: nil)
+          count = measured.nil? ? "No results yet" : "#{pluralize(measured[:count], 'evaluation')} scored"
+          [key.presence, count].compact.join(" · ")
+        end
+
+        # The checks every evaluator on the policy declares, in order, each
+        # kept with the evaluator that declared it — which is the only way back
+        # to what the check is called.
+        #
+        # @return [Array<Array(String, String)>] evaluator name, check key
         def checks
           @checks ||= Array(@policy.evaluators).flat_map do |evaluator|
-            evaluator.is_a?(Hash) ? Array(evaluator["checks"] || evaluator[:checks]) : []
-          end.map(&:to_s).uniq
+            next [] unless evaluator.is_a?(Hash)
+
+            name = (evaluator["name"] || evaluator[:name]).to_s
+            Array(evaluator["checks"] || evaluator[:checks])
+              .map { |check| [name, check.to_s] }
+          end.uniq { |(_name, check)| check }
         end
 
         # ── Configuration ─────────────────────────────────────────────────
@@ -332,9 +361,9 @@ module RAAF
           scored = @trend.filter_map { |point| point[:score] }
           return "no evaluations in the window" if scored.empty?
 
-          poor = scored.count { |score| score < GOOD }
+          poor = scored.count { |score| score < GOOD_SCORE }
           "#{pluralize(scored.size, @trend_unit)} scored · " \
-            "#{pluralize(poor, @trend_unit)} below #{GOOD}"
+            "#{pluralize(poor, @trend_unit)} below #{GOOD_SCORE}"
         end
 
         def trend_axis
@@ -346,27 +375,9 @@ module RAAF
 
         # ── Scores ────────────────────────────────────────────────────────
 
-        def score_text(score)
-          return "—" if score.nil?
-
-          # `format` is not Kernel's here — Phlex's element methods take the
-          # name, so the operator form is the one that survives.
-          "%.2f" % score.to_f
-        end
-
         # ProgressBar names its tones for the bar, not for the reading.
         def bar_tone(score)
           { warn: :warning, bad: :danger }[score_tone(score)]
-        end
-
-        def score_tone(score)
-          return nil if score.nil?
-
-          case score.to_f
-          when GOOD.. then :ok
-          when POOR...GOOD then :warn
-          else :bad
-          end
         end
       end
     end

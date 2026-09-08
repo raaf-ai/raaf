@@ -77,6 +77,21 @@ RSpec.describe RAAF::Rails::Continuous::ScorerHealth, type: :model do
       expect(row("judge")[:drift]).to be_within(0.001).of(-0.20)
     end
 
+    # The table is read by somebody looking for a check, and the recorded name
+    # is the symbol a policy is written in rather than what the check is
+    # called. A scorer whose class is gone keeps its symbol, which is still
+    # what ran.
+    it "carries the title each scorer's class declares for itself" do
+      allow_any_instance_of(RAAF::Rails::Continuous::EvaluatorTitles)
+        .to receive(:[]).with("judge").and_return("The Judge")
+
+      expect(row("judge")[:title]).to eq("The Judge")
+    end
+
+    it "leaves the title empty for a scorer nothing is registered under" do
+      expect(row("judge")[:title]).to be_nil
+    end
+
     it "names the judge models the window's evaluations called" do
       expect(row("judge")[:models]).to eq(["gpt-4o-2024-11"])
     end
@@ -88,8 +103,13 @@ RSpec.describe RAAF::Rails::Continuous::ScorerHealth, type: :model do
     # A scorer that moved and then went quiet is both things, and the drift is
     # the one somebody has to answer.
     it "reports drift rather than silence when a scorer is both" do
-      expect(row("judge")[:last_at]).to be < now - (7.days * described_class::STALE_FRACTION)
-      expect(row("judge")[:state]).to eq("drifting")
+      # Inside the window, but past the point where silence alone would make it
+      # stale -- the judge rows above are two days old and still current.
+      4.times { result(name: "quiet", at: now - 5.days, score: 0.80) }
+      4.times { result(name: "quiet", at: now - 9.days, score: 1.00) }
+
+      expect(row("quiet")[:last_at]).to be < now - (7.days * described_class::STALE_FRACTION)
+      expect(row("quiet")[:state]).to eq("drifting")
     end
 
     it "lists a scorer that ran only in the baseline, as stale" do

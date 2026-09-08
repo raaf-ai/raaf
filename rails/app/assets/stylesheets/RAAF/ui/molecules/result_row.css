@@ -1,0 +1,33 @@
+/* ============================================================================
+   Molecule — Result row
+   One graded thing listed under another: the cases either side of this one,
+   what the other policies made of the same span, the trace behind an output.
+   Lived on the Result screen before the policy and experiment screens wanted
+   the same row.
+   ========================================================================= */
+
+.raaf-result-row {
+  display: flex;
+  align-items: center;
+  gap: var(--raaf-space-3);
+  padding: var(--raaf-space-3) var(--raaf-space-4);
+  border-bottom: 1px solid var(--raaf-border);
+  color: inherit;
+  text-decoration: none;
+}
+
+.raaf-result-row:last-child { border-bottom: 0; }
+.raaf-result-row:hover { background: var(--raaf-glass-white-5); }
+
+/* The row is a flex line: without this the icon is squeezed by a long title. */
+.raaf-result-row > .raaf-icon {
+  flex: none;
+}
+
+.raaf-result-row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}

@@ -3,38 +3,67 @@
 require "rails_helper"
 
 RSpec.describe RAAF::Rails::Continuous::EvaluationJob, type: :job do
+  let!(:trace) { create_trace(workflow_name: "TestWorkflow") }
+
   let(:span) do
-    RAAF::Rails::Tracing::SpanRecord.create!(
-      span_id: "span-123",
-      trace_id: "trace-123",
-      parent_id: nil,
-      type: "agent",
-      data: {
-        "agent" => { "name" => "TestAgent" },
-        "request" => { "model" => "gpt-4o", "messages" => [{ "role" => "user", "content" => "test" }] },
-        "response" => { "content" => "response", "usage" => { "total_tokens" => 100 } }
-      },
-      metadata: { "agent_name" => "TestAgent", "model" => "gpt-4o", "provider" => "openai" },
-      started_at: Time.current,
-      ended_at: Time.current + 1.second
+    create_span(
+      trace_id: trace.trace_id,
+      name: "TestAgent",
+      kind: "agent",
+      status: "ok",
+      start_time: Time.current,
+      end_time: Time.current + 1.second,
+      duration_ms: 1000,
+      span_attributes: {
+        "agent_name" => "TestAgent",
+        "agent.model" => "gpt-4o",
+        "input_tokens" => 60,
+        "output_tokens" => 40
+      }
     )
   end
 
-  let(:policy) do
+  # An evaluator only runs for the checks its config names, so a policy without
+  # them grades nothing at all.
+  def evaluator_config(name, check: "quality")
+    { "type" => "rule_based", "name" => name, "checks" => [check],
+      "config" => { "max_tokens" => 1000 } }
+  end
+
+  def policy_with(*evaluators, name: "test-policy")
     RAAF::Eval::Models::EvaluationPolicy.create!(
-      name: "test-policy",
+      name: name,
       agent_name: "TestAgent",
       environment: "test",
       sampling_mode: "all",
       priority: 50,
-      evaluators: [
-        { "type" => "rule_based", "name" => "token_limit", "config" => { "max_tokens" => 1000 } }
-      ]
+      evaluators: evaluators
     )
+  end
+
+  # What an evaluator hands back: a verdict per field, and the individual
+  # evaluators that produced each one.
+  def evaluation_result(score: 0.95, field: "quality")
+    instance_double(
+      RAAF::Eval::DSL::EvaluationResult,
+      field_results: { field.to_sym => { passed: true, score: score, message: "Test passed" } },
+      evaluator_results: {}
+    )
+  end
+
+  let(:policy) { policy_with(evaluator_config("token_limit")) }
+
+  def stub_evaluator(result: evaluation_result)
+    evaluator = instance_double(RAAF::Eval::DSL::Evaluator)
+    allow(RAAF::Eval::Continuous::EvaluatorDiscovery).to receive(:build).and_return(evaluator)
+    allow(evaluator).to receive(:evaluate).and_return(result)
+    evaluator
   end
 
   describe "#perform" do
     context "with valid span and policy" do
+      before { stub_evaluator }
+
       it "creates a queue item" do
         expect do
           described_class.perform_now(span_id: span.span_id, policy_id: policy.id)
@@ -42,63 +71,18 @@ RSpec.describe RAAF::Rails::Continuous::EvaluationJob, type: :job do
       end
 
       it "executes evaluators and stores results" do
-        # Mock evaluator
-        evaluator = instance_double(RAAF::Eval::DSL::Evaluator)
-        allow(RAAF::Eval::Continuous::EvaluatorDiscovery).to receive(:build).and_return(evaluator)
-
-        # Mock evaluation result
-        result = double(
-          passed?: true,
-          failed?: false,
-          warning?: false,
-          score: 0.95,
-          field_scores: { "quality" => 0.95 },
-          reasoning: "Test passed",
-          to_h: { "status" => "passed" }
-        )
-        allow(evaluator).to receive(:evaluate).and_return(result)
-
         expect do
           described_class.perform_now(span_id: span.span_id, policy_id: policy.id)
         end.to change(RAAF::Eval::Models::ContinuousEvaluationResult, :count).by(1)
       end
 
       it "marks queue item as completed" do
-        evaluator = instance_double(RAAF::Eval::DSL::Evaluator)
-        allow(RAAF::Eval::Continuous::EvaluatorDiscovery).to receive(:build).and_return(evaluator)
-
-        result = double(
-          passed?: true,
-          failed?: false,
-          warning?: false,
-          score: 0.95,
-          field_scores: {},
-          reasoning: "Test passed",
-          to_h: {}
-        )
-        allow(evaluator).to receive(:evaluate).and_return(result)
-
         described_class.perform_now(span_id: span.span_id, policy_id: policy.id)
 
-        queue_item = RAAF::Eval::Models::EvaluationQueueItem.last
-        expect(queue_item.status).to eq("completed")
+        expect(RAAF::Eval::Models::EvaluationQueueItem.last.status).to eq("completed")
       end
 
       it "increments policy evaluation count" do
-        evaluator = instance_double(RAAF::Eval::DSL::Evaluator)
-        allow(RAAF::Eval::Continuous::EvaluatorDiscovery).to receive(:build).and_return(evaluator)
-
-        result = double(
-          passed?: true,
-          failed?: false,
-          warning?: false,
-          score: 0.95,
-          field_scores: {},
-          reasoning: "Test passed",
-          to_h: {}
-        )
-        allow(evaluator).to receive(:evaluate).and_return(result)
-
         expect do
           described_class.perform_now(span_id: span.span_id, policy_id: policy.id)
         end.to change { policy.reload.today_evaluation_count }.by(1)
@@ -108,102 +92,151 @@ RSpec.describe RAAF::Rails::Continuous::EvaluationJob, type: :job do
     context "with non-existent span" do
       it "raises SpanNotFoundError" do
         expect do
-          described_class.perform_now(span_id: "non-existent", policy_id: policy.id)
+          described_class.new.perform(span_id: "non-existent", policy_id: policy.id)
         end.to raise_error(RAAF::Eval::SpanNotFoundError)
       end
 
       it "does not create a queue item" do
         expect do
           described_class.perform_now(span_id: "non-existent", policy_id: policy.id)
-        rescue RAAF::Eval::SpanNotFoundError
-          # Suppress error for count check
         end.not_to change(RAAF::Eval::Models::EvaluationQueueItem, :count)
       end
     end
 
     context "with evaluator failure" do
-      it "marks queue item as failed" do
+      before do
         evaluator = instance_double(RAAF::Eval::DSL::Evaluator)
         allow(RAAF::Eval::Continuous::EvaluatorDiscovery).to receive(:build).and_return(evaluator)
         allow(evaluator).to receive(:evaluate).and_raise(StandardError, "Evaluator failed")
+      end
 
-        expect do
-          described_class.perform_now(span_id: span.span_id, policy_id: policy.id)
-        end.to raise_error(StandardError)
+      # An evaluator that raises is the scorer breaking, not the run failing, so
+      # the queue item goes back to pending for its next attempt rather than
+      # taking the whole job down.
+      it "marks queue item for retry" do
+        described_class.perform_now(span_id: span.span_id, policy_id: policy.id)
 
         queue_item = RAAF::Eval::Models::EvaluationQueueItem.last
-        expect(queue_item.status).to eq("pending") # Goes back to pending for retry
-        expect(queue_item.error_message).to eq("Evaluator failed")
+        expect(queue_item.status).to eq("pending")
+        expect(queue_item.error_message).to include("Evaluator failed")
+      end
+
+      it "records the failure as an errored result" do
+        described_class.perform_now(span_id: span.span_id, policy_id: policy.id)
+
+        expect(RAAF::Eval::Models::ContinuousEvaluationResult.last).to have_attributes(
+          status: "error", score: nil
+        )
       end
 
       it "does not increment policy counter on failure" do
-        evaluator = instance_double(RAAF::Eval::DSL::Evaluator)
-        allow(RAAF::Eval::Continuous::EvaluatorDiscovery).to receive(:build).and_return(evaluator)
-        allow(evaluator).to receive(:evaluate).and_raise(StandardError, "Evaluator failed")
-
         expect do
           described_class.perform_now(span_id: span.span_id, policy_id: policy.id)
-        rescue StandardError
-          # Suppress error
         end.not_to(change { policy.reload.today_evaluation_count })
       end
     end
 
     context "with multiple evaluators" do
       let(:multi_evaluator_policy) do
-        RAAF::Eval::Models::EvaluationPolicy.create!(
-          name: "multi-evaluator-policy",
-          agent_name: "TestAgent",
-          environment: "test",
-          sampling_mode: "all",
-          evaluators: [
-            { "type" => "rule_based", "name" => "token_limit", "config" => { "max_tokens" => 1000 } },
-            { "type" => "rule_based", "name" => "latency_check", "config" => { "max_ms" => 5000 } }
-          ]
-        )
+        policy_with(evaluator_config("token_limit"),
+                    evaluator_config("latency_check", check: "latency"),
+                    name: "multi-evaluator-policy")
       end
 
       it "executes all evaluators" do
         evaluator1 = instance_double(RAAF::Eval::DSL::Evaluator)
         evaluator2 = instance_double(RAAF::Eval::DSL::Evaluator)
-
         allow(RAAF::Eval::Continuous::EvaluatorDiscovery).to receive(:build)
           .and_return(evaluator1, evaluator2)
 
-        result = double(
-          passed?: true,
-          failed?: false,
-          warning?: false,
-          score: 0.95,
-          field_scores: {},
-          reasoning: "Test passed",
-          to_h: {}
-        )
-
-        expect(evaluator1).to receive(:evaluate).and_return(result)
-        expect(evaluator2).to receive(:evaluate).and_return(result)
+        expect(evaluator1).to receive(:evaluate).and_return(evaluation_result)
+        expect(evaluator2).to receive(:evaluate).and_return(evaluation_result(field: "latency"))
 
         expect do
           described_class.perform_now(span_id: span.span_id, policy_id: multi_evaluator_policy.id)
         end.to change(RAAF::Eval::Models::ContinuousEvaluationResult, :count).by(2)
       end
     end
+
+    # What was asked of a field is declared on the evaluator, and the console
+    # used to reconstruct it by looking the class up when somebody opened the
+    # result. That answers for the evaluator of the same name today rather than
+    # the one that did the scoring, so the row writes it down instead.
+    context "with an evaluator that declares what its checks measure" do
+      before { stub_evaluator }
+
+      let(:declared) do
+        [{ field_name: :quality, evaluator_type: :value_range, check_type: :rule_based,
+           display_name: "Quality In Range", description: "Quality sits between 0.0 and 1.0",
+           options: { min: 0.0, max: 1.0 } },
+         { field_name: :latency, evaluator_type: :threshold, check_type: :rule_based,
+           display_name: "Fast Enough", description: "Answered inside 2 seconds",
+           options: { max_ms: 2000 } }]
+      end
+
+      before do
+        allow(RAAF::Eval::Continuous::EvaluatorDiscovery)
+          .to receive(:find_custom_evaluator_by_name)
+          .and_return(class_double("Evaluator", evaluated_checks: declared))
+      end
+
+      it "records the checks declared for the field it graded" do
+        described_class.perform_now(span_id: span.span_id, policy_id: policy.id)
+
+        stored = RAAF::Eval::Models::ContinuousEvaluationResult.last.details["declared_checks"]
+        expect(stored.size).to eq(1)
+        expect(stored.first).to include("display_name" => "Quality In Range",
+                                        "description" => "Quality sits between 0.0 and 1.0")
+      end
+
+      # A row is about one field. Carrying the other fields' checks would put
+      # rules under figures they did not produce.
+      it "leaves out the checks belonging to other fields" do
+        described_class.perform_now(span_id: span.span_id, policy_id: policy.id)
+
+        stored = RAAF::Eval::Models::ContinuousEvaluationResult.last.details["declared_checks"]
+        expect(stored.map { |check| check["field_name"] }).to eq(["quality"])
+      end
+    end
+
+    context "with an evaluator whose class cannot be found" do
+      before do
+        stub_evaluator
+        allow(RAAF::Eval::Continuous::EvaluatorDiscovery)
+          .to receive(:find_custom_evaluator_by_name).and_raise(NameError, "gone")
+      end
+
+      # Scoring succeeded. Failing to describe the check afterwards is not a
+      # reason to lose the verdict.
+      it "still stores the verdict, without the checks" do
+        expect do
+          described_class.perform_now(span_id: span.span_id, policy_id: policy.id)
+        end.to change(RAAF::Eval::Models::ContinuousEvaluationResult, :count).by(1)
+
+        expect(RAAF::Eval::Models::ContinuousEvaluationResult.last.details)
+          .not_to have_key("declared_checks")
+      end
+    end
   end
 
   describe "retry behavior" do
-    it "retries on transient errors" do
-      expect(described_class).to have_been_enqueued.with(
-        span_id: span.span_id,
-        policy_id: policy.id
-      ).on_queue("raaf_evaluations")
+    it "queues an evaluation on the evaluations queue" do
+      described_class.perform_later(span_id: span.span_id, policy_id: policy.id)
+
+      expect(described_class).to have_been_enqueued
+        .with(span_id: span.span_id, policy_id: policy.id)
+        .on_queue("raaf_evaluations")
     end
 
+    # A span that is not there will never arrive, so the job is dropped rather
+    # than retried against a row that cannot appear.
     it "discards on permanent errors" do
-      allow(RAAF::Rails::Tracing::SpanRecord).to receive(:find_by).and_return(nil)
-
       expect do
         described_class.perform_now(span_id: "missing", policy_id: policy.id)
-      end.to raise_error(RAAF::Eval::SpanNotFoundError)
+      end.not_to raise_error
+
+      expect(described_class).not_to have_been_enqueued
+        .with(span_id: "missing", policy_id: policy.id)
     end
   end
 end

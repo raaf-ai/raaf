@@ -8,7 +8,7 @@ module RAAF
         # Alias the models for cleaner code
         EvaluationResult = RAAF::Eval::Models::ContinuousEvaluationResult
 
-        # The window the Results screen's "worst scorers" panel reports over,
+        # The window the Results screen's "worst evaluators" panel reports over,
         # and the window it compares that against for the delta.
         SCORER_WINDOW = 24.hours
 
@@ -55,12 +55,7 @@ module RAAF
                 filters: params.permit(:agent, :environment, :status, :evaluator, :policy, :from, :to)
                                .to_h.symbolize_keys
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(
-                title: "Results", crumb: "Continuous"
-              ) do
-                render results_list
-              end
-              render layout
+              render_in_layout results_list, title: "Results", crumb: "Continuous"
             end
             format.json { render json: @results }
           end
@@ -79,20 +74,18 @@ module RAAF
                                              .where.not(id: @result.id)
                                              .order(created_at: :desc)
                                              .limit(20)
-          @policy_results = policy_neighbours(@result)
+          # What this check has scored elsewhere, which is the only set that
+          # makes one verdict readable — see CheckHistory.
+          @history = RAAF::Rails::Continuous::CheckHistory.new(result: @result)
 
           respond_to do |format|
             format.html do
               result_show = RAAF::Rails::Continuous::ResultShow.new(
                 result: @result, span: @span,
-                sibling_results: @sibling_results, policy_results: @policy_results
+                sibling_results: @sibling_results,
+                payload_tab: params[:payload], history: @history
               )
-              layout = RAAF::Rails::Tracing::BaseLayout.new(
-                title: "Result ##{@result.id}", crumb: "Continuous"
-              ) do
-                render result_show
-              end
-              render layout
+              render_in_layout result_show, title: "Result ##{@result.id}", crumb: "Continuous"
             end
             format.json { render json: @result }
           end
@@ -157,8 +150,8 @@ module RAAF
           end
         end
 
-        # The scorers doing worst over the window, with how far each moved
-        # against the window before it. A scorer that graded nothing in the
+        # The evaluators doing worst over the window, with how far each moved
+        # against the window before it. An evaluator that graded nothing in the
         # preceding window has no delta rather than a delta of zero: it did
         # not hold steady, it was not measured.
         def worst_scorers_for(population, limit: 4)
@@ -183,18 +176,6 @@ module RAAF
           averages.each_with_object({}) do |(name, average), out|
             out[name] = { average: average.to_f, count: counts[name].to_i }
           end
-        end
-
-        # The recent results this policy produced for other spans. Scoped off
-        # this span so the panel is neighbours rather than a second copy of
-        # the sibling list directly above it.
-        def policy_neighbours(result, limit: 6)
-          return EvaluationResult.none if result.evaluation_policy_id.blank?
-
-          EvaluationResult.where(evaluation_policy_id: result.evaluation_policy_id)
-                          .where.not(span_id: result.span_id)
-                          .order(created_at: :desc)
-                          .limit(limit)
         end
 
         # The policies that have actually produced a result, as `[name, id]`.

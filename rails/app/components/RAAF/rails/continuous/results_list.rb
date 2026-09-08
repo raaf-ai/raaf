@@ -15,16 +15,17 @@ module RAAF
       #   the tall buckets happen to be the high-scoring ones. Colouring each
       #   bucket by the score it stands for keeps the reading true when a
       #   policy starts failing and the pile moves left.
-      # - **No composite.** A result here is one scorer against one field, so
-      #   the Score column is that scorer's own number. Nothing combines them
-      #   into the per-span composite the canvas's Score column implies.
+      # - **No composite.** A result here is one evaluator against one field,
+      #   so the Score column is that evaluator's own number. Nothing combines
+      #   them into the per-span composite the canvas's Score column implies.
       #
       class ResultsList < RAAF::Rails::Tracing::BaseComponent
         # Columns and fr weights taken from RAAF Continuous.dc.html.
         COLUMNS = [
           { label: "Span", span: 1.5 },
-          { label: "Policy", span: 1.5 },
-          { label: "Scorer", span: 1.2 },
+          { label: "Policy", span: 1.4 },
+          { label: "Evaluator", span: 1.2 },
+          { label: "Method", span: 0.8 },
           { label: "Score", span: 0.7, align: :right },
           { label: "Verdict", span: 0.8, align: :right },
           { label: "When", span: 0.8, align: :right }
@@ -50,8 +51,6 @@ module RAAF
         # Above this a score is healthy, below the lower bound it is failing.
         # The tiers the experiment screens use, so one score does not change
         # colour between pages.
-        GOOD = 0.8
-        POOR = 0.5
 
         # @param agents [Array<String>] every agent that has produced a result,
         #   for the strip's filter
@@ -187,15 +186,15 @@ module RAAF
           @verdict_total ||= VERDICTS.sum { |verdict| @summary[verdict[:key]].to_i }
         end
 
-        # ── Worst scorers ─────────────────────────────────────────────────
+        # ── Worst evaluators ──────────────────────────────────────────────
 
         def worst_scorers_panel
-          render(Organisms::Card.new(title: "Worst scorers · #{@scorer_window}",
+          render(Organisms::Card.new(title: "Worst evaluators · #{@scorer_window}",
                                      subtitle: worst_scorers_summary)) do
             if @worst_scorers.empty?
               render Molecules::EmptyState.new(
                 icon: "sliders", title: "Nothing graded",
-                text: "No scorer has produced a score in the last #{@scorer_window}."
+                text: "No evaluator has produced a score in the last #{@scorer_window}."
               )
             else
               @worst_scorers.each { |scorer| worst_scorer_row(scorer) }
@@ -225,8 +224,8 @@ module RAAF
             .compact.join(" · ")
         end
 
-        # Nothing to compare against is not the same as no change, so a
-        # scorer the preceding window never measured makes no claim at all.
+        # Nothing to compare against is not the same as no change, so an
+        # evaluator the preceding window never measured makes no claim at all.
         def delta_text(delta)
           return nil if delta.nil?
           return "flat" if delta.round(2).zero?
@@ -322,8 +321,8 @@ module RAAF
                                                        result.agent_name.presence || "unknown",
                                                        mono: true) },
                      { value: Atoms::Mono.new(policy_name(result)) },
-                     { value: Molecules::TitleMeta.new(result.evaluator_name.to_s.tr("_", " "),
-                                                       field_for(result), mono: true) },
+                     { value: scorer_cell(result) },
+                     { value: method_cell(result) },
                      { value: Atoms::Mono.new(score_text(result.score),
                                               tone: score_tone(result.score)), align: :right },
                      { value: Atoms::StatusBadge.new(result.status), align: :right },
@@ -332,20 +331,73 @@ module RAAF
                    ])
         end
 
-        # A result may outlive the policy that made it — the association is
-        # optional and a deleted policy nils it — so the column says which
-        # rather than printing nothing and reading as a missing value.
+        # The scorer as its own class names it, where it names itself: the row
+        # is read by somebody looking for a check, and `dmu_title_relevance` is
+        # the spelling a policy is written in rather than the one a check is
+        # known by. The field it graded stays the second line, which is what
+        # distinguishes the several rows one evaluator wrote for one span.
+        def scorer_cell(result)
+          title = titles[result.evaluator_name].presence
+          attrs = { title: check_description(result) }.compact
+
+          Molecules::TitleMeta.new(title || result.evaluator_name.to_s.tr("_", " "),
+                                   field_for(result), mono: title.blank?, **attrs)
+        end
+
+        def titles = @titles ||= EvaluatorTitles.new
+
+        # What kind of scoring produced the figure beside it. The column reads
+        # down as much as across: it is how somebody scanning a page of results
+        # sees which of them cost a model call, and which would give the same
+        # answer if they ran again.
+        def method_cell(result)
+          Atoms::Badge.for_check_type(RAAF::Rails::ScoringMethod.for_result(result), size: :sm) ||
+            Atoms::Mono.new("—", tone: :muted)
+        end
+
+        # The link is optional and null for two reasons that look identical in
+        # the row: a deleted policy nils it, and a result written outside a
+        # policy (a smoke run whose evaluator resolves to no policy row) never
+        # had one. The column says the link is absent rather than claiming a
+        # deletion it cannot see, and rather than printing nothing and reading
+        # as a missing value.
         def policy_name(result)
-          result.evaluation_policy&.name.presence || "policy removed"
+          result.evaluation_policy&.name.presence || "no policy"
         end
 
         # A result is about one field of one evaluator, and the field is what
         # distinguishes ten rows a policy wrote for the same span.
+        #
+        # The check's own name where the row recorded one: `confidence` is the
+        # field an evaluator reads, and "Confidence In Range" is what it asks of
+        # it, which is the difference between a column that identifies a row and
+        # one that says what was measured.
         def field_for(result)
+          declared_check(result)&.dig("display_name").presence || field_name_for(result)
+        end
+
+        def field_name_for(result)
           field = result.metadata&.dig("field_name").presence ||
                   result.metadata&.dig(:field_name).presence ||
                   result.details&.dig("field_name").presence
           field.to_s.tr("_", " ").presence || result.evaluator_type.to_s.tr("_", " ")
+        end
+
+        # The sentence the check was declared with, as the cell's hover text.
+        # A row is one line; the sentence belongs on the result's own screen,
+        # and this is the cheapest way to read it without going there.
+        def check_description(result)
+          declared_check(result)&.dig("description").presence
+        end
+
+        # Named only where the row recorded exactly one check. Several checks
+        # on one field means the row cannot say which of them the figure came
+        # from, and naming the wrong one is worse than naming none.
+        def declared_check(result)
+          stored = result.details&.dig("declared_checks")
+          return nil unless stored.is_a?(Array) && stored.one?
+
+          stored.first if stored.first.is_a?(Hash)
         end
 
         def paginated?
@@ -360,39 +412,7 @@ module RAAF
           )
         end
 
-        # ── Scores ────────────────────────────────────────────────────────
-
-        def score_text(score)
-          return "—" if score.nil?
-
-          # `format` is not Kernel's here — Phlex's element methods take the
-          # name, so the operator form is the one that survives.
-          "%.2f" % score.to_f
-        end
-
-        def score_tone(score)
-          return nil if score.nil?
-
-          case score.to_f
-          when GOOD.. then :ok
-          when POOR...GOOD then :warn
-          else :bad
-          end
-        end
-
-        # `pluralize` prints the count as it stands; a console reporting
-        # eighteen thousand verdicts wants the thousands separated.
-        def counted(count, noun)
-          "#{delimited(count)} #{noun.pluralize(count.to_i)}"
-        end
-
-        def delimited(number)
-          number.to_i.to_s.reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
-        end
-
-        def truncate_id(id)
-          id.to_s.delete_prefix("span_").first(12)
-        end
+        # ── Formatting ────────────────────────────────────────────────────
       end
     end
   end

@@ -62,30 +62,6 @@
   font-size: 12px;
 }
 
-/* ── Neighbouring results ────────────────────────────────────────────────
-   The same row idiom the policy screen uses for its recent results, so a
-   result reads the same wherever it is listed. */
-.raaf-result-neighbour {
-  display: flex;
-  align-items: center;
-  gap: var(--raaf-space-3);
-  padding: var(--raaf-space-3) var(--raaf-space-4);
-  border-bottom: 1px solid var(--raaf-border);
-  color: inherit;
-  text-decoration: none;
-}
-
-.raaf-result-neighbour:last-child { border-bottom: 0; }
-.raaf-result-neighbour:hover { background: var(--raaf-glass-white-5); }
-
-.raaf-result-neighbour-body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
-
 /* ── Timeline ────────────────────────────────────────────────────────────
    An icon in the gutter, the moment beside it. */
 .raaf-result-event {
@@ -108,4 +84,237 @@
   gap: 3px;
   flex: 1;
   min-width: 0;
+}
+
+/* ── Reasoning ───────────────────────────────────────────────────────────
+   A rule-based verdict is assembled from tagged clauses, each carrying the
+   figures it was decided on. Set as one paragraph the checks run into each
+   other, so each gets a row with its verdict in the gutter and its figures
+   listed under it. */
+.raaf-reasoning {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-3);
+}
+
+.raaf-reasoning-clause {
+  display: flex;
+  gap: var(--raaf-space-3);
+  padding-top: var(--raaf-space-3);
+  border-top: 1px solid var(--raaf-border);
+}
+
+.raaf-reasoning-clause:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* On the first line of the headline rather than at the top of the row. */
+.raaf-reasoning-clause > .raaf-dot {
+  margin-top: 6px;
+  flex: none;
+}
+
+.raaf-reasoning-body {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The figures behind the clause, one per line. Set side by side they read
+   as one string of numbers again, which is the thing this section exists to
+   undo; there are rarely more than three. */
+.raaf-reasoning-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: var(--raaf-space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--raaf-font-mono);
+  font-size: 11.5px;
+  color: var(--raaf-text-muted);
+}
+
+/* ── What the judge concluded ────────────────────────────────────────────
+   A judge's account of itself is prose and a list of criteria, and both used
+   to be printed as key-value cells: a paragraph in a 220px monospace column,
+   and six criteria as one inspected Ruby array clipped mid-word. Set as
+   prose at a readable measure and as rows a reader can scan, the same bytes
+   answer the question the screen is for — why this run scored what it did. */
+.raaf-findings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-5);
+  margin-top: var(--raaf-space-4);
+  padding-top: var(--raaf-space-4);
+  border-top: 1px solid var(--raaf-border);
+}
+
+/* Nothing above it to be ruled off from: a judge that wrote no verdict line
+   opens the card with its conclusion. */
+.raaf-findings:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.raaf-finding {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-3);
+}
+
+/* The judge's summary reads first and reads as prose: body size rather than
+   the caption size the figures use, and held to a measure a paragraph can be
+   read at. */
+.raaf-finding-summary {
+  max-width: 72ch;
+  line-height: 1.6;
+}
+
+.raaf-criteria {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.raaf-criterion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-2);
+  padding: var(--raaf-space-3) 0;
+  border-top: 1px solid var(--raaf-border);
+}
+
+.raaf-criterion:first-child { border-top: 0; }
+
+/* The dot, the claim, and the score it was given. The claim takes the room
+   that is left, so the figures stay in a column down the right and the
+   scores can be compared without reading the names. */
+.raaf-criterion-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--raaf-space-3);
+}
+
+.raaf-criterion-head > .raaf-dot { flex: none; align-self: center; }
+
+.raaf-criterion-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--raaf-text-body-sm);
+  font-weight: 600;
+  color: var(--raaf-text-primary);
+}
+
+.raaf-criterion > .raaf-text { max-width: 72ch; }
+
+/* The criterion's own wording, folded away: it is written for the judge, it
+   is long, and it is the same shape for every criterion in the list. */
+.raaf-criterion-ask > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--raaf-space-2);
+  width: fit-content;
+  padding: 2px 0;
+  color: var(--raaf-text-muted);
+  font-size: var(--raaf-text-xs);
+  cursor: pointer;
+  list-style: none;
+}
+
+.raaf-criterion-ask > summary::-webkit-details-marker { display: none; }
+
+.raaf-criterion-ask > summary::before {
+  content: "\25B8";
+  font-size: 10px;
+  transition: transform 120ms ease;
+}
+
+.raaf-criterion-ask[open] > summary::before { transform: rotate(90deg); }
+
+.raaf-criterion-ask > summary:hover { color: var(--raaf-text-secondary); }
+
+.raaf-criterion-ask > summary:focus-visible {
+  outline: 2px solid var(--raaf-text-link);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.raaf-criterion-ask > .raaf-text {
+  max-width: 72ch;
+  margin-top: var(--raaf-space-2);
+  padding-left: var(--raaf-space-4);
+  border-left: 1px solid var(--raaf-border);
+}
+
+/* ── What the check measured ─────────────────────────────────────────────
+   The figures the verdict was decided on, under the prose that announced it.
+   Ruled off from the reasoning above so the sum and its answer read as two
+   things; grouped per check where several evaluators graded one field. */
+.raaf-measures {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-4);
+  margin-top: var(--raaf-space-4);
+  padding-top: var(--raaf-space-4);
+  border-top: 1px solid var(--raaf-border);
+}
+
+/* The card body already carries the gap; only the first group needs no rule
+   above it, and it has the section's own border for that. */
+.raaf-measures:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.raaf-measure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-3);
+}
+
+/* ── Scored payload ──────────────────────────────────────────────────────
+   The payload reads as a pane, the way a span's does in the inspector: a
+   strip of tabs ruled off across the card's width, and the half that tab
+   names below it. Stacking the two halves instead cost a screenful of
+   scrolling to reach the one a reader came for. */
+.raaf-scored-tabs {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--raaf-border);
+}
+
+.raaf-scored-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raaf-space-3);
+  padding: var(--raaf-space-4);
+}
+
+/* Which half shows is a radio, not a link: switching tabs must not reload the
+   page and drop a reader who was halfway down it back at the top. Both halves
+   are in the document, and the checked radio decides which one is displayed
+   and which label reads as active — the same mechanism the redaction veil
+   uses, with no script behind it either. */
+.raaf-scored--tabbed .raaf-scored-panel { display: none; }
+
+#raaf-scored-input:checked ~ .raaf-scored-panel--input,
+#raaf-scored-output:checked ~ .raaf-scored-panel--output { display: flex; }
+
+#raaf-scored-input:checked ~ .raaf-scored-tabs .raaf-tab[for="raaf-scored-input"],
+#raaf-scored-output:checked ~ .raaf-scored-tabs .raaf-tab[for="raaf-scored-output"] {
+  background: var(--raaf-glass-white-12);
+  color: var(--raaf-white);
+}
+
+/* The radios are screen-reader only, so the focus ring has to be drawn on the
+   label the keyboard is really moving between. */
+#raaf-scored-input:focus-visible ~ .raaf-scored-tabs .raaf-tab[for="raaf-scored-input"],
+#raaf-scored-output:focus-visible ~ .raaf-scored-tabs .raaf-tab[for="raaf-scored-output"] {
+  outline: 2px solid var(--raaf-cyan-500);
+  outline-offset: 2px;
 }
