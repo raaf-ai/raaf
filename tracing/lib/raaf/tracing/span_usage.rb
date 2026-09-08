@@ -242,12 +242,38 @@ module RAAF
 
         # The flat fee a span recorded for one call, in USD.
         #
+        # Prefers the native column for the same reason the token counts do: it
+        # is readable without parsing the payload, and a window's worth of fees
+        # can then be found by an index rather than by a substring search
+        # through every span's whole conversation. A null column falls through
+        # to the payload, so a span written before the column existed still
+        # reports the fee it recorded.
+        #
         # @param span [#span_attributes] Span or span record
         # @return [Float, nil] Fee, or nil when none was recorded
         def fee_for_span(span)
-          cents = first_present(span, FEE_CENT_KEYS)
+          cents = column(span, :call_fee_cents) || first_present(span, FEE_CENT_KEYS)
 
           cents && (cents.to_f / 100.0)
+        end
+
+        # The flat fee recorded in an attributes payload, in cents.
+        #
+        # The value as written, so the column and the payload hold the same
+        # number and a reader cannot tell which it came from.
+        #
+        # @param attributes [Hash, nil] Span attributes, string or symbol keyed
+        # @return [Numeric, nil] Fee in cents, or nil when none was recorded
+        def fee_cents_from(attributes)
+          FEE_CENT_KEYS.each do |key|
+            value = lookup(attributes, key)
+            next if value.nil? || value.to_s.strip.empty?
+
+            number = Float(value.to_s, exception: false)
+            return number if number
+          end
+
+          nil
         end
 
         # What a span put on the bill, in whatever unit it is billed in.

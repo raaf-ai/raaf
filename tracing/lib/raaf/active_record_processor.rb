@@ -565,14 +565,16 @@ module RAAF
       #
       # @param attributes [Hash, nil] Sanitized span attributes
       # @return [Hash] Subset of
-      #   { input_tokens:, output_tokens:, total_tokens:, agent_model: }
+      #   { input_tokens:, output_tokens:, total_tokens:, agent_model:,
+      #     call_fee_cents: }
       def self.token_columns_from(attributes)
         usage = ::RAAF::Tracing::SpanUsage.from_attributes(attributes)
 
         { input_tokens: usage[:input],
           output_tokens: usage[:output],
           total_tokens: usage[:total],
-          agent_model: usage[:model] }.compact
+          agent_model: usage[:model],
+          call_fee_cents: ::RAAF::Tracing::SpanUsage.fee_cents_from(attributes) }.compact
       end
 
       # +token_columns_from+ narrowed to the columns the span table actually

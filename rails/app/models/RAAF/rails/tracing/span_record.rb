@@ -86,27 +86,22 @@ module RAAF
         scope :within_timeframe, lambda { |start_time, end_time|
           where(start_time: start_time..end_time)
         }
-        # Spans that recorded token usage. Matches on the native columns, plus
-        # the attributes payload for spans written before those columns existed
-        # or by a tracer that only ever emitted the flattened keys.
-        # Spans that plausibly recorded token usage. The native columns settle it
-        # outright; the payload match is a coarse prefilter for spans written
-        # before those columns existed, so callers still have to confirm with
-        # {#token_usage} rather than trust the row count.
+
+        # Spans that recorded token usage, read from the native columns.
         #
-        # The key names are matched quoted so +agent.max_tokens+ — a configured
-        # ceiling, present on spans that consumed nothing — does not match.
+        # This used to also match the payload, with two unanchored LIKEs over
+        # +span_attributes::text+, because the columns were added late and no
+        # backfill could be assumed. Each of those casts ~21 kB of conversation
+        # to text and searches all of it, for every span in the window, and no
+        # index can answer them: on production that read was 8.9s of a 9.9s
+        # Agents page. Migration 006 fills the columns for every span already
+        # written, so the question can be asked of the columns alone.
         scope :with_token_usage, lambda {
-          where.not(input_tokens: nil)
-               .or(where.not(total_tokens: nil))
-               .or(where("span_attributes::text LIKE ?", '%"input_tokens"%'))
-               .or(where("span_attributes::text LIKE ?", '%"total_tokens"%'))
+          where.not(input_tokens: nil).or(where.not(total_tokens: nil))
         }
-        # Spans that plausibly recorded a per-call fee. Coarse like the scope
-        # above and confirmed the same way, in Ruby: the three spellings of the
-        # key all contain the bare word, and matching that is cheaper than three
-        # LIKEs over the same seq scan.
-        scope :with_call_fee, -> { where("span_attributes::text LIKE ?", "%cost_cents%") }
+
+        # Spans that recorded a per-call fee.
+        scope :with_call_fee, -> { where.not(call_fee_cents: nil) }
 
         # Spans that plausibly put anything on a bill, in either unit. A page
         # that totals only the first of them omits every search a run made while
@@ -134,7 +129,15 @@ module RAAF
         # quietly answering nil.
         BILLING_COLUMNS = %w[span_id trace_id parent_id kind name status
                              duration_ms start_time input_tokens output_tokens
-                             total_tokens agent_model].freeze
+                             total_tokens agent_model call_fee_cents].freeze
+
+        # Kinds whose billing answer is entirely in the columns.
+        #
+        # An agent, a pipeline and an llm span are billed by the token: the
+        # count and the model are columns, a fee is a column, and none of them
+        # is a search component, so nothing left in the payload changes what
+        # they cost.
+        SELF_DESCRIBING_KINDS = %w[agent pipeline llm].freeze
 
         # Spans loaded with only the attributes a bill is made of.
         #
@@ -152,6 +155,13 @@ module RAAF
         # stored as text, so every +->+ reparses the whole document. Fourteen of
         # them measured 7.6s against 0.6s for the single +json_each+ below.
         #
+        # Since migration 006 filled the billing columns for every span already
+        # written, most rows do not need the rebuild at all: a span of a
+        # {SELF_DESCRIBING_KINDS} kind that has a token count in a column has
+        # its whole bill in columns, and gets an empty payload without the
+        # parse. A row the backfill did not reach still has its payload read,
+        # so a database that has not migrated loses speed rather than money.
+        #
         # Records come back read-only in every practical sense — they are
         # missing most of their columns — so this is for reading totals, never
         # for writing.
@@ -168,13 +178,18 @@ module RAAF
         # +json_each+ halfway through a page.
         def self.narrowed_attributes_sql
           @narrowed_attributes_sql ||= sanitize_sql_array(
-            [<<~SQL.squish, ::RAAF::Tracing::SpanUsage::BILLING_KEYS]
-              COALESCE((SELECT json_object_agg(entry.key, entry.value)
+            [<<~SQL.squish, SELF_DESCRIBING_KINDS, ::RAAF::Tracing::SpanUsage::BILLING_KEYS]
+              CASE WHEN #{quoted_table_name}.kind IN (?)
+                    AND (#{quoted_table_name}.input_tokens IS NOT NULL
+                         OR #{quoted_table_name}.total_tokens IS NOT NULL)
+                   THEN '{}'::json
+                   ELSE COALESCE((SELECT json_object_agg(entry.key, entry.value)
                           FROM json_each(CASE
                                  WHEN json_typeof(#{quoted_table_name}.span_attributes) = 'object'
                                  THEN #{quoted_table_name}.span_attributes
                                  ELSE '{}'::json END) AS entry
-                         WHERE entry.key IN (?)), '{}')::json AS span_attributes
+                         WHERE entry.key IN (?)), '{}')::json
+              END AS span_attributes
             SQL
           )
         end

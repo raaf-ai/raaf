@@ -192,6 +192,13 @@ RSpec.describe RAAF::Tracing::SpanUsage do
                columns[:total_tokens], columns[:agent_model])
   end
 
+  # A span from a schema that has the fee column, which the struct above
+  # deliberately lacks: a reader must work on both, because the column arrived
+  # after the spans that record a fee in their payload.
+  def fee_column_span(kind:, call_fee_cents:, attributes: {})
+    Struct.new(:kind, :span_attributes, :call_fee_cents).new(kind, attributes, call_fee_cents)
+  end
+
   describe ".billing_mode" do
     it "bills a model call by the token" do
       expect(described_class.billing_mode(billed_span(kind: "llm"))).to eq(:tokens)
@@ -229,6 +236,41 @@ RSpec.describe RAAF::Tracing::SpanUsage do
 
     it "is nil for a span that recorded none" do
       expect(described_class.fee_for_span(billed_span(kind: "search"))).to be_nil
+    end
+
+    # The column is there so a window's fees can be found by an index instead
+    # of by a substring search through every span's whole payload.
+    it "reads the column where the schema has one" do
+      recorded = fee_column_span(kind: "search", call_fee_cents: 0.5)
+
+      expect(described_class.fee_for_span(recorded)).to be_within(1e-9).of(0.005)
+    end
+
+    # A span written before the column existed still recorded its fee, and is
+    # still owed the charge.
+    it "falls back to the payload where the column is empty" do
+      recorded = fee_column_span(kind: "search", call_fee_cents: nil,
+                                 attributes: { "cost_cents" => 0.5 })
+
+      expect(described_class.fee_for_span(recorded)).to be_within(1e-9).of(0.005)
+    end
+  end
+
+  describe ".fee_cents_from" do
+    it "reads the first key that recorded a number, in cents as written" do
+      expect(described_class.fee_cents_from({ "search.cost_cents" => "0.5" })).to eq(0.5)
+    end
+
+    it "prefers the plainest spelling where a payload carries more than one" do
+      attributes = { "cost_cents" => 1, "search.cost_cents" => 2 }
+
+      expect(described_class.fee_cents_from(attributes)).to eq(1)
+    end
+
+    it "is nil for a payload with no fee, so nothing is billed as free" do
+      expect(described_class.fee_cents_from({ "cost_cents" => "n/a" })).to be_nil
+      expect(described_class.fee_cents_from({})).to be_nil
+      expect(described_class.fee_cents_from(nil)).to be_nil
     end
   end
 

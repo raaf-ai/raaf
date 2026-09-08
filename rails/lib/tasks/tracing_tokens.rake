@@ -8,7 +8,7 @@ namespace :raaf do
       batch_size = (ENV["BATCH"] || 1000).to_i
 
       span_class = RAAF::Rails::Tracing::SpanRecord
-      columns = %i[input_tokens output_tokens total_tokens agent_model]
+      columns = %i[input_tokens output_tokens total_tokens agent_model call_fee_cents]
                 .select { |column| span_class.column_names.include?(column.to_s) }
 
       if columns.empty?
