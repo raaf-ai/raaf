@@ -46,13 +46,14 @@ module RAAF
             race: [
               /\b(all|most|typical) (black|white|asian|hispanic|latino|african|european|arab) (people|men|women)\b/i,
               /\b(race|ethnicity) determines?\b/i,
-              /\bcultural stereotype/i
+              /\bstereotypes?\b/i
             ],
             gender: [
               /\b(all|most|typical) (men|women|males|females) (are|tend to|usually)\b/i,
               /\b(boys|girls) (should|must|are meant to)\b/i,
               /\b(masculine|feminine) (role|trait|job)\b/i,
-              /\b(women|men) (can't|shouldn't|aren't good at)\b/i
+              /\b(women|men) (can't|shouldn't|aren't good at)\b/i,
+              /\b(men|women|males|females) are\b[^.!?]*\b(better|worse|superior|inferior|smarter|stronger|weaker)\b/i
             ],
             political: [
               /\b(all|every) (liberal|conservative|democrat|republican)s? (are|believe)\b/i,
