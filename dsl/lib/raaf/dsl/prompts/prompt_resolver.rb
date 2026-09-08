@@ -140,29 +140,14 @@ module RAAF
           @resolvers.each do |resolver|
             next unless resolver.can_resolve?(prompt_spec)
 
-            log_debug("Attempting prompt resolution",
-                      resolver: resolver.name,
-                      spec_class: prompt_spec.class.name)
-
             result = resolver.resolve(prompt_spec, context)
             if result
-              log_debug("Successfully resolved prompt", resolver: resolver.name)
               return result
             end
           end
         end
 
-        log_debug("No resolver found for prompt specification", spec_class: prompt_spec.class.name)
         nil
-      end
-    end
-
-    ##
-    # Global prompt resolver registry
-    #
-    class << self
-      def prompt_resolvers
-        @prompt_resolvers ||= PromptResolverRegistry.new
       end
     end
   end

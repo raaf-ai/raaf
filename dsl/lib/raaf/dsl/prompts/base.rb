@@ -175,8 +175,9 @@ module RAAF
 
         # Perform dry-run validation to detect missing context variables
         def dry_run_validation!
-          # Skip if no context to validate
-          return if @context.nil? || @context.empty?
+          # An empty context is not a reason to skip: that is precisely when
+          # every variable a prompt references is missing.
+          return if @context.nil?
 
           # Create spy context
           spy = RAAF::DSL::ContextSpy.new(@context)

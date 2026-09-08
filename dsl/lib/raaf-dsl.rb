@@ -344,19 +344,29 @@ module RAAF
     # This method is called by the Railtie to ensure resolvers are available
     # when classes are eager loaded in production environments
     #
+    # Eager loading must never take down boot, so a registry that fails to
+    # populate degrades to an empty one rather than raising.
+    #
     # @return [PromptResolverRegistry] The initialized registry
     def self.ensure_prompt_resolvers_initialized!
       # Force initialization by calling the getter
-      prompt_resolvers
-
-      # Verify resolvers are properly registered
-      if @prompt_resolvers.nil? || @prompt_resolvers.resolvers.empty?
-        # Fallback initialization if something went wrong
-        @prompt_resolvers = PromptResolverRegistry.new
-        initialize_default_resolvers(@prompt_resolvers)
+      begin
+        prompt_resolvers
+      rescue StandardError
+        @prompt_resolvers = nil
       end
 
-      @prompt_resolvers
+      # Verify resolvers are properly registered
+      return @prompt_resolvers unless @prompt_resolvers.nil? || @prompt_resolvers.resolvers.empty?
+
+      # Fallback initialization if something went wrong
+      registry = PromptResolverRegistry.new
+      begin
+        initialize_default_resolvers(registry)
+      rescue StandardError
+        # Resolution falls through to the agent's own prompt handling.
+      end
+      @prompt_resolvers = registry
     end
 
     # Initialize default prompt resolvers

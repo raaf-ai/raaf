@@ -122,10 +122,6 @@ module RAAF
           create_resolver(name) unless DSL.prompt_resolvers.find(name)
         end
 
-        log_info("Applied prompt configuration",
-                 paths: @paths,
-                 resolvers: @resolvers,
-                 default_format: @default_format)
       end
 
       ##

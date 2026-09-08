@@ -64,7 +64,7 @@ module RAAF
       #
       # This initializer runs early in the Rails boot process to set up
       # the gem's configuration before other components may need it.
-      # It configures Rails-specific paths and enables development logging.
+      # It configures Rails-specific paths.
       #
       # @param app [Rails::Application] The Rails application instance
       initializer "raaf_dsl.configure" do |_app|
@@ -72,12 +72,6 @@ module RAAF
         # This ensures proper path resolution in all Rails deployment scenarios
         RAAF::DSL.configure do |config|
           config.config_file = ::Rails.root.join("config/ai_agents.yml").to_s
-        end
-
-        # Log gem initialization in development for debugging and verification
-        # Helps developers confirm the gem is properly loaded
-        if ::Rails.respond_to?(:env) && ::Rails.env.development?
-          RAAF.logger.info "[RAAF::DSL] Gem initialized with Rails integration"
         end
       end
 
@@ -116,22 +110,10 @@ module RAAF
       config.after_initialize do
         # Always ensure prompt resolvers are initialized, regardless of environment
         # This provides better reliability across all deployment scenarios
-
-        registry = RAAF::DSL.ensure_prompt_resolvers_initialized!
-        resolver_count = registry.resolvers.count
-        resolver_names = registry.resolvers.map(&:name).join(", ")
-
-        if ::Rails.application.config.eager_load
-          ::Rails.logger.info "[RAAF::DSL] Prompt resolvers initialized for eager-loaded environment: #{resolver_count} resolvers (#{resolver_names})"
-        else
-          ::Rails.logger.debug { "[RAAF::DSL] Prompt resolvers initialized: #{resolver_count} resolvers (#{resolver_names})" }
-        end
-      rescue StandardError => e
-        ::Rails.logger.error "[RAAF::DSL] Failed to initialize prompt resolvers: #{e.message}"
-        ::Rails.logger.error "[RAAF::DSL] Stack trace: #{e.backtrace.first(5).join("\n")}"
-
-        # Don't let initialization failure prevent app startup, but log it clearly
-        ::Rails.logger.warn "[RAAF::DSL] Application will continue but RAAF agents may not work properly"
+        RAAF::DSL.ensure_prompt_resolvers_initialized!
+      rescue StandardError
+        # A resolver registry that cannot be built must not stop the app from
+        # booting; agents that need one will fail at their own call site.
       end
     end
   end

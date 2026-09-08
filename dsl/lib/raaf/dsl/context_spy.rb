@@ -23,9 +23,13 @@ module RAAF
         @accessed_variables = []
       end
 
+      # Always claims to hold the key so that resolution routes through #get,
+      # which is where a miss gets recorded and a SafeDummy keeps the render
+      # going. Answering false here would send the caller down its
+      # "not in context" path and the miss would never be seen.
       def has?(key)
         @accessed_variables << key unless @accessed_variables.include?(key)
-        @real_context.key?(key.to_sym) || @real_context.key?(key.to_s)
+        true
       end
 
       def get(key)
