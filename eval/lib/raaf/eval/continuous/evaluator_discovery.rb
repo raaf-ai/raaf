@@ -331,6 +331,7 @@ module RAAF
               name: name.to_s,
               class_name: evaluator_class.name,
               type: eval_type,
+              display_name: extract_display_name(evaluator_class),
               description: extract_description(evaluator_class),
               configurable_options: extract_configurable_options(evaluator_class),
               uses_llm: eval_type == "llm_judge",
@@ -352,6 +353,15 @@ module RAAF
             else
               "rule_based"
             end
+          end
+
+          # The title an evaluator declares for itself, which is the only
+          # human name a screen has: everything else it can reach is the
+          # registry symbol a policy names it with.
+          def extract_display_name(evaluator_class)
+            return evaluator_class.display_name if evaluator_class.respond_to?(:display_name)
+
+            nil
           end
 
           def extract_description(evaluator_class)
