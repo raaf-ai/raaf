@@ -361,7 +361,11 @@ module RAAF
       end
 
       def finish_span(span = nil)
-        span_to_finish = span || @span_stack.pop
+        span_to_finish = span || @span_stack.last
+        # Pop whether or not the caller named the span: passing it explicitly
+        # used to leave it on the stack, so every block-form start_span leaked
+        # its span and the next one was parented to a finished span.
+        @span_stack.pop if span_to_finish && @span_stack.last.equal?(span_to_finish)
         span_to_finish&.finish
         span_to_finish
       end
