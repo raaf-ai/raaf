@@ -31,11 +31,57 @@ module RAAF
         scope :pending, -> { where(status: "pending") }
         scope :recent, -> { order(created_at: :desc) }
 
+        # Worst first, which is the order a run is read in when the question is
+        # what it got wrong. A row without a score sorts last either way: it has
+        # no verdict to rank, and putting it at the top would bury the failures
+        # under cases nobody measured.
+        #
+        # Both fall back to doing nothing where the column has not been
+        # migrated in. RAAF's migrations are copied into a host application by
+        # hand, so a console running ahead of its database asks for an ordering
+        # it cannot have — and a results page that 500s until somebody notices
+        # is a worse answer than one that is merely not sorted.
+        scope :worst_first, lambda {
+          overall_score_stored? ? order(Arel.sql("overall_score ASC NULLS LAST")) : recent
+        }
+        scope :scoring_below, lambda { |threshold|
+          overall_score_stored? ? where(overall_score: ...threshold.to_f) : none
+        }
+
         ##
-        # Calculate overall score as average of all score dimensions
+        # @return [Boolean] whether this database carries the score column
+        def self.overall_score_stored?
+          column_names.include?("overall_score")
+        rescue ActiveRecord::ActiveRecordError
+          false
+        end
+
+        # Kept in step with the hash it summarises, so the table can order and
+        # filter by it in SQL over the whole run rather than over the page it
+        # already loaded.
+        before_save :cache_overall_score
+
+        ##
+        # The mean of the score dimensions.
+        #
+        # Read off the column where one has been written, and averaged out of
+        # the hash where it has not — a row saved before the column existed is
+        # still scored, and reading it as unscored would lose it from every
+        # screen at once.
+        #
         # @return [Float, nil]
         def overall_score
-          return nil if scores.blank? || scores.empty?
+          stored = self[:overall_score] if has_attribute?(:overall_score)
+          return stored unless stored.nil?
+
+          computed_overall_score
+        end
+
+        ##
+        # @return [Float, nil] the mean of the numeric dimensions, or nil where
+        #   nothing numeric was recorded
+        def computed_overall_score
+          return nil if scores.blank?
 
           values = scores.values.select { |v| v.is_a?(Numeric) }
           return nil if values.empty?
@@ -86,6 +132,16 @@ module RAAF
         # @return [Boolean]
         def success?
           status == "completed"
+        end
+
+        private
+
+        # Skipped where the column is not there yet, so a host that has not run
+        # the migration saves results as it always did.
+        def cache_overall_score
+          return unless has_attribute?(:overall_score)
+
+          self[:overall_score] = computed_overall_score
         end
       end
     end
