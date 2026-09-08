@@ -131,7 +131,9 @@ RSpec.describe RAAF::DSL::PipelineDSL::ChainedAgent do
     it "skips agent execution when requirements not met" do
       chain = described_class.new(producer_agent, incompatible_agent)
 
-      expect(RAAF.logger).to receive(:warn).with(/Skipping.*IncompatibleAgent.*requirements not met/)
+      # log_warn passes structured context alongside the message.
+      expect(RAAF.logger).to receive(:warn)
+        .with(/Skipping.*IncompatibleAgent.*requirements not met/, hash_including(:missing_fields))
 
       result = chain.execute(context)
       expect(result[:output_data]).to eq("processed")

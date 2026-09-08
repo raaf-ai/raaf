@@ -310,10 +310,17 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
         end
       end
 
-      it "raises the error with context" do
+      it "keeps processing and returns only what it could load" do
+        result = nil
+
         expect do
-          processor.process(input_items, agent.context, &error_block)
-        end.to raise_error(StandardError, /Processing failed/)
+          result = processor.process(input_items, agent.context, &error_block)
+        end.not_to raise_error
+
+        # Every batch fails, so nothing is processed, but the skipped items
+        # were already loaded before the block ran.
+        expect(result.count).to eq(25)
+        expect(result).to all(include(source: "database"))
       end
     end
 
@@ -336,10 +343,15 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
         end
       end
 
-      it "raises the error with context" do
+      it "keeps processing and returns nothing for the failed batches" do
+        result = nil
+
         expect do
-          processor.process(input_items, agent.context) { |_items, _ctx| [] }
-        end.to raise_error(StandardError, /Skip check failed/)
+          result = processor.process(input_items, agent.context) { |_items, _ctx| [] }
+        end.not_to raise_error
+
+        # Partitioning failed before anything was loaded or processed.
+        expect(result).to eq([])
       end
     end
 
@@ -356,7 +368,8 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
             { id: record[:id] }
           end
 
-          persistence_handler do |_batch_results, _context|
+          persistence_handler do |_batch_results, context|
+            context[:persist_attempts] = (context[:persist_attempts] || 0) + 1
             raise StandardError, "Persistence failed"
           end
         end
@@ -368,10 +381,16 @@ RSpec.describe RAAF::DSL::IncrementalProcessor do
         end
       end
 
-      it "raises the error with context" do
+      it "attempts every batch and drops the results it could not persist" do
+        result = nil
+
         expect do
-          processor.process(input_items, agent.context, &process_block)
-        end.to raise_error(StandardError, /Persistence failed/)
+          result = processor.process(input_items, agent.context, &process_block)
+        end.not_to raise_error
+
+        # One failing batch does not stop the ones behind it.
+        expect(agent.context[:persist_attempts]).to eq(3)
+        expect(result).to eq([])
       end
     end
   end

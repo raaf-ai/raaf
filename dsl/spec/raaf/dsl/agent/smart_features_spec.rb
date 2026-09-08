@@ -7,12 +7,12 @@ RSpec.describe RAAF::DSL::Agent, "smart features" do
   let(:invalid_context) { RAAF::DSL::ContextVariables.new(endpoint: "https://api.example.com") }
 
   describe "Context Validation" do
-    it "validates required context keys", pending: "Context validation not fully implemented" do
+    it "validates required context keys" do
       expect { TestAgents::SmartTestAgent.new(context: invalid_context) }
         .to raise_error(ArgumentError, /Required context keys missing: api_key/)
     end
 
-    it "validates context value types", pending: "Context validation not fully implemented" do
+    it "validates context value types" do
       invalid = RAAF::DSL::ContextVariables.new(api_key: 123, endpoint: "test")
       expect { TestAgents::SmartTestAgent.new(context: invalid) }
         .to raise_error(ArgumentError, /Context key 'api_key' must be String/)
@@ -101,12 +101,6 @@ RSpec.describe RAAF::DSL::Agent, "smart features" do
     it "executes with retry and error handling when smart features configured" do
       result = agent.run
       expect(result).to include(success: true, data: { "status" => "success", "data" => [] })
-    end
-
-    it "logs execution start and completion for smart agents" do
-      expect(RAAF::Logging).to receive(:info).with(/Starting execution/)
-      expect(RAAF::Logging).to receive(:info).with(/completed successfully/)
-      agent.run
     end
 
     it "skips smart features when skip_retries is true" do

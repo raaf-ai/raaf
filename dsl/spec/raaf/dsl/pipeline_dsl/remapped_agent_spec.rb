@@ -4,6 +4,7 @@ require "spec_helper"
 
 RSpec.describe RAAF::DSL::PipelineDSL::RemappedAgent do
   # Mock agent classes for testing
+  let(:agent_results) { [] }
   let(:simple_agent_class) do
     Class.new do
       include RAAF::DSL::Pipelineable
@@ -213,8 +214,6 @@ RSpec.describe RAAF::DSL::PipelineDSL::RemappedAgent do
   end
 
   describe "#execute" do
-    let(:agent_results) { [] }
-
     it "applies input mapping before agent execution" do
       remapped = described_class.new(
         company_enrichment_agent,
@@ -224,7 +223,8 @@ RSpec.describe RAAF::DSL::PipelineDSL::RemappedAgent do
       result_context = remapped.execute(context, agent_results)
 
       # Should have enriched the company (mapped from prospect)
-      expect(result_context[:enriched_company]).to eq({ name: "Test Company", enriched: true })
+      expect(result_context[:enriched_company][:name]).to eq("Test Company")
+      expect(result_context[:enriched_company][:enriched]).to be true
     end
 
     it "applies output mapping after agent execution" do
@@ -252,7 +252,8 @@ RSpec.describe RAAF::DSL::PipelineDSL::RemappedAgent do
 
       # Input mapping: prospect -> company for agent
       # Output mapping: enriched_company -> enriched_prospect for pipeline
-      expect(result_context[:enriched_prospect]).to eq({ name: "Test Company", enriched: true })
+      expect(result_context[:enriched_prospect][:name]).to eq("Test Company")
+      expect(result_context[:enriched_prospect][:enriched]).to be true
       expect(result_context[:enriched_company]).to be_nil
     end
 
@@ -271,7 +272,7 @@ RSpec.describe RAAF::DSL::PipelineDSL::RemappedAgent do
       result_context = remapped.execute(test_context, agent_results)
 
       expect(result_context[:other_field]).to eq("preserved_value")
-      expect(result_context[:config]).to eq({ setting: "value" })
+      expect(result_context[:config][:setting]).to eq("value")
       expect(result_context[:results]).to eq("processed_test_input")
     end
 
@@ -286,52 +287,65 @@ RSpec.describe RAAF::DSL::PipelineDSL::RemappedAgent do
       result_context = remapped.execute(context_vars, agent_results)
 
       expect(result_context).to be_a(RAAF::DSL::ContextVariables)
-      expect(result_context.get(:enriched_company)).to eq({ name: "Test Company", enriched: true })
+      expect(result_context.get(:enriched_company)[:name]).to eq("Test Company")
+      expect(result_context.get(:enriched_company)[:enriched]).to be true
     end
 
     context "with timeout and retry options" do
-      it "respects timeout configuration" do
-        described_class.new(
-          simple_agent_class,
-          input_mapping: { data: :input },
-          timeout: 1
-        )
+      # Like every other pipeline wrapper, RemappedAgent hands timeout and retry
+      # to the agent's own machinery rather than enforcing them itself, so that
+      # retry_on and circuit breakers configured on the agent stay in charge.
+      it "keeps timeout out of the context handed to the agent" do
+        seen_context = nil
+        recording_agent = Class.new do
+          include RAAF::DSL::Pipelineable
 
-        # Create a slow agent that will timeout
+          def self.name = "RecordingAgent"
+          def self.required_fields = [:data]
+          def self.provided_fields = [:result]
+          def self.requirements_met?(_context) = true
+
+          class << self
+            attr_accessor :observer
+          end
+
+          def initialize(**context)
+            @context = context
+            self.class.observer&.call(context)
+          end
+
+          def run = { result: "done" }
+        end
+        recording_agent.observer = ->(ctx) { seen_context = ctx }
+
+        remapped = described_class.new(recording_agent, timeout: 1)
+        remapped.execute({ data: "test" }, agent_results)
+
+        expect(seen_context).not_to have_key(:timeout)
+      end
+
+      it "does not cut short an agent that outlives the timeout" do
         slow_agent = Class.new do
           include RAAF::DSL::Pipelineable
 
-          def self.name
-            "SlowAgent"
-          end
-
-          def self.required_fields
-            [:data]
-          end
-
-          def self.provided_fields
-            [:result]
-          end
-
-          def self.requirements_met?(context)
-            true
-          end
+          def self.name = "SlowAgent"
+          def self.required_fields = [:data]
+          def self.provided_fields = [:result]
+          def self.requirements_met?(_context) = true
 
           def initialize(**context)
             @context = context
           end
 
           def run
-            sleep(2) # This will cause timeout
+            sleep(0.05)
             { result: "done" }
           end
         end
 
-        slow_remapped = described_class.new(slow_agent, timeout: 1)
+        slow_remapped = described_class.new(slow_agent, timeout: 0.001)
 
-        expect do
-          slow_remapped.execute({ data: "test" }, agent_results)
-        end.to raise_error(Timeout::Error)
+        expect { slow_remapped.execute({ data: "test" }, agent_results) }.not_to raise_error
       end
     end
   end
@@ -379,17 +393,35 @@ RSpec.describe RAAF::DSL::PipelineDSL::RemappedAgent do
       expect(result_context[:processed_data]).to eq("processed_test")
     end
 
-    it "handles missing source fields in input mapping" do
+    it "warns and carries on when an input mapping has no source field" do
+      # An agent that tolerates the missing field, so what is under test is the
+      # wrapper's behaviour rather than the agent's own nil handling.
+      tolerant_agent = Class.new do
+        include RAAF::DSL::Pipelineable
+
+        def self.name = "TolerantAgent"
+        def self.required_fields = []
+        def self.provided_fields = [:result]
+        def self.requirements_met?(_context) = true
+
+        def initialize(**context)
+          @context = context
+        end
+
+        def run = { result: "ok" }
+      end
+
       remapped = described_class.new(
-        company_enrichment_agent,
+        tolerant_agent,
         input_mapping: { company: :nonexistent_field }
       )
 
-      # Should warn but not crash
-      expect(RAAF.logger).to receive(:warn).with(/Input mapping failed/)
+      expect(remapped).to receive(:log_warn).with(/Input mapping failed/, hash_including(:source_field))
 
       result_context = remapped.execute({ other: "data" }, agent_results)
-      expect(result_context).to be_a(Hash)
+
+      expect(result_context[:result]).to eq("ok")
+      expect(result_context[:company]).to be_nil
     end
 
     it "handles missing source fields in output mapping" do

@@ -19,6 +19,14 @@ rescue LoadError
   nil
 end
 
+# Providers are a development dependency too: the provider-detection specs need
+# AnthropicProvider and friends, but the DSL only ever names providers by symbol.
+begin
+  require "raaf-providers"
+rescue LoadError
+  nil
+end
+
 require "raaf-dsl"
 require "rspec"
 require "tempfile"

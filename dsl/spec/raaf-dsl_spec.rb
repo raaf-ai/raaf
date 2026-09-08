@@ -39,12 +39,6 @@ RSpec.describe RAAF::DSL do
       expect { RAAF::DSL::PromptResolvers::FileResolver }.not_to raise_error
     end
 
-    it "autoloads tools module" do
-      expect { RAAF::DSL::Tools::Base }.not_to raise_error
-      expect { RAAF::DSL::Tools::WebSearch }.not_to raise_error
-      expect { RAAF::DSL::Tools::TavilySearch }.not_to raise_error
-    end
-
     it "autoloads debugging tools" do
       expect { RAAF::DSL::Debugging::LLMInterceptor }.not_to raise_error
       expect { RAAF::DSL::Debugging::PromptInspector }.not_to raise_error
@@ -281,7 +275,6 @@ RSpec.describe RAAF::DSL do
       expect(RAAF::DSL::Builders).to be_a(Module)
       expect(RAAF::DSL::Prompts).to be_a(Module)
       expect(RAAF::DSL::PromptResolvers).to be_a(Module)
-      expect(RAAF::DSL::Tools).to be_a(Module)
       expect(RAAF::DSL::Debugging).to be_a(Module)
       expect(RAAF::DSL::Hooks).to be_a(Module)
       expect(RAAF::DSL::Generators).to be_a(Module)

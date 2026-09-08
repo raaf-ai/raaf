@@ -3,72 +3,133 @@
 require "spec_helper"
 
 RSpec.describe RAAF::DSL::PipelineDSL::FieldMismatchError do
-  describe "#initialize" do
-    it "accepts message and context details" do
-      error = described_class.new(
-        "Field mismatch detected",
-        agent: "TestAgent",
-        expected_fields: %i[name age],
-        actual_fields: %i[name email],
-        missing_fields: [:age],
-        extra_fields: [:email]
-      )
-
-      expect(error.message).to eq("Field mismatch detected")
-      expect(error.agent).to eq("TestAgent")
-      expect(error.expected_fields).to eq(%i[name age])
-      expect(error.actual_fields).to eq(%i[name email])
-      expect(error.missing_fields).to eq([:age])
-      expect(error.extra_fields).to eq([:email])
-    end
-
-    it "accepts message only" do
-      error = described_class.new("Simple error message")
-      expect(error.message).to eq("Simple error message")
-      expect(error.agent).to be_nil
-      expect(error.expected_fields).to be_nil
-      expect(error.actual_fields).to be_nil
-      expect(error.missing_fields).to be_nil
-      expect(error.extra_fields).to be_nil
-    end
-
-    it "has default message when none provided" do
-      error = described_class.new(nil, agent: "TestAgent")
-      expect(error.message).to include("Field mismatch")
-      expect(error.agent).to eq("TestAgent")
+  # The error is constructed by ChainedAgent#validate_field_compatibility! with the
+  # producer component, the consumer component, the fields the consumer still needs,
+  # and the fields the surrounding pipeline can supply from its context block.
+  let(:producer) do
+    Class.new do
+      def self.name = "ProducerAgent"
+      def self.provided_fields = %i[id name]
+      def self.required_fields = []
     end
   end
 
-  describe "attribute readers" do
-    let(:error) do
-      described_class.new(
-        "Test error",
-        agent: "DataProcessor",
-        expected_fields: %i[id name status],
-        actual_fields: %i[id description],
-        missing_fields: %i[name status],
-        extra_fields: [:description]
-      )
+  let(:consumer) do
+    Class.new do
+      def self.name = "ConsumerAgent"
+      def self.provided_fields = []
+      def self.required_fields = %i[id name email status]
+    end
+  end
+
+  describe "#initialize" do
+    it "builds its message from the producer and consumer field declarations" do
+      error = described_class.new(producer, consumer, %i[email status])
+
+      expect(error.message).to include("Pipeline Field Mismatch Error!")
+      expect(error.message).to include("ConsumerAgent requires fields: #{consumer.required_fields.inspect}")
+      expect(error.message).to include("ProducerAgent only provides: #{producer.provided_fields.inspect}")
     end
 
-    it "provides access to agent name" do
-      expect(error.agent).to eq("DataProcessor")
+    it "defaults the pipeline context fields to an empty list" do
+      error = described_class.new(producer, consumer, %i[email status])
+
+      expect(error.message).to include("Missing fields that must be provided: [:email, :status]")
+      expect(error.message).not_to include("available from pipeline context")
+    end
+  end
+
+  describe "the remediation guidance" do
+    it "lists the fields that no source can supply along with fixes" do
+      error = described_class.new(producer, consumer, %i[email status])
+
+      expect(error.message).to include("Missing fields that must be provided: [:email, :status]")
+      expect(error.message).to include("Update ProducerAgent's result_transform to provide: [:email, :status]")
+      expect(error.message).to include("Or update ConsumerAgent to not require these fields")
+      expect(error.message).to include("Or add an intermediate agent that provides the transformation")
     end
 
-    it "provides access to expected fields" do
-      expect(error.expected_fields).to eq(%i[id name status])
+    it "points at the pipeline context for fields the context can supply" do
+      error = described_class.new(producer, consumer, %i[email status], %i[email status])
+
+      expect(error.message).to include("These fields are available from pipeline context: [:email, :status]")
+      expect(error.message).to include("Make sure they are declared in the pipeline's context block")
+      expect(error.message).not_to include("Missing fields that must be provided")
     end
 
-    it "provides access to actual fields" do
-      expect(error.actual_fields).to eq(%i[id description])
+    it "separates context-provided fields from genuinely missing ones" do
+      error = described_class.new(producer, consumer, %i[email status], [:email])
+
+      expect(error.message).to include("Missing fields that must be provided: [:status]")
+      expect(error.message).to include("available from pipeline context: [:email]")
     end
 
-    it "provides access to missing fields" do
-      expect(error.missing_fields).to eq(%i[name status])
+    it "omits both sections when nothing is missing" do
+      error = described_class.new(producer, consumer, [])
+
+      expect(error.message).not_to include("Missing fields that must be provided")
+      expect(error.message).not_to include("available from pipeline context")
+    end
+  end
+
+  describe "agent name extraction" do
+    it "uses the class name for a plain agent class" do
+      error = described_class.new(producer, consumer, [:email])
+
+      expect(error.message).to include("ProducerAgent only provides")
     end
 
-    it "provides access to extra fields" do
-      expect(error.extra_fields).to eq([:description])
+    it "reports the last agent of a chained producer" do
+      chain = RAAF::DSL::PipelineDSL::ChainedAgent.new(consumer, producer)
+      error = described_class.new(chain, consumer, [:email])
+
+      expect(error.message).to include("ProducerAgent only provides")
+    end
+
+    it "joins every branch of a parallel producer" do
+      parallel = RAAF::DSL::PipelineDSL::ParallelAgents.new([producer, consumer])
+      allow(parallel).to receive(:provided_fields).and_return(%i[id name])
+      error = described_class.new(parallel, consumer, [:email])
+
+      expect(error.message).to include("(ProducerAgent | ConsumerAgent) only provides")
+    end
+
+    it "unwraps a batched producer" do
+      batched = RAAF::DSL::PipelineDSL::BatchedAgent.new(producer, 10, array_field: :items)
+      allow(batched).to receive(:provided_fields).and_return(%i[id name])
+      error = described_class.new(batched, consumer, [:email])
+
+      expect(error.message).to include("ProducerAgent only provides")
+    end
+
+    it "unwraps an iterating producer" do
+      iterating = RAAF::DSL::PipelineDSL::IteratingAgent.new(producer, :items)
+      allow(iterating).to receive(:provided_fields).and_return(%i[id name])
+      error = described_class.new(iterating, consumer, [:email])
+
+      expect(error.message).to include("ProducerAgent only provides")
+    end
+
+    it "unwraps a remapped producer" do
+      remapped = RAAF::DSL::PipelineDSL::RemappedAgent.new(producer, input_mapping: { a: :b })
+      allow(remapped).to receive(:provided_fields).and_return(%i[id name])
+      error = described_class.new(remapped, consumer, [:email])
+
+      expect(error.message).to include("ProducerAgent only provides")
+    end
+
+    it "unwraps a configured producer" do
+      configured = RAAF::DSL::PipelineDSL::ConfiguredAgent.new(producer, { timeout: 5 })
+      error = described_class.new(configured, consumer, [:email])
+
+      expect(error.message).to include("ProducerAgent only provides")
+    end
+
+    it "falls back to the object's own name for anything else" do
+      other = double("component", name: "AnonymousComponent", provided_fields: [])
+      error = described_class.new(other, consumer, [:email])
+
+      expect(error.message).to include("AnonymousComponent only provides")
     end
   end
 
@@ -77,172 +138,31 @@ RSpec.describe RAAF::DSL::PipelineDSL::FieldMismatchError do
       expect(described_class).to be < StandardError
     end
 
-    it "can be caught as StandardError" do
+    it "can be rescued as a StandardError" do
       expect do
-        raise described_class.new("Test error")
-      end.to raise_error(StandardError, "Test error")
+        raise described_class.new(producer, consumer, [:email])
+      end.to raise_error(StandardError, /Pipeline Field Mismatch Error!/)
     end
 
-    it "can be caught specifically" do
+    it "can be rescued specifically" do
       expect do
-        raise described_class.new("Test error")
-      end.to raise_error(described_class, "Test error")
+        raise described_class.new(producer, consumer, [:email])
+      end.to raise_error(described_class, /ConsumerAgent requires fields/)
     end
   end
 
-  describe "error context" do
-    it "provides helpful context for debugging" do
-      error = described_class.new(
-        "Pipeline validation failed",
-        agent: "DataValidator",
-        expected_fields: %i[user_id email name],
-        actual_fields: %i[user_id username],
-        missing_fields: %i[email name],
-        extra_fields: [:username]
-      )
+  describe "raised from a chained agent" do
+    it "reports the fields the consumer cannot get from the producer" do
+      chain = RAAF::DSL::PipelineDSL::ChainedAgent.new(producer, consumer)
 
-      # Error should contain all relevant debugging information
-      expect(error.agent).to eq("DataValidator")
-      expect(error.missing_fields).to include(:email, :name)
-      expect(error.extra_fields).to include(:username)
+      expect { chain.validate_with_pipeline_context([]) }
+        .to raise_error(described_class, /Missing fields that must be provided/)
     end
 
-    it "handles empty field arrays" do
-      error = described_class.new(
-        "No field mismatches",
-        agent: "PerfectAgent",
-        expected_fields: %i[id name],
-        actual_fields: %i[id name],
-        missing_fields: [],
-        extra_fields: []
-      )
+    it "stays silent once the pipeline context covers the gap" do
+      chain = RAAF::DSL::PipelineDSL::ChainedAgent.new(producer, consumer)
 
-      expect(error.missing_fields).to eq([])
-      expect(error.extra_fields).to eq([])
-    end
-
-    it "handles nil field arrays" do
-      error = described_class.new(
-        "Unknown field state",
-        agent: "UnknownAgent",
-        expected_fields: nil,
-        actual_fields: nil,
-        missing_fields: nil,
-        extra_fields: nil
-      )
-
-      expect(error.expected_fields).to be_nil
-      expect(error.actual_fields).to be_nil
-      expect(error.missing_fields).to be_nil
-      expect(error.extra_fields).to be_nil
-    end
-  end
-
-  describe "usage in pipeline validation" do
-    it "can be raised with comprehensive field analysis" do
-      # Simulate a pipeline validation scenario
-      expected = %i[id name email status]
-      actual = %i[id name description created_at]
-      missing = expected - actual
-      extra = actual - expected
-
-      expect do
-        raise described_class.new(
-          "Agent output fields don't match pipeline requirements",
-          agent: "UserProcessor",
-          expected_fields: expected,
-          actual_fields: actual,
-          missing_fields: missing,
-          extra_fields: extra
-        )
-      end.to raise_error(described_class) do |error|
-        expect(error.missing_fields).to include(:email, :status)
-        expect(error.extra_fields).to include(:description, :created_at)
-      end
-    end
-
-    it "supports pipeline debugging workflows" do
-      # Create error as if from pipeline validation
-      validation_error = described_class.new(
-        "Field validation failed in pipeline step 2",
-        agent: "DataEnricher",
-        expected_fields: %i[user_data enriched_data],
-        actual_fields: %i[user_data raw_enrichment],
-        missing_fields: [:enriched_data],
-        extra_fields: [:raw_enrichment]
-      )
-
-      # Error should provide everything needed for debugging
-      expect(validation_error.agent).to eq("DataEnricher")
-      expect(validation_error.missing_fields).to eq([:enriched_data])
-      expect(validation_error.extra_fields).to eq([:raw_enrichment])
-
-      # Should be able to construct helpful debug messages
-      debug_info = {
-        step: "Pipeline Step 2",
-        agent: validation_error.agent,
-        issue: "Missing required fields: #{validation_error.missing_fields.join(', ')}",
-        suggestion: "Check agent output schema"
-      }
-
-      expect(debug_info[:agent]).to eq("DataEnricher")
-      expect(debug_info[:issue]).to include("enriched_data")
-    end
-  end
-
-  describe "string representation" do
-    let(:detailed_error) do
-      described_class.new(
-        "Complex validation error",
-        agent: "ComplexAgent",
-        expected_fields: %i[a b c],
-        actual_fields: %i[a d],
-        missing_fields: %i[b c],
-        extra_fields: [:d]
-      )
-    end
-
-    it "includes error message in string representation" do
-      expect(detailed_error.to_s).to include("Complex validation error")
-    end
-
-    it "provides useful inspect output" do
-      inspect_output = detailed_error.inspect
-      expect(inspect_output).to include("FieldMismatchError")
-      expect(inspect_output).to include("ComplexAgent")
-    end
-  end
-
-  describe "edge cases" do
-    it "handles very long field lists" do
-      long_expected = (1..100).map { |i| :"field_#{i}" }
-      long_actual = (50..150).map { |i| :"field_#{i}" }
-      missing = long_expected - long_actual
-      extra = long_actual - long_expected
-
-      error = described_class.new(
-        "Large field mismatch",
-        expected_fields: long_expected,
-        actual_fields: long_actual,
-        missing_fields: missing,
-        extra_fields: extra
-      )
-
-      expect(error.missing_fields.size).to eq(49) # fields 1-49
-      expect(error.extra_fields.size).to eq(49)   # fields 101-150
-    end
-
-    it "handles special characters in field names" do
-      error = described_class.new(
-        "Special char test",
-        expected_fields: %i[field-with-dashes field_with_underscores field.with.dots],
-        actual_fields: [:"field-with-dashes", :"field with spaces"],
-        missing_fields: %i[field_with_underscores field.with.dots],
-        extra_fields: [:"field with spaces"]
-      )
-
-      expect(error.missing_fields).to include(:field_with_underscores, :"field.with.dots")
-      expect(error.extra_fields).to include(:"field with spaces")
+      expect { chain.validate_with_pipeline_context(%i[email status]) }.not_to raise_error
     end
   end
 end

@@ -3,11 +3,11 @@
 require "spec_helper"
 
 RSpec.describe RAAF::DSL::AutoMerge do
-  # Mock agent class that includes AutoMerge
-  let(:agent_class) do
+  # The base run has to live in a superclass: AutoMerge#run calls super, so the
+  # module must sit between the agent class and the method it wraps. Defining
+  # run alongside the include would shadow the module entirely.
+  let(:base_agent_class) do
     Class.new do
-      include RAAF::DSL::AutoMerge
-
       # Mock the super run method
       def run(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
         # Return a mocked AI result
@@ -21,6 +21,18 @@ RSpec.describe RAAF::DSL::AutoMerge do
 
       # Allow setting mock results for testing
       attr_writer :mock_results
+    end
+  end
+
+  # Mock agent class that includes AutoMerge
+  let(:agent_class) do
+    Class.new(base_agent_class) do
+      include RAAF::DSL::AutoMerge
+
+      # AutoMerge only engages for agent classes that opt in.
+      def self.auto_merge_enabled?
+        true
+      end
     end
   end
 

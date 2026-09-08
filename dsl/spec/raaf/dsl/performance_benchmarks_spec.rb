@@ -12,7 +12,9 @@ RSpec.describe "Performance Benchmarks" do
   MAX_INITIALIZATION_TIME_MS = 5.0
   MAX_CACHE_ACCESS_TIME_MS = 0.1
 
-  before(:all) do
+  # stub_const only works inside the per-example lifecycle, so these are set up
+  # per example rather than once for the group.
+  before do
     # Define test tools for benchmarking
     @test_tools = {}
 
@@ -30,6 +32,14 @@ RSpec.describe "Performance Benchmarks" do
       stub_const("Ai::Tools::#{const_name}", tool_class)
       @test_tools[:"benchmark_tool#{i}"] = tool_class
     end
+  end
+
+  # A single resolve is at or below the clock's resolution, so time the whole
+  # loop and divide, rather than timing each call.
+  def ms_per_call(iterations)
+    start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    iterations.times { yield }
+    ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000) / iterations
   end
 
   describe "Agent initialization performance" do
@@ -86,9 +96,11 @@ RSpec.describe "Performance Benchmarks" do
 
         # Simulate eager loading by resolving tools immediately
         def initialize(**options)
-          # Force tool resolution during initialization
+          # Force tool resolution during initialization. A config holds either
+          # an unresolved :tool_identifier or an already-resolved :tool_class.
           self.class._tools_config.each do |config|
-            RAAF::ToolRegistry.resolve(config[:name])
+            identifier = config[:tool_identifier]
+            RAAF::ToolRegistry.resolve(identifier) if identifier
           end
           super
         end
@@ -133,8 +145,23 @@ RSpec.describe "Performance Benchmarks" do
       puts "    Lazy avg:  #{'%.4f' % lazy_avg}ms"
       puts "    Improvement: #{'%.1f' % improvement}%"
 
-      # Lazy should be faster
-      expect(lazy_avg).to be < eager_avg
+      # The timings above are reported for information only. Comparing two
+      # sub-millisecond averages is far too noisy to assert on under load, so
+      # the actual claim - that constructing an agent does not build its tools -
+      # is checked by counting tool instantiations instead.
+      built = 0
+      lazy_agent_class._tools_config.each do |config|
+        allow(config[:tool_class]).to receive(:new).and_wrap_original do |original, *args, **opts|
+          built += 1
+          original.call(*args, **opts)
+        end
+      end
+
+      lazy_agent = lazy_agent_class.new
+      expect(built).to eq(0) # constructing the agent builds nothing
+
+      lazy_agent.tools
+      expect(built).to eq(3) # tools are built on first use, one per declared tool
     end
   end
 
@@ -171,36 +198,30 @@ RSpec.describe "Performance Benchmarks" do
 
     it "benefits from caching on repeated lookups" do
       tool_name = :benchmark_tool5
+      tool_class = @test_tools[tool_name]
 
-      # First lookup (uncached)
-      first_lookup_times = []
-      10.times do
-        RAAF::ToolRegistry.instance_variable_get(:@registry).clear # Clear cache
-        start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        RAAF::ToolRegistry.resolve(tool_name)
-        first_lookup_times << ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000)
-      end
+      # Uncached: with an empty registry every call falls through to namespace
+      # auto-discovery, which builds a class name and constantizes it.
+      RAAF::ToolRegistry.clear!
+      expect(RAAF::ToolRegistry.resolve(tool_name)).to eq(tool_class)
+      WARM_UP_ITERATIONS.times { RAAF::ToolRegistry.resolve(tool_name) }
+      uncached = ms_per_call(ITERATIONS) { RAAF::ToolRegistry.resolve(tool_name) }
 
-      # Subsequent lookups (cached)
-      cached_lookup_times = []
-      100.times do
-        start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-        RAAF::ToolRegistry.resolve(tool_name)
-        cached_lookup_times << ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000)
-      end
-
-      first_avg = first_lookup_times.sum / first_lookup_times.length
-      cached_avg = cached_lookup_times.sum / cached_lookup_times.length
+      # Cached: the registry answers directly, without touching the namespaces.
+      RAAF::ToolRegistry.register(tool_name, tool_class)
+      expect(RAAF::ToolRegistry.resolve(tool_name)).to eq(tool_class)
+      WARM_UP_ITERATIONS.times { RAAF::ToolRegistry.resolve(tool_name) }
+      cached = ms_per_call(ITERATIONS) { RAAF::ToolRegistry.resolve(tool_name) }
 
       puts "\n  Cache Performance:"
-      puts "    First lookup:  #{'%.4f' % first_avg}ms"
-      puts "    Cached lookup: #{'%.4f' % cached_avg}ms"
-      puts "    Speedup:       #{format('%.1f', first_avg / cached_avg)}x"
+      puts "    Auto-discovery: #{'%.4f' % uncached}ms"
+      puts "    Registry hit:   #{'%.4f' % cached}ms"
+      puts "    Speedup:        #{format('%.1f', uncached / cached)}x"
 
-      # Cached should be faster
-      expect(cached_avg).to be < first_avg
+      # A registry hit avoids the namespace scan
+      expect(cached).to be < uncached
       # Cached should meet requirement
-      expect(cached_avg).to be < MAX_CACHE_ACCESS_TIME_MS
+      expect(cached).to be < MAX_CACHE_ACCESS_TIME_MS
     end
   end
 

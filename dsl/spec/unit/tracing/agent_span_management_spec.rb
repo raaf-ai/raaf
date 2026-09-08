@@ -24,8 +24,8 @@ RSpec.describe "Agent Span Management", type: :unit do
     end
 
     # Simplified run method for testing
-    def run_without_timeout(**options)
-      with_tracing(:run, parent_component: @parent_component) do
+    def run_without_timeout(parent_component: nil, **_options)
+      with_tracing(:run, parent_component: parent_component || @parent_component) do
         { success: true, result: "test_completed" }
       end
     end
@@ -201,23 +201,25 @@ RSpec.describe "Agent Span Management", type: :unit do
     end
   end
 
-  describe "integration with ExecutionContext" do
-    it "can auto-detect parent from execution context when no explicit parent" do
-      # Simulate execution context with active span
-      execution_context_span = {
-        span_id: "context_span_789",
-        trace_id: "context_trace_xyz"
-      }
-
-      allow(RAAF::Tracing::ExecutionContext).to receive(:current_span)
-        .and_return(execution_context_span)
+  describe "auto-detecting the surrounding execution context" do
+    it "adopts the ambient agent's span when no explicit parent is given" do
+      surrounding_agent = MockPipeline.new
+      allow(surrounding_agent).to receive(:current_span).and_return({
+                                                                     span_id: "context_span_789",
+                                                                     trace_id: "context_trace_xyz"
+                                                                   })
 
       captured_span = nil
       allow(test_agent).to receive(:send_span) do |span|
         captured_span = span
       end
 
-      test_agent.run_without_timeout
+      begin
+        Thread.current[:current_agent] = surrounding_agent
+        test_agent.run_without_timeout
+      ensure
+        Thread.current[:current_agent] = nil
+      end
 
       expect(captured_span[:trace_id]).to eq("context_trace_xyz")
       expect(captured_span[:parent_id]).to eq("context_span_789")

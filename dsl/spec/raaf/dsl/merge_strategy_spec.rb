@@ -385,18 +385,22 @@ RSpec.describe RAAF::DSL::MergeStrategy do
     end
 
     it "maintains reasonable memory overhead" do
+      # Build the fixtures before measuring, or the lazily-evaluated lets would
+      # be counted as the merge's own allocations.
+      existing_data
+      new_data
+
       # Force garbage collection to get baseline
       GC.start
-      memory_before = GC.stat[:total_allocated_bytes]
+      objects_before = GC.stat[:total_allocated_objects]
 
       result = described_class.apply_strategy(:by_id, existing_data, new_data)
 
-      memory_after = GC.stat[:total_allocated_bytes]
-      memory_used = memory_after - memory_before
+      objects_allocated = GC.stat[:total_allocated_objects] - objects_before
 
-      # Memory overhead should be reasonable (less than 2x the original data size)
-      original_size = existing_data.to_s.bytesize + new_data.to_s.bytesize
-      expect(memory_used).to be < (original_size * 2)
+      # The merge indexes and reuses the row hashes rather than deep-copying
+      # them, so it should allocate well under one object per input row.
+      expect(objects_allocated).to be < (existing_data.size + new_data.size)
 
       # Verify result correctness
       expect(result.length).to eq(150)

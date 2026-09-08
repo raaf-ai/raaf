@@ -2,10 +2,25 @@
 
 require "spec_helper"
 require "raaf/dsl/pipeline_dsl"
-# Skip tracing integration for now - requires raaf-tracing gem to be properly loaded
-# require "raaf/tracing/spans"
 
-RSpec.describe "Pipeline and Agent Tracing Integration", skip: "Requires raaf-tracing gem integration" do
+# These examples describe a span model the tracing layer no longer produces, and
+# they are skipped for that reason rather than for a missing gem: raaf-tracing is
+# in this gem's bundle and loads fine.
+#
+# What a pipeline run emits today is a single `run.workflow.pipeline` span from
+# RAAF::Tracing::Traceable, carrying component.name / component.type /
+# duration_ms / result.*. What these examples assert is a richer model that was
+# either removed or never landed: a :pipeline span with pipeline.flow_structure,
+# pipeline.agent_count and pipeline.execution_mode, one child :agent span per
+# agent carrying agent.* and dialog.* attributes, and lifecycle events on both.
+#
+# Reviving them means deciding whether that model should exist and building it —
+# a feature, not a spec repair. Un-skipping first is still the right way to see
+# the gap; the agents below were brought up to date with the current DSL (they
+# declare their `output` fields, so the pipeline validates and runs) so that
+# whoever picks this up hits the tracing question instead of DSL drift.
+RSpec.describe "Pipeline and Agent Tracing Integration",
+               skip: "Asserts a pipeline/agent span model the tracing layer does not emit" do
   # Create realistic test agents for integration testing
   let(:market_analyzer_class) do
     Class.new(RAAF::DSL::Agent) do
@@ -17,6 +32,7 @@ RSpec.describe "Pipeline and Agent Tracing Integration", skip: "Requires raaf-tr
       context do
         required :product, :company
         optional analysis_depth: "standard"
+        output :markets, :analysis_summary
       end
 
       schema do
@@ -42,11 +58,11 @@ RSpec.describe "Pipeline and Agent Tracing Integration", skip: "Requires raaf-tr
       agent_name "MarketScorer"
       model "gpt-4o"
       temperature 0.3
-      retry_count 2
       max_turns 5
 
       context do
         required :markets
+        output :scored_markets, :overall_confidence
       end
 
       schema do
@@ -72,6 +88,7 @@ RSpec.describe "Pipeline and Agent Tracing Integration", skip: "Requires raaf-tr
 
       context do
         required :scored_markets
+        output :search_terms, :terms_per_market
       end
 
       schema do

@@ -118,9 +118,9 @@ RSpec.describe RAAF::DSL::EdgeCases do
         expect(result).to eq({ name: "New" })
       end
 
-      it "handles nil new data" do
+      it "keeps the existing data when there is nothing new to merge" do
         result = described_class.handle_single_record_merge({ name: "Existing" }, nil)
-        expect(result).to be_nil
+        expect(result).to eq({ name: "Existing" })
       end
 
       it "handles both nil" do

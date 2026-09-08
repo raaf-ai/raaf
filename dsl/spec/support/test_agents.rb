@@ -37,6 +37,7 @@ module TestAgents
     context do
       required :api_key
       required :endpoint
+      validate :api_key, type: String
     end
 
     schema do

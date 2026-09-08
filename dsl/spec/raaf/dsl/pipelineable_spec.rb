@@ -53,8 +53,8 @@ RSpec.describe RAAF::DSL::Pipelineable do
       it "creates a chained agent" do
         chained = TestPipelineableAgent >> TestPipelineableService
         expect(chained).to be_a(RAAF::DSL::PipelineDSL::ChainedAgent)
-        expect(chained.first_agent).to eq(TestPipelineableAgent)
-        expect(chained.second_agent).to eq(TestPipelineableService)
+        expect(chained.first).to eq(TestPipelineableAgent)
+        expect(chained.second).to eq(TestPipelineableService)
       end
 
       it "passes pipeline context fields when available" do
@@ -89,26 +89,26 @@ RSpec.describe RAAF::DSL::Pipelineable do
       it "creates configured agent with timeout" do
         configured = TestPipelineableAgent.timeout(30)
         expect(configured).to be_a(RAAF::DSL::PipelineDSL::ConfiguredAgent)
-        expect(configured.configuration[:timeout]).to eq(30)
+        expect(configured.options[:timeout]).to eq(30)
         expect(configured.agent_class).to eq(TestPipelineableAgent)
       end
 
       it "creates configured agent with retry" do
         configured = TestPipelineableAgent.retry(3)
         expect(configured).to be_a(RAAF::DSL::PipelineDSL::ConfiguredAgent)
-        expect(configured.configuration[:retry]).to eq(3)
+        expect(configured.options[:retry]).to eq(3)
       end
 
       it "creates configured agent with limit" do
         configured = TestPipelineableAgent.limit(100)
         expect(configured).to be_a(RAAF::DSL::PipelineDSL::ConfiguredAgent)
-        expect(configured.configuration[:limit]).to eq(100)
+        expect(configured.options[:limit]).to eq(100)
       end
 
       it "chains multiple configurations" do
         configured = TestPipelineableAgent.timeout(30).retry(3).limit(100)
         expect(configured).to be_a(RAAF::DSL::PipelineDSL::ConfiguredAgent)
-        expect(configured.configuration).to include(
+        expect(configured.options).to include(
           timeout: 30,
           retry: 3,
           limit: 100
@@ -128,14 +128,14 @@ RSpec.describe RAAF::DSL::Pipelineable do
         iterating = TestPipelineableAgent.each_over(:items, to: :results)
         expect(iterating).to be_a(RAAF::DSL::PipelineDSL::IteratingAgent)
         expect(iterating.field).to eq(:items)
-        expect(iterating.options[:to]).to eq(:results)
+        expect(iterating.provided_fields).to include(:results)
       end
 
       it "creates iterating agent with :from marker syntax" do
         iterating = TestPipelineableAgent.each_over(:from, :items, to: :results)
         expect(iterating).to be_a(RAAF::DSL::PipelineDSL::IteratingAgent)
         expect(iterating.field).to eq(:items)
-        expect(iterating.options[:to]).to eq(:results)
+        expect(iterating.provided_fields).to include(:results)
       end
 
       it "raises error for invalid iteration syntax" do
@@ -154,8 +154,16 @@ RSpec.describe RAAF::DSL::Pipelineable do
 
       it "supports iteration options" do
         iterating = TestPipelineableAgent.each_over(:items, as: :item, to: :processed_items)
-        expect(iterating.options[:as]).to eq(:item)
-        expect(iterating.options[:to]).to eq(:processed_items)
+
+        # :as and :to are absorbed into the wrapper's own state rather than
+        # left loose in options, so the output field is where :to shows up.
+        expect(iterating.provided_fields).to include(:processed_items)
+        expect(iterating.options).not_to include(:as, :to)
+
+        # Re-wrapping has to carry that state across to the new instance.
+        rewrapped = iterating.create_wrapper(limit: 5)
+        expect(rewrapped.provided_fields).to include(:processed_items)
+        expect(rewrapped.options[:limit]).to eq(5)
       end
     end
 
@@ -389,7 +397,7 @@ RSpec.describe RAAF::DSL::Pipelineable do
     it "handles nested pipeline structures" do
       nested = TestPipelineableAgent >> (TestPipelineableService | TestPipelineableAgent)
       expect(nested).to be_a(RAAF::DSL::PipelineDSL::ChainedAgent)
-      expect(nested.second_agent).to be_a(RAAF::DSL::PipelineDSL::ParallelAgents)
+      expect(nested.second).to be_a(RAAF::DSL::PipelineDSL::ParallelAgents)
     end
 
     it "handles configured parallel agents" do

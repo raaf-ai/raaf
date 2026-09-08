@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "benchmark"
 require_relative "../../../../lib/raaf/dsl/core/object_proxy"
 require_relative "../../../../lib/raaf/dsl/core/object_serializer"
 
@@ -347,7 +348,8 @@ RSpec.describe RAAF::DSL::ObjectProxy do
 
       # This is more of a smoke test to ensure it doesn't blow up
       # Real performance testing would be more sophisticated
-      expect { 1000.times { proxy.name } }.to perform_under(0.1).sec
+      elapsed = Benchmark.realtime { 1000.times { proxy.name } }
+      expect(elapsed).to be < 0.1
     end
   end
 end

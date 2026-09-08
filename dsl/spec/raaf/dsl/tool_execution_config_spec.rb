@@ -25,23 +25,9 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Configuration", type: :unit do
       agent = agent_class.new
 
       expect(agent.validation_enabled?).to be true
-      expect(agent.logging_enabled?).to be true
       expect(agent.metadata_enabled?).to be true
-      expect(agent.log_arguments?).to be true
     end
 
-    it "has default truncation of 100 characters" do
-      agent_class = Class.new(RAAF::DSL::Agent) do
-        def self.name
-          "TestAgent"
-        end
-        agent_name "TestAgent"
-      end
-
-      agent = agent_class.new
-
-      expect(agent.truncate_logs_at).to eq(100)
-    end
   end
 
   describe "class-level configuration" do
@@ -62,23 +48,6 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Configuration", type: :unit do
       expect(agent.validation_enabled?).to be false
     end
 
-    it "allows configuring logging" do
-      agent_class = Class.new(RAAF::DSL::Agent) do
-        def self.name
-          "TestAgent"
-        end
-        agent_name "TestAgent"
-
-        tool_execution do
-          enable_logging false
-        end
-      end
-
-      agent = agent_class.new
-
-      expect(agent.logging_enabled?).to be false
-    end
-
     it "allows configuring metadata" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
@@ -96,40 +65,6 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Configuration", type: :unit do
       expect(agent.metadata_enabled?).to be false
     end
 
-    it "allows configuring argument logging" do
-      agent_class = Class.new(RAAF::DSL::Agent) do
-        def self.name
-          "TestAgent"
-        end
-        agent_name "TestAgent"
-
-        tool_execution do
-          log_arguments false
-        end
-      end
-
-      agent = agent_class.new
-
-      expect(agent.log_arguments?).to be false
-    end
-
-    it "allows configuring log truncation" do
-      agent_class = Class.new(RAAF::DSL::Agent) do
-        def self.name
-          "TestAgent"
-        end
-        agent_name "TestAgent"
-
-        tool_execution do
-          truncate_logs 250
-        end
-      end
-
-      agent = agent_class.new
-
-      expect(agent.truncate_logs_at).to eq(250)
-    end
-
     it "allows multiple configuration options in one block" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         def self.name
@@ -139,20 +74,14 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Configuration", type: :unit do
 
         tool_execution do
           enable_validation false
-          enable_logging true
           enable_metadata false
-          log_arguments true
-          truncate_logs 500
         end
       end
 
       agent = agent_class.new
 
       expect(agent.validation_enabled?).to be false
-      expect(agent.logging_enabled?).to be true
       expect(agent.metadata_enabled?).to be false
-      expect(agent.log_arguments?).to be true
-      expect(agent.truncate_logs_at).to eq(500)
     end
   end
 
@@ -166,7 +95,6 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Configuration", type: :unit do
 
         tool_execution do
           enable_validation false
-          truncate_logs 200
         end
       end
 
@@ -180,7 +108,6 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Configuration", type: :unit do
       agent = subclass.new
 
       expect(agent.validation_enabled?).to be false
-      expect(agent.truncate_logs_at).to eq(200)
     end
 
     it "subclasses can override parent configuration" do
@@ -192,8 +119,6 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Configuration", type: :unit do
 
         tool_execution do
           enable_validation false
-          enable_logging false
-          truncate_logs 200
         end
       end
 
@@ -212,10 +137,6 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Configuration", type: :unit do
 
       # Overridden values
       expect(agent.validation_enabled?).to be true
-      expect(agent.logging_enabled?).to be true
-
-      # Inherited value
-      expect(agent.truncate_logs_at).to eq(200)
     end
 
     it "does not affect parent when subclass changes configuration" do
@@ -299,7 +220,6 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Configuration", type: :unit do
 
         tool_execution do
           enable_validation false
-          truncate_logs 300
         end
       end
 
@@ -309,8 +229,6 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Configuration", type: :unit do
       # Both instances see same configuration
       expect(agent1.validation_enabled?).to be false
       expect(agent2.validation_enabled?).to be false
-      expect(agent1.truncate_logs_at).to eq(300)
-      expect(agent2.truncate_logs_at).to eq(300)
     end
   end
 
@@ -325,25 +243,11 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Configuration", type: :unit do
 
       agent = agent_class.new
 
-      # All boolean query methods should exist
+      # Boolean query methods should exist
       expect(agent).to respond_to(:validation_enabled?)
-      expect(agent).to respond_to(:logging_enabled?)
       expect(agent).to respond_to(:metadata_enabled?)
-      expect(agent).to respond_to(:log_arguments?)
     end
 
-    it "provides value accessor methods" do
-      agent_class = Class.new(RAAF::DSL::Agent) do
-        def self.name
-          "TestAgent"
-        end
-        agent_name "TestAgent"
-      end
-
-      agent = agent_class.new
-
-      expect(agent).to respond_to(:truncate_logs_at)
-    end
   end
 
   describe "tool_execution_enabled? integration" do

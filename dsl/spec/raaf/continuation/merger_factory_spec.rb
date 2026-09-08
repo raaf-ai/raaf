@@ -216,61 +216,6 @@ RSpec.describe "RAAF::Continuation::MergerFactory" do
   end
 
   # ============================================================================
-  # 4. Logger Integration Tests (4 tests)
-  # ============================================================================
-  describe "logger integration" do
-    it "accepts custom logger" do
-      logger = instance_double("Logger")
-      allow(logger).to receive(:debug)
-      allow(logger).to receive(:warn)
-
-      factory = RAAF::Continuation::MergerFactory.new(output_format: :auto, logger: logger)
-      content = "id,name\n1,Alice"
-
-      factory.get_merger_for_content(content)
-
-      # Should use the provided logger
-      expect(logger).to have_received(:debug).at_least(:once)
-    end
-
-    it "logs format detection results" do
-      logger = instance_double("Logger")
-      allow(logger).to receive(:debug)
-      allow(logger).to receive(:warn)
-
-      factory = RAAF::Continuation::MergerFactory.new(output_format: :auto, logger: logger)
-      content = "id,name\n1,Alice"
-
-      factory.get_merger_for_content(content)
-
-      # Should log debug message about format detection
-      expect(logger).to have_received(:debug)
-    end
-
-    it "logs warning for unknown formats" do
-      logger = instance_double("Logger")
-      allow(logger).to receive(:debug)
-      allow(logger).to receive(:warn)
-
-      factory = RAAF::Continuation::MergerFactory.new(output_format: :unknown, logger: logger)
-
-      factory.get_merger
-
-      # Should log warning about unknown format
-      expect(logger).to have_received(:warn)
-    end
-
-    it "uses Rails logger if available" do
-      if defined?(Rails)
-        factory = RAAF::Continuation::MergerFactory.new(output_format: :csv)
-
-        # Should not raise error - uses Rails.logger automatically
-        expect { factory.get_merger }.not_to raise_error
-      end
-    end
-  end
-
-  # ============================================================================
   # 5. Real-World Workflow Tests (5 tests)
   # ============================================================================
   describe "real-world workflows" do

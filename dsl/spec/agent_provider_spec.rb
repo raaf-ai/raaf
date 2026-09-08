@@ -3,6 +3,18 @@
 require "spec_helper"
 
 RSpec.describe "RAAF::DSL::Agent provider configuration" do
+  # Provider construction (and Runner's default provider) needs a key; without
+  # one the provider silently comes back nil.
+  around do |example|
+    original_keys = ENV.slice("OPENAI_API_KEY", "ANTHROPIC_API_KEY")
+    ENV["OPENAI_API_KEY"] = "test-key-for-specs"
+    ENV["ANTHROPIC_API_KEY"] = "test-key-for-specs"
+    example.run
+  ensure
+    ENV["OPENAI_API_KEY"] = original_keys["OPENAI_API_KEY"]
+    ENV["ANTHROPIC_API_KEY"] = original_keys["ANTHROPIC_API_KEY"]
+  end
+
   describe "provider DSL methods" do
     it "allows explicit provider specification" do
       agent_class = Class.new(RAAF::DSL::Agent) do
@@ -54,9 +66,6 @@ RSpec.describe "RAAF::DSL::Agent provider configuration" do
     end
 
     it "auto-detects provider from Claude model" do
-      # Skip if AnthropicProvider not available
-      skip "AnthropicProvider not available" unless defined?(RAAF::Models::AnthropicProvider)
-
       agent_class = Class.new(RAAF::DSL::Agent) do
         agent_name "ClaudeAgent"
         model "claude-3-5-sonnet-20241022"
@@ -78,9 +87,6 @@ RSpec.describe "RAAF::DSL::Agent provider configuration" do
     end
 
     it "uses explicit provider over auto-detection" do
-      # Skip if AnthropicProvider not available
-      skip "AnthropicProvider not available" unless defined?(RAAF::Models::AnthropicProvider)
-
       agent_class = Class.new(RAAF::DSL::Agent) do
         agent_name "TestAgent"
         model "gpt-4o" # Would auto-detect to :openai
@@ -153,9 +159,6 @@ RSpec.describe "RAAF::DSL::Agent provider configuration" do
     end
 
     it "Runner uses explicit provider over agent's provider" do
-      # Skip if AnthropicProvider not available
-      skip "AnthropicProvider not available" unless defined?(RAAF::Models::AnthropicProvider)
-
       agent_class = Class.new(RAAF::DSL::Agent) do
         agent_name "TestAgent"
         model "gpt-4o"

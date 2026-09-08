@@ -153,18 +153,20 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
         expect(other_class._context_config[:test]).to be_nil
       end
 
-      it "isolates configuration between threads" do
+      it "shares configuration across threads" do
         test_class._context_config[:thread_test] = "main_thread"
 
         thread_result = nil
         thread = Thread.new do
-          test_class._context_config[:thread_test] = "other_thread"
+          # A background job runs in another thread and must still see the
+          # configuration the class was defined with.
           thread_result = test_class._context_config[:thread_test]
+          test_class._context_config[:thread_test] = "other_thread"
         end
         thread.join
 
-        expect(thread_result).to eq("other_thread")
-        expect(test_class._context_config[:thread_test]).to eq("main_thread")
+        expect(thread_result).to eq("main_thread")
+        expect(test_class._context_config[:thread_test]).to eq("other_thread")
       end
     end
 
@@ -478,16 +480,18 @@ RSpec.describe RAAF::DSL::ContextConfiguration do
     it "handles concurrent access from multiple threads" do
       test_class = Class.new { include RAAF::DSL::ContextConfiguration }
 
+      # The config is one shared Concurrent::Hash, so concurrent writers must
+      # not corrupt it - each thread writes its own key and reads it back.
       threads = 10.times.map do |i|
         Thread.new do
-          test_class._context_config[:thread_id] = i
+          test_class._context_config[:"thread_#{i}"] = i
           sleep(0.01) # Small delay to increase chance of race conditions
-          test_class._context_config[:thread_id]
+          test_class._context_config[:"thread_#{i}"]
         end
       end
 
-      results = threads.map(&:value)
-      expect(results).to eq((0..9).to_a)
+      expect(threads.map(&:value)).to eq((0..9).to_a)
+      expect(test_class._context_config.values_at(*(0..9).map { |i| :"thread_#{i}" })).to eq((0..9).to_a)
     end
   end
 

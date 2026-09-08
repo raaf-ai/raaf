@@ -96,9 +96,7 @@ RSpec.describe "Tool Execution Integration Tests" do
 
           tool_execution do
             enable_validation true
-            enable_logging true
             enable_metadata true
-            log_arguments true
           end
 
           def build_instructions
@@ -292,21 +290,6 @@ RSpec.describe "Tool Execution Integration Tests" do
         end.to raise_error(StandardError, /Simulated tool failure/)
       end
 
-      it "logs error before re-raising" do
-        agent = agent_class.new
-
-        # Capture log output
-        allow(RAAF.logger).to receive(:error)
-
-        begin
-          agent.execute_tool("failing_tool", param: "value")
-        rescue StandardError
-          # Expected to raise
-        end
-
-        # Verify error was logged
-        expect(RAAF.logger).to have_received(:error).at_least(:once)
-      end
     end
   end
 

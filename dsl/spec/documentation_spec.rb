@@ -1,7 +1,22 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "benchmark"
 require "raaf-dsl"
+
+# Tool registrations land in _tools_config as plain hashes. A symbol identifier
+# is kept as :tool_identifier for lazy resolution; a class reference is resolved
+# at class-definition time and kept as :tool_class.
+def registered_identifiers(agent_class)
+  agent_class._tools_config.map { |config| config[:tool_identifier] || config[:tool_class] }
+end
+
+def registered_options(agent_class, identifier)
+  config = agent_class._tools_config.find do |c|
+    (c[:tool_identifier] || c[:tool_class]) == identifier
+  end
+  config&.fetch(:options)
+end
 
 # This spec verifies that all documentation code examples work correctly
 RSpec.describe "Documentation Examples" do
@@ -13,10 +28,7 @@ RSpec.describe "Documentation Examples" do
           tool :calculator
         end
 
-        expect(TestSingleToolAgent.registered_tools).to include(
-          have_attributes(identifier: :web_search),
-          have_attributes(identifier: :calculator)
-        )
+        expect(registered_identifiers(TestSingleToolAgent)).to include(:web_search, :calculator)
       end
     end
 
@@ -26,11 +38,7 @@ RSpec.describe "Documentation Examples" do
           tools :web_search, :file_search, :calculator
         end
 
-        expect(TestMultipleToolsAgent.registered_tools).to include(
-          have_attributes(identifier: :web_search),
-          have_attributes(identifier: :file_search),
-          have_attributes(identifier: :calculator)
-        )
+        expect(registered_identifiers(TestMultipleToolsAgent)).to include(:web_search, :file_search, :calculator)
       end
     end
 
@@ -49,9 +57,8 @@ RSpec.describe "Documentation Examples" do
           tool TestTools::CustomTool
         end
 
-        expect(TestNativeToolAgent.registered_tools).to include(
-          have_attributes(identifier: TestTools::CustomTool)
-        )
+        expect(registered_identifiers(TestNativeToolAgent)).to include(TestTools::CustomTool)
+        expect(TestNativeToolAgent._tools_config.first).to include(tool_class: TestTools::CustomTool)
       end
     end
 
@@ -62,11 +69,8 @@ RSpec.describe "Documentation Examples" do
           tool :database_query, connection: :primary
         end
 
-        web_search_tool = TestToolWithOptionsAgent.registered_tools.find { |t| t.identifier == :web_search }
-        expect(web_search_tool.options).to eq(max_results: 10, timeout: 30)
-
-        db_tool = TestToolWithOptionsAgent.registered_tools.find { |t| t.identifier == :database_query }
-        expect(db_tool.options).to eq(connection: :primary)
+        expect(registered_options(TestToolWithOptionsAgent, :web_search)).to eq(max_results: 10, timeout: 30)
+        expect(registered_options(TestToolWithOptionsAgent, :database_query)).to eq(connection: :primary)
       end
     end
 
@@ -76,9 +80,9 @@ RSpec.describe "Documentation Examples" do
           tool :web_search, as: :internet_search
         end
 
-        tool = TestToolWithAliasAgent.registered_tools.first
-        expect(tool.identifier).to eq(:web_search)
-        expect(tool.options[:as]).to eq(:internet_search)
+        config = TestToolWithAliasAgent._tools_config.first
+        expect(config[:tool_identifier]).to eq(:web_search)
+        expect(config[:options][:as]).to eq(:internet_search)
       end
     end
 
@@ -87,15 +91,13 @@ RSpec.describe "Documentation Examples" do
         # Test with false condition
         class TestConditionalFalseAgent < RAAF::DSL::Agent
         end
-        expect(TestConditionalFalseAgent.registered_tools).to be_empty
+        expect(TestConditionalFalseAgent._tools_config).to be_empty
 
         # Test with true condition
         class TestConditionalTrueAgent < RAAF::DSL::Agent
           tool :basic_tool
         end
-        expect(TestConditionalTrueAgent.registered_tools).to include(
-          have_attributes(identifier: :basic_tool)
-        )
+        expect(registered_identifiers(TestConditionalTrueAgent)).to include(:basic_tool)
       end
     end
 
@@ -112,9 +114,12 @@ RSpec.describe "Documentation Examples" do
           end
         end
 
-        expect(TestInlineToolAgent.registered_tools).to include(
-          have_attributes(identifier: :custom_calculator)
-        )
+        expect(registered_identifiers(TestInlineToolAgent)).to include(:custom_calculator)
+
+        # The block is folded into the tool's options rather than kept separately.
+        options = registered_options(TestInlineToolAgent, :custom_calculator)
+        expect(options[:description]).to eq("Performs calculations")
+        expect(options[:execute]).to be true
       end
     end
   end
@@ -151,8 +156,8 @@ RSpec.describe "Documentation Examples" do
           end
         end
 
-        registered_identifiers = DemoAgent.registered_tools.map(&:identifier)
-        expect(registered_identifiers).to include(
+        identifiers = registered_identifiers(DemoAgent)
+        expect(identifiers).to include(
           :web_search,
           :file_search,
           :database_query,
@@ -160,7 +165,7 @@ RSpec.describe "Documentation Examples" do
           :search,
           :custom_tool
         )
-        expect(registered_identifiers).not_to include(:premium_tool) # Conditional was false
+        expect(identifiers).not_to include(:premium_tool) # Conditional was false
       end
     end
 
@@ -171,29 +176,42 @@ RSpec.describe "Documentation Examples" do
         end
 
         # Tool is registered
-        expect(LazyLoadingAgent.registered_tools.size).to eq(1)
+        expect(LazyLoadingAgent._tools_config.size).to eq(1)
 
-        # Tool wrapper indicates it's not loaded yet
-        tool_wrapper = LazyLoadingAgent.registered_tools.first
-        expect(tool_wrapper).to respond_to(:loaded?)
-
-        # In production, the tool would be loaded on first use
-        # Here we just verify the wrapper exists
-        expect(tool_wrapper.identifier).to eq(:web_search)
+        # A symbol identifier is stored unresolved, so no tool class is loaded yet
+        config = LazyLoadingAgent._tools_config.first
+        expect(config[:tool_identifier]).to eq(:web_search)
+        expect(config).not_to have_key(:tool_class)
       end
     end
 
     context "Error message example" do
-      it "raises ToolResolutionError for unknown tools" do
+      it "raises ToolResolutionError for an unknown non-symbol identifier" do
         expect do
-          class FailingAgent < RAAF::DSL::Agent
-            tool :completely_unknown_tool_xyz123
+          Class.new(RAAF::DSL::Agent) do
+            tool "completely_unknown_tool_xyz123"
           end
         end.to raise_error(RAAF::DSL::ToolResolutionError) do |error|
-          expect(error.message).to include("Tool Resolution Failed")
-          expect(error.message).to include("completely_unknown_tool_xyz123")
-          expect(error.message).to include("Searched namespaces:")
+          expect(error.message).to include("Tool not found: completely_unknown_tool_xyz123")
+          expect(error.message).to include("Searched in:")
+          expect(error.message).to include("RAAF::ToolRegistry")
+          expect(error.message).to include("To fix:")
         end
+      end
+
+      it "defers an unknown symbol identifier instead of raising" do
+        # Symbols are resolved lazily so that agent classes can be loaded before
+        # the tool registry exists (background jobs, eager loading).
+        agent_class = nil
+
+        expect do
+          agent_class = Class.new(RAAF::DSL::Agent) do
+            tool :completely_unknown_tool_xyz123
+          end
+        end.not_to raise_error
+
+        expect(agent_class._tools_config.first[:tool_identifier])
+          .to eq(:completely_unknown_tool_xyz123)
       end
     end
   end
@@ -229,11 +247,8 @@ RSpec.describe "Documentation Examples" do
           tool :database_query, timeout: 30
         end
 
-        text_tool = AdvancedDocAgent.registered_tools.find { |t| t.identifier == :text_extraction }
-        expect(text_tool.options).to eq(max_pages: 50)
-
-        db_tool = AdvancedDocAgent.registered_tools.find { |t| t.identifier == :database_query }
-        expect(db_tool.options).to eq(timeout: 30)
+        expect(registered_options(AdvancedDocAgent, :text_extraction)).to eq(max_pages: 50)
+        expect(registered_options(AdvancedDocAgent, :database_query)).to eq(timeout: 30)
       end
     end
   end
@@ -293,7 +308,7 @@ RSpec.describe "Documentation Examples" do
 
       # All agents should have registered tools
       agents.each do |agent_class|
-        expect(agent_class.registered_tools.size).to eq(3)
+        expect(agent_class._tools_config.size).to eq(3)
       end
     end
   end

@@ -25,9 +25,13 @@ RSpec.describe "RAAF::DSL::Agent error handling" do
                                                                                                        })
       end
 
-      it "raises ToolResolutionError when tool is added to class" do
+      it "raises ToolResolutionError when the agent's tools are built" do
+        # A symbol identifier is deferred at class definition time, so the
+        # resolution failure surfaces when the tools are actually built.
+        test_agent_class.tool :nonexistent_tool
+
         expect do
-          test_agent_class.tool :nonexistent_tool
+          test_agent_class.new.tools
         end.to raise_error(RAAF::DSL::ToolResolutionError) do |error|
           expect(error.message).to include("❌ Tool not found: nonexistent_tool")
           expect(error.message).to include("📂 Searched in:")
@@ -73,7 +77,7 @@ RSpec.describe "RAAF::DSL::Agent error handling" do
       end
     end
 
-    context "when using uses_tool method" do
+    context "when the tool name is wrong" do
       before do
         allow(RAAF::ToolRegistry).to receive(:resolve_with_details).with(:bad_tool).and_return({
                                                                                                  success: false,
@@ -84,8 +88,10 @@ RSpec.describe "RAAF::DSL::Agent error handling" do
       end
 
       it "raises ToolResolutionError with context" do
+        test_agent_class.tool :bad_tool
+
         expect do
-          test_agent_class.uses_tool :bad_tool
+          test_agent_class.new.tools
         end.to raise_error(RAAF::DSL::ToolResolutionError) do |error|
           expect(error.message).to include("❌ Tool not found: bad_tool")
           expect(error.message).to include("Try: tool GoodTool")
@@ -104,8 +110,10 @@ RSpec.describe "RAAF::DSL::Agent error handling" do
       end
 
       it "raises ToolResolutionError even with configuration options" do
+        test_agent_class.tool :config_tool, max_results: 10, api_key: "test"
+
         expect do
-          test_agent_class.tool :config_tool, max_results: 10, api_key: "test"
+          test_agent_class.new.tools
         end.to raise_error(RAAF::DSL::ToolResolutionError) do |error|
           expect(error.message).to include("❌ Tool not found: config_tool")
           expect(error.message).to include("RAAF::Tools::Basic")
@@ -161,9 +169,10 @@ RSpec.describe "RAAF::DSL::Agent error handling" do
                                                                                                        suggestions: []
                                                                                                      })
 
-      # Create a method that wraps tool addition
+      # Create a method that wraps tool addition and forces resolution
       def add_tool_wrapper(agent_class, tool_name)
         agent_class.tool tool_name
+        agent_class.new.tools
       end
 
       expect do

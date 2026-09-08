@@ -9,18 +9,6 @@ RSpec.describe "Rails Integration", :with_rails do
     RAAF::ToolRegistry.clear! if defined?(RAAF::ToolRegistry)
   end
 
-  after do
-    # Clean up any constants we created
-    %w[CustomSearchTool WebAnalyzerTool DataProcessorTool].each do |const_name|
-      %w[Ai::Tools RAAF::Tools].each do |namespace|
-        full_name = "#{namespace}::#{const_name}"
-        next unless Object.const_defined?(full_name)
-
-        Object.send(:remove_const, full_name.split("::").last) if Object.const_defined?(full_name)
-      end
-    end
-  end
-
   describe "Rails eager loading scenarios" do
     it "resolves tools correctly when classes load in arbitrary order" do
       # Simulate Rails eager loading by defining agent before tool class exists
@@ -49,7 +37,10 @@ RSpec.describe "Rails Integration", :with_rails do
       agent = agent_class.new
       tools_config = agent.class._tools_config
       expect(tools_config).not_to be_empty
-      expect(tools_config.first[:name]).to eq(:custom_search)
+      expect(tools_config.first[:tool_identifier]).to eq(:custom_search)
+
+      # And it resolves once the constant is in place.
+      expect(agent.tools).not_to be_empty
     end
 
     it "handles multi-agent tool sharing in Rails environment" do
@@ -100,7 +91,7 @@ RSpec.describe "Rails Integration", :with_rails do
         end
       end
 
-      stub_const("Ai::Tools::ReloadableToolTool", tool_v1)
+      stub_const("Ai::Tools::ReloadableTool", tool_v1)
 
       # Define agent using the tool
       agent_class = Class.new(RAAF::DSL::Agent) do
@@ -128,7 +119,7 @@ RSpec.describe "Rails Integration", :with_rails do
         end
       end
 
-      stub_const("Ai::Tools::ReloadableToolTool", tool_v2)
+      stub_const("Ai::Tools::ReloadableTool", tool_v2)
 
       # New agent instance should get the updated tool
       agent_class2 = Class.new(RAAF::DSL::Agent) do
@@ -200,10 +191,10 @@ RSpec.describe "Rails Integration", :with_rails do
         tool :nonexistent_tool
       end
 
-      # Should raise a clear error
-      expect { agent_class.new }.to raise_error(RAAF::DSL::ToolResolutionError) do |error|
+      # Should raise a clear error once the tools are built
+      expect { agent_class.new.tools }.to raise_error(RAAF::DSL::ToolResolutionError) do |error|
         expect(error.message).to include("nonexistent_tool")
-        expect(error.message).to include("Could not find tool")
+        expect(error.message).to include("Tool not found")
         expect(error.searched_namespaces).to include("Ai::Tools", "RAAF::Tools")
         expect(error.suggestions).not_to be_empty
       end
@@ -281,7 +272,7 @@ RSpec.describe "Rails Integration", :with_rails do
       end
 
       # Mock the registry lookup
-      allow(RAAF::ToolRegistry).to receive(:resolve).with(:mocked_tool).and_return(mock_tool)
+      allow(RAAF::ToolRegistry).to receive(:safe_lookup).with(:mocked_tool).and_return(mock_tool)
 
       # Define agent using mocked tool
       agent_class = Class.new(RAAF::DSL::Agent) do

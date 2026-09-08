@@ -124,8 +124,9 @@ RSpec.describe RAAF::DSL::Prompts::Base do
       expect(instance.analysis_depth).to eq("comprehensive")
     end
 
-    it "raises NoMethodError for missing context keys" do
-      expect { instance.nonexistent_key }.to raise_error(NoMethodError)
+    it "raises NameError naming the available keys for missing context keys" do
+      expect { instance.nonexistent_key }
+        .to raise_error(NameError, /undefined variable `nonexistent_key'.*Available/m)
     end
 
     it "raises NoMethodError for invalid method calls with arguments" do
@@ -189,7 +190,7 @@ RSpec.describe RAAF::DSL::Prompts::Base do
     end
 
     it "returns false when context is invalid" do
-      instance = test_prompt_class.new({}) # Missing document_name
+      instance = test_prompt_class.new # Missing document_name
       expect(instance.validate_context).to be false
     end
   end

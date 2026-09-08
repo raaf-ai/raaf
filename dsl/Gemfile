@@ -6,6 +6,7 @@ source "https://rubygems.org"
 gem "raaf-core", path: "../core"
 gem "raaf-testing", path: "../testing"
 gem "raaf-tracing", path: "../tracing"
+gem "raaf-providers", path: "../providers"
 
 # Specify your gem's dependencies in the gemspec
 gemspec

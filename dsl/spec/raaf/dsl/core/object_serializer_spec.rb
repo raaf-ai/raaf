@@ -117,7 +117,7 @@ RSpec.describe RAAF::DSL::ObjectSerializer do
 
         result = described_class.serialize(product, only: %i[id name])
 
-        expect(result.keys).to match_array(%w[id name])
+        expect(result.keys).to match_array(%w[__class__ id name])
         expect(result).not_to have_key("price")
       end
 
@@ -138,7 +138,7 @@ RSpec.describe RAAF::DSL::ObjectSerializer do
         result = described_class.serialize(product, methods: [:calculated_price])
 
         expect(result).to have_key("calculated_price")
-        expect(result["calculated_price"]).to eq(110.0)
+        expect(result["calculated_price"]).to be_within(0.0001).of(110.0)
       end
 
       it "does not include private methods" do
@@ -157,6 +157,7 @@ RSpec.describe RAAF::DSL::ObjectSerializer do
         result = described_class.serialize(struct)
 
         expect(result).to eq({
+                               "__class__" => "SerializerTestStruct",
                                "name" => "test",
                                "value" => 42,
                                "nested" => nil
@@ -182,7 +183,8 @@ RSpec.describe RAAF::DSL::ObjectSerializer do
         expect(result).to eq({
                                "name" => "test",
                                "value" => 42,
-                               "active" => true
+                               "active" => true,
+                               "__class__" => "OpenStruct"
                              })
       end
     end
@@ -206,22 +208,23 @@ RSpec.describe RAAF::DSL::ObjectSerializer do
 
         result = described_class.serialize(record, only: %i[id name])
 
-        expect(result.keys).to match_array(%w[id name])
+        expect(result.keys).to match_array(%w[__class__ id name])
       end
     end
 
     context "with Hash objects" do
-      it "returns a copy of the hash" do
+      it "returns a copy of the hash with its keys left intact" do
         hash = { id: 1, name: "test", nested: { value: 42 } }
 
         result = described_class.serialize(hash)
 
         expect(result).to eq({
-                               "id" => 1,
-                               "name" => "test",
-                               "nested" => { "value" => 42 }
+                               id: 1,
+                               name: "test",
+                               nested: { value: 42 }
                              })
         expect(result).not_to be(hash) # Different object
+        expect(result[:nested]).not_to be(hash[:nested])
       end
     end
 
@@ -248,8 +251,9 @@ RSpec.describe RAAF::DSL::ObjectSerializer do
         expect(result).to eq([
                                1,
                                "string",
-                               { "key" => "value" },
-                               { "name" => "test", "value" => 42, "nested" => nil }
+                               { key: "value" },
+                               { "__class__" => "SerializerTestStruct", "name" => "test", "value" => 42,
+                                 "nested" => nil }
                              ])
       end
     end
@@ -265,7 +269,8 @@ RSpec.describe RAAF::DSL::ObjectSerializer do
         expect(result["category"]).to be_a(Hash)
         expect(result["category"]["name"]).to eq("Electronics")
         expect(result["category"]["products"]).to be_an(Array)
-        expect(result["category"]["products"][0]).to be_a(String) # Depth exceeded
+        # Depth exceeded: the array itself is replaced by an empty one of the same class
+        expect(result["category"]["products"]).to be_empty
       end
 
       it "prevents infinite recursion with circular references" do
@@ -288,7 +293,11 @@ RSpec.describe RAAF::DSL::ObjectSerializer do
         result = described_class.serialize(cat3, max_depth: 2)
 
         expect(result["parent"]["name"]).to eq("Level 2")
-        expect(result["parent"]["parent"]).to be_a(String) # Depth exceeded
+        # Depth exceeded: replaced by a marker describing what was cut off
+        expect(result["parent"]["parent"]).to include(
+          "__depth_limit__" => true,
+          "class" => "TestCategory"
+        )
       end
     end
 
@@ -301,32 +310,32 @@ RSpec.describe RAAF::DSL::ObjectSerializer do
         expect(described_class.serialize(3.14)).to eq(3.14)
       end
 
-      it "converts symbols to strings" do
-        expect(described_class.serialize(:symbol)).to eq("symbol")
+      it "leaves symbols as symbols" do
+        expect(described_class.serialize(:symbol)).to eq(:symbol)
       end
 
-      it "converts dates and times to ISO strings" do
+      it "passes dates and times through untouched" do
         time = Time.new(2024, 1, 15, 10, 30, 0)
         date = Date.new(2024, 1, 15)
 
-        expect(described_class.serialize(time)).to include("2024-01-15T10:30:00")
-        expect(described_class.serialize(date)).to eq("2024-01-15")
+        expect(described_class.serialize(time)).to eql(time)
+        expect(described_class.serialize(date)).to eql(date)
       end
     end
 
-    context "with custom serialization" do
-      it "uses to_h if available" do
+    context "with objects that carry their own accessors" do
+      it "reads zero-argument singleton methods as attributes" do
         obj = Object.new
-        def obj.to_h
-          { custom: "serialization" }
+        def obj.custom
+          "serialization"
         end
 
         result = described_class.serialize(obj)
 
-        expect(result).to eq({ "custom" => "serialization" })
+        expect(result).to include("__class__" => "Object", "custom" => "serialization")
       end
 
-      it "uses as_json if available" do
+      it "skips methods that take arguments" do
         obj = Object.new
         def obj.as_json(options = {})
           { json: "format", options: options }
@@ -334,18 +343,24 @@ RSpec.describe RAAF::DSL::ObjectSerializer do
 
         result = described_class.serialize(obj)
 
-        expect(result).to include("json" => "format")
+        expect(result).not_to have_key("as_json")
       end
 
-      it "falls back to to_s for unknown objects" do
+      it "does not treat to_s or to_h as attributes" do
         obj = Object.new
         def obj.to_s
           "CustomObject"
         end
 
+        def obj.to_h
+          { custom: "serialization" }
+        end
+
         result = described_class.serialize(obj)
 
-        expect(result).to eq("CustomObject")
+        expect(result).to be_a(Hash)
+        expect(result).not_to have_key("to_s")
+        expect(result).not_to have_key("to_h")
       end
     end
 
@@ -356,7 +371,7 @@ RSpec.describe RAAF::DSL::ObjectSerializer do
 
         result = described_class.serialize(product, only: %i[id name category])
 
-        expect(result.keys).to match_array(%w[id name category])
+        expect(result.keys).to match_array(%w[__class__ id name category])
         expect(result["category"]).to be_a(Hash)
         expect(result).not_to have_key("price")
       end
@@ -392,7 +407,10 @@ RSpec.describe RAAF::DSL::ObjectSerializer do
 
       result = described_class.serialize(cat1)
 
-      expect(result["parent"]).to include("circular reference")
+      expect(result["parent"]).to include(
+        "__circular_reference__" => true,
+        "class" => "TestCategory"
+      )
     end
 
     it "detects indirect circular references" do

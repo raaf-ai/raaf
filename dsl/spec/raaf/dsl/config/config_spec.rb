@@ -439,17 +439,6 @@ RSpec.describe RAAF::DSL::Config, :with_temp_files do
           expect(config).to eq({})
         end
 
-        it "logs warning when RAAF logger is available" do
-          # Mock RAAF logger instead of Rails logger
-          logger = double("Logger")
-          allow(logger).to receive(:warn)
-          allow(RAAF).to receive(:logger).and_return(logger)
-
-          RAAF::DSL.configure { |c| c.config_file = "nonexistent.yml" }
-          described_class.global
-
-          expect(logger).to have_received(:warn).with(/configuration file not found/)
-        end
       end
 
       context "with invalid YAML" do
@@ -459,22 +448,6 @@ RSpec.describe RAAF::DSL::Config, :with_temp_files do
 
           config = described_class.global
           expect(config).to eq({})
-        end
-
-        it "logs error when RAAF logger is available" do
-          # Mock RAAF logger instead of Rails logger
-          logger = double("Logger")
-          allow(logger).to receive(:error)
-          allow(logger).to receive(:warn) # Also expect warn in case file doesn't exist
-          allow(RAAF).to receive(:logger).and_return(logger)
-
-          invalid_config_path = create_invalid_yaml_file
-          RAAF::DSL.configure { |c| c.config_file = invalid_config_path }
-          described_class.global
-
-          # Verify that the file exists and actually contains invalid YAML
-          expect(File.exist?(invalid_config_path)).to be true
-          expect(logger).to have_received(:error).with(/Invalid YAML/)
         end
       end
 

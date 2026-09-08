@@ -4,6 +4,14 @@ require "spec_helper"
 require_relative "../../support/tool_mocking_helpers"
 
 RSpec.describe "Complete Integration Tests" do
+  around do |example|
+    original_api_key = ENV.fetch("OPENAI_API_KEY", nil)
+    ENV["OPENAI_API_KEY"] = "test-key-for-specs"
+    example.run
+  ensure
+    ENV["OPENAI_API_KEY"] = original_api_key
+  end
+
   include ToolMockingHelpers
 
   before do
@@ -26,7 +34,7 @@ RSpec.describe "Complete Integration Tests" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         agent_name "WorkflowTestAgent"
         model "gpt-4o"
-        instructions "You process text data"
+        static_instructions "You process text data"
 
         # Register tool using symbol
         tool :custom_processor
@@ -38,7 +46,7 @@ RSpec.describe "Complete Integration Tests" do
       # Step 4: Verify tool is properly configured
       tools_config = agent.class._tools_config
       expect(tools_config).not_to be_empty
-      expect(tools_config.first[:name]).to eq(:custom_processor)
+      expect(tools_config.first[:tool_class]).to eq(custom_tool)
       expect(tools_config.first[:tool_class]).to eq(custom_tool)
 
       # Step 5: Verify tool can be instantiated and called
@@ -76,13 +84,15 @@ RSpec.describe "Complete Integration Tests" do
       expect(configs.length).to eq(3)
 
       # Verify each tool configuration
-      search_config = configs.find { |c| c[:name] == :search }
-      expect(search_config[:tool_class]).to eq(search_tool)
+      # The tool constants are stubbed, so every identifier resolves eagerly to
+      # its class and no :tool_identifier is left behind.
+      search_config = configs.find { |c| c[:tool_class] == search_tool }
+      expect(search_config).not_to be_nil
 
       calc_config = configs.find { |c| c[:tool_class] == calc_tool }
       expect(calc_config).not_to be_nil
 
-      weather_config = configs.find { |c| c[:name] == :weather }
+      weather_config = configs.find { |c| c[:tool_class] == weather_tool }
       expect(weather_config[:options][:timeout]).to eq(30)
     end
 
@@ -100,7 +110,7 @@ RSpec.describe "Complete Integration Tests" do
       agent_class = Class.new(RAAF::DSL::Agent) do
         agent_name "RunnerIntegrationAgent"
         model "gpt-4o"
-        instructions "You answer questions using tools"
+        static_instructions "You answer questions using tools"
 
         tool :question_answerer
       end
@@ -124,9 +134,11 @@ RSpec.describe "Complete Integration Tests" do
         tool :nonexistent_tool
       end
 
-      expect { agent_class.new }.to raise_error(RAAF::DSL::ToolResolutionError) do |error|
+      agent = agent_class.new # lazy: constructing the agent resolves nothing
+
+      expect { agent.tools }.to raise_error(RAAF::DSL::ToolResolutionError) do |error|
         expect(error.identifier).to eq(:nonexistent_tool)
-        expect(error.message).to include("Could not find tool")
+        expect(error.message).to include("Tool not found: nonexistent_tool")
       end
     end
 
@@ -156,9 +168,9 @@ RSpec.describe "Complete Integration Tests" do
         tool dependent_tool if respond_to?(:dependent_tool)
       end
 
-      # Both should fail gracefully with clear errors
-      expect { agent_a_class.new }.to raise_error(RAAF::DSL::ToolResolutionError)
-      expect { agent_b_class.new }.to raise_error(RAAF::DSL::ToolResolutionError)
+      # Both should fail with clear errors once their tools are built
+      expect { agent_a_class.new.tools }.to raise_error(RAAF::DSL::ToolResolutionError)
+      expect { agent_b_class.new.tools }.to raise_error(RAAF::DSL::ToolResolutionError)
     end
 
     it "handles tool registration with invalid inputs" do
@@ -290,39 +302,11 @@ RSpec.describe "Complete Integration Tests" do
     end
   end
 
-  describe "Tool type detection" do
-    it "correctly identifies external DSL tools" do
-      # Create a DSL tool if the base class exists
-      if defined?(RAAF::DSL::Tools::Base)
-        dsl_tool = Class.new(RAAF::DSL::Tools::Base) do
-          def call
-            { type: "dsl" }
-          end
-        end
-
-        stub_const("Ai::Tools::DslTypeTool", dsl_tool)
-
-        agent_class = Class.new(RAAF::DSL::Agent) do
-          agent_name "TypeDetectionAgent"
-          model "gpt-4o"
-          tool :dsl_type
-        end
-
-        agent = agent_class.new
-        config = agent.class._tools_config.first
-
-        expect(config[:tool_type]).to eq(:external)
-      end
-    end
-
-    it "correctly identifies native execution tools" do
+  describe "How tool registrations are recorded" do
+    it "resolves a symbol eagerly when the tool constant already exists" do
       native_tool = Class.new do
         def call
           { type: "native" }
-        end
-
-        def execute
-          call
         end
       end
 
@@ -334,10 +318,42 @@ RSpec.describe "Complete Integration Tests" do
         tool :native_type
       end
 
-      agent = agent_class.new
-      config = agent.class._tools_config.first
+      config = agent_class._tools_config.first
 
-      expect(config[:tool_type]).to eq(:native)
+      expect(config[:tool_class]).to eq(native_tool)
+      expect(agent_class.new.tools).not_to be_empty
+    end
+
+    it "defers a symbol that cannot be resolved yet" do
+      agent_class = Class.new(RAAF::DSL::Agent) do
+        agent_name "DeferredAgent"
+        model "gpt-4o"
+        tool :not_loaded_yet_tool
+      end
+
+      config = agent_class._tools_config.first
+
+      expect(config[:tool_identifier]).to eq(:not_loaded_yet_tool)
+      expect(config).not_to have_key(:tool_class)
+    end
+
+    it "resolves a class reference straight away" do
+      native_tool = Class.new do
+        def call
+          { type: "native" }
+        end
+      end
+
+      agent_class = Class.new(RAAF::DSL::Agent) do
+        agent_name "ClassRefAgent"
+        model "gpt-4o"
+        tool native_tool
+      end
+
+      config = agent_class._tools_config.first
+
+      expect(config[:tool_class]).to eq(native_tool)
+      expect(config).not_to have_key(:tool_identifier)
     end
   end
 
@@ -380,7 +396,7 @@ RSpec.describe "Complete Integration Tests" do
       end
 
       begin
-        agent_class.new
+        agent_class.new.tools
         raise "Should have raised an error"
       rescue RAAF::DSL::ToolResolutionError => e
         # Error should contain all helpful information
@@ -390,7 +406,7 @@ RSpec.describe "Complete Integration Tests" do
         expect(e.suggestions).to be_an(Array)
 
         # Error message should be well-formatted
-        expect(e.message).to include("Could not find tool")
+        expect(e.message).to include("Tool not found: completely_missing_tool")
         expect(e.message).to include("completely_missing_tool")
         expect(e.message).to include("Searched in:")
       end

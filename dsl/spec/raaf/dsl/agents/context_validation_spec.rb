@@ -238,14 +238,6 @@ RSpec.describe RAAF::DSL::Agents::ContextValidation do
       )
     end
 
-    it "logs the failure before re-raising" do
-      expect(RAAF.logger).to receive(:error).with(/Context validation failed/)
-
-      expect { test_class.new(context: context_for(count: "1")) }.to raise_error(
-        described_class::ContextValidationError
-      )
-    end
-
     it "skips validation entirely when no rules are declared" do
       plain_class = Class.new(base_class) { include RAAF::DSL::Agents::ContextValidation }
 

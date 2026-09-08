@@ -16,8 +16,8 @@ RSpec.describe RAAF::DSL::PipelineDSL do
   end
 
   describe "component loading" do
-    it "loads AgentIntrospection module" do
-      expect(defined?(RAAF::DSL::PipelineDSL::AgentIntrospection)).to be_truthy
+    it "loads the Pipelineable module that gives agents their pipeline metadata" do
+      expect(defined?(RAAF::DSL::Pipelineable)).to be_truthy
     end
 
     it "loads ChainedAgent class" do
@@ -114,70 +114,95 @@ RSpec.describe RAAF::DSL::PipelineDSL do
     end
 
     it "extracts output fields from result_transform" do
-      expect(introspectable_agent.pipeline_output_fields).to eq(%i[analysis scores])
+      expect(introspectable_agent._result_transformations.keys).to eq(%i[analysis scores])
+    end
+
+    it "does not treat result_transform fields as declared pipeline output" do
+      # provided_fields comes from the context block's `output`; a
+      # result_transform only reshapes what the agent returns.
+      expect(introspectable_agent.provided_fields).to eq([])
     end
   end
 
   describe "field validation" do
     let(:incompatible_agent1) do
       Class.new(RAAF::DSL::Agent) do
-        # Context is automatically available through auto-context
-        result_transform do
-          field :output_a
+        context do
+          output :output_a
         end
       end
     end
 
     let(:incompatible_agent2) do
       Class.new(RAAF::DSL::Agent) do
-        # Context is automatically available through auto-context
         # Expects output_b, but agent1 provides output_a
-        result_transform do
-          field :final_output
+        context do
+          required :output_b
+          output :final_output
         end
       end
     end
 
     it "detects field mismatches between agents" do
+      chained = incompatible_agent1 >> incompatible_agent2
+
+      # Validation is deferred until the pipeline supplies its context fields.
       expect do
-        chained = incompatible_agent1 >> incompatible_agent2
-        # Field validation happens when the pipeline is executed or validated
-        chained.validate_fields({})
+        chained.validate_with_pipeline_context([])
       end.to raise_error(RAAF::DSL::PipelineDSL::FieldMismatchError)
+    end
+
+    it "stays quiet when the pipeline context supplies the missing field" do
+      chained = incompatible_agent1 >> incompatible_agent2
+
+      expect { chained.validate_with_pipeline_context([:output_b]) }.not_to raise_error
     end
   end
 
   describe "inline configuration" do
+    # RAAF::DSL::Agent defines its own class-level `timeout` and `retry` (the
+    # agent's HTTP timeout and retry settings), which shadow the pipeline
+    # wrappers of the same name. A plain Pipelineable component exposes them.
     let(:configurable_agent) do
-      Class.new(RAAF::DSL::Agent) do
-        # Context is automatically available through auto-context
+      Class.new do
+        include RAAF::DSL::Pipelineable
+
+        def self.name = "ConfigurableComponent"
+        def self.required_fields = []
+        def self.provided_fields = [:result]
       end
     end
 
     it "supports timeout configuration" do
       configured = configurable_agent.timeout(30)
       expect(configured).to be_a(RAAF::DSL::PipelineDSL::ConfiguredAgent)
-      expect(configured.config[:timeout]).to eq(30)
+      expect(configured.options[:timeout]).to eq(30)
     end
 
     it "supports retry configuration" do
       configured = configurable_agent.retry(3)
       expect(configured).to be_a(RAAF::DSL::PipelineDSL::ConfiguredAgent)
-      expect(configured.config[:retry]).to eq(3)
+      expect(configured.options[:retry]).to eq(3)
     end
 
     it "supports limit configuration" do
       configured = configurable_agent.limit(25)
       expect(configured).to be_a(RAAF::DSL::PipelineDSL::ConfiguredAgent)
-      expect(configured.config[:limit]).to eq(25)
+      expect(configured.options[:limit]).to eq(25)
     end
 
     it "supports chained configuration" do
       configured = configurable_agent.timeout(30).retry(3).limit(25)
       expect(configured).to be_a(RAAF::DSL::PipelineDSL::ConfiguredAgent)
-      expect(configured.config[:timeout]).to eq(30)
-      expect(configured.config[:retry]).to eq(3)
-      expect(configured.config[:limit]).to eq(25)
+      expect(configured.options).to include(timeout: 30, retry: 3, limit: 25)
+    end
+
+    it "keeps an Agent subclass's own timeout DSL intact" do
+      agent = Class.new(RAAF::DSL::Agent) do
+        timeout 45
+      end
+
+      expect(agent.send(:timeout)).to eq(45)
     end
   end
 
@@ -205,21 +230,23 @@ RSpec.describe RAAF::DSL::PipelineDSL do
         # Context variables are automatically available through auto-context
 
         context do
-          default :option1, "default_value"
+          optional option1: "default_value"
         end
       end
     end
 
     it "creates a functional pipeline" do
       pipeline = test_pipeline_class.new(input: "test_data")
+
       expect(pipeline).to be_a(RAAF::Pipeline)
-      expect(pipeline.context[:input]).to eq("test_data")
-      expect(pipeline.context[:option1]).to eq("default_value")
+
+      # Declared context variables are exposed as readers on the pipeline.
+      expect(pipeline.option1).to eq("default_value")
     end
 
     it "maintains backward compatibility with existing agents" do
       # The DSL should work with any RAAF::DSL::Agent without modifications
-      expect(RAAF::DSL::Agent.ancestors).to include(RAAF::DSL::PipelineDSL::AgentIntrospection)
+      expect(RAAF::DSL::Agent.ancestors).to include(RAAF::DSL::Pipelineable)
     end
   end
 end

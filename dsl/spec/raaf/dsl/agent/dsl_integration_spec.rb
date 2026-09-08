@@ -11,7 +11,8 @@ RSpec.describe RAAF::DSL::Agent, "DSL integration" do
     it "provides DSL methods without explicit include" do
       expect(described_class).to respond_to(:agent_name)
       expect(described_class).to respond_to(:model)
-      expect(described_class).to respond_to(:uses_tool)
+      expect(described_class).to respond_to(:tool)
+      expect(described_class).to respond_to(:tools)
       # schema method temporarily unavailable due to implementation issue
       # expect(described_class).to respond_to(:schema)
     end
@@ -62,7 +63,7 @@ RSpec.describe RAAF::DSL::Agent, "DSL integration" do
       end
     end
 
-    it "inherits configuration from parent class", pending: "Context inheritance not fully implemented" do
+    it "inherits configuration from parent class" do
       expect(ChildAgent._required_context_keys).to include(:user_id, :session_id)
       expect(ChildAgent._retry_config).to include(:network)
     end

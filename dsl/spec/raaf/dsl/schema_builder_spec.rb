@@ -65,7 +65,7 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
       it "adds a field with default string type" do
         result = builder.field(:description)
 
-        expect(builder.instance_variable_get(:@properties)[:description]).to eq({ type: :string })
+        expect(builder.instance_variable_get(:@properties)[:description]).to eq({ type: "string" })
         expect(result).to eq(builder) # Returns self for chaining
       end
 
@@ -83,7 +83,7 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
 
         properties = builder.instance_variable_get(:@properties)
         expect(properties[:score]).to include(
-          type: :integer,
+          type: "integer",
           minimum: 0,
           maximum: 100
         )
@@ -120,6 +120,7 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
         required = builder.instance_variable_get(:@required)
         expect(required.count(:name)).to eq(1)
         expect(required).to include(:email)
+        expect(builder.required_fields.count(:name)).to eq(1)
       end
     end
 
@@ -130,7 +131,7 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
         properties = builder.instance_variable_get(:@properties)
         expect(properties[:tags]).to eq({
                                           type: :array,
-                                          items: { type: :string }
+                                          items: { type: "string" }
                                         })
       end
 
@@ -153,7 +154,7 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
 
         properties = builder.instance_variable_get(:@properties)
         expect(properties[:scores][:items]).to include(
-          type: :integer,
+          type: "integer",
           minimum: 0,
           maximum: 100
         )
@@ -177,10 +178,12 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
         properties = builder.instance_variable_get(:@properties)
         address_schema = properties[:address]
 
-        expect(address_schema[:type]).to eq(:object)
-        expect(address_schema[:properties][:street]).to eq({ type: :string })
-        expect(address_schema[:properties][:city]).to eq({ type: :string })
-        expect(address_schema[:required]).to include(:street, :city)
+        # nested stores the sub-builder's finished schema, so it is already in the
+        # string-keyed JSON Schema form that to_schema emits.
+        expect(address_schema["type"]).to eq("object")
+        expect(address_schema["properties"]["street"]).to eq({ "type" => "string" })
+        expect(address_schema["properties"]["city"]).to eq({ "type" => "string" })
+        expect(address_schema["required"]).to include("street", "city")
       end
 
       it "supports method chaining" do
@@ -203,8 +206,8 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
         properties = builder.instance_variable_get(:@properties)
         contact_schema = properties[:contact]
 
-        expect(contact_schema[:properties][:address][:type]).to eq(:object)
-        expect(contact_schema[:properties][:address][:properties][:street]).to eq({ type: :string })
+        expect(contact_schema["properties"]["address"]["type"]).to eq("object")
+        expect(contact_schema["properties"]["address"]["properties"]["street"]).to eq({ "type" => "string" })
       end
     end
 
@@ -259,16 +262,17 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
         schema = builder.to_schema
 
         expect(schema).to eq({
-                               type: :object,
-                               properties: {
-                                 name: { type: :string },
-                                 email: {
-                                   type: :string,
-                                   format: :email,
-                                   pattern: RAAF::DSL::Types::SEMANTIC_TYPES[:email][:pattern]
+                               "type" => "object",
+                               "properties" => {
+                                 "name" => { "type" => "string" },
+                                 "email" => {
+                                   "type" => "string",
+                                   "format" => "email",
+                                   "pattern" => RAAF::DSL::Types::SEMANTIC_TYPES[:email][:pattern]
                                  }
                                },
-                               required: %i[name email]
+                               "required" => %w[name email],
+                               "additionalProperties" => false
                              })
       end
     end
@@ -282,11 +286,12 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
 
         schema = builder.to_schema
 
-        expect(schema[:type]).to eq(:object)
-        expect(schema[:properties][:market_name]).to eq({ type: :string, maxLength: 255 })
-        expect(schema[:properties][:insights]).to eq({ type: :string })
-        expect(schema[:properties][:overall_score]).to include(type: :integer, minimum: 0, maximum: 100)
-        expect(schema[:required]).to include(:id, :market_name, :created_at, :insights)
+        expect(schema["type"]).to eq("object")
+        expect(schema["properties"]["market_name"]).to eq({ "type" => "string", "maxLength" => 255 })
+        expect(schema["properties"]["insights"]).to eq({ "type" => "string" })
+        expect(schema["properties"]["overall_score"]).to include("type" => "integer", "minimum" => 0,
+                                                                 "maximum" => 100)
+        expect(schema["required"]).to include("id", "market_name", "created_at", "insights")
       end
 
       it "removes duplicate required fields" do
@@ -294,7 +299,7 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
                                  .required(:market_name) # Already required from model
 
         schema = builder.to_schema
-        required_count = schema[:required].count(:market_name)
+        required_count = schema["required"].count("market_name")
         expect(required_count).to eq(1)
       end
     end
@@ -314,13 +319,14 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
 
         schema = builder.to_schema
 
-        expect(schema[:properties][:contact][:type]).to eq(:object)
-        expect(schema[:properties][:contact][:properties][:email][:format]).to eq(:email)
-        expect(schema[:properties][:contact][:properties][:phones][:type]).to eq(:array)
-        expect(schema[:properties][:contact][:properties][:phones][:items][:pattern]).to be_a(Regexp)
-        expect(schema[:properties][:contact][:required]).to include(:name, :email)
-        expect(schema[:properties][:tags][:type]).to eq(:array)
-        expect(schema[:properties][:tags][:items][:type]).to eq(:string)
+        contact = schema["properties"]["contact"]
+        expect(contact["type"]).to eq("object")
+        expect(contact["properties"]["email"]["format"]).to eq("email")
+        expect(contact["properties"]["phones"]["type"]).to eq("array")
+        expect(contact["properties"]["phones"]["items"]["pattern"]).to be_a(Regexp)
+        expect(contact["required"]).to include("name", "email")
+        expect(schema["properties"]["tags"]["type"]).to eq("array")
+        expect(schema["properties"]["tags"]["items"]["type"]).to eq("string")
       end
     end
   end
@@ -336,14 +342,14 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
         schema = builder.to_schema
 
         # Verify model fields are included
-        expect(schema[:properties][:market_name]).to be_present
-        expect(schema[:properties][:created_at]).to be_present
+        expect(schema["properties"]["market_name"]).to be_present
+        expect(schema["properties"]["created_at"]).to be_present
 
         # Verify override worked
-        expect(schema[:properties][:overall_score]).to include(minimum: 0, maximum: 100)
+        expect(schema["properties"]["overall_score"]).to include("minimum" => 0, "maximum" => 100)
 
         # Verify new field added
-        expect(schema[:properties][:insights]).to eq({ type: :string })
+        expect(schema["properties"]["insights"]).to eq({ "type" => "string" })
       end
     end
 
@@ -357,10 +363,10 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
 
         schema = builder.to_schema
 
-        expect(schema[:properties][:email][:format]).to eq(:email)
-        expect(schema[:properties][:score]).to include(minimum: 0, maximum: 100, type: :integer)
-        expect(schema[:properties][:website][:format]).to eq(:uri)
-        expect(schema[:required]).to eq([:email])
+        expect(schema["properties"]["email"]["format"]).to eq("email")
+        expect(schema["properties"]["score"]).to include("minimum" => 0, "maximum" => 100, "type" => "integer")
+        expect(schema["properties"]["website"]["format"]).to eq("uri")
+        expect(schema["required"]).to eq(["email"])
       end
     end
 
@@ -381,16 +387,18 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
         schema = builder.to_schema
 
         # Check nested scoring dimensions
-        scoring = schema[:properties][:scoring_dimensions]
-        expect(scoring[:type]).to eq(:object)
-        expect(scoring[:properties][:product_market_fit]).to include(type: :integer, minimum: 0, maximum: 100)
+        scoring = schema["properties"]["scoring_dimensions"]
+        expect(scoring["type"]).to eq("object")
+        expect(scoring["properties"]["product_market_fit"]).to include("type" => "integer", "minimum" => 0,
+                                                                      "maximum" => 100)
 
         # Check arrays
-        expect(schema[:properties][:search_terms][:type]).to eq(:array)
-        expect(schema[:properties][:search_terms][:items][:type]).to eq(:string)
+        expect(schema["properties"]["search_terms"]["type"]).to eq("array")
+        expect(schema["properties"]["search_terms"]["items"]["type"]).to eq("string")
 
         # Check semantic types
-        expect(schema[:properties][:confidence_level]).to include(type: :number, minimum: 0, maximum: 100)
+        expect(schema["properties"]["confidence_level"]).to include("type" => "number", "minimum" => 0,
+                                                                    "maximum" => 100)
       end
     end
   end

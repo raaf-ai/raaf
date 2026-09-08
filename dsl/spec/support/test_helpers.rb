@@ -32,19 +32,6 @@ module TestHelpers
     prompt_class
   end
 
-  # Create a test tool class for testing
-  def create_test_tool_class(name = "TestTool", &block)
-    tool_class = Class.new(RAAF::DSL::Tools::Base) do
-      include RAAF::DSL::ToolDsl
-    end
-
-    tool_class.class_eval(&block) if block_given?
-
-    # Set a class name for better error messages
-    stub_const(name, tool_class)
-    tool_class
-  end
-
   # Mock Rails environment variables
   def mock_rails_env(env_name)
     allow(ENV).to receive(:[]).with("RAILS_ENV").and_return(env_name)

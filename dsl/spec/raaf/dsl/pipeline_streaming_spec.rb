@@ -166,7 +166,7 @@ RSpec.describe "RAAF::Pipeline intelligent streaming integration" do
         pipeline_class.flow company_discovery >> quick_fit_analyzer >> deep_intel >> scoring
         pipeline_class.context do
           required :product, :company
-          optional :metadata
+          optional metadata: nil
         end
 
         context_data = {
@@ -177,10 +177,11 @@ RSpec.describe "RAAF::Pipeline intelligent streaming integration" do
 
         pipeline = pipeline_class.new(**context_data)
 
-        # Verify context is available
-        expect(pipeline.context[:product]).to eq("TestProduct")
-        expect(pipeline.context[:company]).to eq("TestCompany")
-        expect(pipeline.context[:metadata]).to eq({ source: "test" })
+        # Verify context is available through the declared readers
+        expect(pipeline.product).to eq("TestProduct")
+        expect(pipeline.company).to eq("TestCompany")
+        # Nested hashes come back with indifferent access.
+        expect(pipeline.metadata[:source]).to eq("test")
       end
 
       it "merges streaming results correctly" do
@@ -240,12 +241,14 @@ RSpec.describe "RAAF::Pipeline intelligent streaming integration" do
         pipeline_class.flow company_discovery >> quick_fit_analyzer >> scoring
         pipeline_class.context do
           required :search_terms
-          default :max_results, 100
+          optional max_results: 100
         end
 
         pipeline = pipeline_class.new(search_terms: %w[CTO DevOps])
-        expect(pipeline.context[:search_terms]).to eq(%w[CTO DevOps])
-        expect(pipeline.context[:max_results]).to eq(100)
+
+        # Declared context variables are exposed as readers on the pipeline.
+        expect(pipeline.search_terms).to eq(%w[CTO DevOps])
+        expect(pipeline.max_results).to eq(100)
       end
     end
 

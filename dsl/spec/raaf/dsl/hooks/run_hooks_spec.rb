@@ -194,7 +194,9 @@ RSpec.describe RAAF::DSL::Hooks::RunHooks do
         on_error
       ]
 
-      expect(described_class::HOOK_TYPES).to match_array(expected_types)
+      # The core six; the constant has since grown extra lifecycle hooks
+      # (retries, circuit breaker, validation) which are also legitimate.
+      expect(described_class::HOOK_TYPES).to include(*expected_types)
     end
 
     it "uses frozen hook types array" do

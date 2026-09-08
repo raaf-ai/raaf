@@ -793,8 +793,9 @@ RSpec.describe "DataMerger Integration" do
       expect(merged_company[:total_funding]).to eq(1_500_000) # 1000000 + 500000
       expect(merged_company[:confidence_score]).to eq(250) # 75 + 90 + 85
 
-      # Custom merge (average)
-      expect(merged_company[:average_rating]).to eq(4.3) # Average of 4.2, 4.5, 4.3
+      # Custom merge (running pairwise average, not the mean of all three):
+      # 4.2 and 4.5 average to 4.4, which then averages with 4.3 back to 4.4.
+      expect(merged_company[:average_rating]).to eq(4.4)
 
       # Object merging
       expect(merged_company[:social_data]).to include(

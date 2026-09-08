@@ -220,11 +220,10 @@ RSpec.describe RAAF::DSL::Hooks::AgentHooks do
     end
 
     it "inherits parent hooks" do
-      pending "Hook inheritance"
       child_instance = child_class.new
       combined_config = child_instance.combined_hooks_config
 
-      expect(combined_config[:on_start]).to have(2).items
+      expect(combined_config[:on_start].size).to eq(2)
       expect(combined_config[:on_start][0]).to be_a(Proc)
       expect(combined_config[:on_start][1]).to be_a(Proc)
     end

@@ -7,7 +7,11 @@ RSpec.describe RAAF::DSL::PipelineDSL::ParallelAgents do
   let(:agent1) do
     Class.new(RAAF::DSL::Agent) do
       agent_name "Agent1"
-      # Context is automatically available through auto-context
+
+      context do
+        output :output1
+      end
+
       result_transform do
         field :output1, computed: :process
       end
@@ -22,7 +26,11 @@ RSpec.describe RAAF::DSL::PipelineDSL::ParallelAgents do
   let(:agent2) do
     Class.new(RAAF::DSL::Agent) do
       agent_name "Agent2"
-      # Context is automatically available through auto-context
+
+      context do
+        output :output2
+      end
+
       result_transform do
         field :output2, computed: :process
       end
@@ -37,7 +45,11 @@ RSpec.describe RAAF::DSL::PipelineDSL::ParallelAgents do
   let(:agent3) do
     Class.new(RAAF::DSL::Agent) do
       agent_name "Agent3"
-      # Context is automatically available through auto-context
+
+      context do
+        output :output3
+      end
+
       result_transform do
         field :output3, computed: :process
       end
@@ -98,12 +110,10 @@ RSpec.describe RAAF::DSL::PipelineDSL::ParallelAgents do
       # Should be faster than sequential (0.03s)
       expect(elapsed).to be < 0.025
 
-      expect(result).to include(
-        input: "test",
-        output1: "result1",
-        output2: "result2",
-        output3: "result3"
-      )
+      expect(result[:input]).to eq("test")
+      expect(result[:output1]).to eq("result1")
+      expect(result[:output2]).to eq("result2")
+      expect(result[:output3]).to eq("result3")
     end
 
     it "each agent gets a copy of context" do
@@ -120,10 +130,10 @@ RSpec.describe RAAF::DSL::PipelineDSL::ParallelAgents do
       result = parallel.execute(context)
 
       # Original context should have results but not internal modifications
-      expect(result).to include(:output1)
+      expect(result.has?(:output1)).to be true
     end
 
-    it "handles errors in individual agents gracefully" do
+    it "lets a failing agent stop the whole parallel group" do
       failing_agent = Class.new(RAAF::DSL::Agent) do
         agent_name "FailingAgent"
         def run
@@ -133,10 +143,10 @@ RSpec.describe RAAF::DSL::PipelineDSL::ParallelAgents do
 
       parallel = described_class.new([agent1, failing_agent, agent2])
 
-      expect(RAAF.logger).to receive(:error).with(/Error in parallel agent/)
-
-      result = parallel.execute(context)
-      expect(result).to include(:output1, :output2)
+      # Field merging is union-with-last-writer-wins, but an error is not
+      # absorbed: the group fails so the pipeline does not carry on with
+      # partial results.
+      expect { parallel.execute(context) }.to raise_error("Test error")
     end
 
     it "skips agents whose requirements aren't met" do
@@ -152,8 +162,8 @@ RSpec.describe RAAF::DSL::PipelineDSL::ParallelAgents do
       parallel = described_class.new([agent1, agent_with_req])
       result = parallel.execute(context)
 
-      expect(result).to include(:output1)
-      expect(result).not_to include(:should_not_appear)
+      expect(result.has?(:output1)).to be true
+      expect(result.has?(:should_not_appear)).to be false
     end
   end
 

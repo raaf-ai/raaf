@@ -110,27 +110,36 @@ RSpec.describe RAAF::DSL::PipelineDSL::IteratingAgent do
     let(:agent) { described_class.new(mock_agent_class, :items) }
 
     it "supports timeout configuration" do
-      agent.timeout(60)
-      expect(agent.options[:timeout]).to eq(60)
+      configured = agent.timeout(60)
+
+      expect(configured.options[:timeout]).to eq(60)
+      expect(agent.options).to eq({}) # non-destructive
     end
 
     it "supports retry configuration" do
-      agent.retry(3)
-      expect(agent.options[:retry]).to eq(3)
+      configured = agent.retry(3)
+
+      expect(configured.options[:retry]).to eq(3)
+      expect(agent.options).to eq({})
     end
 
     it "supports limit configuration" do
-      agent.limit(10)
-      expect(agent.options[:limit]).to eq(10)
+      configured = agent.limit(10)
+
+      expect(configured.options[:limit]).to eq(10)
+      expect(agent.options).to eq({})
     end
 
     it "supports method chaining" do
+      # timeout/retry/limit each return a fresh wrapper; parallel is the one
+      # that mutates and returns self.
       result = agent.timeout(30).retry(2).limit(5).parallel
-      expect(result).to eq(agent)
-      expect(agent.options[:timeout]).to eq(30)
-      expect(agent.options[:retry]).to eq(2)
-      expect(agent.options[:limit]).to eq(5)
-      expect(agent.instance_variable_get(:@parallel)).to be true
+
+      expect(result).to be_a(described_class)
+      expect(result.options).to include(timeout: 30, retry: 2, limit: 5)
+      expect(result.instance_variable_get(:@parallel)).to be true
+      expect(result.field).to eq(:items)
+      expect(result.agent_class).to eq(mock_agent_class)
     end
   end
 
@@ -214,11 +223,11 @@ RSpec.describe RAAF::DSL::PipelineDSL::IteratingAgent do
     end
 
     it "applies limit when specified" do
-      agent.limit(2)
+      limited = agent.limit(2)
       allow(RAAF.logger).to receive(:info)
       allow(RAAF.logger).to receive(:debug)
 
-      result_context = agent.execute(context)
+      result_context = limited.execute(context)
 
       expect(result_context[:processed_items].length).to eq(2)
     end
@@ -399,8 +408,8 @@ RSpec.describe RAAF::DSL::PipelineDSL::IteratingAgent do
 
       result_context = agent.execute(context)
 
-      expect(result_context).to have_key(:custom_output)
-      expect(result_context).not_to have_key(:processed_items)
+      expect(result_context.has?(:custom_output)).to be true
+      expect(result_context.has?(:processed_items)).to be false
       expect(result_context[:custom_output]).to be_an(Array)
       expect(result_context[:custom_output].length).to eq(3)
     end
@@ -423,7 +432,7 @@ RSpec.describe RAAF::DSL::PipelineDSL::IteratingAgent do
     it "raises error for invalid :from syntax" do
       expect do
         mock_agent_class.each_over(:from, :items)
-      end.to raise_error(ArgumentError, /Invalid syntax: :from marker requires input field/)
+      end.to raise_error(ArgumentError, /:from marker requires 'to:' keyword argument/)
     end
 
     it "raises error for invalid argument patterns" do
@@ -542,8 +551,8 @@ RSpec.describe RAAF::DSL::PipelineDSL::IteratingAgent do
       context = { search_terms: %w[ruby rails] }
       result = agent.execute(context)
 
-      expect(result).to have_key(:companies) # Custom output field
-      expect(result).not_to have_key(:processed_search_terms) # Default not used
+      expect(result.has?(:companies)).to be true # Custom output field
+      expect(result.has?(:processed_search_terms)).to be false # Default not used
       expect(result[:companies]).to be_an(Array)
       expect(result[:companies].length).to eq(2)
     end
