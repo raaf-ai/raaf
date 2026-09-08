@@ -87,6 +87,12 @@ module RAAF
           "/raaf/assets/console-#{digest}.css"
         end
 
+        # @param digest [String] {RAAF::Rails::Ui::Javascript.digest}
+        # @return [String] path to the console's Stimulus bundle for that content
+        def console_javascript_path(digest)
+          "/raaf/assets/console-#{digest}.js"
+        end
+
         def dashboard_performance_path
           "/raaf/dashboard/performance"
         end

@@ -2,19 +2,29 @@
 
 module RAAF
   module Rails
-    # Serves the console's own stylesheet.
+    # Serves the console's own stylesheet and JavaScript.
     #
     # The engine cannot assume the host application's asset pipeline — it may
     # be Sprockets, Propshaft, importmap or nothing at all — so the layout used
-    # to inline the whole thing in a `<style>` element instead. That is correct
-    # about the pipeline and expensive about everything else: 156 kB of CSS in
-    # the document, regenerated and re-sent on every navigation, that a browser
+    # to inline both of them in the document instead. That is correct about the
+    # pipeline and expensive about everything else: 156 kB of CSS and 40 kB of
+    # controllers, regenerated and re-sent on every navigation, that a browser
     # has no way to keep.
     #
-    # Serving it from the engine's own route needs no pipeline either, and the
-    # path carries a content hash, so a browser fetches it once and the URL
-    # changes by itself when the CSS does.
+    # Serving them from the engine's own routes needs no pipeline either, and
+    # each path carries a content hash, so a browser fetches it once and the
+    # URL changes by itself when the file does.
     class AssetsController < ApplicationController
+      # Rails raises InvalidCrossOriginRequest on any non-XHR GET that answers
+      # with a JavaScript media type, on the assumption the body was meant for
+      # the session that asked and is worth stealing. This body is the console's
+      # own Stimulus controllers: the same bytes for every visitor, holding
+      # nothing that belongs to a session, and fetched in exactly the way that
+      # check forbids -- by a <script> tag in the layout. Left on, it turned
+      # every console page's JavaScript into a 422 and the console into a page
+      # that renders and then does nothing.
+      skip_after_action :verify_same_origin_request, only: :javascript
+
       # GET /assets/console-:digest.css
       #
       # The digest in the path is not read. It is there so the URL changes with
@@ -25,6 +35,15 @@ module RAAF
 
         response.set_header("Cache-Control", cache_control)
         render body: css, content_type: "text/css"
+      end
+
+      # GET /assets/console-:digest.js
+      #
+      # The console's Stimulus controllers, assembled into one ES module. The
+      # digest is ignored here for the same reason as in {stylesheet}.
+      def javascript
+        response.set_header("Cache-Control", cache_control)
+        render body: Ui::Javascript.call, content_type: "text/javascript"
       end
 
       private
