@@ -221,15 +221,6 @@ module RAAF
               available_keys = context.respond_to?(:keys) ? context.keys : []
               missing_fields = required_fields - available_keys
 
-              log_warn "❌ Skipping #{agent_name}: requirements not met"
-              log_warn "  📋 Required fields: #{required_fields.inspect}"
-              log_warn "  ✅ Available in context: #{available_keys.inspect}"
-              log_warn "  ❌ Missing fields: #{missing_fields.inspect}"
-
-              # Also log at debug level for backwards compatibility
-              log_debug "  Required: #{required_fields}"
-              log_debug "  Available in context: #{available_keys}"
-
               # Create a span for the skipped agent to make it visible in traces
               pipeline_instance = context.respond_to?(:get) ? context.get(:pipeline_instance) : context[:pipeline_instance]
 
@@ -261,17 +252,20 @@ module RAAF
                                            "agent.required_fields" => agent_class.required_fields.join(", "),
                                            "agent.available_fields" => (context.respond_to?(:keys) ? context.keys.join(", ") : "unknown")) do
                   # No-op - just create the span to show the agent was considered
-                  log_debug "Created span for skipped agent: #{agent_name}"
                   nil # Return nil from span block
                 end
-              else
               end
+
+              # An agent quietly vanishing from a pipeline is very hard to spot
+              # from the results alone, so say which fields were missing.
+              log_warn("Skipping #{agent_name}: requirements not met",
+                       agent: agent_name, missing_fields: missing_fields,
+                       required_fields: required_fields)
 
               # Mark context as having a skipped agent to propagate skip condition
               context = context.set(:_agent_skipped, true) if context.respond_to?(:set)
               return context
             end
-          else
           end
 
           # Execute agent - ContextVariables now supports direct splatting via to_hash method
@@ -330,13 +324,10 @@ module RAAF
               elsif result.respond_to?(field)
                 field_value = result.send(field)
                 context = context.set(field, field_value)
-              else
               end
             end
-          else
           end
 
-          log_debug "Agent #{agent_name} execution completed"
           context
         end
       end

@@ -59,6 +59,11 @@ module RAAF
       #    d. Calls persistence_handler with processed items
       # 3. Merges all results (processed + skipped) in original order
       #
+      # A batch that raises does not take the run down with it: the exception
+      # goes to the Rails error subscriber as handled and the next batch
+      # starts. The failed batch contributes no processed items, so the
+      # returned array is shorter than the input.
+      #
       # @param input_items [Array<Hash>] Input items to process
       # @param context [Hash] Agent context (must support [] access)
       # @yieldparam items [Array<Hash>] Batch of non-skipped items to process
@@ -86,31 +91,17 @@ module RAAF
         # Split input into batches FIRST
         batches = input_items.each_slice(batch_size).to_a
 
-        # Get agent name for logging
-        agent_name = @agent.class.name.split("::").last
-
-        RAAF.logger.info "🔍 [#{agent_name}] Input: #{input_items.count} items"
-        RAAF.logger.info "📦 [#{agent_name}] Processing in #{batches.count} batch(es) of max #{batch_size} items"
-
         # Track all results
         all_skipped = []
         all_processed = []
-        total_skipped_count = 0
-        total_processed_count = 0
-        failed_batches = []
 
         # Process each batch
         batches.each_with_index do |batch, batch_idx|
-          batch_number = batch_idx + 1
+          skipped_items = nil
 
           begin
             # Partition batch into skipped and to-process
             skipped_items, items_to_process = partition_batch(batch, context, force_reprocess)
-
-            total_skipped_count += skipped_items.count
-            total_processed_count += items_to_process.count
-
-            RAAF.logger.info "⚙️  [#{agent_name}] Batch #{batch_number}/#{batches.count}: #{batch.count} items (#{skipped_items.count} skipped, #{items_to_process.count} to process)"
 
             # Skip processing if no items to process
             if items_to_process.empty?
@@ -119,11 +110,7 @@ module RAAF
             end
 
             # Process non-skipped items
-            start_time = Time.now
             batch_results = block.call(items_to_process, context)
-            duration_ms = ((Time.now - start_time) * 1000).round(2)
-
-            RAAF.logger.info "✅ [#{agent_name}] Batch #{batch_number} processed in #{duration_ms}ms"
 
             # Persist batch results
             persist_batch(batch_results, context)
@@ -132,43 +119,17 @@ module RAAF
             all_skipped.concat(skipped_items)
             all_processed.concat(batch_results)
           rescue StandardError => e
-            # Log error but continue with next batch
-            RAAF.logger.error "❌ [#{agent_name}] Batch #{batch_number} failed: #{e.message}"
-            RAAF.logger.error "📋 Error class: #{e.class.name}"
-            RAAF.logger.error "🔍 Stack trace:\n#{e.backtrace.join("\n")}"
+            report_batch_failure(e, batch_idx + 1)
 
-            # Report to Rails error subscriber (flows to Faultline) as handled
-            # NOTE: Must use ::Rails to avoid resolving to RAAF::Rails inside this namespace
-            ::Rails.error.report(e, handled: true, context: {
-                                   source: "raaf.incremental_processor",
-                                   agent_name: agent_name,
-                                   batch_number: batch_number
-                                 })
-
-            # Track failed batch for reporting
-            failed_batches << { batch_number: batch_number, error: e.message, error_class: e.class.name }
-
-            # Mark skipped items as processed (with error) to maintain order
-            # GUARD: skipped_items may be nil if partition_batch raised before assignment
+            # Keep whatever the batch already loaded so ordering survives.
+            # GUARD: skipped_items is nil if partition_batch raised.
             all_skipped.concat(skipped_items) if skipped_items
             # Continue with next batch instead of failing entire process
-          ensure
-            # CRITICAL: Flush traces after each batch to preserve partial results
-            # This ensures we don't lose trace data if subsequent batches fail
-            auto_flush_raaf_traces if respond_to?(:auto_flush_raaf_traces, true)
           end
-        end
-
-        # Log final metrics
-        RAAF.logger.info "⏭️  [#{agent_name}] Total skipped: #{total_skipped_count} items (existing)"
-        RAAF.logger.info "⚡ [#{agent_name}] Total processed: #{total_processed_count} items"
-
-        # Log failed batches if any
-        if failed_batches.any?
-          RAAF.logger.warn "⚠️  [#{agent_name}] #{failed_batches.count} batch(es) failed during processing"
-          failed_batches.each do |failure|
-            RAAF.logger.warn "   - Batch #{failure[:batch_number]}: #{failure[:error_class]} - #{failure[:error]}"
-          end
+        ensure
+          # CRITICAL: Flush traces after each batch to preserve partial results
+          # This ensures we don't lose trace data if a later batch raises
+          auto_flush_raaf_traces if respond_to?(:auto_flush_raaf_traces, true)
         end
 
         # Merge processed and skipped items in original order
@@ -176,6 +137,27 @@ module RAAF
       end
 
       private
+
+      # Report a rescued batch failure to the Rails error subscriber
+      #
+      # Reported as handled so it reaches Faultline and the other subscribers
+      # without being treated as a crash. Outside Rails there is no subscriber
+      # to report to, and the batch simply contributes nothing.
+      #
+      # NOTE: Must use ::Rails to avoid resolving to RAAF::Rails in this namespace
+      #
+      # @param error [StandardError] The rescued error
+      # @param batch_number [Integer] 1-based number of the batch that failed
+      # @return [void]
+      def report_batch_failure(error, batch_number)
+        return unless defined?(::Rails) && ::Rails.respond_to?(:error)
+
+        ::Rails.error.report(error, handled: true, context: {
+                               source: "raaf.incremental_processor",
+                               agent_name: @agent.class.name,
+                               batch_number: batch_number
+                             })
+      end
 
       # Partition batch items into skipped and to-process groups
       #
@@ -212,12 +194,6 @@ module RAAF
       def persist_batch(batch_results, context)
         return if batch_results.empty?
 
-        agent_name = @agent.class.name.split("::").last
-
-        RAAF.logger.info "💾 [#{agent_name}] Persisting batch of #{batch_results.count} items"
-
-        start_time = Time.now
-
         # Convert batch_results to indifferent access before passing to handler
         # This ensures application code can use either symbol or string keys
         indifferent_results = batch_results.map do |result|
@@ -226,9 +202,6 @@ module RAAF
 
         # Call persistence handler with indifferent access data
         config.persistence_handler_block.call(indifferent_results, context)
-
-        duration_ms = ((Time.now - start_time) * 1000).round(2)
-        RAAF.logger.info "✅ [#{agent_name}] Batch persisted in #{duration_ms}ms"
       end
 
       # Merge processed and skipped items in original order
@@ -264,25 +237,14 @@ module RAAF
             # Use processed data
             processed_item = processed_items[processed_index]
 
-            # Check for nil - LLM returned fewer items than expected (non-determinism)
-            if processed_item.nil?
-              agent_name = @agent.class.name.split("::").last
-              warn_msg = "⚠️ [#{agent_name}] LLM returned fewer processed items than expected! " \
-                         "Expected #{original_items.count - skipped_items.count} processed items, " \
-                         "but only got #{processed_items.compact.count}. " \
-                         "Missing items will be omitted from results."
-
-              RAAF.logger.warn warn_msg
-              next
-            end
+            # An LLM can legitimately return fewer items than it was given, so a
+            # missing result is omitted rather than treated as a failure.
+            next if processed_item.nil?
 
             result << processed_item
             processed_index += 1
           end
         end
-
-        agent_name = @agent.class.name.split("::").last
-        RAAF.logger.info "🔄 [#{agent_name}] Merged #{result.count} total items (#{processed_items.count} processed + #{skipped_items.count} skipped)"
 
         result
       end

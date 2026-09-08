@@ -201,13 +201,6 @@ module RAAF
         raise RAAF::DSL::Error, error_message
       end
 
-      if defined?(RAAF::Logger) && respond_to?(:log_info)
-        log_info "Pipeline validation successful",
-                 stages: tracker.stage_number,
-                 initial_context: tracker.summary[:initial_context],
-                 final_context: tracker.summary[:final_context]
-      end
-
       true
     end
 
@@ -368,32 +361,45 @@ module RAAF
     end
 
     # Redact sensitive data from context/results
-    def redact_sensitive_data(data)
+    def redact_sensitive_data(data, seen = nil)
       return data unless data.is_a?(Hash)
 
-      redacted = {}
-      data.each do |key, value|
-        key_str = key.to_s.downcase
-        redacted[key] = if sensitive_key?(key_str)
-                          "[REDACTED]"
-                        elsif value.is_a?(Hash)
-                          redact_sensitive_data(value)
-                        elsif value.is_a?(Array) && value.any? { |v| v.is_a?(Hash) }
-                          value.map { |v| v.is_a?(Hash) ? redact_sensitive_data(v) : v }
-                        else
-                          value
-                        end
+      # Context and result payloads can contain cycles; without tracking what is
+      # already being redacted this recurses until the stack gives out.
+      seen ||= {}.compare_by_identity
+      return "[CIRCULAR]" if seen.key?(data)
+
+      seen[data] = true
+      begin
+        redacted = {}
+        data.each do |key, value|
+          key_str = key.to_s.downcase
+          redacted[key] = if sensitive_key?(key_str)
+                            "[REDACTED]"
+                          elsif value.is_a?(Hash)
+                            redact_sensitive_data(value, seen)
+                          elsif value.is_a?(Array) && value.any? { |v| v.is_a?(Hash) }
+                            value.map { |v| v.is_a?(Hash) ? redact_sensitive_data(v, seen) : v }
+                          else
+                            value
+                          end
+        end
+        redacted
+      ensure
+        seen.delete(data)
       end
-      redacted
     end
 
     # Check if key contains sensitive information
     def sensitive_key?(key)
       sensitive_patterns = %w[
         password token secret key api_key auth credential
-        email phone ssn social_security credit_card
+        email phone ssn social_security credit_card card
       ]
-      sensitive_patterns.any? { |pattern| key.include?(pattern) }
+      # Match case-insensitively: keys are commonly written API_KEY or
+      # Password, and a case-sensitive check would leave those unredacted.
+      normalized = key.to_s.downcase
+      sensitive_patterns.any? { |pattern| normalized.include?(pattern) }
     end
 
     # Execute callback with parameter signature (matching agent hooks)
@@ -587,14 +593,10 @@ module RAAF
       instance = agent_class.new(**instance_params)
 
       # Inject pipeline schema if available
-      if pipeline_schema && instance.respond_to?(:inject_pipeline_schema)
-        logger.debug "Injecting schema into #{agent_class.name}"
-        instance.inject_pipeline_schema(pipeline_schema)
-      end
+      instance.inject_pipeline_schema(pipeline_schema) if pipeline_schema && instance.respond_to?(:inject_pipeline_schema)
 
       # Execute based on type - Services use 'call', Agents use 'run'
       # Prioritize 'call' method if available (for agents with custom processing)
-      logger&.debug "Executing #{agent_class.name}"
       result = if is_service_class?(agent_class)
                  instance.call
                elsif instance.respond_to?(:call)
@@ -640,13 +642,6 @@ module RAAF
     rescue NameError
       # RAAF::DSL::Service might not be loaded yet
       false
-    end
-
-    # Simple logger accessor for pipeline
-    def logger
-      return nil unless defined?(RAAF) && RAAF.respond_to?(:logger)
-
-      RAAF.logger
     end
 
     # Validate flow with context tracking through pipeline stages
@@ -946,8 +941,7 @@ module RAAF
         # Basic types pass through unchanged
         result
       end
-    rescue StandardError => e
-      Rails.logger.error "Pipeline sanitization error: #{e.message}" if defined?(Rails)
+    rescue StandardError
       result.to_s
     end
 

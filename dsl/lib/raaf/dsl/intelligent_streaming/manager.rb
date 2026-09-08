@@ -80,22 +80,26 @@ module RAAF
         # @param chain [Object] Flow chain with >> and | operators
         # @return [Array] Flattened array of agents
         def flatten_flow_chain(chain)
-          return [chain] unless chain.respond_to?(:to_a) ||
-                                chain.respond_to?(:agents) ||
-                                (chain.respond_to?(:first_agent) && chain.respond_to?(:second_agent))
+          # Arrays first: ActiveSupport gives Array both #first and #second, so
+          # an array would otherwise be mistaken for a two-part chain and all
+          # but its first two entries dropped.
+          return chain.flat_map { |item| flatten_flow_chain(item) } if chain.is_a?(Array)
 
-          if chain.respond_to?(:to_a)
-            # Handle arrays and parallel agents
-            chain.to_a.flat_map { |item| flatten_flow_chain(item) }
-          elsif chain.respond_to?(:agents)
-            # Handle ChainedAgent and similar wrappers
-            chain.agents.flat_map { |agent| flatten_flow_chain(agent) }
-          elsif chain.respond_to?(:first_agent) && chain.respond_to?(:second_agent)
-            # Handle ChainedAgent structure
-            flatten_flow_chain(chain.first_agent) + flatten_flow_chain(chain.second_agent)
-          else
-            [chain]
+          # ParallelAgents exposes its branches as #agents.
+          return chain.agents.flat_map { |agent| flatten_flow_chain(agent) } if chain.respond_to?(:agents)
+
+          # ChainedAgent exposes its two halves as #first/#second.
+          if chain.respond_to?(:first_agent) && chain.respond_to?(:second_agent)
+            return flatten_flow_chain(chain.first_agent) + flatten_flow_chain(chain.second_agent)
           end
+          if chain.respond_to?(:first) && chain.respond_to?(:second)
+            return flatten_flow_chain(chain.first) + flatten_flow_chain(chain.second)
+          end
+
+          # Anything else that can present itself as a list.
+          return chain.to_a.flat_map { |item| flatten_flow_chain(item) } if chain.respond_to?(:to_a)
+
+          [chain]
         end
 
         private

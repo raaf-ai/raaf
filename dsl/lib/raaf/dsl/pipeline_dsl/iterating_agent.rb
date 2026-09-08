@@ -76,12 +76,13 @@ module RAAF
           items = context[@field]
           return false unless items.respond_to?(:each) # Must be enumerable
 
-          # Check if wrapped agent's requirements can be met
-          if @agent_class.respond_to?(:requirements_met?)
-            @agent_class.requirements_met?(context)
-          else
-            true
-          end
+          return true unless @agent_class.respond_to?(:requirements_met?)
+
+          # The wrapped agent never sees the raw context: it runs once per item
+          # with that item injected. Checking it against the outer context would
+          # fail for every agent that requires the per-item field, which is what
+          # iterating agents are for.
+          @agent_class.requirements_met?(sample_item_context(context, items))
         end
 
         # Execute iteration over the specified field
@@ -250,18 +251,27 @@ module RAAF
           # Add item under a specific name - use custom field name if provided,
           # otherwise generate from the original field
           if @custom_field_name
-            RAAF.logger.debug "Using custom field name '#{@custom_field_name}' for item at index #{index}"
             context_hash[@custom_field_name] = item
           else
             singular_name = singularize_field_name(@field)
-            RAAF.logger.debug "Using default field name '#{singular_name}' for item at index #{index}"
             context_hash[singular_name] = item
           end
 
-          RAAF.logger.debug "Item context keys: #{context_hash.keys.inspect}"
-
           # Return as ContextVariables object for proper Service handling
           RAAF::DSL::ContextVariables.new(context_hash)
+        end
+
+        # A stand-in for the context one iteration will see, used to validate the
+        # wrapped agent's requirements before the pipeline runs.
+        def sample_item_context(context, items)
+          base = context.respond_to?(:to_h) ? context.to_h : {}
+          base = base.each_with_object({}) { |(k, v), h| h[k.to_sym] = v }
+
+          sample = items.respond_to?(:first) ? items.first : nil
+          base[:current_item] = sample
+          base[:item_index] = 0
+          base[@custom_field_name || singularize_field_name(@field)] = sample
+          base
         end
 
         def generate_output_field_name(input_field)

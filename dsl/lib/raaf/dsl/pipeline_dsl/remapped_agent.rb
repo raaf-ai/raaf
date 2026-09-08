@@ -24,6 +24,7 @@ module RAAF
       #   )
       #
       class RemappedAgent
+        include Logger
         include WrapperDSL
 
         attr_reader :agent_class, :input_mapping, :output_mapping, :options
@@ -174,17 +175,21 @@ module RAAF
 
           # Apply input mappings: target_field: source_field
           @input_mapping.each do |target_field, source_field|
-            if has_field?(context, source_field)
-              value = get_field_value(context, source_field)
+            # A missing source leaves the target unset, which usually surfaces
+            # much later as a confusing nil inside the agent. Say so here.
+            unless has_field?(context, source_field)
+              log_warn("Input mapping failed: no #{source_field} in context to map onto #{target_field}",
+                       agent: @agent_class.name, source_field: source_field, target_field: target_field)
+              next
+            end
 
-              # Set the mapped field in the context
-              if remapped.is_a?(RAAF::DSL::ContextVariables)
-                remapped = remapped.set(target_field, value)
-              else
-                remapped[target_field] = value
-              end
+            value = get_field_value(context, source_field)
+
+            # Set the mapped field in the context
+            if remapped.is_a?(RAAF::DSL::ContextVariables)
+              remapped = remapped.set(target_field, value)
             else
-              RAAF.logger.warn "Input mapping failed: source field '#{source_field}' not found in context"
+              remapped[target_field] = value
             end
           end
 
