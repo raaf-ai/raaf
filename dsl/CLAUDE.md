@@ -892,9 +892,7 @@ runner2 = RAAF::Runner.new(agent: agent, provider: RAAF::Models::GroqProvider.ne
 
 The tool execution interceptor provides automatic:
 - **Parameter validation** - Validates against tool definition before execution
-- **Execution logging** - Logs tool start/end with duration tracking
 - **Metadata injection** - Adds `_execution_metadata` to Hash results
-- **Error handling** - Catches and logs errors with context
 - **Performance** - < 1ms overhead verified by benchmarks
 
 ### Using Core Tools Directly
@@ -911,10 +909,7 @@ class MyAgent < RAAF::DSL::Agent
   # Optional: Configure interceptor behavior
   tool_execution do
     enable_validation true   # Default: true
-    enable_logging true      # Default: true
     enable_metadata true     # Default: true
-    log_arguments true       # Default: true
-    truncate_logs 100        # Default: 100
   end
 end
 
@@ -939,17 +934,14 @@ class ConfiguredAgent < RAAF::DSL::Agent
   # Disable specific features
   tool_execution do
     enable_validation false  # Skip parameter validation
-    enable_logging false     # Skip execution logging
     enable_metadata false    # Skip metadata injection
-    log_arguments false      # Don't log arguments
-    truncate_logs 200        # Longer truncation
   end
 end
 
 # Instance-level override
 agent = ConfiguredAgent.new
 agent.tool_execution do
-  enable_logging true  # Re-enable for this instance
+  enable_validation true  # Re-enable for this instance
 end
 ```
 
@@ -1075,28 +1067,33 @@ Tools are automatically resolved from multiple namespaces:
 
 ### Enhanced Error Messages
 
-If a tool cannot be found, you'll get helpful error messages:
+If a tool cannot be found, you'll get helpful error messages.
+
+Note that a **symbol** identifier is resolved lazily, so it never raises at class
+definition time — that is what lets an agent class load before the tool registry
+exists (background jobs, eager loading). Pass the identifier as a string or a
+class reference to have it resolved immediately:
 
 ```ruby
 class MyAgent < RAAF::DSL::Agent
-  tool :unknown_tool
+  tool "unknown_tool"
 end
 
 # Raises ToolResolutionError with:
-# 🔍 Tool Resolution Failed: 'unknown_tool'
+# ❌ Tool not found: unknown_tool
 #
-# Searched namespaces:
-#   ❌ RAAF::DSL::Tools::UnknownTool
-#   ❌ RAAF::Tools::UnknownTool
-#   ❌ Ai::Tools::UnknownTool
-#   ❌ UnknownTool
+# 📂 Searched in:
+#   - Registry: RAAF::ToolRegistry
+#   - Namespaces: Ai::Tools, RAAF::Tools, RAAF::Tools::Basic, Ai::Tools::Basic, Global
 #
 # 💡 Suggestions:
-#   • Check the tool identifier spelling
-#   • Ensure the tool gem is installed
-#   • Try using the full class name
+#   Register it: RAAF::ToolRegistry.register(:unknown_tool, UnknownToolTool)
+#             Use direct class: tool UnknownToolTool
 #
-# Available tools: web_search, calculator, file_search
+# 🔧 To fix:
+#   1. Ensure the tool class exists
+#   2. Register it: RAAF::ToolRegistry.register(:unknown_tool, UnknownToolTool)
+#   3. Or use direct class reference: tool UnknownToolTool
 ```
 
 ### Migration from Old Syntax
