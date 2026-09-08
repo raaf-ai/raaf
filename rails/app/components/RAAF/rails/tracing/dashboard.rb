@@ -21,15 +21,7 @@ module RAAF
         end
 
         def view_template
-          div(
-            class: "container-fluid",
-            data: {
-              controller: "dashboard",
-              "dashboard-channel-name-value": "RubyAIAgentsFactory::Tracing::TracesChannel",
-              "dashboard-polling-interval-value": "5000",
-              "dashboard-auto-refresh-value": "true"
-            }
-          ) do
+          div(class: "container-fluid") do
             div(class: "space-y-6") do
               render_header
               render_filter_form
@@ -55,7 +47,7 @@ module RAAF
                   type: "button",
                   class: "btn btn-sm btn-outline-secondary",
                   id: "auto-refresh-btn",
-                  data: { "dashboard-target": "refreshButton" }
+                  data: { action: "auto-refresh#toggle" }
                 ) do
                   i(class: "bi bi-arrow-clockwise me-1")
                   plain "Auto Refresh"
@@ -77,10 +69,7 @@ module RAAF
             div(class: "col-md-3") do
               div(class: "card card-metric border-primary") do
                 div(class: "card-body") do
-                  div(
-                    class: "metric-value text-primary",
-                    data: { "dashboard-target": "totalTraces" }
-                  ) { @overview_stats[:total_traces].to_s }
+                  div(class: "metric-value text-primary") { @overview_stats[:total_traces].to_s }
                   div(class: "metric-label") { "Total Traces" }
                 end
               end
@@ -107,10 +96,7 @@ module RAAF
             div(class: "col-md-3") do
               div(class: "card card-metric border-warning") do
                 div(class: "card-body") do
-                  div(
-                    class: "metric-value text-warning",
-                    data: { "dashboard-target": "activeTraces" }
-                  ) { @overview_stats[:running_traces].to_s }
+                  div(class: "metric-value text-warning") { @overview_stats[:running_traces].to_s }
                   div(class: "metric-label") { "Running" }
                 end
               end
@@ -161,10 +147,7 @@ module RAAF
             div(class: "col-md-6") do
               render_top_workflows
             end
-            div(
-              class: "col-md-6",
-              data: { "dashboard-target": "tracesContainer" }
-            ) do
+            div(class: "col-md-6") do
               render_recent_activity
             end
           end

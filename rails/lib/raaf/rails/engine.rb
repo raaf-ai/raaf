@@ -39,10 +39,20 @@ module RAAF
       # Add generators path for install generator
       config.generators.templates << File.expand_path("../../generators", __dir__)
 
-      # Set up asset pipeline
-      config.assets.enabled = true
-      config.assets.paths << File.expand_path("../../../app/assets", __dir__)
-      config.assets.precompile += %w[raaf-rails.css raaf-rails.js]
+      # The console's own CSS and JavaScript are served by
+      # RAAF::Rails::AssetsController, not by the host's pipeline — see
+      # RAAF::Rails::Ui::Stylesheet. Only the logo goes through Sprockets, and
+      # `raaf-rails.css` / `raaf-rails.js` were precompile entries for files
+      # that have never existed in this engine.
+      #
+      # `config.assets` only exists once an asset pipeline has declared it, so a
+      # host running without Sprockets or Propshaft has none — reading it there
+      # raised NoMethodError while the class body was still being evaluated,
+      # which took the whole engine down with it.
+      if config.respond_to?(:assets)
+        config.assets.enabled = true
+        config.assets.paths << File.expand_path("../../../app/assets", __dir__)
+      end
 
       # Configure generators
       config.generators do |g|
@@ -218,11 +228,11 @@ module RAAF
         ]
       end
 
-      # Setup assets
+      # Images only. The stylesheets and the console bundle are assembled by
+      # Ui::Stylesheet and Ui::Javascript and served from the engine's own
+      # routes, so they need no pipeline entry.
       initializer "raaf-rails.assets" do
         if defined?(Sprockets)
-          config.assets.paths << File.expand_path("../../../app/assets/stylesheets", __dir__)
-          config.assets.paths << File.expand_path("../../../app/assets/javascripts", __dir__)
           config.assets.paths << File.expand_path("../../../app/assets/images", __dir__)
         end
       end

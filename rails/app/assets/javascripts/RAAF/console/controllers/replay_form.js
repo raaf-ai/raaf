@@ -1,26 +1,10 @@
-// RAAF Replay Form Stimulus Controller
-// Handles replay configuration form interactions including sliders and submission
-import { Controller } from "@hotwired/stimulus"
-
-// Try to import Turbo, but also check for global availability
-let Turbo = null
-try {
-  // Try dynamic import or check global
-  if (typeof window !== 'undefined' && window.Turbo) {
-    Turbo = window.Turbo
-  }
-} catch (e) {
-  // Will use global Turbo if available
-}
-
-// Helper to get Turbo instance (module or global)
-const getTurbo = () => {
-  if (Turbo) return Turbo
-  if (typeof window !== 'undefined' && window.Turbo) return window.Turbo
-  return null
-}
-
-export default class extends Controller {
+// Replay form — the provider and model pickers, the sampling sliders, and
+// the submission that queues the replay.
+//
+// The form posts JSON rather than letting the browser submit it, because the
+// prompt it sends is assembled from the message rows the prompt editor
+// maintains in the DOM rather than from named fields.
+class ReplayFormController extends Controller {
   static targets = [
     "provider",
     "model",
@@ -39,17 +23,6 @@ export default class extends Controller {
     submitUrl: String,
     spanId: String,
     debug: { type: Boolean, default: false }
-  }
-
-  connect() {
-    if (this.debugValue) {
-      console.log("Replay form controller connected")
-    }
-
-    // Initialize model filtering based on current provider selection
-    if (this.hasProviderTarget && this.hasModelTarget) {
-      this.updateModelOptions()
-    }
   }
 
   // Model definitions by provider
@@ -80,12 +53,13 @@ export default class extends Controller {
       { value: "claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku" }
     ],
     google: [
-      { value: "gemini-2.5-pro-preview-06-05", label: "Gemini 2.5 Pro" },
-      { value: "gemini-2.5-flash-preview-05-20", label: "Gemini 2.5 Flash" },
+      { value: "gemini-3-pro-preview", label: "Gemini 3 Pro Preview" },
+      { value: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview" },
+      { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+      { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+      { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
       { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
-      { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite" },
-      { value: "gemini-1.5-pro-latest", label: "Gemini 1.5 Pro" },
-      { value: "gemini-1.5-flash-latest", label: "Gemini 1.5 Flash" }
+      { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite" }
     ],
     perplexity: [
       { value: "sonar-pro", label: "Sonar Pro" },
@@ -106,6 +80,17 @@ export default class extends Controller {
     ]
   }
 
+  connect() {
+    if (this.debugValue) {
+      console.log("Replay form controller connected")
+    }
+
+    // Initialize model filtering based on current provider selection
+    if (this.hasProviderTarget && this.hasModelTarget) {
+      this.updateModelOptions()
+    }
+  }
+
   // Rebuild model dropdown with only models for the selected provider
   updateModelOptions() {
     if (!this.hasProviderTarget || !this.hasModelTarget) {
@@ -118,7 +103,7 @@ export default class extends Controller {
     const models = this.constructor.models[selectedProvider] || []
 
     if (this.debugValue) {
-      console.log(`Updating models for provider: ${selectedProvider}`, models)
+      console.log("Updating models for provider:", selectedProvider, models)
     }
 
     // Clear existing options
@@ -144,7 +129,7 @@ export default class extends Controller {
     })
 
     if (this.debugValue) {
-      console.log(`Model dropdown updated, selected: ${modelSelect.value}`)
+      console.log("Model dropdown updated, selected:", modelSelect.value)
     }
   }
 
@@ -155,13 +140,13 @@ export default class extends Controller {
     const value = slider.value
 
     // Find the corresponding value display element
-    const valueDisplay = document.getElementById(`${name}-value`)
+    const valueDisplay = document.getElementById(name + "-value")
     if (valueDisplay) {
       valueDisplay.textContent = value
     }
 
     if (this.debugValue) {
-      console.log(`Slider ${name} updated to ${value}`)
+      console.log("Slider " + name + " updated to " + value)
     }
   }
 
@@ -227,7 +212,7 @@ export default class extends Controller {
     const messagesContainer = document.getElementById("messages-container")
     if (messagesContainer) {
       const messageFields = messagesContainer.querySelectorAll("[data-message-index]")
-      messageFields.forEach((field, index) => {
+      messageFields.forEach((field) => {
         const textarea = field.querySelector("textarea")
         const roleInput = field.querySelector("input[type='hidden']")
         if (textarea && roleInput) {
@@ -254,19 +239,14 @@ export default class extends Controller {
 
     // Show loading state
     if (statusContainer) {
-      statusContainer.innerHTML = `
-        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <div class="flex items-center">
-            <div class="animate-spin mr-3">
-              <i class="bi bi-arrow-repeat text-blue-600 text-xl"></i>
-            </div>
-            <div>
-              <span class="font-medium text-blue-800">Starting replay...</span>
-              <span class="ml-2 text-sm text-blue-600">Please wait while we process your request.</span>
-            </div>
-          </div>
-        </div>
-      `
+      statusContainer.innerHTML =
+        '<div class="raaf-alert raaf-alert--info" role="status">' +
+          '<span class="raaf-icon"><i class="bi bi-arrow-repeat"></i></span>' +
+          '<div class="raaf-alert-body">' +
+            '<p class="raaf-alert-title">Starting</p>' +
+            '<p class="raaf-alert-text">Queueing the replay…</p>' +
+          '</div>' +
+        '</div>'
     }
 
     try {
@@ -278,7 +258,7 @@ export default class extends Controller {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Accept": "text/vnd.turbo-stream.html, text/html, application/json",
+          "Accept": "application/json, text/vnd.turbo-stream.html, text/html",
           "X-CSRF-Token": this.getCsrfToken()
         },
         body: JSON.stringify(formData)
@@ -288,21 +268,33 @@ export default class extends Controller {
         const contentType = response.headers.get("content-type")
 
         if (contentType && contentType.includes("text/vnd.turbo-stream.html")) {
-          // Handle Turbo Stream response
+          // Handle Turbo Stream response - apply it then redirect to show page
           const html = await response.text()
-          const turbo = getTurbo()
-          if (turbo && turbo.renderStreamMessage) {
-            turbo.renderStreamMessage(html)
-          } else {
-            // Fallback: try to parse and apply the Turbo Stream manually
-            console.warn("Turbo not available, falling back to page reload")
-            window.location.reload()
+          // Use window.Turbo if available (set by @hotwired/turbo-rails)
+          if (typeof window !== 'undefined' && window.Turbo && window.Turbo.renderStreamMessage) {
+            window.Turbo.renderStreamMessage(html)
+          }
+
+          // Extract replay_id from the turbo-stream response and redirect to show page
+          // The stream HTML contains the replay ID in the target element
+          const parser = new DOMParser()
+          const doc = parser.parseFromString(html, 'text/html')
+          const streamEl = doc.querySelector('turbo-stream')
+
+          // Try to extract replay_id from the response
+          const replayIdMatch = html.match(/replay[_-]?(\d+)/i) || html.match(/replays\/(\d+)/)
+          if (replayIdMatch && replayIdMatch[1]) {
+            const replayId = replayIdMatch[1]
+            const currentPath = window.location.pathname
+            // Convert /new to /:id in the URL path
+            const showPath = currentPath.replace(/\/new$/, '/' + replayId)
+            setTimeout(() => { window.location.href = showPath }, 500)
           }
         } else if (contentType && contentType.includes("application/json")) {
           // Handle JSON response - redirect to show page
           const result = await response.json()
           if (result.replay_id) {
-            window.location.href = result.redirect_url || window.location.pathname.replace("/new", `/${result.replay_id}`)
+            window.location.href = result.redirect_url || window.location.pathname.replace("/new", "/" + result.replay_id)
           }
         } else {
           // Handle HTML response
@@ -312,23 +304,21 @@ export default class extends Controller {
           }
         }
       } else {
-        throw new Error(`Request failed with status ${response.status}`)
+        throw new Error("Request failed with status " + response.status)
       }
     } catch (error) {
       console.error("Replay submission failed:", error)
 
       if (statusContainer) {
-        statusContainer.innerHTML = `
-          <div class="bg-red-50 border border-red-200 rounded-xl p-4">
-            <div class="flex items-center">
-              <i class="bi bi-exclamation-triangle text-red-600 text-xl mr-3"></i>
-              <div>
-                <span class="font-medium text-red-800">Submission failed</span>
-                <span class="ml-2 text-sm text-red-600">${error.message}</span>
-              </div>
-            </div>
-          </div>
-        `
+        statusContainer.innerHTML =
+          '<div class="raaf-alert raaf-alert--error" role="alert">' +
+            '<span class="raaf-icon"><i class="bi bi-x-octagon-fill"></i></span>' +
+            '<div class="raaf-alert-body">' +
+              '<p class="raaf-alert-title">The replay could not be queued</p>' +
+              '<p class="raaf-alert-text"></p>' +
+            '</div>' +
+          '</div>'
+        statusContainer.querySelector(".raaf-alert-text").textContent = error.message
       }
     }
   }
