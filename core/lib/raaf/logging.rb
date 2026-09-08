@@ -737,4 +737,22 @@ module RAAF
 
   end
 
+  ##
+  # Get the logger instance for convenient access
+  #
+  # Defined here rather than only in raaf-core.rb because the RAAF::Logger mixin
+  # above calls it, and gems that require "raaf/logging" on its own (raaf-tracing
+  # does) would otherwise raise NoMethodError the first time anything logs.
+  #
+  # @return [RAAF::Logging] The unified logging system
+  #
+  # @example
+  #   RAAF.logger.info("Agent started", agent: "GPT-4")
+  #   RAAF.logger.debug("Tool called", tool: "search")
+  #   RAAF.logger.error("API failed", error: e.message)
+  #
+  def self.logger
+    @logger ||= Logging
+  end
+
 end
