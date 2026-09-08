@@ -35,6 +35,7 @@ module RAAF
           @summary = summary_for(population)
           @distribution = distribution_for(population)
           @worst_scorers = worst_scorers_for(population)
+          @set_aside_scorers = instrument_failures_in(population, Time.current - SCORER_WINDOW, Time.current)
 
           # Filter options
           @agents = EvaluationResult.distinct.pluck(:agent_name).compact.sort
@@ -52,6 +53,7 @@ module RAAF
                 distribution: @distribution,
                 worst_scorers: @worst_scorers,
                 scorer_window: "24h",
+                set_aside_scorers: @set_aside_scorers,
                 filters: params.permit(:agent, :environment, :status, :evaluator, :policy, :from, :to)
                                .to_h.symbolize_keys
               )
@@ -168,14 +170,48 @@ module RAAF
           end
         end
 
+        # Where an evaluator stores its own failure as a verdict. The DSL's
+        # error_result writes label "bad" with score 0.0 and the message under
+        # this path, so a check that could not read the field it was pointed at
+        # is indistinguishable, by score alone, from an agent that fails every
+        # time. Both arrive as a 0.00.
+        INSTRUMENT_FAILURE_PATH = "{result,details,error}"
+
         def means_by_evaluator(population, from, to)
-          window = population.where(created_at: from...to).where.not(score: nil)
+          window = scored_in(population, from, to)
           averages = window.group(:evaluator_name).average(:score)
           counts = window.group(:evaluator_name).count
 
           averages.each_with_object({}) do |(name, average), out|
             out[name] = { average: average.to_f, count: counts[name].to_i }
           end
+        end
+
+        # Rows that say something about the agent, which is not every scored row.
+        #
+        # An evaluator that raised, or that was pointed at a field the span does
+        # not carry, records a 0.0 like any other verdict. Averaged in, those
+        # rows put whichever check is broken at the top of a panel headed "worst
+        # evaluators", and the reader is sent to fix an agent that may be fine —
+        # which is what this panel did until 2026-09-08, when its four worst
+        # entries were four broken checks.
+        #
+        # They are excluded rather than shown lower down: an instrument failure
+        # has no score, and giving it one anywhere on this list is the mistake.
+        # The count travels out so the panel can say they were set aside.
+        def scored_in(population, from, to)
+          population.where(created_at: from...to)
+                    .where.not(score: nil)
+                    .where("details #> ? IS NULL", INSTRUMENT_FAILURE_PATH)
+        end
+
+        # How many rows the window set aside as instrument failures, so the
+        # panel can report the exclusion instead of quietly applying it.
+        def instrument_failures_in(population, from, to)
+          population.where(created_at: from...to)
+                    .where.not(score: nil)
+                    .where("details #> ? IS NOT NULL", INSTRUMENT_FAILURE_PATH)
+                    .count
         end
 
         # The policies that have actually produced a result, as `[name, id]`.

@@ -65,8 +65,12 @@ module RAAF
         #   :delta that is nil where the preceding window measured nothing
         # @param scorer_window [String] the window those scorers cover, said
         #   out loud — "24h"
+        # @param set_aside_scorers [Integer] rows in the window that recorded an
+        #   evaluator's own failure rather than a verdict, and so were kept out
+        #   of the means above
         def initialize(results:, page: 1, per_page: 50, filters: {}, agents: [], policies: [],
-                       summary: {}, distribution: [], worst_scorers: [], scorer_window: "24h")
+                       summary: {}, distribution: [], worst_scorers: [], scorer_window: "24h",
+                       set_aside_scorers: 0)
           @results = results
           @page = page
           @per_page = per_page
@@ -77,6 +81,7 @@ module RAAF
           @distribution = distribution || []
           @worst_scorers = worst_scorers || []
           @scorer_window = scorer_window
+          @set_aside_scorers = set_aside_scorers.to_i
         end
 
         def view_template
@@ -233,10 +238,16 @@ module RAAF
           "%+.2f" % delta
         end
 
+        # Saying what was left out matters as much as the ranking. A check that
+        # recorded its own failure is not a bad agent, and silently dropping it
+        # would trade one wrong reading for a different one.
         def worst_scorers_summary
           return "nothing graded in the window" if @worst_scorers.empty?
 
-          "lowest mean first, against the preceding #{@scorer_window}"
+          base = "lowest mean first, against the preceding #{@scorer_window}"
+          return base if @set_aside_scorers.zero?
+
+          "#{base} · #{@set_aside_scorers} evaluator #{'failure'.pluralize(@set_aside_scorers)} set aside"
         end
 
         # ── Filters ───────────────────────────────────────────────────────
