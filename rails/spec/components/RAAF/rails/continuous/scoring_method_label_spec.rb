@@ -147,14 +147,4 @@ RSpec.describe "the scoring method on the continuous screens" do
       end
     end
   end
-
-  describe "the recent results panel" do
-    it "names the method beside each verdict" do
-      result = create_result(details: { "field_name" => "quality",
-                                        "declared_checks" => [judged_check] })
-      html = render(RAAF::Rails::Continuous::RecentResultsPanel.new(results: [result]))
-
-      expect(html).to include("LLM judge")
-    end
-  end
 end

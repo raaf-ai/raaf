@@ -70,7 +70,7 @@ module RAAF
                 policy: @policy,
                 evaluators: @available_evaluators
               )
-              render_in_layout policy_form, title: "New Evaluation Policy"
+              render_in_layout policy_form, title: "New Evaluation Policy", live: false
             end
           end
         end
@@ -85,7 +85,7 @@ module RAAF
                 policy: @policy,
                 evaluators: @available_evaluators
               )
-              render_in_layout policy_form, title: "Edit #{@policy.name}"
+              render_in_layout policy_form, title: "Edit #{@policy.name}", live: false
             end
           end
         end
@@ -103,7 +103,8 @@ module RAAF
               policy: @policy,
               evaluators: @available_evaluators
             )
-            render_in_layout policy_form, title: "New Evaluation Policy", status: :unprocessable_content
+            render_in_layout policy_form, title: "New Evaluation Policy", live: false,
+                                          status: :unprocessable_content
           end
         end
 
@@ -120,7 +121,8 @@ module RAAF
               policy: @policy,
               evaluators: @available_evaluators
             )
-            render_in_layout policy_form, title: "Edit #{@policy.name}", status: :unprocessable_content
+            render_in_layout policy_form, title: "Edit #{@policy.name}", live: false,
+                                          status: :unprocessable_content
           end
         end
 

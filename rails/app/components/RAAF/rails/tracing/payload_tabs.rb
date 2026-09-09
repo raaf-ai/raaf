@@ -89,6 +89,25 @@ module RAAF
         # settings an agent ran under were invisible on the screen every span
         # link actually opens.
         FACT_SECTIONS = [
+          # First, because on a guardrail span it is the whole story: which
+          # filter ran and whether it stopped the run. The tracer writes
+          # `guardrail.name` and `guardrail.triggered`; the rest are the keys
+          # the old per-kind guardrail renderer read, kept so a filter that
+          # writes them is still read rather than left to the Attributes tab.
+          #
+          # `guardrail.blocked_content` is deliberately absent. It is the one
+          # attribute here that can hold a customer's data, a pairs row cannot
+          # veil it the way a payload block can, and it stays legible under
+          # Attributes -- so naming it here would publish it rather than
+          # recover it.
+          { id: "guardrail", label: "Guardrail", facts: [
+            ["Guardrail", %w[guardrail.name guardrail.filter_name filter.name]],
+            ["Triggered", %w[guardrail.triggered]],
+            ["Status", %w[guardrail.status filter.status]],
+            ["Policy", %w[guardrail.policy security_policy]],
+            ["Results", %w[guardrail.results filter.results]],
+            ["Reasoning", %w[guardrail.reasoning filter.reasoning security_reasoning]]
+          ] },
           { id: "handoff", label: "Handoff", facts: [
             ["From", %w[handoff.source_agent]],
             ["To", %w[handoff.target_agent]],

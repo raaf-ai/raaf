@@ -51,7 +51,7 @@ module RAAF
           respond_to do |format|
             format.html do
               component = RAAF::Rails::Eval::PromptForm.new(prompt: @prompt)
-              render_in_layout component, title: "New Prompt"
+              render_in_layout component, title: "New Prompt", live: false
             end
           end
         end
@@ -72,7 +72,7 @@ module RAAF
             redirect_to eval_prompt_path(@prompt), notice: "Prompt created."
           else
             component = RAAF::Rails::Eval::PromptForm.new(prompt: @prompt)
-            render_in_layout component, title: "New Prompt", status: :unprocessable_content
+            render_in_layout component, title: "New Prompt", live: false, status: :unprocessable_content
           end
         end
 
@@ -82,7 +82,7 @@ module RAAF
             redirect_to eval_prompt_path(@prompt), notice: "Prompt updated."
           else
             component = RAAF::Rails::Eval::PromptForm.new(prompt: @prompt)
-            render_in_layout component, title: "Edit #{@prompt.name}", status: :unprocessable_content
+            render_in_layout component, title: "Edit #{@prompt.name}", live: false, status: :unprocessable_content
           end
         end
 

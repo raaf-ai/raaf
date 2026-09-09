@@ -194,6 +194,49 @@ module RAAF
           end
         end
 
+        # The guardrail renderer that used to serve these spans read them from
+        # the span page, which no longer exists. Its vocabulary moves here so
+        # the inspector names the filter's verdict rather than leaving it to be
+        # picked out of a list of raw attributes.
+        describe "guardrail spans" do
+          it "names what the filter decided rather than listing raw attributes" do
+            attrs = { "guardrail.name" => "pii_filter",
+                      "guardrail.triggered" => true,
+                      "guardrail.reasoning" => "matched an IBAN" }
+
+            expect(tabs_for.call(attrs)).to eq(%w[guardrail tokens raw])
+          end
+
+          # The one attribute a guardrail span can hold customer data in. A
+          # pairs row has no veil, so it stays where it already is rather than
+          # being named on a tab that would publish it.
+          it "leaves the blocked content in the Attributes tab" do
+            attrs = { "guardrail.name" => "pii_filter",
+                      "guardrail.blocked_content" => "NL91 ABNA 0417 1643 00" }
+
+            expect(tabs_for.call(attrs)).to eq(%w[guardrail attributes tokens raw])
+          end
+
+          it "reads a filter that recorded nothing but its verdict" do
+            pairs = messages_for.call("guardrail.name" => "pii_filter",
+                                      "guardrail.triggered" => false).first[:pairs]
+
+            expect(pairs).to eq("Guardrail" => "pii_filter", "Triggered" => "false")
+          end
+
+          # A guardrail that passed writes `false`, which is the answer the
+          # reader came for. Dropping it would leave the tab saying only which
+          # filter ran.
+          it "keeps the guardrail attributes out of the Attributes tab" do
+            attrs = { "guardrail.name" => "pii_filter", "guardrail.triggered" => false,
+                      "ted.query" => "acme" }
+
+            expect(tabs_for.call(attrs)).to eq(%w[guardrail attributes tokens raw])
+            pairs = messages_for.call(attrs).find { |m| m[:id] == "attributes" }[:pairs]
+            expect(pairs.keys).to eq(["ted.query"])
+          end
+        end
+
         describe "spans whose vocabulary has no section" do
           let(:attrs) do
             { "http.url" => "https://api.example.com/v3/notices/search",

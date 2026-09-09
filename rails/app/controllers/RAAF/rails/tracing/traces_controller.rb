@@ -68,8 +68,12 @@ module RAAF
               # The workflow is what identifies this trace to a reader, so it is
               # the page title; "Trace" is the crumb above it. The trace id and
               # its stats sit in the bar at the top of the component.
+              # Not live. A trace that has finished does not change, and the
+              # one panel here that is waiting on something — the policies
+              # panel, while an evaluation it started is queued — runs its own
+              # timer for exactly as long as it is waiting.
               render_in_layout trace_component, title: @trace.workflow_name.presence || "Unnamed workflow",
-                                                crumb: "Trace"
+                                                crumb: "Trace", live: false
             end
             format.json { render json: serialize_trace_detail(@trace) }
           end
@@ -106,7 +110,7 @@ module RAAF
                                                                             :span, :tab
                                                                           ))
 
-              render_in_layout analytics_component, title: "Trace Analytics"
+              render_in_layout analytics_component, title: "Trace Analytics", live: false
             end
             format.json do
               render json: {

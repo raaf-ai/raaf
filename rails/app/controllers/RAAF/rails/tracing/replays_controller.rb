@@ -49,7 +49,10 @@ module RAAF
                   view: params[:view]
                 ),
                 title: "Replay ##{@replay.id}", current: :replays,
-                bundles: [ :diff ]
+                # PollController reloads this page when the worker finishes.
+                # A second timer on top of it would throw the comparison away
+                # every 30 seconds while the replay is still running.
+                live: false, bundles: [ :diff ]
               )
             end
             format.json { render json: build_replay_result_data(@replay) }
@@ -72,7 +75,7 @@ module RAAF
             format.html do
               render_in_layout(
                 RAAF::Rails::Tracing::Replay::NewComponent.new(span: @span, replay: @replay),
-                title: "Replay #{@span.display_name}", current: :replays
+                title: "Replay #{@span.display_name}", current: :replays, live: false
               )
             end
             format.json { render json: build_replay_form_data(@span) }
@@ -119,7 +122,7 @@ module RAAF
               format.html do
                 render_in_layout(
                   RAAF::Rails::Tracing::Replay::NewComponent.new(span: @span, replay: @replay),
-                  title: "Replay #{@span.display_name}", current: :replays
+                  title: "Replay #{@span.display_name}", current: :replays, live: false
                 )
               end
               format.json { render json: { errors: @replay.errors.full_messages }, status: :unprocessable_content }

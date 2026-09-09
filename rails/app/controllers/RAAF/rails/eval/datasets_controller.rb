@@ -50,7 +50,7 @@ module RAAF
           respond_to do |format|
             format.html do
               component = RAAF::Rails::Eval::DatasetForm.new(dataset: @dataset)
-              render_in_layout component, title: "New Dataset"
+              render_in_layout component, title: "New Dataset", live: false
             end
           end
         end
@@ -60,7 +60,7 @@ module RAAF
           respond_to do |format|
             format.html do
               component = RAAF::Rails::Eval::DatasetForm.new(dataset: @dataset)
-              render_in_layout component, title: "Edit #{@dataset.name}"
+              render_in_layout component, title: "Edit #{@dataset.name}", live: false
             end
           end
         end
@@ -72,7 +72,7 @@ module RAAF
             redirect_to eval_dataset_path(@dataset), notice: "Dataset created."
           else
             component = RAAF::Rails::Eval::DatasetForm.new(dataset: @dataset)
-            render_in_layout component, title: "New Dataset", status: :unprocessable_content
+            render_in_layout component, title: "New Dataset", live: false, status: :unprocessable_content
           end
         end
 
@@ -82,7 +82,7 @@ module RAAF
             redirect_to eval_dataset_path(@dataset), notice: "Dataset updated."
           else
             component = RAAF::Rails::Eval::DatasetForm.new(dataset: @dataset)
-            render_in_layout component, title: "Edit #{@dataset.name}", status: :unprocessable_content
+            render_in_layout component, title: "Edit #{@dataset.name}", live: false, status: :unprocessable_content
           end
         end
 

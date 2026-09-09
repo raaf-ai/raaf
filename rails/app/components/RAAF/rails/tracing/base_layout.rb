@@ -38,14 +38,12 @@ module RAAF
         # they are defined inline, cost nothing until an element asks for one,
         # and only a page that asked for the bundle carries such an element.
         #
-        # No page asks for +:syntax+ on its own today. The components that print
-        # a highlighted payload — +SpanDetail::Component+ and the per-kind
-        # +*SpanComponent+ family — are orphaned: the console rebuild replaced
-        # that screen with +Ui::Organisms::SpanInspector+, which renders a bare
-        # +pre+ that +hljs.highlightAll+ does not even match, and nothing
-        # constructs the old components any more. It stays a bundle because
-        # +:diff+ depends on it and because those components are still here, so
-        # whoever revives that screen finds the loader rather than the symptom.
+        # No page asks for +:syntax+ on its own. It exists because +:diff+
+        # depends on it: the base diff2html build takes the highlighter as a
+        # constructor argument rather than carrying one. The screens that used
+        # to ask for it directly printed a highlighted payload from the old
+        # per-kind span components, and those are gone —
+        # +Ui::Organisms::SpanInspector+ renders a bare +pre+ instead.
         BUNDLES = %i[diff syntax].freeze
 
         # Bundles that pull in other bundles.
@@ -58,6 +56,9 @@ module RAAF
         # a second copy welded into a megabyte bundle — 1,024 kB against the
         # 215 kB this pair costs, for the same diff.
         BUNDLE_DEPENDENCIES = { diff: %i[syntax] }.freeze
+
+        # How long a live screen waits before reloading itself.
+        REFRESH_INTERVAL_MS = 30_000
 
         # @param bundles [Array<Symbol>] any of {BUNDLES}; anything else is
         #   ignored rather than raised on, so a typo in a caller costs the page
@@ -80,8 +81,7 @@ module RAAF
           html(lang: "en") do
             head { render_head }
 
-            body(class: "raaf-root",
-                 data: { controller: "auto-refresh tooltip", auto_refresh_interval_value: 30_000 }) do
+            body(class: "raaf-root", data: body_data) do
               render(shell) { yield if block }
               render_scripts
             end
@@ -89,6 +89,22 @@ module RAAF
         end
 
         private
+
+        # The controllers on the document, and what the refresh one is to do.
+        #
+        # +enabled+ is what makes the header's Live / Paused control mean
+        # something. Without it the controller took its own default of true and
+        # every screen reloaded on the interval regardless, so a page asking for
+        # +live: false+ printed "Paused" while reloading behind the badge — and
+        # the forms under it threw away half-typed input every 30 seconds.
+        #
+        # A paused page still carries the controller and the interval, so the
+        # reader can turn tailing on from the badge; it just does not start one.
+        def body_data
+          { controller: "auto-refresh tooltip",
+            auto_refresh_interval_value: REFRESH_INTERVAL_MS,
+            auto_refresh_enabled_value: @live }
+        end
 
         def render_head
           meta(charset: "utf-8")
@@ -141,8 +157,12 @@ module RAAF
           script(src: "https://cdn.jsdelivr.net/npm/diff2html@3.4.52/bundles/js/diff2html-ui-base.min.js")
         end
 
-        # highlight.js and its JSON grammar, for the screens that print a
-        # payload.
+        # highlight.js and its JSON grammar, for the diff.
+        #
+        # Nothing is highlighted on load. +hljs.highlightAll+ matches
+        # +pre code+, and the screens that rendered that pair — the per-kind
+        # span components — are gone; +DiffController+ handing +window.hljs+ to
+        # diff2html is the only reader left.
         #
         # No stylesheet comes with it: +molecules/syntax.css+ themes the
         # +.hljs-*+ classes for the console's own dark surface, scoped under
@@ -151,14 +171,6 @@ module RAAF
         def render_syntax_bundle
           script(src: "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js")
           script(src: "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js")
-
-          script do
-            safe(<<~JS)
-              document.addEventListener('DOMContentLoaded', function() {
-                if (typeof hljs !== 'undefined') { hljs.highlightAll(); }
-              });
-            JS
-          end
         end
 
         def shell

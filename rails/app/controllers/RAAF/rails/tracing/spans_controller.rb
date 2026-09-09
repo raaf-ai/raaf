@@ -106,13 +106,6 @@ module RAAF
             )
 
             respond_to do |format|
-              format.turbo_stream do
-                # Re-render the applicable policies section to show "Running..." status
-                render turbo_stream: turbo_stream.replace(
-                  "evaluation-policies",
-                  RAAF::Rails::Tracing::ApplicablePoliciesSection.new(span: @span)
-                )
-              end
               format.html { redirect_to evaluate_return_path, notice: "Evaluation queued for policy '#{policy.name}'." }
               format.json do
                 render json: { message: "Evaluation queued", span_id: @span.span_id, policy_id: policy.id }
@@ -120,12 +113,6 @@ module RAAF
             end
           rescue StandardError => e
             respond_to do |format|
-              format.turbo_stream do
-                render turbo_stream: turbo_stream.replace(
-                  "evaluation-policies",
-                  RAAF::Rails::Tracing::ApplicablePoliciesSection.new(span: @span)
-                )
-              end
               format.html { redirect_to evaluate_return_path, alert: "Failed to queue evaluation: #{e.message}" }
               format.json { render json: { error: e.message }, status: :internal_server_error }
             end

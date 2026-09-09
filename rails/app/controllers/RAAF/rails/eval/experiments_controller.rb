@@ -58,7 +58,7 @@ module RAAF
           respond_to do |format|
             format.html do
               component = RAAF::Rails::Eval::ExperimentForm.new(experiment: @experiment, datasets: @datasets)
-              render_in_layout component, title: "New Experiment"
+              render_in_layout component, title: "New Experiment", live: false
             end
           end
         end
@@ -76,7 +76,7 @@ module RAAF
           else
             @datasets = Dataset.active.latest_versions.recent
             component = RAAF::Rails::Eval::ExperimentForm.new(experiment: @experiment, datasets: @datasets)
-            render_in_layout component, title: "New Experiment", status: :unprocessable_content
+            render_in_layout component, title: "New Experiment", live: false, status: :unprocessable_content
           end
         end
 
@@ -155,7 +155,8 @@ module RAAF
             agents: selectable_agents,
             scorers: available_scorers
           )
-          render_in_layout component, title: @experiment.name, crumb: "Evaluate", current: :experiments, status: status
+          render_in_layout component, title: @experiment.name, crumb: "Evaluate", current: :experiments,
+                                      live: false, status: status
         end
 
         # The editor writes name, description, dataset, agent, model and

@@ -144,11 +144,11 @@ module RAAF
           end
         end
 
-        # Not a Turbo submit: the evaluate action answers a turbo_stream
-        # request by replacing the old span page's policies section, which
-        # does not exist here. A plain POST takes its HTML branch instead, and
-        # return_to names this panel, so the redraw lands where the button was
-        # pressed rather than at the top of the trace.
+        # Not a Turbo submit. The evaluate action answers with a redirect, and
+        # `return_to` carries this panel's fragment, so a plain POST reloads the
+        # trace scrolled to the button that was pressed. A Turbo visit restores
+        # the scroll position it recorded before the submit instead, which puts
+        # the reader back at the top of a long waterfall.
         def evaluate_button(policy)
           graded = @results_by_policy[policy.id].present?
 
