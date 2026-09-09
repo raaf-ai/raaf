@@ -24,11 +24,11 @@ module RAAF
             h2(class: "text-lg font-semibold text-gray-900 mb-3") { "Numerical Scores" }
             if @stats.any?
               div(class: "grid grid-cols-2 md:grid-cols-5 gap-4") do
-                render_metric_card(title: "Count", value: @stats[:count], color: "blue")
-                render_metric_card(title: "Average", value: @stats[:avg]&.round(3), color: "green")
-                render_metric_card(title: "Min", value: @stats[:min]&.round(3), color: "yellow")
-                render_metric_card(title: "Max", value: @stats[:max]&.round(3), color: "purple")
-                render_metric_card(title: "Median", value: @stats[:median]&.round(3), color: "blue")
+                render_stat_card(title: "Count", value: @stats[:count], color: "blue")
+                render_stat_card(title: "Average", value: @stats[:avg]&.round(3), color: "green")
+                render_stat_card(title: "Min", value: @stats[:min]&.round(3), color: "yellow")
+                render_stat_card(title: "Max", value: @stats[:max]&.round(3), color: "purple")
+                render_stat_card(title: "Median", value: @stats[:median]&.round(3), color: "blue")
               end
             else
               div(class: "bg-white shadow rounded-lg p-6 text-center text-gray-500") { "No numerical scores recorded." }

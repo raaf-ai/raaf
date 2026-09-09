@@ -110,20 +110,20 @@ module RAAF
         # ── Run metrics ───────────────────────────────────────────────────
 
         def metrics
-          render Organisms::MetricGrid.new(metrics: [
-                                             { label: "Progress", value: "#{@experiment.progress_percentage.round}%",
-                                               icon: "bar-chart", hint: items_hint },
-                                             { label: "Completed", value: @experiment.completed_items.to_s,
-                                               icon: "check-circle", tone: :success, hint: "items scored" },
-                                             { label: "Failed", value: @experiment.failed_items.to_s,
-                                               icon: "x-circle", tone: failed? ? :danger : nil,
-                                               hint: failed? ? "items that errored" : "nothing errored" },
-                                             { label: "Duration", value: duration_text, icon: "clock", tone: :warning,
-                                               hint: started_hint }
-                                           ])
+          render Organisms::StatGrid.new(layout: :leading, stats: [
+                                           { label: "Progress", value: "#{@experiment.progress_percentage.round}%",
+                                             icon: "bar-chart", note: items_note },
+                                           { label: "Completed", value: @experiment.completed_items.to_s,
+                                             icon: "check-circle", tone: :success, note: "items scored" },
+                                           { label: "Failed", value: @experiment.failed_items.to_s,
+                                             icon: "x-circle", tone: failed? ? :danger : nil,
+                                             note: failed? ? "items that errored" : "nothing errored" },
+                                           { label: "Duration", value: duration_text, icon: "clock", tone: :warning,
+                                             note: started_note }
+                                         ])
         end
 
-        def items_hint
+        def items_note
           total = @experiment.total_items.to_i
           return "not started" if total.zero?
 
@@ -141,7 +141,7 @@ module RAAF
           format_duration(duration * 1000)
         end
 
-        def started_hint
+        def started_note
           return "still running" if @experiment.in_progress?
           return "never run" unless @experiment.started_at
 

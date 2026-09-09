@@ -6,9 +6,9 @@ module RAAF
       ##
       # A single metric tile.
       #
-      # Kept as a thin adapter over the library's MetricCard so the existing
+      # Kept as a thin adapter over the library's StatCard so the existing
       # `color:`/`link:` call sites keep working; new code should render
-      # Ui::Molecules::MetricCard directly.
+      # Ui::Molecules::StatCard directly.
       #
       class MetricCard < BaseComponent
         TONES = { green: :success, red: :danger, yellow: :warning, gray: nil, blue: :accent }.freeze
@@ -29,11 +29,12 @@ module RAAF
         end
 
         def view_template
-          render Ui::Molecules::MetricCard.new(
+          render Ui::Molecules::StatCard.new(
             label: @label,
             value: @value,
             icon: ICONS.fetch(@color, ICONS[:blue]),
             tone: TONES[@color],
+            layout: :leading,
             href: @link
           )
         end

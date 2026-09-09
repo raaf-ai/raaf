@@ -167,10 +167,10 @@ module RAAF
         end
 
         def agreement_tone(value)
-          return :ok if value >= 0.85
-          return :warn if value >= 0.7
+          return :success if value >= 0.85
+          return :warning if value >= 0.7
 
-          :bad
+          :danger
         end
 
         def agreement_note(agreement)
@@ -184,7 +184,7 @@ module RAAF
 
           { label: "Evaluator latency p95", icon: "stopwatch",
             value: p95 ? format_duration(p95) : "—",
-            tone: p95 && p95 > 5_000 ? :warn : nil,
+            tone: p95 && p95 > 5_000 ? :warning : nil,
             series: series[:latency],
             series_tips: bucket_tips(series[:latency]) { |v| "p95 #{format_duration(v)}" },
             note: slowest_note }
@@ -212,10 +212,10 @@ module RAAF
         end
 
         def error_tone(rate)
-          return :bad if rate >= 0.1
-          return :warn if rate >= 0.02
+          return :danger if rate >= 0.1
+          return :warning if rate >= 0.02
 
-          :ok
+          :success
         end
 
         # Priced from the judge tokens each evaluation recorded. A policy set

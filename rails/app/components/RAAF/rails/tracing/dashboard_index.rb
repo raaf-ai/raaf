@@ -44,15 +44,15 @@ module RAAF
         # figure with its delta, and a supporting note.
         def kpis
           render Organisms::StatGrid.new(stats: [
-                                           { label: "Runs", value: number(@overview_stats[:total_traces]), tone: :info,
+                                           { label: "Runs", value: number(@overview_stats[:total_traces]), tone: :accent,
                                              note: "traces started · selected range", icon: "diagram-3" },
-                                           { label: "Failure rate", value: failure_rate, tone: :bad,
+                                           { label: "Failure rate", value: failure_rate, tone: :danger,
                                              note: "#{number(@overview_stats[:failed_traces])} failed · " \
                                                    "#{number(@overview_stats[:error_spans])} error spans",
                                              icon: "exclamation-octagon", href: dashboard_errors_path },
-                                           { label: "Avg duration", value: average_duration, tone: :warn,
+                                           { label: "Avg duration", value: average_duration, tone: :warning,
                                              note: "across #{number(@overview_stats[:total_spans])} spans", icon: "speedometer2" },
-                                           { label: "Success rate", value: "#{@overview_stats[:success_rate]}%", tone: :ok,
+                                           { label: "Success rate", value: "#{@overview_stats[:success_rate]}%", tone: :success,
                                              note: "#{number(@overview_stats[:completed_traces])} completed", icon: "check-circle" }
                                          ])
         end

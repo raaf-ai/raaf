@@ -70,12 +70,24 @@ module RAAF
                                            { label: "Scores", value: number(@stats[:count]), icon: "star",
                                              note: "numerical scores recorded" },
                                            { label: "Average", value: score_text(@stats[:avg]), icon: "graph-up",
-                                             tone: score_tone(@stats[:avg]), note: "across every definition" },
+                                             tone: average_tone, note: "across every definition" },
                                            { label: "Median", value: score_text(@stats[:median]),
                                              icon: "distribute-vertical" },
                                            { label: "Min", value: score_text(@stats[:min]), icon: "arrow-down" },
                                            { label: "Max", value: score_text(@stats[:max]), icon: "arrow-up" }
                                          ])
+        end
+
+        # `score_tone` answers in the dialect Mono, Bar and the meters speak,
+        # which is the right word for the figures further down this screen. A
+        # KPI tile's word is the semantic one, so the crossing is made here
+        # rather than left to the card's aliases. A score too far from any tier
+        # to colour comes back untoned, which is what the tile did with the
+        # `:muted` it used to be handed.
+        SCORE_TILE_TONES = { ok: :success, warn: :warning, bad: :danger }.freeze
+
+        def average_tone
+          SCORE_TILE_TONES[score_tone(@stats[:avg])]
         end
 
         # ── Category distribution ─────────────────────────────────────────

@@ -88,15 +88,15 @@ module RAAF
 
         def kpis
           render Organisms::StatGrid.new(stats: [
-                                           { label: "Spans", value: number(total_spans), tone: :info,
+                                           { label: "Spans", value: number(total_spans), tone: :accent,
                                              note: "in the selected range", icon: "layers",
                                              series: series_for(:span_count), series_tips: series_tips_for(:span_count) },
-                                           { label: "Avg duration", value: format_duration(weighted_avg), tone: :warn,
+                                           { label: "Avg duration", value: format_duration(weighted_avg), tone: :warning,
                                              note: "weighted by span count", icon: "speedometer2",
                                              series: series_for(:avg_duration), series_tips: series_tips_for(:avg_duration) },
-                                           { label: "Worst p95", value: format_duration(worst_p95), tone: :bad,
+                                           { label: "Worst p95", value: format_duration(worst_p95), tone: :danger,
                                              note: "slowest kind at the 95th percentile", icon: "graph-up-arrow" },
-                                           { label: "Kinds", value: @performance_by_kind.size, tone: :ok,
+                                           { label: "Kinds", value: @performance_by_kind.size, tone: :success,
                                              note: "span kinds observed", icon: "diagram-2" }
                                          ])
         end

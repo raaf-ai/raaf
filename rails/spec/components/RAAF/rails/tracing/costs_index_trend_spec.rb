@@ -25,13 +25,13 @@ RSpec.describe RAAF::Rails::Tracing::CostsIndex, type: :component do
     # Inverted against every other KPI on the console: a bill going up is the
     # one worth looking at.
     it "reads a rising bill as the direction worth noticing" do
-      expect(kpis(preceding: { total_cost: 2.00, runs: 40 })["Spend"]).to include(tone: :warn)
-      expect(kpis(preceding: { total_cost: 3.00, runs: 40 })["Spend"]).to include(tone: :ok)
+      expect(kpis(preceding: { total_cost: 2.00, runs: 40 })["Spend"]).to include(tone: :warning)
+      expect(kpis(preceding: { total_cost: 3.00, runs: 40 })["Spend"]).to include(tone: :success)
     end
 
     it "says flat rather than +0.0% for a window that did not move" do
       expect(kpis(preceding: { total_cost: 2.57, runs: 39 })["Spend"])
-        .to include(delta: "flat", tone: :info)
+        .to include(delta: "flat", tone: :accent)
     end
 
     # Nothing to compare against is not the same as no change, so the card
@@ -40,7 +40,7 @@ RSpec.describe RAAF::Rails::Tracing::CostsIndex, type: :component do
       spend = kpis(preceding: nil)["Spend"]
 
       expect(spend[:delta]).to be_nil
-      expect(spend).to include(note: "in the selected range", tone: :info)
+      expect(spend).to include(note: "in the selected range", tone: :accent)
     end
   end
 
@@ -65,7 +65,7 @@ RSpec.describe RAAF::Rails::Tracing::CostsIndex, type: :component do
       card = kpis(preceding: { total_cost: 0.0, runs: 0 })["Cost / run"]
 
       expect(card[:delta]).to eq("+$0.066")
-      expect(card[:tone]).to eq(:warn)
+      expect(card[:tone]).to eq(:warning)
     end
   end
 

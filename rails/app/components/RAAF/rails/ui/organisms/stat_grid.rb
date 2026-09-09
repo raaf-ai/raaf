@@ -10,6 +10,10 @@ module RAAF
         # Reflows on its own via auto-fit tracks, so no screen declares
         # breakpoints for it.
         #
+        # `layout:` is the row's presentation rather than each tile's, since a
+        # KPI row where one tile carried its icon somewhere else would be a
+        # mistake rather than a choice. A tile may still override it.
+        #
         # @example
         #   render Organisms::StatGrid.new(stats: [
         #     { label: "Runs", value: "12,480", delta: "+8.2%", icon: "diagram-3" }
@@ -17,8 +21,10 @@ module RAAF
         #
         class StatGrid < Base
           # @param stats [Array<Hash>, nil] arguments for each StatCard
-          def initialize(stats: nil, class: nil, **attrs)
+          # @param layout [Symbol, nil] :corner or :leading, for every tile
+          def initialize(stats: nil, layout: nil, class: nil, **attrs)
             @stats = stats
+            @layout = layout
             @class = binding.local_variable_get(:class)
             @attrs = attrs
           end
@@ -28,9 +34,15 @@ module RAAF
               if block
                 yield
               else
-                @stats.to_a.each { |stat| render Molecules::StatCard.new(**stat) }
+                @stats.to_a.each { |stat| render Molecules::StatCard.new(**tile(stat)) }
               end
             end
+          end
+
+          private
+
+          def tile(stat)
+            @layout ? { layout: @layout }.merge(stat) : stat
           end
         end
       end

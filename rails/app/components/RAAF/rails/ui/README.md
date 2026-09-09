@@ -36,16 +36,21 @@ exactly one file.
 - **One KPI tile, two presentations.** `Molecules::StatCard` takes
   `layout: :corner` (icon top right, the default) or `layout: :leading` (icon
   box in front of the tile). Both carry the delta, the note and the sparkline,
-  because those belong to the number and not to where the icon sits.
-  `Molecules::MetricCard` is the icon-box tile it supersedes, still rendered by
-  five screens until they migrate. Its tone names are already the surviving
-  set, so migrating a tile is a rename and no more.
+  because those belong to the number and not to where the icon sits. The row
+  declares the presentation — `Organisms::StatGrid.new(layout: :leading, …)` —
+  since a KPI row where one tile carried its icon somewhere else would be a
+  mistake rather than a choice. `Molecules::MetricCard` and
+  `Organisms::MetricGrid` are the tile it supersedes and the grid that laid it
+  out; nothing renders either any more, and the contract step deletes them.
 - **One tone vocabulary on the KPI tile:** `accent`, `success`, `warning`,
   `danger` — the semantic set the atoms speak, so `tone:` means the same word
-  on a card, an icon and a badge. `StatCard::TONE_ALIASES` maps the health
-  dialect (`ok`/`warn`/`bad`/`info`) onto it, and is the only place that
-  mapping is stated. A word from neither vocabulary is dropped rather than
-  passed on to the icon.
+  on a card, an icon and a badge. Every tile in the console now says it in
+  those words. `StatCard::TONE_ALIASES` maps the health dialect
+  (`ok`/`warn`/`bad`/`info`) onto it for a caller outside this engine, and is
+  the only place that mapping is stated; a screen that takes its tone from
+  `score_tone`, which answers in the dialect `Mono` and the bars speak, makes
+  the crossing at its own call site rather than leaving it to the card. A word
+  from neither vocabulary is dropped rather than passed on to the icon.
 - **Dynamic values travel as CSS custom properties** — `--raaf-bar-pct`,
   `--raaf-tree-level`, `--raaf-cols`, `--raaf-spark-h` — so markup carries no
   layout arithmetic.

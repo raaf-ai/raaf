@@ -59,11 +59,11 @@ module RAAF
           [
             { label: "Spend", value: money(@cost_data[:total_cost]), tone: spend_tone,
               delta: spend_delta, note: spend_note, icon: "cash-stack" },
-            { label: "Tokens", value: compact(@cost_data[:total_tokens]), tone: :info,
+            { label: "Tokens", value: compact(@cost_data[:total_tokens]), tone: :accent,
               note: token_split, icon: "hash" },
             { label: "Cost / run", value: money(cost_per_run, places: 3), tone: cost_per_run_tone,
               delta: cost_per_run_delta, note: cost_per_run_note, icon: "receipt" },
-            { label: "Projected month", value: money(projected_month), tone: :ok,
+            { label: "Projected month", value: money(projected_month), tone: :success,
               note: projection_note, icon: "graph-up" }
           ]
         end
@@ -86,7 +86,7 @@ module RAAF
         # Spending less is the good direction, so the tone is inverted against
         # what a rising figure means on Runs or Success rate. Tone colours the
         # icon with the delta, which is why it moves with the comparison rather
-        # than staying the fixed :info this card carried before.
+        # than staying the fixed emphasis this card carried before.
         def spend_tone
           direction_tone(spend_change)
         end
@@ -114,11 +114,11 @@ module RAAF
           "#{change.negative? ? '-' : '+'}#{money(change.abs, places: 3)}"
         end
 
-        # Falls back to the fixed :warn this card carried before there was
+        # Falls back to the fixed amber this card carried before there was
         # anything to compare it with, so a window with no predecessor looks
         # exactly as it did.
         def cost_per_run_tone
-          preceding ? direction_tone(cost_per_run_change) : :warn
+          preceding ? direction_tone(cost_per_run_change) : :warning
         end
 
         def cost_per_run_note
@@ -149,11 +149,11 @@ module RAAF
         end
 
         # A bill that grew is worth a second look; one that shrank is not. No
-        # comparison means no claim, so the card falls back to :info.
+        # comparison means no claim, so the card falls back to plain emphasis.
         def direction_tone(change)
-          return :info if change.nil? || change.round(6).zero?
+          return :accent if change.nil? || change.round(6).zero?
 
-          change.positive? ? :warn : :ok
+          change.positive? ? :warning : :success
         end
 
         # The preceding window is as long as this one, so it is named by this

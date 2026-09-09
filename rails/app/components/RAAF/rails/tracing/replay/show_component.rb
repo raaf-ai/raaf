@@ -83,12 +83,12 @@ module RAAF
           # ── The four figures ──────────────────────────────────────────────
 
           def metrics
-            render Organisms::MetricGrid.new(metrics: [
-                                               duration_metric,
-                                               token_metric("Input tokens", "box-arrow-in-right", :input_tokens),
-                                               token_metric("Output tokens", "box-arrow-right", :output_tokens),
-                                               model_metric
-                                             ])
+            render Organisms::StatGrid.new(layout: :leading, stats: [
+                                             duration_metric,
+                                             token_metric("Input tokens", "box-arrow-in-right", :input_tokens),
+                                             token_metric("Output tokens", "box-arrow-right", :output_tokens),
+                                             model_metric
+                                           ])
           end
 
           def duration_metric
@@ -99,7 +99,7 @@ module RAAF
                     else
                       (duration_delta.positive? ? :danger : :success)
                     end,
-              hint: comparison_hint(format_duration(@original_span.duration_ms), duration_delta) }
+              note: comparison_note(format_duration(@original_span.duration_ms), duration_delta) }
           end
 
           def token_metric(label, icon, key)
@@ -113,7 +113,7 @@ module RAAF
                     else
                       (delta.positive? ? :warning : :success)
                     end,
-              hint: comparison_hint(original.to_s, delta) }
+              note: comparison_note(original.to_s, delta) }
           end
 
           # The model is not a number, so it has no delta -- it either changed
@@ -124,10 +124,10 @@ module RAAF
 
             { label: "Model", icon: "cpu", value: replayed,
               tone: original == replayed ? nil : :accent,
-              hint: original == replayed ? "unchanged" : "was #{original}" }
+              note: original == replayed ? "unchanged" : "was #{original}" }
           end
 
-          def comparison_hint(original, delta)
+          def comparison_note(original, delta)
             return "was #{original}" if delta.nil? || delta.zero?
 
             "was #{original} · #{'+' if delta.positive?}#{delta.round(1)}%"

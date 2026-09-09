@@ -86,21 +86,21 @@ module RAAF
         # ── Headline ──────────────────────────────────────────────────────
 
         def stats
-          render Organisms::MetricGrid.new(metrics: [
-                                             waiting_stat, in_flight_stat,
-                                             throughput_stat, oldest_stat
-                                           ])
+          render Organisms::StatGrid.new(layout: :leading, stats: [
+                                           waiting_stat, in_flight_stat,
+                                           throughput_stat, oldest_stat
+                                         ])
         end
 
         def waiting_stat
           { label: "Queued", value: @queue.waiting_count.to_s, icon: "hourglass-split",
-            tone: :accent, hint: queued_hint }
+            tone: :accent, note: queued_note }
         end
 
         # Scheduled rows are retries waiting out their backoff. They are not
         # queued yet and would flatter the figure if counted, but a reader who
         # cannot see them cannot tell a quiet queue from a stalled one.
-        def queued_hint
+        def queued_note
           scheduled = @queue.scheduled_count
           return "jobs awaiting a worker" if scheduled.zero?
 
@@ -110,12 +110,12 @@ module RAAF
         def in_flight_stat
           { label: "In flight", value: @queue.in_flight_count.to_s, icon: "cpu",
             tone: :success,
-            hint: "#{pluralize(@queue.workers_alive, 'worker')} alive" }
+            note: "#{pluralize(@queue.workers_alive, 'worker')} alive" }
         end
 
         def throughput_stat
           { label: "Throughput", value: "#{@queue.throughput_per_hour}/h", icon: "speedometer2",
-            tone: :accent, hint: "jobs finished, 24h average" }
+            tone: :accent, note: "jobs finished, 24h average" }
         end
 
         # The design's fourth card pairs the oldest wait with an SLO. RAAF
@@ -126,7 +126,7 @@ module RAAF
 
           { label: "Oldest wait", value: seconds ? duration(seconds) : "—",
             icon: "clock-history", tone: seconds && seconds > 300 ? :warning : nil,
-            hint: seconds ? "the job at the front of the queue" : "nothing is waiting" }
+            note: seconds ? "the job at the front of the queue" : "nothing is waiting" }
         end
 
         # ── In flight ─────────────────────────────────────────────────────

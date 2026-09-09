@@ -51,16 +51,16 @@ module RAAF
         private
 
         def headline
-          render Organisms::MetricGrid.new(metrics: [
-                                             { label: "Policies", value: @stats[:total].to_s, icon: "clipboard-check",
-                                               hint: "configured" },
-                                             { label: "Active", value: @stats[:active].to_s, icon: "play-circle",
-                                               tone: :success, hint: "evaluating new spans" },
-                                             { label: "Evaluated today", value: @stats[:evaluated_today].to_s, icon: "check2-circle",
-                                               hint: "across every policy" },
-                                             { label: "Daily cap", value: @stats[:daily_cap].to_s, icon: "shield-check",
-                                               hint: "evaluations a day, all policies" }
-                                           ])
+          render Organisms::StatGrid.new(layout: :leading, stats: [
+                                           { label: "Policies", value: @stats[:total].to_s, icon: "clipboard-check",
+                                             note: "configured" },
+                                           { label: "Active", value: @stats[:active].to_s, icon: "play-circle",
+                                             tone: :success, note: "evaluating new spans" },
+                                           { label: "Evaluated today", value: @stats[:evaluated_today].to_s, icon: "check2-circle",
+                                             note: "across every policy" },
+                                           { label: "Daily cap", value: @stats[:daily_cap].to_s, icon: "shield-check",
+                                             note: "evaluations a day, all policies" }
+                                         ])
         end
 
         # Plain pills on the page — the design gives this rail neither the

@@ -480,13 +480,17 @@ module RAAF
           "blue" => nil
         }.freeze
 
-        def render_metric_card(title:, value:, color: "blue", icon: nil, href: nil, hint: nil)
-          render Ui::Molecules::MetricCard.new(
+        # The screens still calling this predate the design system and pass a
+        # Tailwind colour name. They get the console's KPI tile, in the
+        # icon-box presentation the tile they used to render always had.
+        def render_stat_card(title:, value:, color: "blue", icon: nil, href: nil, note: nil)
+          render Ui::Molecules::StatCard.new(
             label: title,
             value: value,
             icon: icon&.to_s&.delete_prefix("bi-"),
             tone: METRIC_TONES[color.to_s],
-            hint: hint,
+            layout: :leading,
+            note: note,
             href: href
           )
         end

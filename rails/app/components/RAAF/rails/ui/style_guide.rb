@@ -273,15 +273,6 @@ module RAAF
             ]
           )
 
-          render Organisms::MetricGrid.new(metrics: [
-                                             { label: "Traces", value: 87, icon: "diagram-3" },
-                                             { label: "Spans", value: "1,204", icon: "list-nested" },
-                                             { label: "Errors", value: 17, icon: "x-octagon",
-                                               tone: :danger, hint: "1.4% of spans" },
-                                             { label: "Cost", value: "$4.12", icon: "cash-coin",
-                                               tone: :accent }
-                                           ])
-
           render(Organisms::Card.new(title: "Traces", subtitle: "newest first", flush: true)) do |card|
             card.actions { render Atoms::Button.new(label: "Export", size: :sm, icon: "download") }
             sample_table
@@ -312,7 +303,7 @@ module RAAF
         def charts
           section("Charts", "molecules/metric_triple.css · molecules/tooltip.css") do
             render Molecules::StatCard.new(
-              label: "Runs", value: "1,802", delta: "+8.2%", tone: :bad,
+              label: "Runs", value: "1,802", delta: "+8.2%", tone: :danger,
               note: "hover a bar for the hour it covers", icon: "diagram-3",
               series: CHART_SERIES.map { |b| b[:runs] },
               series_tips: CHART_SERIES.map { |b| chart_tip(b) }

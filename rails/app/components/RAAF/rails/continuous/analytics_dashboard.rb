@@ -57,16 +57,16 @@ module RAAF
         end
 
         def headline
-          render Organisms::MetricGrid.new(metrics: [
-                                             { label: "Evaluations", value: number(@stats[:total_evaluations]),
-                                               icon: "graph-up", hint: "in the selected scope" },
-                                             { label: "Good rate", value: format_percentage(@stats[:good_rate] || @stats[:pass_rate]),
-                                               icon: "check-circle", tone: :success, hint: "came back good" },
-                                             { label: "Avg score", value: score_text(@stats[:avg_score]),
-                                               icon: "star", hint: "across every check" },
-                                             { label: "Total cost", value: format_cost(@stats[:total_cost]),
-                                               icon: "cash-stack", hint: "what evaluating cost" }
-                                           ])
+          render Organisms::StatGrid.new(layout: :leading, stats: [
+                                           { label: "Evaluations", value: number(@stats[:total_evaluations]),
+                                             icon: "graph-up", note: "in the selected scope" },
+                                           { label: "Good rate", value: format_percentage(@stats[:good_rate] || @stats[:pass_rate]),
+                                             icon: "check-circle", tone: :success, note: "came back good" },
+                                           { label: "Avg score", value: score_text(@stats[:avg_score]),
+                                             icon: "star", note: "across every check" },
+                                           { label: "Total cost", value: format_cost(@stats[:total_cost]),
+                                             icon: "cash-stack", note: "what evaluating cost" }
+                                         ])
         end
 
         def model_comparison

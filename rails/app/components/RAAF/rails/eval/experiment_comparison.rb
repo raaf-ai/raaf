@@ -120,9 +120,9 @@ module RAAF
         # ── Aggregate ─────────────────────────────────────────────────────
 
         def metrics
-          render Organisms::MetricGrid.new(metrics: [
-                                             success_metric, tokens_metric, moved_metric, regressed_metric
-                                           ])
+          render Organisms::StatGrid.new(layout: :leading, stats: [
+                                           success_metric, tokens_metric, moved_metric, regressed_metric
+                                         ])
         end
 
         def success_metric
@@ -130,7 +130,7 @@ module RAAF
 
           { label: "Success rate", value: percent(success[:b]), icon: "check-circle",
             tone: delta_tone(success[:delta]),
-            hint: comparison_hint(percent(success[:a]), delta_percent(success[:delta])) }
+            note: comparison_note(percent(success[:a]), delta_percent(success[:delta])) }
         end
 
         # More tokens for the same answers is a cost the score does not show.
@@ -139,22 +139,22 @@ module RAAF
 
           { label: "Tokens", value: tokens[:b] ? delimited(tokens[:b]) : "—", icon: "coin",
             tone: delta_tone(tokens[:delta], lower_is_better: true),
-            hint: comparison_hint(tokens[:a] && delimited(tokens[:a]),
+            note: comparison_note(tokens[:a] && delimited(tokens[:a]),
                                   tokens[:delta] && ("%+d" % tokens[:delta])) }
         end
 
         def moved_metric
           { label: "Cases moved", value: moved.size.to_s, icon: "arrow-left-right",
-            hint: "of #{pluralize(compared.size, 'case')} both runs scored" }
+            note: "of #{pluralize(compared.size, 'case')} both runs scored" }
         end
 
         def regressed_metric
           { label: "Regressed", value: regressed.size.to_s, icon: "arrow-down-right",
             tone: regressed.any? ? :danger : :success,
-            hint: regressed.any? ? "cases this run scored lower" : "nothing scored lower" }
+            note: regressed.any? ? "cases this run scored lower" : "nothing scored lower" }
         end
 
-        def comparison_hint(was, delta)
+        def comparison_note(was, delta)
           return nil if was.nil?
 
           delta ? "was #{was} · #{delta}" : "was #{was}"

@@ -1381,3 +1381,35 @@ stopped matching the moment the card started emitting the new names — the
 Health cards would have gone grey with every test still green. The rules are
 renamed, and a spec now reads every stylesheet in the library and fails on any
 rule still addressing a tone the card no longer emits.
+
+### The migrate step
+
+Every screen is now on `StatCard`, and nothing renders the tile it supersedes.
+Policies, Queue, Analytics, Experiment detail, Experiment comparison and Replay
+detail keep the icon-box presentation they had, declared once per row as
+`StatGrid.new(layout: :leading, …)` rather than once per tile — a KPI row where
+one tile carried its icon somewhere else would be a mistake rather than a
+choice. `hint:` becomes `note:`, which is the same line under the same figure.
+
+Two adapters moved with them. `render_stat_card` is what the Tailwind-era
+Feedback statistics panel calls, and `Tracing::MetricCard` keeps its name and
+its `color:`/`link:` arguments for anything outside this engine; both now draw
+the converged tile. The style guide's Data display section had a second row of
+the superseded tiles under it, which the KPI tiles section above already shows
+in both presentations, so it is gone rather than migrated.
+
+The screens already on `StatCard` moved to the surviving tone words in the same
+pass: Overview, Performance, Cost & usage, Health and Feedback scores said
+`ok / warn / bad / info` and now say `success / warning / danger / accent`.
+Nothing about them renders differently — the aliases were already mapping those
+words — which is exactly why the check for this reads source rather than HTML.
+
+One crossing is left, deliberately. `score_tone` answers in the dialect `Mono`,
+`Bar` and the meters speak, and it is the right word for every figure on the
+Feedback screen except the KPI tile at the top. That tile maps it at its own
+call site, so the tile's word is the semantic one without the shared helper
+having to change vocabulary for the sake of one caller.
+
+What the contract step can now take out: `Molecules::MetricCard`,
+`Organisms::MetricGrid`, `molecules/metric_card.css`, and `TONE_ALIASES` along
+with everything that only existed to keep the two dialects rendering the same.
