@@ -60,11 +60,26 @@ module RAAF
         # never measured in tokens, and saying "tokens 0" beside its bill
         # reads as a run that cost nothing.
         def summary_stats
-          stats = [{ icon: "layers", label: "spans", value: spans.size.to_s },
-                   { icon: "clock", label: "duration", value: duration(@trace.duration_ms || window) }]
+          stats = [started_stat,
+                   { icon: "layers", label: "spans", value: spans.size.to_s },
+                   { icon: "clock", label: "duration", value: duration(@trace.duration_ms || window) }].compact
           stats << { icon: "coin", label: "tokens", value: format_tokens(total_tokens) } if total_tokens.positive?
           stats << { icon: "cash", label: "cost", value: format_money(total_cost) }
           stats
+        end
+
+        # When the trace ran, in absolute time.
+        #
+        # Every other time on this page is relative to the trace: the
+        # waterfall is offsets from its origin and the rows read "4 minutes
+        # ago". None of that lines a trace up against an application log, an
+        # incident window or a deploy, which is the usual reason for opening
+        # one. The Replay screen already prints this format.
+        def started_stat
+          return nil unless @trace.started_at
+
+          { icon: "calendar-event", label: "started",
+            value: @trace.started_at.strftime("%Y-%m-%d %H:%M:%S") }
         end
 
         # ── Waterfall ─────────────────────────────────────────────────────

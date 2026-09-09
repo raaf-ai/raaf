@@ -13,7 +13,7 @@ RSpec.describe RAAF::Rails::Tracing::ToolSpans, type: :component do
   end
 
   def aggregates(spans)
-    described_class.new(tool_spans: spans, total_tool_spans: spans, params: {}).send(:aggregates)
+    described_class.new(total_tool_spans: spans, params: {}).send(:aggregates)
   end
 
   it "names an LLM tool call by the function the model asked for" do
@@ -79,7 +79,7 @@ RSpec.describe RAAF::Rails::Tracing::ToolSpans, type: :component do
   # which showed the reader the same card again once the calls table moved to
   # Spans.
   it "sends a card to its own calls, keeping the range it was counted over" do
-    component = described_class.new(tool_spans: [], total_tool_spans: [], params: { range: "7d" })
+    component = described_class.new(total_tool_spans: [], params: { range: "7d" })
 
     expect(component.send(:calls_path, "Ai::SearchProviders::Google"))
       .to include("search=Ai", "range=7d")

@@ -36,6 +36,7 @@ module RAAF
         def view_template
           div(class: "raaf-page") do
             filters
+            active_filters
             body
           end
         end
@@ -59,7 +60,47 @@ module RAAF
         # their own counts — the count is the reason to click one, so a chip
         # without it is a guess.
         def filters
-          render Molecules::FilterBar.new(chips: kind_chips, grouped: false, outlined: true)
+          render Molecules::FilterBar.new(chips: kind_chips, grouped: false, outlined: true,
+                                          query: @params[:search], action: tracing_spans_path,
+                                          name: "search", placeholder: "Search spans…",
+                                          carry: carried_filters.except(:search))
+        end
+
+        # The narrowings the rail cannot show, as pills that remove
+        # themselves.
+        #
+        # This screen honours `search` and `status`, and those are exactly how
+        # its two main entry points arrive: an Agents row links here with
+        # `search=<agent name>`, a Tools card with `search=<tool name>`. The
+        # reader landed on a filtered list with the term printed nowhere and
+        # no way to drop it — the empty state offers a reset, so the only way
+        # to find the filter was to narrow it until nothing matched.
+        def active_filters
+          applied = applied_filters
+          return if applied.empty?
+
+          div(class: "raaf-filterbar") do
+            div(class: "raaf-chip-rail raaf-chip-rail--loose raaf-chip-rail--outlined") do
+              applied.each { |filter| render Atoms::Chip.new(**filter) }
+              render Atoms::Chip.new(label: "Clear all", href: spans_filter_path(clearable))
+            end
+          end
+        end
+
+        # Ordered so the pills read the way the reader arrived: the search
+        # term first, since that is what a link from Agents or Tools sets.
+        def applied_filters
+          %i[search status].filter_map do |key|
+            value = @params[key]
+            next if value.blank?
+
+            { label: "#{key}: #{value} ✕", active: true,
+              href: spans_filter_path(key => nil) }
+          end
+        end
+
+        def clearable
+          { search: nil, status: nil }
         end
 
         def kind_chips
@@ -124,10 +165,12 @@ module RAAF
         # swapping the kind — a chip that silently reset the window would
         # change the counts it just quoted.
         def spans_filter_path(overrides)
-          carried = { kind: @params[:kind], type: @params[:type], status: @params[:status],
-                      search: @params[:search], view: @params[:view],
-                      range: @params[:range] }
-          tracing_spans_path(carried.merge(overrides).compact.reject { |_, v| v.to_s.empty? })
+          tracing_spans_path(carried_filters.merge(overrides).compact.reject { |_, v| v.to_s.empty? })
+        end
+
+        def carried_filters
+          { kind: @params[:kind], type: @params[:type], status: @params[:status],
+            search: @params[:search], view: @params[:view], range: @params[:range] }
         end
 
         def body

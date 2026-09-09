@@ -129,13 +129,21 @@ module RAAF
         # ── Pipeline heat ─────────────────────────────────────────────────
         #
         # There is no declared pipeline structure in the trace store, so the
-        # steps are the nodes ordered by the wall clock they account for. The
-        # bar is each node's share of that total, which is the same reading
-        # the designed screen gives.
+        # steps are the nodes ordered by the time they account for. The bar is
+        # each node's share of the summed span durations.
+        #
+        # That sum is not the window's wall clock, which is what this panel
+        # used to claim. Spans that ran in parallel each contribute their full
+        # duration, and a nested span is counted inside its parent as well as
+        # on its own, so the total exceeds the elapsed time — often by a lot on
+        # a run that fans out. Producing a real wall-clock share would mean
+        # taking the union of the intervals, which answers a different question
+        # from the one the bars are ranked by. The label says what is measured
+        # instead.
 
         def pipeline_panel
           render(Organisms::Card.new(title: "Pipeline heat · #{window_label}",
-                                     subtitle: "share of the window's wall clock, slowest first")) do
+                                     subtitle: "share of total span time, slowest first")) do
             render Organisms::PipelineSteps.new(
               steps: pipeline_steps,
               empty: { icon: "list-ol", title: "No spans in this window",
@@ -163,10 +171,48 @@ module RAAF
         # ── Single trace path ─────────────────────────────────────────────
 
         def path_panel
+          trace_picker
           render(Organisms::Card.new(title: path_title, subtitle: path_subtitle)) do |card|
             card.actions { open_waterfall } if @params[:trace_id].present?
             render Organisms::TracePath.new(nodes: path_nodes, empty: path_empty)
           end
+        end
+
+        # The tab reads `trace_id` and its picker had been removed, so one of
+        # the three tabs was reachable only by editing the query string. The
+        # controller was still loading the trace list — it was being used to
+        # look up a title and nothing else.
+        #
+        # A select rather than a chip rail: a window can hold hundreds of
+        # traces, and the point of the tab is to pick one of them.
+        def trace_picker
+          return if trace_options.empty?
+
+          form(action: flows_tracing_spans_path, method: "get", class: "raaf-filterbar") do
+            render Atoms::Select.new(name: "trace_id", options: trace_options,
+                                     selected: @params[:trace_id],
+                                     include_blank: "Pick a trace…")
+            input(type: "hidden", name: "tab", value: "trace")
+            carried_path_params.each { |key, value| input(type: "hidden", name: key, value: value) }
+            render Atoms::Button.new(label: "Show path", size: :sm, type: "submit")
+          end
+        end
+
+        # Labelled by workflow so the list reads as runs rather than as ids,
+        # with the id kept beside it because a window usually holds several
+        # runs of the same workflow.
+        def trace_options
+          @trace_options ||= @traces.to_a.filter_map do |trace_id, workflow_name|
+            next if trace_id.blank?
+
+            ["#{workflow_name.presence || 'trace'} · #{truncate_id(trace_id)}", trace_id]
+          end
+        end
+
+        def carried_path_params
+          { agent_name: @params[:agent_name], range: @params[:range],
+            start_time: @params[:start_time], end_time: @params[:end_time] }
+            .compact.reject { |_, value| value.to_s.empty? }
         end
 
         def path_title
@@ -190,7 +236,7 @@ module RAAF
         def path_empty
           if @params[:trace_id].blank?
             { icon: "signpost-split", title: "Pick a trace",
-              text: "Filter this screen by a trace to see the order its spans ran in." }
+              text: "Choose a run above to see the order its spans ran in." }
           else
             { icon: "signpost-split", title: "No spans",
               text: "That trace recorded no spans." }

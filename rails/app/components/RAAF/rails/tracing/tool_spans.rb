@@ -4,12 +4,15 @@ module RAAF
   module Rails
     module Tracing
       ##
-      # The Tools screen: the registry of callable tools, then the calls.
+      # The Tools screen: the registry of callable tools.
       #
       # The design's Tools screen is a registry — one card per tool, not one
       # row per call — because the question it answers is "which tool is
-      # costing us" rather than "what happened at 09:41". The call list stays
-      # underneath for the follow-up.
+      # costing us" rather than "what happened at 09:41". A card leads to its
+      # own calls on the Spans screen, which is built for listing them.
+      #
+      # Each card answers that question in money as well as in activity:
+      # calls, error rate and p95, then spend and tokens.
       #
       # A "tool" here is whatever the agents called out to, which is wider
       # than the tools an LLM invoked by name: see +SpanRecord::TOOL_KINDS+.
@@ -23,17 +26,7 @@ module RAAF
         WRITE_HINTS = %w[upsert create write insert update delete send post put].freeze
         GUARD_HINTS = %w[guard scrub redact pii compliance].freeze
 
-        # Columns and fr weights taken from RAAF Tracing.dc.html.
-        COLUMNS = [
-          { label: "Tool", span: 1.6 },
-          { label: "Trace", span: 1.0 },
-          { label: "Status", span: 0.8 },
-          { label: "Duration", span: 0.6, align: :right },
-          { label: "Started", span: 0.8, align: :right }
-        ].freeze
-
-        def initialize(tool_spans:, total_tool_spans:, params: {})
-          @tool_spans = tool_spans
+        def initialize(total_tool_spans:, params: {})
           @total_tool_spans = total_tool_spans
           @params = params
         end
@@ -56,30 +49,6 @@ module RAAF
                      text: "No tool, custom or component spans in the selected range " \
                            "match the filters." }
           )
-        end
-
-        def calls
-          render(Molecules::Panel.new(title: "Recent calls", icon: "clock-history",
-                                      action: "Export JSON",
-                                      action_href: tools_tracing_spans_path(format: :json))) do
-            render(Organisms::DataGrid.new(
-                     columns: COLUMNS,
-                     empty: { icon: "clock-history", title: "No calls",
-                              text: "No tool calls match the current filters." }
-                   )) do |grid|
-              @tool_spans.each { |span| call_row(grid, span) }
-            end
-          end
-        end
-
-        def call_row(grid, span)
-          grid.row(href: trace_span_path(span.span_id, span.trace_id), cells: [
-                     { value: tool_name(span), primary: true },
-                     { value: Atoms::Mono.new(truncate_id(span.trace_id), tone: :muted) },
-                     { value: Atoms::StatusBadge.new(span.status) },
-                     { value: Atoms::Mono.new(duration(span.duration_ms)), align: :right },
-                     { value: Atoms::Mono.new(started(span), tone: :muted), align: :right }
-                   ])
         end
 
         # ── Aggregation ───────────────────────────────────────────────────
@@ -153,8 +122,32 @@ module RAAF
           sorted[[(sorted.length * fraction).ceil - 1, 0].max]
         end
 
+        # What each tool was billed, and the tokens behind it.
+        #
+        # In Ruby rather than in the GROUP BY above, because a span's cost is
+        # a Ruby question: SpanUsage prices tokens against the model that
+        # produced them, and a search tool is billed a flat fee per call
+        # instead. Only the spans that recorded usage are loaded, which on a
+        # tool set is a small fraction of the calls.
+        def billing
+          @billing ||= billable_tool_spans
+                       .group_by { |span| tool_name(span) }
+                       .transform_values do |spans|
+                         { cost: spans.sum(0.0) { |span| span.cost_usd.to_f },
+                           tokens: spans.sum { |span| span.total_token_count.to_i } }
+                       end
+        end
+
+        def billable_tool_spans
+          scope = @total_tool_spans
+          return Array(scope).select(&:billable?) unless scope.respond_to?(:with_billable_usage)
+
+          scope.except(:includes).reorder(nil).with_billable_usage.to_a.select(&:billable?)
+        end
+
         def card_for(name, agg)
           rate = agg[:error_rate]
+          billed = billing[name]
 
           { name: name,
             icon: icon_for(name),
@@ -169,7 +162,23 @@ module RAAF
                           (rate >= 1 ? :warn : :ok)
                         end,
             p95: duration(agg[:p95]),
+            spend: spend_figure(billed),
+            tokens: token_figure(billed),
             href: calls_path(name) }
+        end
+
+        # A tool nothing ever billed has no spend to report, and $0.00 reads
+        # as a tool that is free rather than as one that was never measured.
+        def spend_figure(billed)
+          return nil if billed.nil?
+
+          "$#{'%.2f' % billed[:cost]}"
+        end
+
+        def token_figure(billed)
+          return nil if billed.nil? || billed[:tokens].zero?
+
+          humanise(billed[:tokens])
         end
 
         # A card leads to its own calls, on the Spans screen. It used to lead
@@ -231,12 +240,6 @@ module RAAF
 
         def humanise(count)
           count >= 1000 ? "#{(count / 1000.0).round(1)}k" : count.to_s
-        end
-
-        def started(span)
-          return "—" unless span.start_time
-
-          time_ago(span.start_time)
         end
       end
     end

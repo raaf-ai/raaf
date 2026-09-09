@@ -22,7 +22,7 @@ module RAAF
           TONES = %i[ok warn bad info neutral].freeze
 
           # @param tools [Array<Hash>] :name, :icon, :tag, :tone, :description,
-          #   :calls, :error_rate, :p95, :href
+          #   :calls, :error_rate, :p95, :spend, :tokens, :href
           # @param empty [Hash, nil] arguments for Molecules::EmptyState
           def initialize(tools:, empty: nil, class: nil, **attrs)
             @tools = Array(tools)
@@ -72,12 +72,27 @@ module RAAF
             end
           end
 
+          # Two rows: what the tool did, then what it cost.
+          #
+          # The screen's own question is "which tool is costing us", and the
+          # card answered it with calls, an error rate and a p95 — three
+          # measures of activity and none of money, though tool spans are what
+          # the cost rollup bills and the Agents screen prints a figure per
+          # agent. The second row is omitted where a tool was never billed
+          # anything, since $0.00 claims a measurement nobody took.
           def footer(tool)
             render Molecules::MetricTriple.new(metrics: [
                                                  { label: "Calls", value: tool[:calls] || "—" },
                                                  { label: "Errors", value: tool[:error_rate] || "—",
                                                    tone: tool[:error_tone] },
                                                  { label: "p95", value: tool[:p95] || "—" }
+                                               ])
+
+            return if tool[:spend].blank? && tool[:tokens].blank?
+
+            render Molecules::MetricTriple.new(metrics: [
+                                                 { label: "Spend", value: tool[:spend] || "—" },
+                                                 { label: "Tokens", value: tool[:tokens] || "—" }
                                                ])
           end
         end

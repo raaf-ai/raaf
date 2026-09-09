@@ -90,3 +90,12 @@ a.raaf-tool-card:hover {
   padding-top: var(--raaf-space-3);
   border-top: 1px solid var(--raaf-border);
 }
+
+/* The billing row sits under the activity row and belongs to it, so it takes
+   neither the divider nor the auto margin that pushes the first one down. Its
+   cells keep the three-column track, so Spend lines up under Calls. */
+.raaf-tool-card .raaf-triple + .raaf-triple {
+  margin-top: 0;
+  padding-top: var(--raaf-space-2);
+  border-top: 0;
+}

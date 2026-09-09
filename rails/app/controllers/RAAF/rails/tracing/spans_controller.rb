@@ -121,24 +121,18 @@ module RAAF
 
         # GET /spans/tools
         # Lists all tool and custom call spans
+        # The registry aggregates the whole filtered set, so the HTML branch has
+        # no page to turn. The paginated relation below feeds the JSON caller
+        # alone -- it used to be built for a "Recent calls" table the screen
+        # stopped rendering, and every HTML request paid for it.
         def tools
-          @tool_spans_base = SpanRecord.includes(:trace)
-                                       .where(kind: SpanRecord::TOOL_KINDS)
-
-          # Apply filters
-          @tool_spans_base = filter_tool_spans(@tool_spans_base)
-
-          # Store the unpaginated query for statistics
-          @total_tool_spans = @tool_spans_base
-
-          # Paginate results using Kaminari
-          @per_page = [params[:per_page]&.to_i || 50, 100].min
-          @tool_spans = @tool_spans_base.recent.page(params[:page]).per(@per_page)
+          @total_tool_spans = filter_tool_spans(
+            SpanRecord.includes(:trace).where(kind: SpanRecord::TOOL_KINDS)
+          )
 
           respond_to do |format|
             format.html do
               tools_component = RAAF::Rails::Tracing::ToolSpans.new(
-                tool_spans: @tool_spans,
                 total_tool_spans: @total_tool_spans,
                 params: params.permit(:search, :function_name, :status, :trace_id, :start_time, :end_time, :range)
               )
@@ -146,7 +140,7 @@ module RAAF
               render_in_layout tools_component, title: "Tools", range: current_range, range_href: range_href
             end
             format.js { render :tools }
-            format.json { render json: serialize_tool_spans(@tool_spans) }
+            format.json { render json: serialize_tool_spans(paginated_tool_spans) }
           end
         end
 
@@ -217,6 +211,11 @@ module RAAF
         end
 
         private
+
+        def paginated_tool_spans
+          per_page = [params[:per_page]&.to_i || 50, 100].min
+          @total_tool_spans.recent.page(params[:page]).per(per_page)
+        end
 
         def organize_spans_hierarchically(spans)
           # Convert to array if it's an ActiveRecord relation

@@ -87,8 +87,32 @@ module RAAF
                                              duration_metric,
                                              token_metric("Input tokens", "box-arrow-in-right", :input_tokens),
                                              token_metric("Output tokens", "box-arrow-right", :output_tokens),
+                                             cost_metric,
                                              model_metric
                                            ])
+          end
+
+          # Cheaper is the good direction here, which is the opposite of every
+          # other delta on the screen: a replay that halves the bill is the
+          # result the reader was hoping for.
+          def cost_metric
+            original = cost_of(@original_span).to_f
+            replayed = cost_of(@replayed_span).to_f
+            delta = percentage_change(original, replayed)
+
+            { label: "Cost", icon: "cash", value: money(replayed),
+              tone: if delta.nil? || delta.zero?
+                      nil
+                    else
+                      (delta.positive? ? :warning : :success)
+                    end,
+              note: comparison_note(money(original), delta) }
+          end
+
+          # Four decimals: a single span's bill is routinely under a cent, and
+          # two figures would round both sides of the comparison to $0.00.
+          def money(amount)
+            "$#{'%.4f' % amount.to_f}"
           end
 
           def duration_metric
@@ -305,12 +329,42 @@ module RAAF
             ((replayed - original).to_f / original * 100).round(1)
           end
 
+          # Through SpanUsage, which is how the rest of the console reads a
+          # span's tokens: it knows the flat `llm.usage.*` keys, the `usage`
+          # object and the native columns migration 006 filled. Reading the
+          # nested `llm.usage` hash alone missed a DSL agent span entirely —
+          # it records its counts elsewhere — so both token tiles read 0 with
+          # a note of "was 0" on exactly the replays most worth running.
+          #
+          # The nested shape stays as a fallback rather than being swapped
+          # out: SpanUsage does not read it, and dropping it here would fix
+          # one span kind by breaking another.
           def usage(span)
-            attrs = span&.span_attributes || {}
-            recorded = attrs.dig("llm", "usage") || attrs["usage"] || {}
+            return { input_tokens: nil, output_tokens: nil } unless span
+
+            recorded = ::RAAF::Tracing::SpanUsage.for_span(span)
+            nested = nested_usage(span)
+
+            { input_tokens: recorded[:input] || nested[:input_tokens],
+              output_tokens: recorded[:output] || nested[:output_tokens] }
+          end
+
+          def nested_usage(span)
+            recorded = (span.span_attributes || {}).dig("llm", "usage") || {}
 
             { input_tokens: recorded["input_tokens"] || recorded["prompt_tokens"],
               output_tokens: recorded["output_tokens"] || recorded["completion_tokens"] }
+          end
+
+          # What the two spans were billed.
+          #
+          # Whether the cheaper model was in fact cheaper is usually the reason
+          # the replay was run, and the comparison reported duration, tokens
+          # and model without ever saying so. Both spans are already in hand.
+          def cost_of(span)
+            return nil unless span
+
+            ::RAAF::Tracing::SpanUsage.spend_for_span(span)
           end
 
           def model_of(span)
