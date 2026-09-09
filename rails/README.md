@@ -69,7 +69,6 @@ mount RAAF::Rails::Engine, at: "/agents"
 
 # Access points:
 # - /agents/dashboard - Web dashboard
-# - /agents/api/v1 - REST API
 # - /agents/chat - WebSocket endpoint
 ```
 
@@ -172,20 +171,6 @@ end
 4. Configure tools and handoffs
 5. Deploy the agent
 
-### Via API
-
-```bash
-curl -X POST http://localhost:3000/api/v1/agents \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{
-    "name": "Support Agent",
-    "instructions": "You help customers with their questions",
-    "model": "gpt-4o",
-    "tools": ["web_search", "knowledge_base"]
-  }'
-```
-
 ### Via Rails Code
 
 ```ruby
@@ -207,21 +192,6 @@ agent.deploy!
 ```
 
 ## Starting Conversations
-
-### Via API
-
-```bash
-curl -X POST http://localhost:3000/api/v1/agents/123/conversations \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -d '{
-    "message": "What products do you have?",
-    "context": {
-      "user_id": 456,
-      "session_id": "abc123"
-    }
-  }'
-```
 
 ### Via WebSocket
 

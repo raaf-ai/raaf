@@ -28,23 +28,13 @@ RAAF::Rails::Engine.routes.draw do
   # followed one lost the sidebar and landed somewhere that looked like a
   # different application, and there was no feature behind any of them: the
   # writes redirected to the stubs and the JSON members answered a fixed
-  # {status: "ok"}. The JSON API under /api/v1 is untouched.
-
-  # API routes
-  namespace :api do
-    namespace :v1 do
-      resources :agents, only: %i[index show create update destroy] do
-        member do
-          post :chat
-          get :status
-          post :deploy
-          delete :undeploy
-        end
-
-        resources :conversations, only: %i[index show create]
-      end
-    end
-  end
+  # {status: "ok"}.
+  #
+  # The JSON API under /api/v1 went the same way, for the same reason and one
+  # more: it persisted nothing, read nothing, and answered 200 to every call,
+  # so anything integrating against it got plausible-looking silence instead of
+  # an error. There are no agent records in the engine for it to serve. A
+  # consumer meeting a 404 learns something true.
 
   # The living component library — every Glass Morph component as the
   # dashboard renders it. Useful when changing a component, and as the

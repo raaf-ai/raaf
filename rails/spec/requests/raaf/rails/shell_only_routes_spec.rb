@@ -20,11 +20,15 @@ RSpec.describe "routes outside the console shell", type: :request do
     expect { get "/raaf/dashboard/analytics" }.to raise_error(ActionController::RoutingError)
   end
 
-  # The JSON API was never a page and is untouched.
-  it "keeps the JSON API" do
-    get "/raaf/api/v1/agents"
+  # The JSON API rendered no page, so it outlived the screens by one ticket.
+  # It answered 200 to every call over data it never stored, which is worse
+  # than a 404: an integration against it fails silently and forever.
+  it "no longer routes the JSON agent API" do
+    expect { get "/raaf/api/v1/agents" }.to raise_error(ActionController::RoutingError)
+  end
 
-    expect(response).to have_http_status(:success)
+  it "no longer routes its nested conversations" do
+    expect { get "/raaf/api/v1/agents/1/conversations" }.to raise_error(ActionController::RoutingError)
   end
 
   it "renders no page through SimpleDashboard, because there is none" do
