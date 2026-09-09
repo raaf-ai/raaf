@@ -48,7 +48,7 @@ module RAAF
           )
 
           render_in_layout panel, title: "System status", crumb: "Continuous",
-                                  current: :health, live: false
+                                  current: :system, live: false
         end
 
         private

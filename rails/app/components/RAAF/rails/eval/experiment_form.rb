@@ -47,7 +47,7 @@ module RAAF
         end
 
         def errors
-          render(Molecules::Alert.new(:danger, title: error_title)) do
+          render(Molecules::Alert.new(:error, title: error_title)) do
             ul(class: "raaf-alert-list") do
               @experiment.errors.full_messages.each { |message| li { message } }
             end

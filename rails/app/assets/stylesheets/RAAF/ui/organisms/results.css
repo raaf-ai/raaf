@@ -213,8 +213,11 @@
 .raaf-criterion > .raaf-text { max-width: 72ch; }
 
 /* The criterion's own wording, folded away: it is written for the judge, it
-   is long, and it is the same shape for every criterion in the list. */
-.raaf-criterion-ask > summary {
+   is long, and it is the same shape for every criterion in the list.
+   `.raaf-disclosure` is the same affordance without the criterion — a queue
+   item's backtrace folds the same way, for the same reason. */
+.raaf-criterion-ask > summary,
+.raaf-disclosure > summary {
   display: inline-flex;
   align-items: center;
   gap: var(--raaf-space-2);
@@ -226,19 +229,24 @@
   list-style: none;
 }
 
-.raaf-criterion-ask > summary::-webkit-details-marker { display: none; }
+.raaf-criterion-ask > summary::-webkit-details-marker,
+.raaf-disclosure > summary::-webkit-details-marker { display: none; }
 
-.raaf-criterion-ask > summary::before {
+.raaf-criterion-ask > summary::before,
+.raaf-disclosure > summary::before {
   content: "\25B8";
   font-size: 10px;
   transition: transform 120ms ease;
 }
 
-.raaf-criterion-ask[open] > summary::before { transform: rotate(90deg); }
+.raaf-criterion-ask[open] > summary::before,
+.raaf-disclosure[open] > summary::before { transform: rotate(90deg); }
 
-.raaf-criterion-ask > summary:hover { color: var(--raaf-text-secondary); }
+.raaf-criterion-ask > summary:hover,
+.raaf-disclosure > summary:hover { color: var(--raaf-text-secondary); }
 
-.raaf-criterion-ask > summary:focus-visible {
+.raaf-criterion-ask > summary:focus-visible,
+.raaf-disclosure > summary:focus-visible {
   outline: 2px solid var(--raaf-text-link);
   outline-offset: 2px;
   border-radius: 3px;

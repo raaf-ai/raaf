@@ -19,6 +19,8 @@ module RAAF
       #   be a picture of something that does not exist.
       #
       class PolicyShow < RAAF::Rails::Tracing::BaseComponent
+        include CheckSampling
+
         # Above this a score is healthy, below the lower bound it is failing.
 
         # @param check_scores [Hash] field name => { average:, count: }
@@ -224,7 +226,7 @@ module RAAF
             render Atoms::ProgressBar.new(value: (measured&.dig(:average).to_f * 100).round,
                                           tone: bar_tone(measured&.dig(:average)))
 
-            render Atoms::Text.new(check_note(measured, key: title && check),
+            render Atoms::Text.new(check_note(measured, key: title && check, check: check),
                                    size: :sm, tone: :muted)
           end
         end
@@ -246,9 +248,42 @@ module RAAF
 
         # The key is printed as the policy stores it, underscores and all: it is
         # an identifier to match against the edit form, not a phrase to read.
-        def check_note(measured, key: nil)
+        #
+        # How often the check fires and whether it fires on its own belong
+        # here too: the card said what each check scored and nothing about
+        # when it runs, which is the other half of reading a policy.
+        def check_note(measured, key: nil, check: nil)
           count = measured.nil? ? "No results yet" : "#{pluralize(measured[:count], 'evaluation')} scored"
-          [key.presence, count].compact.join(" · ")
+
+          [key.presence, sampling_note(check), count, shared_score_note(check)]
+            .compact.join(" · ")
+        end
+
+        def sampling_note(check)
+          entry = sampling_by_check[check.to_s]
+          return nil unless entry
+
+          entry[:trigger] == "manual" ? "manual" : entry[:sampling]
+        end
+
+        # Two checks on one field draw two bars reporting the same combined
+        # score, because a check is keyed `field:evaluator` while a result
+        # records the field alone. The code documented this; the screen did
+        # not, so a reader saw two independent measurements agreeing exactly
+        # and read it as corroboration.
+        def shared_score_note(check)
+          field = check.to_s.split(":", 2).first
+          return nil if field == check.to_s
+          return nil unless @check_scores[check].nil? && @check_scores[field]
+
+          others = checks.count { |(_evaluator, other)| other.to_s.split(":", 2).first == field }
+          return nil if others < 2
+
+          "score shared with #{pluralize(others - 1, 'other check')} on #{field}"
+        end
+
+        def sampling_by_check
+          @sampling_by_check ||= check_sampling(@policy).index_by { |entry| entry[:check] }
         end
 
         # The checks every evaluator on the policy declares, in order, each
@@ -285,6 +320,7 @@ module RAAF
           [["Agent", @policy.agent_name.presence || "any agent"],
            ["Environment", environment_label],
            ["Sampling", sample_label],
+           ["Triggers", trigger_label],
            ["Daily cap", @policy.max_daily_evaluations.to_i.positive? ? @policy.max_daily_evaluations.to_s : "none"],
            ["Concurrency", @policy.max_concurrent_evaluations.to_s],
            ["Retries", @policy.max_retries.to_s],
@@ -297,12 +333,19 @@ module RAAF
           @policy.environment.presence == "all" ? "every environment" : @policy.environment.to_s
         end
 
+        # A check whose trigger is manual does not fire on its own however it
+        # is sampled, and that was visible nowhere outside the edit form.
+        def trigger_label
+          manual = check_sampling(@policy).count { |entry| entry[:trigger] == "manual" }
+          return "every check runs automatically" if manual.zero?
+
+          "#{pluralize(manual, 'check')} run only when started by hand"
+        end
+
+        # What the checks are actually sampled at, not the minimum the
+        # controller writes onto the policy on save. See {CheckSampling}.
         def sample_label
-          case @policy.sampling_mode
-          when "every_n" then "every #{@policy.sample_every_n}th span"
-          when "percentage" then "#{@policy.sample_rate}% of spans"
-          else "every span"
-          end
+          policy_sampling_label(@policy)
         end
 
         def retention_label

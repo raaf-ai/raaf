@@ -225,15 +225,29 @@ module RAAF
               { key: :prompts, label: "Prompts", icon: "file-text", href: eval_prompts_path },
               { key: :feedback, label: "Feedback scores", icon: "hand-thumbs-up", href: eval_feedback_scores_path }
             ] },
+            # Evaluators, Analytics and System status render correctly and
+            # were in no menu. Analytics is the only screen in the console
+            # that reports what evaluation itself costs, which for an
+            # LLM-judge policy is the figure that decides the sampling rate;
+            # System status carries queue depth, backpressure and the
+            # configuration in force, and its own comment records that it
+            # raised NoMethodError for a long time and nobody noticed —
+            # because nothing linked it.
             { id: :continuous, label: "Continuous", items: [
               { key: :policies, label: "Policies", icon: "clipboard-check", href: continuous_policies_path },
+              { key: :evaluators, label: "Evaluators", icon: "puzzle",
+                href: continuous_evaluators_path },
               { key: :queue, label: "Queue", icon: "hourglass-split",
                 href: continuous_queue_index_path },
               { key: :results, label: "Results", icon: "list-check", href: continuous_results_path },
               { key: :trends, label: "Score trends", icon: "graph-up",
                 href: continuous_trends_path },
+              { key: :analytics, label: "Analytics", icon: "bar-chart-line",
+                href: continuous_analytics_path },
               { key: :health, label: "Health", icon: "heart-pulse",
-                href: continuous_health_path }
+                href: continuous_health_path },
+              { key: :system, label: "System status", icon: "hdd-stack",
+                href: dashboard_continuous_health_path }
             ] }
           ]
         end

@@ -11,7 +11,17 @@ module RAAF
       # one now: every policy naming this evaluator brings its own panel of
       # matching spans, so the run starts from the evaluator you were reading
       # about rather than from a span you had to go and find.
+      #
+      # It rendered in the light theme, and it was in no menu; both are fixed
+      # under #1023, in that order — the nav should not lead from a dark
+      # section into a white card.
       class EvaluatorShow < RAAF::Rails::Tracing::BaseComponent
+        CHECK_COLUMNS = [
+          { label: "Check", span: 2.4 },
+          { label: "Field", span: 1.4 },
+          { label: "Type", span: 0.9, align: :right }
+        ].freeze
+
         # Human wording for the three types the registry reports.
         #
         # An evaluator that declares `evaluator_type` and leaves it unset comes
@@ -38,160 +48,155 @@ module RAAF
         end
 
         def view_template
-          div(class: "p-6") do
-            render_header
-            div(class: "grid grid-cols-1 lg:grid-cols-3 gap-6") do
-              div(class: "lg:col-span-2 space-y-6") do
-                render_checks
-                render_span_panels
-              end
-              div(class: "space-y-6") do
-                render_details_sidebar
-                render_policies_sidebar
-              end
-            end
+          div(class: "raaf-page") do
+            header
+            checks_card
+            details_card
+            policies_card
+            span_panels
           end
         end
 
         private
 
-        def render_header
-          div(class: "sm:flex sm:items-center sm:justify-between mb-6 pb-4 border-b border-gray-200") do
-            div do
-              div(class: "flex items-center gap-3") do
-                h1(class: "text-2xl font-bold text-gray-900") { @evaluator[:name].to_s }
-                render_type_badge
-              end
-              p(class: "text-sm text-gray-500 mt-1") { @evaluator[:description] } if @evaluator[:description].present?
+        def header
+          render Organisms::RecordHead.new(
+            parent: { label: "Evaluators", href: continuous_evaluators_path },
+            title: @evaluator[:name].to_s,
+            mono: true,
+            description: @evaluator[:description].presence,
+            badges: [type_badge].compact,
+            meta: @evaluator[:class_name].to_s,
+            stats: head_stats
+          )
+        end
+
+        def head_stats
+          [{ label: "Checks", value: @evaluator[:checks].to_a.size.to_s },
+           { label: "Policies", value: @policies.size.to_s },
+           { label: "Costs a call", value: judged_by_llm? ? "yes" : "no",
+             tone: judged_by_llm? ? :warning : nil }]
+        end
+
+        def type_badge
+          label = self.class.format_type(@evaluator[:type])
+          return nil if label.nil?
+
+          Atoms::Badge.for_check_type(@evaluator[:type], size: :sm)
+        end
+
+        # ── Checks ────────────────────────────────────────────────────────
+
+        def checks_card
+          render(Organisms::Card.new(
+                   title: "Checks",
+                   subtitle: "What one evaluation of this evaluator grades, field by field.",
+                   flush: true
+                 )) do
+            render(Organisms::DataGrid.new(
+                     columns: CHECK_COLUMNS,
+                     empty: { icon: "sliders", title: "No checks",
+                              text: "This evaluator declares no checks, so a policy " \
+                                    "naming it would grade nothing." }
+                   )) do |grid|
+              @evaluator[:checks].to_a.each { |check| check_row(grid, check) }
             end
-            link_to(
-              "All Evaluators",
-              continuous_evaluators_path,
-              class: "text-sm text-blue-600 hover:text-blue-500 flex-shrink-0"
-            )
           end
         end
 
-        def render_checks
-          checks = @evaluator[:checks].to_a
+        def check_row(grid, check)
+          grid.row(cells: [
+                     { value: Molecules::TitleMeta.new(check_name(check),
+                                                       check[:description].presence),
+                       primary: true },
+                     { value: Atoms::Mono.new(check[:field_name].to_s, tone: :muted) },
+                     { value: Atoms::Badge.for_check_type(check[:check_type], size: :sm),
+                       align: :right }
+                   ])
+        end
 
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Checks" }
-              p(class: "text-sm text-gray-500 mt-1") do
-                "What one evaluation of this evaluator grades, field by field."
-              end
-            end
+        def check_name(check)
+          check[:display_name].presence || check[:field_name].to_s.humanize
+        end
 
-            if checks.empty?
-              div(class: "px-4 py-8 text-center text-sm text-gray-500") do
-                "This evaluator declares no checks, so a policy naming it would grade nothing."
-              end
-            else
-              div(class: "divide-y divide-gray-200") do
-                checks.each { |check| render_check(check) }
-              end
+        # ── Details ───────────────────────────────────────────────────────
+
+        def details_card
+          render(Organisms::Card.new(title: "Details", flush: true)) do
+            render Molecules::KeyValueList.new(pairs: detail_pairs, layout: :rows,
+                                               mono: true, flush: true)
+          end
+        end
+
+        def detail_pairs
+          options = @evaluator[:configurable_options].to_a
+
+          { "Type" => self.class.format_type(@evaluator[:type]) || "—",
+            "Class" => @evaluator[:class_name].to_s,
+            "Agent" => @evaluator[:agent_name].presence || "—",
+            "Billed model call" => judged_by_llm? ? "yes" : "no",
+            "Options" => options.any? ? options.map(&:to_s).join(", ") : "—" }
+        end
+
+        # ── Policies ──────────────────────────────────────────────────────
+
+        POLICY_COLUMNS = [
+          { label: "Policy", span: 2.4 },
+          { label: "State", span: 0.8, align: :right }
+        ].freeze
+
+        def policies_card
+          render(Organisms::Card.new(title: "Graded by", subtitle: policies_subtitle,
+                                     flush: true)) do
+            render(Organisms::DataGrid.new(
+                     columns: POLICY_COLUMNS,
+                     empty: { icon: "clipboard-check", title: "No policy names this evaluator",
+                              text: "Nothing grades with it, and nothing will until a " \
+                                    "policy does — being registered is not being used." }
+                   )) do |grid|
+              @policies.each { |policy| policy_row(grid, policy) }
             end
           end
         end
 
-        def render_check(check)
-          div(class: "px-4 py-3 flex items-start justify-between gap-3") do
-            div(class: "min-w-0 flex-1") do
-              span(class: "text-sm font-medium text-gray-900") do
-                plain(check[:display_name].presence || check[:field_name].to_s.humanize)
-              end
-              p(class: "text-xs text-gray-500 mt-0.5") { check[:description] } if check[:description].present?
-              p(class: "text-xs text-gray-400 mt-0.5 font-mono") { check[:field_name].to_s }
-            end
-            span(class: "flex-shrink-0") { render_check_type_badge(check[:check_type]) }
-          end
+        def policies_subtitle
+          return nil if @policies.empty?
+
+          "#{pluralize(@policies.size, 'policy')} names this evaluator"
         end
+
+        def policy_row(grid, policy)
+          grid.row(href: continuous_policy_path(policy), cells: [
+                     { value: policy.name.to_s, primary: true },
+                     { value: Atoms::StatusBadge.new(policy.active? ? "active" : "inactive"),
+                       align: :right }
+                   ])
+        end
+
+        # ── Grade a span now ──────────────────────────────────────────────
 
         # One panel per policy, because "grade this now" is a question only a
         # policy can answer: the checks that run, the cap and the counter all
         # belong to it, not to the evaluator.
-        def render_span_panels
-          return render_unused_notice if @policies.empty?
+        def span_panels
+          return if @policies.empty?
 
           @policies.each do |policy|
-            div do
-              h3(class: "text-sm font-medium text-gray-700 mb-2") do
-                link_to(policy.name, continuous_policy_path(policy), class: "text-blue-600 hover:text-blue-500")
-              end
+            render(Organisms::Card.new(title: "Grade a span with #{policy.name}",
+                                       flush: true)) do
               render MatchingSpansPanel.new(policy: policy, spans: @spans_by_policy[policy.id].to_a)
             end
           end
 
-          return if @unpanelled.zero?
+          overflow_note unless @unpanelled.zero?
+        end
 
-          p(class: "text-xs text-gray-500") do
+        def overflow_note
+          render Atoms::Text.new(
             "#{pluralize(@unpanelled, 'further policy')} also uses this evaluator; " \
-              "open it from the list to grade a span with it."
-          end
-        end
-
-        def render_unused_notice
-          div(class: "bg-white shadow rounded-lg px-4 py-8 text-center") do
-            i(class: "bi-exclamation-triangle text-amber-500 text-2xl")
-            p(class: "text-sm text-gray-700 mt-2") { "No policy names this evaluator." }
-            p(class: "text-xs text-gray-500 mt-1") do
-              "Nothing grades with it, and nothing will until a policy does — being registered is not being used."
-            end
-            link_to(
-              "Policies",
-              continuous_policies_path,
-              class: "inline-flex items-center gap-1 mt-3 text-sm text-blue-600 hover:text-blue-500"
-            )
-          end
-        end
-
-        def render_details_sidebar
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Details" }
-            end
-            div(class: "px-4 py-4 space-y-3") do
-              detail_row("Type", self.class.format_type(@evaluator[:type]) || "—")
-              detail_row("Class", @evaluator[:class_name].to_s)
-              detail_row("Agent", @evaluator[:agent_name].presence || "—")
-              detail_row("Billed model call", judged_by_llm? ? "Yes" : "No")
-
-              options = @evaluator[:configurable_options].to_a
-              detail_row("Options", options.any? ? options.map(&:to_s).join(", ") : "—")
-            end
-          end
-        end
-
-        def render_policies_sidebar
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            div(class: "px-4 py-5 sm:px-6 border-b border-gray-200") do
-              h3(class: "text-lg font-medium text-gray-900") { "Graded by" }
-            end
-
-            if @policies.empty?
-              div(class: "px-4 py-4 text-sm text-gray-500") { "No policy." }
-            else
-              div(class: "divide-y divide-gray-200") do
-                @policies.each do |policy|
-                  link_to(
-                    continuous_policy_path(policy),
-                    class: "flex items-center justify-between px-4 py-3 hover:bg-gray-50"
-                  ) do
-                    span(class: "text-sm text-gray-700 truncate") { policy.name }
-                    render_policy_state_badge(policy)
-                  end
-                end
-              end
-            end
-          end
-        end
-
-        def detail_row(label, value)
-          div(class: "flex items-start justify-between gap-3") do
-            span(class: "text-sm text-gray-500 flex-shrink-0") { label }
-            span(class: "text-sm text-gray-900 text-right break-all") { value.to_s }
-          end
+            "open it from the list to grade a span with it.",
+            size: :sm, tone: :muted
+          )
         end
 
         # The evaluator's own type is often unset, so the checks are asked
@@ -201,48 +206,6 @@ module RAAF
           return true if @evaluator[:uses_llm]
 
           @evaluator[:checks].to_a.any? { |check| check[:check_type].to_s == "llm_judge" }
-        end
-
-        def render_type_badge
-          label = self.class.format_type(@evaluator[:type])
-          return if label.nil?
-
-          classes = case @evaluator[:type].to_s
-                    when "llm_judge" then "bg-purple-100 text-purple-800"
-                    when "statistical" then "bg-blue-100 text-blue-800"
-                    else "bg-gray-100 text-gray-700"
-                    end
-
-          span(class: "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium #{classes}") do
-            label
-          end
-        end
-
-        def render_check_type_badge(check_type)
-          label = self.class.format_type(check_type)
-          return if label.nil?
-
-          classes = case check_type.to_s
-                    when "llm_judge" then "bg-purple-100 text-purple-800"
-                    when "statistical" then "bg-blue-100 text-blue-800"
-                    else "bg-gray-100 text-gray-700"
-                    end
-
-          span(class: "inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium #{classes}") do
-            label
-          end
-        end
-
-        def render_policy_state_badge(policy)
-          if policy.active?
-            span(class: "inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800") do
-              "Active"
-            end
-          else
-            span(class: "inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600") do
-              "Inactive"
-            end
-          end
         end
       end
     end

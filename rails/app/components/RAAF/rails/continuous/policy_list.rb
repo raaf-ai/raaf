@@ -13,6 +13,8 @@ module RAAF
       # column happens in one place for all of them.
       #
       class PolicyList < RAAF::Rails::Tracing::BaseComponent
+        include CheckSampling
+
         # Columns and fr weights taken from RAAF Continuous.dc.html.
         COLUMNS = [
           { label: "Policy", span: 2.2 },
@@ -151,13 +153,13 @@ module RAAF
         end
 
         # Sampling reads as a rate when it is one, and as a stride when the
-        # policy takes every Nth span instead.
+        # policy takes every Nth span instead — per check, since that is where
+        # it is configured. See {CheckSampling}: the policy-level column this
+        # used to print is a minimum the controller synthesises on save, so a
+        # policy with checks at 1/10 and 1/100 read "1/10" and was wrong about
+        # one of them.
         def sample_for(policy)
-          case policy.sampling_mode
-          when "every_n" then "1/#{policy.sample_every_n}"
-          when "percentage" then "#{policy.sample_rate}%"
-          else "all"
-          end
+          policy_sampling_cell(policy)
         end
       end
     end

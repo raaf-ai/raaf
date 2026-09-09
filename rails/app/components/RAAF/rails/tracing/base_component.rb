@@ -194,6 +194,14 @@ module RAAF
           continuous_queue_path(id)
         end
 
+        def retry_failed_continuous_queue_index_path
+          "/raaf/continuous/queue/retry_failed"
+        end
+
+        def clear_completed_continuous_queue_index_path
+          "/raaf/continuous/queue/clear_completed"
+        end
+
         def retry_continuous_queue_item_path(id)
           queue_id = id.respond_to?(:id) ? id.id : id
           "/raaf/continuous/queue/#{queue_id}/retry"
@@ -226,6 +234,14 @@ module RAAF
         def continuous_health_path(params = {})
           path = "/raaf/continuous/health"
           params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
+        # System status: queue depth, backpressure and the configuration in
+        # force. Reached from the sidebar since #1023; nothing linked it
+        # before, which is why it raised NoMethodError for a long time
+        # unnoticed.
+        def dashboard_continuous_health_path
+          "/raaf/continuous/health/dashboard"
         end
 
         # Eval feature routes (Opik-inspired: Datasets, Experiments, Feedback, Prompts)
