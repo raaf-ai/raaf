@@ -53,7 +53,7 @@ module RAAF
 
         def view_template
           div(class: "raaf-page") do
-            breadcrumb
+            header
             filters
             table
           end
@@ -61,13 +61,23 @@ module RAAF
 
         private
 
-        def breadcrumb
-          render Molecules::Breadcrumb.new(items: [
-                                             { label: "Experiments", href: eval_experiments_path },
-                                             { label: @experiment.name,
-                                               href: eval_experiment_path(@experiment) },
-                                             { label: "Results" }
-                                           ])
+        # The shell already prints "<experiment> · results" as the page title.
+        # This screen printed a second breadcrumb reading "Experiments /
+        # <experiment> / Results" under it, so the run's name and the word
+        # Results both appeared twice within two lines — the doubling #1024
+        # settled, which this screen escaped because it is a list rather than
+        # a detail.
+        #
+        # RecordHead carries the one thing the shell's crumb cannot: a link
+        # back to the experiment these results belong to.
+        def header
+          render Organisms::RecordHead.new(
+            parent: { label: @experiment.name, href: eval_experiment_path(@experiment) },
+            title: "Results",
+            description: @experiment.description.presence,
+            status: @experiment.status,
+            meta: [@experiment.agent_name.presence, @experiment.model.presence].compact.join(" · ")
+          )
         end
 
         # ── Filters ───────────────────────────────────────────────────────
