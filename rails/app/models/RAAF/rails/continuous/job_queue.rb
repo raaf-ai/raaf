@@ -127,6 +127,33 @@ module RAAF
           end
         end
 
+        # ── Acting on the failed ──────────────────────────────────────────
+        #
+        # Both act on exactly the rows `failed` lists, which is the point:
+        # the screen's controls used to move `EvaluationQueueItem` rows --
+        # RAAF's record of what it decided to run -- while the card beside them
+        # counted the jobs a worker gave up on. A job that died before RAAF
+        # wrote its ledger row was in the count and out of the retry, and
+        # nothing on the screen said so.
+
+        # Re-enqueues every failed job. SolidQueue's own `retry` resets the
+        # job's execution counters and puts it back on its queue, so a requeued
+        # job goes through the same worker path it failed on.
+        #
+        # @return [Integer] jobs put back on the queue
+        def retry_failed
+          each_failed_execution(&:retry)
+        end
+
+        # Drops every failed job, the row and the job behind it. There is no
+        # third state to move them to: a failure nobody retries stays in the
+        # count for good otherwise.
+        #
+        # @return [Integer] jobs discarded
+        def discard_failed
+          each_failed_execution(&:discard)
+        end
+
         # ── Throughput ────────────────────────────────────────────────────
 
         # One bucket per hour across the window, oldest first, so the bars read
@@ -189,6 +216,21 @@ module RAAF
           return relation.none unless available?
 
           relation.where(job_id: raaf_jobs.select(:id))
+        end
+
+        # Each row is read before it is acted on, because acting on one deletes
+        # it: iterating the relation itself would walk a moving target. A row
+        # another worker has already cleaned up is gone rather than an error,
+        # so it is counted as neither.
+        def each_failed_execution
+          executions = scoped(::SolidQueue::FailedExecution).order(created_at: :desc).to_a
+
+          executions.count do |execution|
+            yield(execution)
+            true
+          rescue ActiveRecord::RecordNotFound
+            false
+          end
         end
 
         def jobs_by_id(ids)

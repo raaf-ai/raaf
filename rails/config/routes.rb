@@ -108,7 +108,7 @@ RAAF::Rails::Engine.routes.draw do
       end
       collection do
         post :retry_failed
-        delete :clear_completed
+        delete :discard_failed
       end
     end
 

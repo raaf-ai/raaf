@@ -7,6 +7,11 @@ require "active_job/railtie"
 
 require "phlex-rails"
 require "kaminari"
+
+# The Queue screen reads the SolidQueue tables directly, so its models have to
+# be loaded for the specs to have anything to read. The queue adapter stays
+# :test -- nothing here runs a worker; the rows are written by hand.
+require "solid_queue"
 require "raaf-rails"
 
 module Dummy

@@ -41,6 +41,33 @@ module ContinuousRecords
     )
   end
 
+  # A job in the backend the Queue screen reads, written by hand rather than
+  # enqueued: the specs run the :test adapter, which keeps jobs in memory, and
+  # the screen reads SolidQueue's tables.
+  #
+  # The arguments go in the shape ActiveJob serializes them into, since that is
+  # what JobQueue unwraps to name the span and policy behind a row.
+  def create_queue_job(span_id: "span-#{SecureRandom.hex(4)}", policy_id: nil,
+                       queue_name: "raaf_evaluations", finished_at: nil)
+    SolidQueue::Job.create!(
+      queue_name: queue_name,
+      class_name: "RAAF::Rails::Continuous::EvaluationJob",
+      arguments: { "arguments" => [{ "span_id" => span_id, "policy_id" => policy_id }] },
+      priority: 0,
+      finished_at: finished_at
+    )
+  end
+
+  # A job SolidQueue has given up on. Creating a job readies it for execution,
+  # as enqueueing one does, so the ready row is cleared: a failed job is not
+  # also waiting for a worker.
+  def create_failed_job(error: { "exception_class" => "RuntimeError", "message" => "boom" }, **attributes)
+    job = create_queue_job(**attributes)
+    job.ready_execution&.destroy
+    SolidQueue::FailedExecution.create!(job: job, error: error)
+    job.reload
+  end
+
   def create_metric(**attributes)
     RAAF::Eval::Models::EvaluationMetric.create!(
       { agent_name: "TestAgent",

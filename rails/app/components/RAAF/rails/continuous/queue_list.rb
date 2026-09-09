@@ -13,6 +13,11 @@ module RAAF
       # actually pick up, and the two part company the moment a worker dies
       # mid-run. A queue screen is for the second question.
       #
+      # The buttons read it too. They used to move `EvaluationQueueItem` rows
+      # while the cards counted SolidQueue's, so "Requeue failed" beside a
+      # count of failures acted on a different set of failures. Every figure
+      # and every control here now comes from the one table.
+      #
       # Three places the design assumes a shape RAAF does not have, each one
       # decided rather than faked:
       #
@@ -297,34 +302,27 @@ module RAAF
         end
 
         # The card's own subtitle promised jobs "stay here until they are
-        # retried or discarded" and offered neither, though `retry_failed` and
-        # `clear_completed` are both routed. Retry existed only on the Queue
-        # item screen, reachable only from a Result detail that happened to
-        # carry a queue item.
+        # retried or discarded" and offered neither: retry moved RAAF's ledger
+        # rows rather than these, and the second button cleared completed items
+        # this screen does not list. Both now act on the rows above them.
         def failed_actions
           render Molecules::RowActions.new(actions: [
                                              { label: "Requeue failed",
                                                href: retry_failed_continuous_queue_index_path,
                                                method: :post,
-                                               confirm: "Re-run every failed evaluation RAAF " \
-                                                        "recorded?" },
-                                             { label: "Clear completed",
-                                               href: clear_completed_continuous_queue_index_path,
+                                               confirm: "Put every failed job back on the " \
+                                                        "queue?" },
+                                             { label: "Discard failed",
+                                               href: discard_failed_continuous_queue_index_path,
                                                method: :delete, tone: :danger,
-                                               confirm: "Delete every completed and cancelled " \
-                                                        "queue item?" }
+                                               confirm: "Drop every failed job? They will not " \
+                                                        "run again." }
                                            ])
         end
 
-        # Which table each half speaks for, because they are not the same
-        # table. The list is SolidQueue's — what a worker actually failed at.
-        # The controls act on EvaluationQueueItem, RAAF's own ledger of what it
-        # decided to run. A span can appear in one and not the other, and a
-        # reader comparing the counts needs to know that before they do.
         def failed_subtitle
-          "#{pluralize(@queue.failed_count, 'job')} a worker gave up on, from SolidQueue. " \
-            "Requeue re-runs the evaluations RAAF recorded as failed, which is a " \
-            "different list where a job died before RAAF saw it."
+          "#{pluralize(@queue.failed_count, 'job')} a worker gave up on. " \
+            "They stay here until they are requeued or discarded."
         end
 
         def failed_row(grid, row)

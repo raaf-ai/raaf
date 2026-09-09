@@ -198,8 +198,8 @@ module RAAF
           "/raaf/continuous/queue/retry_failed"
         end
 
-        def clear_completed_continuous_queue_index_path
-          "/raaf/continuous/queue/clear_completed"
+        def discard_failed_continuous_queue_index_path
+          "/raaf/continuous/queue/discard_failed"
         end
 
         def retry_continuous_queue_item_path(id)

@@ -16,9 +16,12 @@ module RAAF
         # worker will actually pick up, and the two part company the moment a
         # worker dies mid-run — which is why `StaleJobCleanupJob` exists.
         #
-        # The JSON branch still answers with the RAAF rows. It is what the
-        # existing `show`, `retry` and `cancel` actions operate on, and
-        # changing its shape would break any caller of this endpoint.
+        # Every figure and every control on this screen reads the one source.
+        # They did not: the cards counted SolidQueue rows and the buttons
+        # beside them moved RAAF's, so "failed" meant two populations on one
+        # screen and requeueing did not act on what the card had listed.
+        # `EvaluationQueueItem` is still RAAF's audit trail, and the item
+        # screen still reads it — it drives nothing here.
         def index
           @queue = RAAF::Rails::Continuous::JobQueue.new(window: 24.hours)
 
@@ -27,7 +30,7 @@ module RAAF
               queue_list = RAAF::Rails::Continuous::QueueList.new(queue: @queue)
               render_in_layout queue_list, title: "Queue", crumb: "Continuous", current: :queue
             end
-            format.json { render json: queue_items_for_json }
+            format.json { render json: queue_json }
           end
         end
 
@@ -64,36 +67,44 @@ module RAAF
         end
 
         # POST /raaf/rails/continuous/queue/retry_failed
+        # Puts back exactly the jobs the Failed card lists.
         def retry_failed
-          failed_items = EvaluationQueue.where(status: "failed")
-          count = failed_items.count
-          failed_items.find_each do |item|
-            item.update!(status: "pending", attempts: 0, error_message: nil)
-            RAAF::Rails::Continuous::EvaluationJob.perform_later(
-              span_id: item.span_id,
-              policy_id: item.evaluation_policy_id
-            )
-          end
-          redirect_to continuous_queue_index_path, notice: "#{count} evaluations requeued."
+          count = job_queue.retry_failed
+          redirect_to continuous_queue_index_path,
+                      notice: "#{helpers.pluralize(count, 'failed job')} requeued."
         end
 
-        # DELETE /raaf/rails/continuous/queue/clear_completed
-        def clear_completed
-          count = EvaluationQueue.where(status: %w[completed cancelled]).delete_all
-          redirect_to continuous_queue_index_path, notice: "#{count} completed items cleared."
+        # DELETE /raaf/rails/continuous/queue/discard_failed
+        # The other half of what the Failed card promises. It replaces a
+        # "Clear completed" that deleted `EvaluationQueueItem` rows: completed
+        # evaluations are not on this screen, so the button emptied a table
+        # nobody was looking at, out of the source the rest of the screen had
+        # stopped reading.
+        def discard_failed
+          count = job_queue.discard_failed
+          redirect_to continuous_queue_index_path,
+                      notice: "#{helpers.pluralize(count, 'failed job')} discarded."
         end
 
         private
+
+        def job_queue
+          @job_queue ||= RAAF::Rails::Continuous::JobQueue.new(window: 24.hours)
+        end
 
         def set_queue_item
           @queue_item = EvaluationQueue.find(params[:id])
         end
 
-        def queue_items_for_json
-          items = EvaluationQueue.order(created_at: :desc)
-          items = items.where(status: params[:status]) if params[:status].present?
-          items = items.where(evaluation_policy_id: params[:policy_id]) if params[:policy_id].present?
-          items.limit(50)
+        # The same four figures and three lists the screen draws, from the same
+        # source it draws them from.
+        def queue_json
+          { available: RAAF::Rails::Continuous::JobQueue.available?,
+            counts: { waiting: @queue.waiting_count, in_flight: @queue.in_flight_count,
+                      scheduled: @queue.scheduled_count, failed: @queue.failed_count },
+            in_flight: @queue.in_flight,
+            waiting: @queue.waiting,
+            failed: @queue.failed }
         end
       end
     end

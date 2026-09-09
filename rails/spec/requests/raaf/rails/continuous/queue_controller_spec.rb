@@ -11,29 +11,23 @@ RSpec.describe RAAF::Rails::Continuous::QueueController, type: :request do
       expect(response).to have_http_status(:success)
     end
 
-    it "filters by status" do
-      create_queue_item(
-        evaluation_policy: policy,
-        span_id: "span-1",
-        status: "pending"
-      )
-      create_queue_item(
-        evaluation_policy: policy,
-        span_id: "span-2",
-        status: "failed"
-      )
-
-      get continuous_queue_index_path(status: "failed")
-      expect(response).to have_http_status(:success)
-    end
-
-    it "displays queue stats" do
-      create_queue_item(evaluation_policy: policy, span_id: "span-1", status: "pending")
-      create_queue_item(evaluation_policy: policy, span_id: "span-2", status: "running")
-      create_queue_item(evaluation_policy: policy, span_id: "span-3", status: "failed")
+    it "counts the jobs a worker is waiting on" do
+      create_queue_job
 
       get continuous_queue_index_path
-      expect(response).to have_http_status(:success)
+
+      expect(response.body).to include("Queued")
+      expect(response.body).to include("jobs awaiting a worker")
+    end
+
+    # The ledger is the audit trail. It says what RAAF decided to run, which is
+    # not what this screen is about.
+    it "counts nothing from RAAF's ledger" do
+      create_queue_item(evaluation_policy: policy, span_id: "span-1", status: "failed")
+
+      get continuous_queue_index_path(format: :json)
+
+      expect(response.parsed_body["counts"]["failed"]).to eq(0)
     end
   end
 
@@ -114,64 +108,88 @@ RSpec.describe RAAF::Rails::Continuous::QueueController, type: :request do
     end
   end
 
+  # The Failed card counts SolidQueue rows -- jobs a worker gave up on. Its
+  # buttons used to move `EvaluationQueueItem` rows instead, so requeueing did
+  # not act on the failures the card had just listed.
   describe "POST /raaf/continuous/queue/retry_failed" do
-    before do
-      3.times do |i|
-        create_queue_item(
-          evaluation_policy: policy,
-          span_id: "span-#{i}",
-          status: "failed"
-        )
-      end
-    end
-
-    it "requeues all failed items" do
-      allow(RAAF::Rails::Continuous::EvaluationJob).to receive(:perform_later)
+    it "puts back exactly the jobs the Failed card lists" do
+      jobs = Array.new(3) { |index| create_failed_job(span_id: "span-#{index}") }
 
       post retry_failed_continuous_queue_index_path
 
-      expect(RAAF::Eval::Models::EvaluationQueueItem.where(status: "pending").count).to eq(3)
-      expect(RAAF::Eval::Models::EvaluationQueueItem.where(status: "failed").count).to eq(0)
+      expect(SolidQueue::FailedExecution.count).to eq(0)
+      expect(SolidQueue::ReadyExecution.where(job_id: jobs.map(&:id)).count).to eq(3)
     end
 
-    it "redirects with count in notice" do
-      allow(RAAF::Rails::Continuous::EvaluationJob).to receive(:perform_later)
+    it "leaves a failure in another application's queue alone" do
+      create_failed_job(queue_name: "host_default")
 
       post retry_failed_continuous_queue_index_path
+
+      expect(SolidQueue::FailedExecution.count).to eq(1)
+    end
+
+    it "does not touch RAAF's ledger, which is no longer what it acts on" do
+      create_failed_job
+      item = create_queue_item(evaluation_policy: policy, span_id: "span-1", status: "failed")
+
+      post retry_failed_continuous_queue_index_path
+
+      expect(item.reload.status).to eq("failed")
+    end
+
+    it "redirects with what it requeued" do
+      2.times { create_failed_job }
+
+      post retry_failed_continuous_queue_index_path
+
       expect(response).to redirect_to(continuous_queue_index_path)
-      expect(flash[:notice]).to eq("3 evaluations requeued.")
+      expect(flash[:notice]).to eq("2 failed jobs requeued.")
+    end
+
+    it "says so when there was nothing to requeue" do
+      post retry_failed_continuous_queue_index_path
+
+      expect(flash[:notice]).to eq("0 failed jobs requeued.")
     end
   end
 
-  describe "DELETE /raaf/continuous/queue/clear_completed" do
-    before do
-      2.times do |i|
-        create_queue_item(
-          evaluation_policy: policy,
-          span_id: "completed-#{i}",
-          status: "completed"
-        )
-      end
-      create_queue_item(evaluation_policy: policy, span_id: "cancelled-1", status: "cancelled")
-      create_queue_item(evaluation_policy: policy, span_id: "pending-1", status: "pending")
+  describe "DELETE /raaf/continuous/queue/discard_failed" do
+    it "drops the failed jobs and the jobs behind them" do
+      2.times { create_failed_job }
+
+      delete discard_failed_continuous_queue_index_path
+
+      expect(SolidQueue::FailedExecution.count).to eq(0)
+      expect(SolidQueue::Job.count).to eq(0)
     end
 
-    it "deletes completed and cancelled items" do
-      expect do
-        delete clear_completed_continuous_queue_index_path
-      end.to change(RAAF::Eval::Models::EvaluationQueueItem, :count).by(-3)
+    it "leaves a job that has not failed alone" do
+      create_queue_job
+
+      delete discard_failed_continuous_queue_index_path
+
+      expect(SolidQueue::Job.count).to eq(1)
     end
 
-    it "does not delete pending or running items" do
-      delete clear_completed_continuous_queue_index_path
+    it "redirects with what it discarded" do
+      create_failed_job
 
-      expect(RAAF::Eval::Models::EvaluationQueueItem.where(status: "pending").count).to eq(1)
-    end
+      delete discard_failed_continuous_queue_index_path
 
-    it "redirects with count in notice" do
-      delete clear_completed_continuous_queue_index_path
       expect(response).to redirect_to(continuous_queue_index_path)
-      expect(flash[:notice]).to eq("3 completed items cleared.")
+      expect(flash[:notice]).to eq("1 failed job discarded.")
+    end
+  end
+
+  describe "GET /raaf/continuous/queue.json" do
+    it "answers from the source the screen draws" do
+      create_failed_job(span_id: "span-json")
+
+      get continuous_queue_index_path(format: :json)
+
+      expect(response.parsed_body["counts"]["failed"]).to eq(1)
+      expect(response.parsed_body["failed"].first["span_id"]).to eq("span-json")
     end
   end
 end

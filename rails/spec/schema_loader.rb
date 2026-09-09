@@ -10,11 +10,22 @@ require "digest"
 # silently skip the second. The migration classes are applied directly instead,
 # against a schema that is dropped and rebuilt whenever the migration files
 # change. The digest below is what makes a repeat run cheap.
+#
+# SolidQueue's own tables are loaded alongside them, from the schema its
+# installer ships. The Queue screen reads those tables directly, and without
+# them every one of its figures degrades to "no job backend" -- which is honest
+# in an application that runs another adapter, and useless as the thing a spec
+# gets to look at.
 module SchemaLoader
   MIGRATION_PATHS = [
     File.expand_path("../../eval/db/migrate", __dir__),
     File.expand_path("../db/migrate", __dir__)
   ].freeze
+
+  QUEUE_SCHEMA = File.join(
+    Gem::Specification.find_by_name("solid_queue").gem_dir,
+    "lib/generators/solid_queue/install/templates/db/queue_schema.rb"
+  )
 
   FINGERPRINT_TABLE = "raaf_spec_schema_fingerprint"
 
@@ -39,7 +50,7 @@ module SchemaLoader
     end
 
     def migration_files
-      MIGRATION_PATHS.flat_map { |path| Dir[File.join(path, "*.rb")].sort }
+      MIGRATION_PATHS.flat_map { |path| Dir[File.join(path, "*.rb")].sort } + [QUEUE_SCHEMA]
     end
 
     def fingerprint
@@ -59,6 +70,7 @@ module SchemaLoader
 
       ActiveRecord::Migration.verbose = false
       migration_files.each { |file| apply(file) }
+      load_queue_schema
 
       connection.execute("CREATE TABLE #{FINGERPRINT_TABLE} (digest text)")
       connection.execute("INSERT INTO #{FINGERPRINT_TABLE} (digest) VALUES (#{connection.quote(fingerprint)})")
@@ -69,8 +81,16 @@ module SchemaLoader
     # so 001_create_raaf_evaluation_policies.rb camelizes back to the
     # CreateRAAFEvaluationPolicies the file actually defines.
     def apply(file)
+      return if file == QUEUE_SCHEMA
+
       load file
       File.basename(file, ".rb").sub(/\A\d+_/, "").camelize.constantize.new.migrate(:up)
+    end
+
+    # A schema definition rather than a migration: it declares the tables it
+    # wants and creates the ones that are missing.
+    def load_queue_schema
+      load QUEUE_SCHEMA
     end
   end
 end
