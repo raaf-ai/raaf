@@ -1061,8 +1061,20 @@ module RAAF
         end
 
         ##
-        # Store individual result records for each evaluated field.
-        # Creates one ContinuousEvaluationResult per field, enabling granular tracking.
+        # Store the result records for one evaluator's pass over a span.
+        #
+        # One row per check — that is, per `field:evaluator` — rather than one
+        # row per field. A field graded by both a rule and an LLM judge used to
+        # combine the two verdicts before writing, so neither survived: neither
+        # could be scored, trended or compared on its own, the policy screen
+        # drew two bars reporting one number, and turning one evaluator off
+        # moved that number with no way to attribute the move.
+        #
+        # A field whose evaluators were not recorded separately still writes
+        # one row, keyed by the field alone. That is what every row written
+        # before this looks like, and the screens label such a figure as a
+        # combined one rather than crediting it to an evaluator.
+        #
         # @param span [SpanRecord] The span being evaluated
         # @param policy [EvaluationPolicy] The policy configuration
         # @param queue_item [EvaluationQueueItem] The queue item for this evaluation
@@ -1072,12 +1084,10 @@ module RAAF
         # @param completed_at [Time] When evaluation completed
         # @param duration_ms [Integer] Total duration in milliseconds
         # @param only_fields [Array<Symbol>, nil] Fields that were evaluated (nil = all)
-        # @param evaluation_metadata [Hash] Additional metadata about the evaluation execution (mode, fallback info, etc.)
+        # @param evaluation_metadata [Hash] How the evaluation ran: its mode, any
+        #   fallback it took, and what its replays cost
         def store_per_field_results(span, policy, queue_item, evaluator_config, result, started_at, completed_at,
                                     duration_ms, only_fields, evaluation_metadata = {})
-          evaluator_name = evaluator_config["name"] || evaluator_config[:name]
-          evaluator_type = evaluator_config["type"] || evaluator_config[:type]
-
           # Get field results and individual evaluator results
           field_results = result.field_results
           evaluator_results = result.evaluator_results || {}
@@ -1089,80 +1099,132 @@ module RAAF
                               field_results
                             end
 
-          # Calculate duration per field (approximate)
-          per_field_duration = fields_to_store.any? ? (duration_ms / fields_to_store.size) : duration_ms
+          rows = fields_to_store.flat_map do |field_name, field_result|
+            checks_of(field_name, field_result, evaluator_results)
+          end
+          return if rows.empty?
 
-          # One set of replays serves every field this evaluator graded, so each
-          # row carries its share — summing rows then gives the true total
-          # instead of the total multiplied by the field count.
-          replay_cost = evaluation_metadata[:replay_cost_usd].to_f
-          per_field_replay_cost = fields_to_store.any? ? replay_cost / fields_to_store.size : replay_cost
+          # Duration and replay cost are the evaluator's, not any one check's.
+          # Each row carries its share, so summing rows gives the true total
+          # rather than the total multiplied by the number of checks.
+          per_row_duration = duration_ms / rows.size
+          per_row_replay_cost = evaluation_metadata[:replay_cost_usd].to_f / rows.size
 
           # Get span data for result formatting
           span_data = span_to_result_hash(span)
 
-          # Create one result record per field
-          fields_to_store.each do |field_name, field_result|
-            # Extract reasoning from multiple possible locations
-            # Evaluators may store it at top level or inside details
-            reasoning = field_result[:reasoning] ||
-                        field_result.dig(:details, :reasoning) ||
-                        field_result.dig(:details, "reasoning") ||
-                        field_result[:message] # Fallback to message if no reasoning
-
-            # Get the specific evaluators used for this field
-            # evaluator_results[field_name] is a hash keyed by evaluator alias
-            field_evaluators = evaluator_results[field_name] || evaluator_results[field_name.to_sym] || {}
-            specific_evaluators = field_evaluators.keys.map(&:to_s)
-
-            # Generate formatted markdown result using per-field formatter, evaluator formatter, or built-in
-            formatted_markdown = generate_formatted_result(evaluator_config, field_name, field_result, span_data)
-
-            # Build metadata including evaluation execution info (mode, fallback, etc.)
-            result_metadata = {
-              field_name: field_name.to_s,
-              check_name: field_name.to_s,
-              specific_evaluators: specific_evaluators
-            }.merge(evaluation_metadata)
-
-            spend = evaluation_spend(field_result, field_evaluators)
-            if per_field_replay_cost.positive?
-              spend[:evaluation_cost] =
-                (spend[:evaluation_cost] + per_field_replay_cost).round(6)
-            end
-
-            RAAF::Eval::Models::ContinuousEvaluationResult.create!(
-              span_id: span.span_id,
-              trace_id: span.trace_id,
-              evaluation_policy_id: policy.id,
-              queue_item_id: queue_item.id,
-              evaluation_type: "automated",
-              evaluator_name: evaluator_name,
-              evaluator_type: evaluator_type,
-              evaluator_version: nil,
-              agent_name: extract_agent_name(span),
-              agent_version: extract_agent_version(span),
-              model: extract_model(span),
-              provider: extract_provider(span),
-              environment: ::Rails.env,
-              status: determine_field_status(field_result),
-              score: field_score(field_result),
-              scores: { field_name.to_s => field_score(field_result) },
-              metrics: extract_metrics(span).merge(spend),
-              reasoning: reasoning,
-              details: {
-                field_name: field_name.to_s,
-                result: field_result,
-                checks: per_check_results(field_evaluators),
-                declared_checks: declared_checks_for(evaluator_name, field_name),
-                formatted_markdown: formatted_markdown
-              }.compact,
-              evaluation_duration_ms: per_field_duration,
-              evaluation_started_at: started_at,
-              evaluation_completed_at: completed_at,
-              metadata: result_metadata
-            )
+          rows.each do |row|
+            store_check_result(span, policy, queue_item, evaluator_config, row,
+                               started_at: started_at, completed_at: completed_at,
+                               duration_ms: per_row_duration, replay_cost: per_row_replay_cost,
+                               evaluation_metadata: evaluation_metadata, span_data: span_data)
           end
+        end
+
+        ##
+        # One field's results, split into the checks that produced them.
+        #
+        # An evaluator that recorded no breakdown gives one row with no check
+        # on it, keyed by the field as every row was before this. The column
+        # then means one thing only -- this score is one named evaluator's
+        # verdict -- and the row joins the combined ones, which is what it is:
+        # a figure nobody can attribute to an evaluator.
+        #
+        # @return [Array<Hash>] :field, :key, :check_key, :alias, :result, :siblings
+        def checks_of(field_name, field_result, evaluator_results)
+          field_evaluators = evaluator_results[field_name] || evaluator_results[field_name.to_sym] || {}
+
+          if field_evaluators.blank?
+            return [{ field: field_name, key: field_name.to_s, check_key: nil, alias: nil,
+                      result: field_result, siblings: {} }]
+          end
+
+          field_evaluators.map do |alias_name, check_result|
+            key = "#{field_name}:#{alias_name}"
+
+            { field: field_name,
+              key: key,
+              check_key: key,
+              alias: alias_name.to_s,
+              result: check_result.is_a?(Hash) ? check_result : field_result,
+              siblings: field_evaluators }
+          end
+        end
+
+        def store_check_result(span, policy, queue_item, evaluator_config, row, started_at:, completed_at:,
+                               duration_ms:, replay_cost:, evaluation_metadata:, span_data:)
+          evaluator_name = evaluator_config["name"] || evaluator_config[:name]
+          field_name = row[:field]
+          check_result = row[:result]
+
+          # Extract reasoning from multiple possible locations
+          # Evaluators may store it at top level or inside details
+          reasoning = check_result[:reasoning] ||
+                      check_result.dig(:details, :reasoning) ||
+                      check_result.dig(:details, "reasoning") ||
+                      check_result[:message] # Fallback to message if no reasoning
+
+          # Generate formatted markdown result using per-field formatter, evaluator formatter, or built-in
+          formatted_markdown = generate_formatted_result(evaluator_config, field_name, check_result, span_data)
+
+          # `check_name` is the check, `field_name` the field it grades. They
+          # were the same string while a row was a field.
+          result_metadata = {
+            field_name: field_name.to_s,
+            check_name: row[:key],
+            evaluator_alias: row[:alias],
+            specific_evaluators: row[:siblings].keys.map(&:to_s)
+          }.compact.merge(evaluation_metadata)
+
+          # Priced from this check alone. The judge usage sits on the check
+          # that made the call, so a rule beside a judge is billed nothing
+          # rather than half of the judge's call.
+          spend = evaluation_spend(check_result, {})
+          spend[:evaluation_cost] = (spend[:evaluation_cost] + replay_cost).round(6) if replay_cost.positive?
+
+          RAAF::Eval::Models::ContinuousEvaluationResult.create!(
+            span_id: span.span_id,
+            trace_id: span.trace_id,
+            evaluation_policy_id: policy.id,
+            queue_item_id: queue_item.id,
+            evaluation_type: "automated",
+            evaluator_name: evaluator_name,
+            evaluator_type: evaluator_config["type"] || evaluator_config[:type],
+            evaluator_version: nil,
+            agent_name: extract_agent_name(span),
+            agent_version: extract_agent_version(span),
+            model: extract_model(span),
+            provider: extract_provider(span),
+            environment: ::Rails.env,
+            status: determine_field_status(check_result),
+            score: field_score(check_result),
+            scores: { row[:key] => field_score(check_result) },
+            metrics: extract_metrics(span).merge(spend),
+            reasoning: reasoning,
+            **check_key_attribute(row[:check_key]),
+            details: {
+              field_name: field_name.to_s,
+              check_key: row[:check_key],
+              result: check_result,
+              declared_checks: declared_checks_for(evaluator_name, field_name),
+              formatted_markdown: formatted_markdown
+            }.compact,
+            evaluation_duration_ms: duration_ms,
+            evaluation_started_at: started_at,
+            evaluation_completed_at: completed_at,
+            metadata: result_metadata
+          )
+        end
+
+        # RAAF's migrations are copied into a host application by hand, so a
+        # console can run ahead of its database. Writing the check into
+        # `details` and `metadata` regardless means the row still says which
+        # check it is about; the column is what makes that queryable, and what
+        # tells a check's own verdict from a figure nobody can attribute.
+        def check_key_attribute(check_key)
+          return {} unless RAAF::Eval::Models::ContinuousEvaluationResult.check_key_stored?
+
+          { check_key: check_key }
         end
 
         ##

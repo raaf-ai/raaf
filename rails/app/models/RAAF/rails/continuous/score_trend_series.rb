@@ -135,23 +135,42 @@ module RAAF
           (evaluator_rows + feedback_rows).sort_by { |row| -row[:count] }
         end
 
-        # One row per evaluator, keyed by the three things that make an
-        # evaluator distinct on this screen: what it is called, what it grades
-        # and how it grades. The same check run against two agents is two rows,
-        # because a drift in one of them is not a drift in the other.
+        # One row per check, keyed by the four things that make a line on this
+        # screen distinct: what the evaluator is called, which check of it this
+        # is, what it grades and how it grades. The same check run against two
+        # agents is two rows, because a drift in one of them is not a drift in
+        # the other.
+        #
+        # The check is in the key because two evaluators on one field used to
+        # share a score: a rule and a judge grading `confidence` produced one
+        # number, plotted once under the evaluator's name, and neither of them
+        # could be watched on its own. Rows recorded before that changed carry
+        # no check and stay one line per evaluator, which is all they can be.
         def evaluator_rows
           totals = Hash.new { |hash, key| hash[key] = {} }
 
-          bucketed(result_model, keys: %w[evaluator_name agent_name evaluator_type],
-                                 score: "score")
-            .each do |name, agent, type, index, sum, count|
-              totals[[name, agent, type]][index.to_i] = { sum: sum.to_f, count: count.to_i }
+          bucketed(result_model, keys: evaluator_keys, score: "score")
+            .each do |name, agent, type, check, index, sum, count|
+              totals[[name, agent, type, check]][index.to_i] = { sum: sum.to_f, count: count.to_i }
             end
 
-          totals.map do |(name, agent, type), buckets_seen|
-            row(name: name, agent: agent, kind: KINDS.fetch(type.to_s, type.to_s),
-                buckets_seen: buckets_seen)
+          totals.map do |(name, agent, type, check), buckets_seen|
+            row(name: line_name(name, check), agent: agent,
+                kind: KINDS.fetch(type.to_s, type.to_s), buckets_seen: buckets_seen)
           end
+        end
+
+        # A console whose database has not been migrated to record the check
+        # asks for a column that is not there otherwise.
+        def evaluator_keys
+          keys = %w[evaluator_name agent_name evaluator_type]
+          keys << (result_model.check_key_stored? ? "check_key" : "NULL::text")
+        end
+
+        # The evaluator names the row; the check says which of its questions
+        # this line answers, and only where there is one to say.
+        def line_name(name, check)
+          check.presence ? "#{name} · #{check}" : name.to_s
         end
 
         # Human scores are a real trend line and the design gives them a row of

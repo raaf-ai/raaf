@@ -231,19 +231,23 @@ module RAAF
           end
         end
 
-        # A check is named `field:evaluator`; a result is recorded under the
-        # field alone, one row per graded field whatever graded it. So the
-        # full name is tried first, and the field it names second. Matching
-        # only on the full name is what left every bar here reading "No
-        # results yet" while the evaluations sat in the table — the two
-        # spellings can never be equal.
+        # A check is named `field:evaluator`, and a result is now recorded
+        # under that same name — one row per check rather than one per field —
+        # so this is an exact lookup.
         #
-        # Two checks on the same field therefore report the same number.
-        # That number is the one that was measured: a field's evaluators are
-        # combined before the row is written, and no score survives per
-        # evaluator.
+        # It could not be while a field's evaluators were combined before the
+        # row was written: two checks on one field reported one number between
+        # them, and the bar had to fall back to the field's figure to show
+        # anything at all.
         def measured_for(check)
-          @check_scores[check] || @check_scores[check.to_s.split(":", 2).first]
+          @check_scores[check]
+        end
+
+        # What a field scored before its evaluators were recorded separately.
+        # Several verdicts went into it and the parts were never written down,
+        # so it cannot be split now, and it is not any one check's score.
+        def combined_for(check)
+          @check_scores[check.to_s.split(":", 2).first]
         end
 
         # The key is printed as the policy stores it, underscores and all: it is
@@ -255,7 +259,7 @@ module RAAF
         def check_note(measured, key: nil, check: nil)
           count = measured.nil? ? "No results yet" : "#{pluralize(measured[:count], 'evaluation')} scored"
 
-          [key.presence, sampling_note(check), count, shared_score_note(check)]
+          [key.presence, sampling_note(check), count, combined_note(check)]
             .compact.join(" · ")
         end
 
@@ -266,20 +270,17 @@ module RAAF
           entry[:trigger] == "manual" ? "manual" : entry[:sampling]
         end
 
-        # Two checks on one field draw two bars reporting the same combined
-        # score, because a check is keyed `field:evaluator` while a result
-        # records the field alone. The code documented this; the screen did
-        # not, so a reader saw two independent measurements agreeing exactly
-        # and read it as corroboration.
-        def shared_score_note(check)
-          field = check.to_s.split(":", 2).first
-          return nil if field == check.to_s
-          return nil unless @check_scores[check].nil? && @check_scores[field]
+        # Evaluations of this field that no evaluator can be credited with:
+        # those recorded before a field's evaluators were kept apart, and those
+        # from an evaluator that reports no breakdown of its own. Neither is
+        # this check's score, and neither can be made into one, so they are
+        # counted where the reader can see what they are rather than folded
+        # into the bar.
+        def combined_note(check)
+          combined = combined_for(check)
+          return nil if combined.nil?
 
-          others = checks.count { |(_evaluator, other)| other.to_s.split(":", 2).first == field }
-          return nil if others < 2
-
-          "score shared with #{pluralize(others - 1, 'other check')} on #{field}"
+          "#{pluralize(combined[:count], 'evaluation')} scored this field's checks together"
         end
 
         def sampling_by_check

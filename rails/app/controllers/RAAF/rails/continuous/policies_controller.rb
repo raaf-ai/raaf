@@ -344,10 +344,12 @@ module RAAF
         # design's weight column and threshold marker have nothing to draw
         # from and are left out rather than invented.
         #
-        # Keyed by field name, because that is how a result is written: one
-        # row per graded field, its `scores` being `{ field_name => score }`.
-        # A policy names its checks `field:evaluator`, and the page resolves
-        # the one spelling to the other — see PolicyShow#measured_for.
+        # Keyed as a check is named, `field:evaluator`, because that is how a
+        # result is now written: one row per check, its `scores` being
+        # `{ "field:evaluator" => score }`. A row written before results were
+        # recorded per check keys on the field alone and reports under that
+        # key, so the page can tell a check's own score from a figure several
+        # evaluators went into — see PolicyShow#combined_note.
         #
         # Plucked rather than loaded: a row carries the whole evaluation in
         # `details`, and this needs one JSON column of it.
@@ -357,11 +359,11 @@ module RAAF
           policy.continuous_evaluation_results.where.not(scores: nil).pluck(:scores).each do |scores|
             next unless scores.is_a?(Hash)
 
-            scores.each do |field, value|
+            scores.each do |key, value|
               next unless value.is_a?(Numeric)
 
-              totals[field.to_s][:sum] += value.to_f
-              totals[field.to_s][:count] += 1
+              totals[key.to_s][:sum] += value.to_f
+              totals[key.to_s][:count] += 1
             end
           end
 

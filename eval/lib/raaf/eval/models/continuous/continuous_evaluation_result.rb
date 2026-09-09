@@ -50,6 +50,33 @@ module RAAF
         scope :in_date_range, ->(start_date, end_date) { where(created_at: start_date..end_date) }
         scope :recent, -> { order(created_at: :desc) }
 
+        # One check's own history. A check is `field:evaluator`, and a row is
+        # one check's answer about one span.
+        scope :for_check, ->(key) { where(check_key: key.to_s) }
+
+        # Rows written before a result was recorded per check. Their score is
+        # several evaluators' verdicts combined, and cannot be split after the
+        # fact -- the parts were never written down. The screens say so rather
+        # than crediting the figure to whichever evaluator is being read.
+        scope :combined, -> { where(check_key: nil) }
+
+        ##
+        # @return [Boolean] whether this database carries the check column.
+        #   RAAF's migrations are copied into a host application by hand, so a
+        #   console can run ahead of its database; a screen that 500s until
+        #   somebody notices is worse than one that is merely not split.
+        def self.check_key_stored?
+          column_names.include?("check_key")
+        rescue ActiveRecord::ActiveRecordError
+          false
+        end
+
+        ##
+        # @return [Boolean] whether the score is one evaluator's own verdict
+        def per_check?
+          self.class.check_key_stored? && self[:check_key].present?
+        end
+
         ##
         # Check if the evaluation judged the span good
         # @return [Boolean]

@@ -32,6 +32,7 @@ class FakeEvaluationTable
 
   def table_exists? = true
   def table_name = "fake_evaluations"
+  def check_key_stored? = true
 
   # The series builds its statement through the model and runs it on the
   # connection. Here both of those are this object.
@@ -93,9 +94,12 @@ RSpec.describe RAAF::Rails::Continuous::ScoreTrendSeries do
     instance.call
   end
 
-  # One evaluation row, as the grouping sees it before it is grouped.
-  def result(name, agent, type, at, score)
-    [name, agent, type, at, score]
+  # One evaluation row, as the grouping sees it before it is grouped. A row
+  # carries the check it is about; one recorded before checks were kept apart
+  # carries nil, and the series then has nothing to name the line after but
+  # the evaluator.
+  def result(name, agent, type, at, score, check: nil)
+    [name, agent, type, check, at, score]
   end
 
   describe "the grid" do
@@ -158,6 +162,28 @@ RSpec.describe RAAF::Rails::Continuous::ScoreTrendSeries do
 
       expect(series(rows: rows + [other])[:rows].map { |row| row[:agent] })
         .to contain_exactly("Company::EnrichAgent", "Outreach::DraftAgent")
+    end
+
+    # A rule and a judge on one field used to share a score, plotted once
+    # under the evaluator's name, so neither could be watched drifting.
+    it "plots each of an evaluator's checks against its own field" do
+      judged = result("quality", "Company::EnrichAgent", "llm_judge", noon, 0.9,
+                      check: "confidence:llm_judge")
+      ruled = result("quality", "Company::EnrichAgent", "rule_based", noon, 0.4,
+                     check: "confidence:value_range")
+
+      rows = series(rows: [judged, ruled])[:rows]
+
+      expect(rows.map { |row| row[:name] })
+        .to contain_exactly("quality · confidence:llm_judge", "quality · confidence:value_range")
+      expect(rows.map { |row| row[:current] }).to contain_exactly(0.9, 0.4)
+    end
+
+    # There is nothing to name it after: the parts were never written down.
+    it "names a line recorded before checks were kept apart after its evaluator" do
+      combined = result("quality", "Company::EnrichAgent", "llm_judge", noon, 0.7)
+
+      expect(series(rows: [combined])[:rows].first[:name]).to eq("quality")
     end
   end
 

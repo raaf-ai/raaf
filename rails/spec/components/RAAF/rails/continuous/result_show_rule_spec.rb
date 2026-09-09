@@ -83,6 +83,36 @@ module RAAF
 
         let(:discovery) { class_double("EvaluatorDiscovery", build: evaluator_class) }
 
+        # A row is one check now, so its score arrives keyed `field:evaluator`
+        # rather than by the field alone -- see EvaluationJob#store_check_result.
+        context "when the row records one check's own verdict" do
+          let(:details) do
+            { "field_name" => "confidence", "check_key" => "confidence:value_range",
+              "result" => { "label" => "good", "score" => 1.0,
+                            "message" => "[GOOD] 1/1 values within 0.0..1.0" } }
+          end
+
+          let(:result) do
+            instance_double(
+              "ContinuousEvaluationResult",
+              id: 526, span_id: "span_0148", trace_id: "trace_6eda", status: "good",
+              score: 1.0, scores: { "confidence:value_range" => 1.0 },
+              agent_name: "AccountBriefing", model: nil, provider: nil,
+              environment: "development", evaluator_name: "intelligence_account_briefing",
+              evaluator_type: "rule_based", evaluator_version: nil, evaluation_policy: nil,
+              evaluation_policy_id: nil, evaluation_queue_item: nil,
+              reasoning: "[GOOD] 1/1 values within 0.0..1.0", details: details,
+              metadata: { "field_name" => "confidence", "check_name" => "confidence:value_range" },
+              metrics: nil, created_at: Time.now, evaluation_started_at: Time.now,
+              evaluation_completed_at: Time.now, evaluation_duration_ms: 0.4
+            )
+          end
+
+          it "still names the rule the score came from" do
+            expect(html).to include("Confidence In Range")
+          end
+        end
+
         it "names the rule that produced the number, not the field it read" do
           expect(html).to include("Confidence In Range")
         end

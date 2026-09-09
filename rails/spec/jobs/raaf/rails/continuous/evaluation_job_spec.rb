@@ -292,6 +292,99 @@ RSpec.describe RAAF::Rails::Continuous::EvaluationJob, type: :job do
     end
   end
 
+  # A check is keyed `field:evaluator`, and a result used to be recorded under
+  # the field alone. A policy grading `confidence` with both a rule and a judge
+  # combined the two before writing, so neither verdict survived: neither could
+  # be scored, trended or compared, and the policy screen drew two bars
+  # reporting one number.
+  describe "a field graded by two evaluators" do
+    let(:policy) { policy_with(evaluator_config("confidence_checks", check: "confidence")) }
+
+    let(:two_evaluators) do
+      instance_double(
+        RAAF::Eval::DSL::EvaluationResult,
+        field_results: { confidence: { passed: true, score: 0.7, message: "Combined" } },
+        evaluator_results: {
+          confidence: {
+            llm_judge: { passed: true, score: 0.9, message: "The judge liked it" },
+            value_range: { passed: false, score: 0.5, message: "Outside the range" }
+          }
+        }
+      )
+    end
+
+    def results
+      RAAF::Eval::Models::ContinuousEvaluationResult.order(:id)
+    end
+
+    before do
+      stub_evaluator(result: two_evaluators)
+      described_class.perform_now(span_id: span.span_id, policy_id: policy.id)
+    end
+
+    it "records one result per evaluator" do
+      expect(results.pluck(:check_key)).to eq(%w[confidence:llm_judge confidence:value_range])
+    end
+
+    it "gives each result the score that evaluator produced" do
+      expect(results.pluck(:score).map(&:to_f)).to eq([0.9, 0.5])
+    end
+
+    it "keys each score by the check it answers, which is what a policy names" do
+      expect(results.pluck(:scores))
+        .to eq([{ "confidence:llm_judge" => 0.9 }, { "confidence:value_range" => 0.5 }])
+    end
+
+    it "keeps each evaluator's own reasoning rather than the joined line" do
+      expect(results.pluck(:reasoning)).to eq(["The judge liked it", "Outside the range"])
+    end
+
+    # One verdict per check: a failing rule beside a passing judge is one bad
+    # result and one good one, not one average.
+    it "grades each evaluator on its own" do
+      expect(results.pluck(:status).uniq.size).to eq(2)
+    end
+
+    it "still says which field each result is about" do
+      expect(results.map { |result| result.metadata["field_name"] }).to eq(%w[confidence confidence])
+    end
+  end
+
+  # Nothing changes for the common case, except that the score now says which
+  # check produced it.
+  describe "a field graded by one evaluator" do
+    let(:one_evaluator) do
+      instance_double(
+        RAAF::Eval::DSL::EvaluationResult,
+        field_results: { quality: { passed: true, score: 0.8, message: "Fine" } },
+        evaluator_results: { quality: { token_limit: { passed: true, score: 0.8, message: "Fine" } } }
+      )
+    end
+
+    it "records one result, keyed by its check" do
+      stub_evaluator(result: one_evaluator)
+      described_class.perform_now(span_id: span.span_id, policy_id: policy.id)
+
+      expect(RAAF::Eval::Models::ContinuousEvaluationResult.pluck(:check_key))
+        .to eq(["quality:token_limit"])
+    end
+
+    # An evaluator that records no breakdown has one verdict and no way to
+    # attribute it. It carries no check, which is what puts it among the rows
+    # whose score nobody can credit to an evaluator; its score is still keyed
+    # by the field, as every row was before this.
+    it "leaves a result whose evaluators were not recorded without a check" do
+      stub_evaluator
+      described_class.perform_now(span_id: span.span_id, policy_id: policy.id)
+
+      result = RAAF::Eval::Models::ContinuousEvaluationResult.last
+
+      expect(result.check_key).to be_nil
+      expect(result).not_to be_per_check
+      expect(result.scores).to eq("quality" => 0.95)
+    end
+  end
+
   describe "retry behavior" do
     it "queues an evaluation on the evaluations queue" do
       described_class.perform_later(span_id: span.span_id, policy_id: policy.id)
