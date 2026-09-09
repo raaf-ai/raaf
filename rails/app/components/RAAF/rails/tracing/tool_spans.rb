@@ -124,25 +124,58 @@ module RAAF
 
         # What each tool was billed, and the tokens behind it.
         #
-        # In Ruby rather than in the GROUP BY above, because a span's cost is
-        # a Ruby question: SpanUsage prices tokens against the model that
-        # produced them, and a search tool is billed a flat fee per call
-        # instead. Only the spans that recorded usage are loaded, which on a
-        # tool set is a small fraction of the calls.
+        # Priced in Ruby because pricing is a Ruby question — SpanUsage values
+        # tokens against the model that produced them, and a search tool is
+        # charged a flat fee per call instead — but read as four columns
+        # rather than as records. Migration 006 filled `input_tokens`,
+        # `output_tokens`, `total_tokens` and `agent_model`, and 007 filled
+        # `call_fee_cents`, so nothing here has to load `span_attributes`,
+        # which is the column that makes a wide window expensive. The
+        # rollup above went to SQL for exactly this reason and it would be odd
+        # to load a month of payloads back in beside it.
+        #
+        # The name is the same COALESCE the rollup groups on, so a card's
+        # spend lands on the card it belongs to.
         def billing
-          @billing ||= billable_tool_spans
-                       .group_by { |span| tool_name(span) }
-                       .transform_values do |spans|
-                         { cost: spans.sum(0.0) { |span| span.cost_usd.to_f },
-                           tokens: spans.sum { |span| span.total_token_count.to_i } }
-                       end
+          @billing ||= billing_rows.each_with_object({}) do |row, totals|
+            name, input, output, total, model, fee_cents = row
+            entry = totals[name] ||= { cost: 0.0, tokens: 0 }
+
+            entry[:cost] += price(input, output, total, model) + (fee_cents.to_f / 100)
+            entry[:tokens] += total_of(input, output, total)
+          end
         end
 
-        def billable_tool_spans
+        # @return [Array<Array>] name, input, output, total, model, fee cents
+        def billing_rows
           scope = @total_tool_spans
-          return Array(scope).select(&:billable?) unless scope.respond_to?(:with_billable_usage)
+          return rows_from_records(Array(scope)) unless scope.respond_to?(:with_billable_usage)
 
-          scope.except(:includes).reorder(nil).with_billable_usage.to_a.select(&:billable?)
+          scope.except(:includes).reorder(nil).with_billable_usage.pluck(
+            Arel.sql(name_sql), :input_tokens, :output_tokens, :total_tokens,
+            :agent_model, :call_fee_cents
+          )
+        end
+
+        # The same six values off records in memory, which is what a spec and
+        # a caller holding an array pass.
+        def rows_from_records(spans)
+          spans.select(&:billable?).map do |span|
+            usage = ::RAAF::Tracing::SpanUsage.for_span(span)
+
+            [tool_name(span), usage[:input], usage[:output], usage[:total],
+             usage[:model], span.call_fee_cents]
+          end
+        end
+
+        def price(input, output, total, model)
+          ::RAAF::Tracing::SpanUsage.cost(input: input, output: output,
+                                          total: total, model: model).to_f
+        end
+
+        def total_of(input, output, total)
+          ::RAAF::Tracing::SpanUsage.total_tokens(input: input, output: output,
+                                                  total: total).to_i
         end
 
         def card_for(name, agg)
@@ -172,7 +205,13 @@ module RAAF
         def spend_figure(billed)
           return nil if billed.nil?
 
-          "$#{'%.2f' % billed[:cost]}"
+          "$#{Kernel.format("%.#{cost_places(billed[:cost])}f", billed[:cost])}"
+        end
+
+        # Four decimals where two would round a real bill away to nothing. A
+        # single tool call is routinely worth a fraction of a cent.
+        def cost_places(cost)
+          cost.abs < 0.01 ? 4 : 2
         end
 
         def token_figure(billed)

@@ -39,7 +39,17 @@ RSpec.describe RAAF::Rails::Tracing::ToolSpans, type: :component do
     card = cards([tool_span(input: 1000, output: 400, model: "gpt-4o")]).first
 
     expect(card[:tokens]).to eq("1.4k")
-    expect(card[:spend]).to match(/\A\$\d+\.\d{2}\z/)
+    expect(card[:spend]).to eq("$0.0065")
+  end
+
+  # Two decimals would round a real bill away to nothing: a single tool call
+  # is routinely worth a fraction of a cent.
+  it "keeps a sub-cent bill readable, and rounds a larger one to cents" do
+    small = cards([tool_span(input: 10, output: 5, model: "gpt-4o")]).first
+    large = cards([tool_span(input: 4_000_000, output: 1_000_000, model: "gpt-4o")]).first
+
+    expect(small[:spend]).to match(/\A\$0\.\d{4}\z/)
+    expect(large[:spend]).to match(/\A\$\d+\.\d{2}\z/)
   end
 
   # A tool nothing ever billed is not a free tool, it is an unmeasured one.
