@@ -24,7 +24,14 @@ module RAAF
         def run(name, status: "completed")
           instance_double("Experiment", id: name.hash.abs % 1000, name: name, status: status,
                                         agent_name: "Briefer", model: "gpt-4o",
+                                        aggregate_metrics: aggregate_metrics,
                                         dataset: instance_double("Dataset", name: "Briefings"))
+        end
+
+        # The tokens the run recorded, which is what the Spend tile prices.
+        let(:aggregate_metrics) do
+          { "tokens" => { "total_tokens" => 1400, "total_input_tokens" => 1000,
+                          "total_output_tokens" => 400 } }
         end
 
         let(:experiment) { run("Briefing v2") }

@@ -25,6 +25,7 @@ module RAAF
           { label: "Model", span: 1.1 },
           { label: "Status", span: 0.9, align: :right },
           { label: "Score", span: 0.7, align: :right },
+          { label: "Spend", span: 0.8, align: :right },
           { label: "Run", span: 0.8, align: :right }
         ].freeze
 
@@ -114,6 +115,8 @@ module RAAF
                      { value: Atoms::StatusBadge.new(experiment.status), align: :right },
                      { value: Atoms::Mono.new(score_text(score), tone: score_tone(score)),
                        align: :right },
+                     { value: Atoms::Mono.new(money(experiment_spend(experiment), places: 4),
+                                              tone: :muted), align: :right },
                      { value: Atoms::Mono.new(time_ago(run_at(experiment)), tone: :muted),
                        align: :right }
                    ])

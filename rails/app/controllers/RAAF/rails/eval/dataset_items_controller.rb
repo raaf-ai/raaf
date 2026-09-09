@@ -19,6 +19,10 @@ module RAAF
         def show
           @item = @dataset.dataset_items.find(params[:id])
           respond_to do |format|
+            format.html do
+              component = RAAF::Rails::Eval::DatasetItemShow.new(dataset: @dataset, item: @item)
+              render_in_layout component, title: "Item ##{@item.id}"
+            end
             format.json { render json: @item }
           end
         end

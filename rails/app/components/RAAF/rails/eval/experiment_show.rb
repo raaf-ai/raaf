@@ -119,8 +119,36 @@ module RAAF
                                              icon: "x-circle", tone: failed? ? :danger : nil,
                                              note: failed? ? "items that errored" : "nothing errored" },
                                            { label: "Duration", value: duration_text, icon: "clock", tone: :warning,
-                                             note: started_note }
+                                             note: started_note },
+                                           tokens_metric,
+                                           spend_metric
                                          ])
+        end
+
+        # What the run consumed and what that cost. An experiment run is the
+        # most expensive thing the console starts, and the metrics row reported
+        # only how far it had got and how long it took.
+        def tokens_metric
+          total = experiment_usage(@experiment)[:total]
+
+          { label: "Tokens", value: total ? delimited(total) : "—", icon: "coin",
+            note: total ? "across every scored item" : "nothing recorded yet" }
+        end
+
+        def spend_metric
+          spend = experiment_spend(@experiment)
+
+          { label: "Spend", value: money(spend, places: 4), icon: "cash-stack",
+            note: spend_note(spend) }
+        end
+
+        # A run that recorded tokens but no price is a different fact from one
+        # that recorded nothing, and the note is where the difference fits.
+        def spend_note(spend)
+          return "priced at #{@experiment.model}" if spend
+          return "no price for #{@experiment.model}" if experiment_usage(@experiment)[:total]
+
+          "nothing billed yet"
         end
 
         def items_note

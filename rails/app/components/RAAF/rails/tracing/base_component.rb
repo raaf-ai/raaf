@@ -247,6 +247,11 @@ module RAAF
           "#{eval_dataset_path(id)}/new_version"
         end
 
+        def eval_dataset_item_path(dataset, item)
+          item_id = item.respond_to?(:id) ? item.id : item
+          "#{eval_dataset_path(dataset)}/items/#{item_id}"
+        end
+
         def archive_eval_dataset_path(id)
           "#{eval_dataset_path(id)}/archive"
         end
@@ -293,6 +298,51 @@ module RAAF
         def eval_prompt_path(id)
           prompt_id = id.respond_to?(:id) ? id.id : id
           "/raaf/eval/prompts/#{prompt_id}"
+        end
+
+        # What an experiment run cost, priced from the tokens it recorded
+        # against the model it ran.
+        #
+        # An experiment run is the most expensive thing the console starts, and
+        # neither tokens nor spend appeared on the run, the list or the
+        # comparison — though cost is the usual reason to prefer one run over
+        # another when the scores are level, and it is the figure a reader
+        # wants before pressing Run again.
+        #
+        # Computed rather than stored: nothing in the eval schema records a
+        # cost, and pricing lives in SpanUsage, which is where every other
+        # screen in the console gets a bill from. Nil where the run recorded no
+        # tokens or the model has no published price — a dash, not $0.00.
+        def experiment_spend(experiment)
+          usage = experiment_usage(experiment)
+          return nil unless usage[:total]
+
+          ::RAAF::Tracing::SpanUsage.cost(usage)
+        end
+
+        # Tokens as SpanUsage wants them. `aggregate_metrics` is jsonb, so it
+        # comes back string-keyed from the database and symbol-keyed from a
+        # record still in memory.
+        def experiment_usage(experiment)
+          tokens = experiment.aggregate_metrics.is_a?(Hash) ? experiment.aggregate_metrics : {}
+          tokens = tokens["tokens"] || tokens[:tokens] || {}
+
+          { input: dig_either(tokens, :total_input_tokens),
+            output: dig_either(tokens, :total_output_tokens),
+            total: dig_either(tokens, :total_tokens),
+            model: experiment.model.presence }
+        end
+
+        def dig_either(hash, key)
+          value = hash[key.to_s].nil? ? hash[key] : hash[key.to_s]
+          value&.to_i
+        end
+
+        def money(amount, places: 2)
+          return "—" if amount.nil?
+
+          # Kernel#format, not the `format` a Phlex component answers with.
+          "$#{Kernel.format("%.#{places}f", amount.to_f)}"
         end
 
         def diff_eval_prompt_path(id, params = {})

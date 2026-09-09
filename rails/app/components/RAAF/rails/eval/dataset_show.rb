@@ -122,8 +122,12 @@ module RAAF
           parts.join(" · ")
         end
 
+        # The row opens the item. dataset_items#show is routed and always was;
+        # the row simply carried no href, so a case longer than a sentence —
+        # every payload is cut at 160 characters here — could not be read at
+        # all from the console.
         def item_row(grid, item)
-          grid.row(cells: [
+          grid.row(href: eval_dataset_item_path(@dataset, item), cells: [
                      { value: Atoms::Mono.new("##{item.id}", tone: :muted) },
                      { value: Atoms::Mono.new(preview(item.input)) },
                      { value: Atoms::Mono.new(expected(item), tone: :muted) },

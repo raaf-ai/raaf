@@ -112,8 +112,24 @@ module RAAF
 
         def metrics
           render Organisms::StatGrid.new(layout: :leading, stats: [
-                                           success_metric, tokens_metric, moved_metric, regressed_metric
+                                           success_metric, tokens_metric, spend_metric,
+                                           moved_metric, regressed_metric
                                          ])
+        end
+
+        # Cost is the usual reason to prefer one run over another when the
+        # scores are level, and the comparison reported tokens without ever
+        # pricing them — two runs on different models can spend very
+        # differently for the same token count.
+        def spend_metric
+          before = @against && experiment_spend(@against)
+          after = experiment_spend(@experiment)
+          delta = before && after && (after - before)
+
+          { label: "Spend", value: money(after, places: 4), icon: "cash-stack",
+            tone: delta_tone(delta, lower_is_better: true),
+            note: comparison_note(before && money(before, places: 4),
+                                  delta && "#{'+' if delta.positive?}#{money(delta, places: 4)}") }
         end
 
         def success_metric

@@ -3,8 +3,17 @@
 module RAAF
   module Rails
     module Tracing
+      ##
+      # What a reader meets when something has already gone wrong.
+      #
+      # The worst screen in the console to leave in the light theme, because
+      # it is the one that arrives unannounced: a white card dropped into the
+      # dark shell reads as a second failure on top of the first.
+      #
       class ErrorPage < BaseComponent
-        def initialize(error: nil, title: "Error", error_message: "An error occurred", back_path: "/raaf/tracing")
+        def initialize(error: nil, title: "Something went wrong",
+                       error_message: "The console could not finish this request.",
+                       back_path: "/raaf/tracing")
           @error = error
           @title = title
           @error_message = error_message
@@ -12,59 +21,46 @@ module RAAF
         end
 
         def view_template
-          div(class: "min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8") do
-            div(class: "sm:mx-auto sm:w-full sm:max-w-2xl") do
-              div(class: "bg-white shadow-xl rounded-lg overflow-hidden") do
-                div(class: "px-6 py-8 text-center") do
-                  i(class: "bi bi-exclamation-triangle text-6xl text-red-500 mb-4")
-                  h1(class: "text-3xl font-bold text-gray-900 mb-2") { @title }
-                  p(class: "text-lg text-gray-600 mb-6") { @error_message }
-                end
+          div(class: "raaf-page") do
+            render Organisms::RecordHead.new(
+              title: @title,
+              description: @error_message,
+              status: "error",
+              meta: @error&.class&.name
+            )
 
-                if @error
-                  div(class: "px-6 pb-6") do
-                    div(class: "bg-red-50 border border-red-200 rounded-lg p-4 mb-6") do
-                      h3(class: "text-sm font-medium text-red-800 mb-2") { "Error Details" }
+            details if @error
+            actions
+          end
+        end
 
-                      div(class: "mb-3") do
-                        p(class: "text-sm text-red-700 font-medium") { "Message:" }
-                        p(class: "text-sm text-red-600 font-mono bg-red-100 p-2 rounded mt-1") { @error.message }
-                      end
+        private
 
-                      div(class: "mb-3") do
-                        p(class: "text-sm text-red-700 font-medium") { "Type:" }
-                        p(class: "text-sm text-red-600") { @error.class.name }
-                      end
+        def details
+          render(Organisms::Card.new(title: "What failed")) do
+            render Molecules::KeyValueList.new(
+              pairs: { "Message" => @error.message.to_s, "Type" => @error.class.name },
+              layout: :rows, mono: true
+            )
 
-                      if @error.backtrace && @error.backtrace.any?
-                        div do
-                          p(class: "text-sm text-red-700 font-medium mb-2") { "Backtrace:" }
-                          pre(class: "text-xs text-red-600 bg-red-100 p-3 rounded overflow-x-auto max-h-64") do
-                            code { @error.backtrace.first(10).join("\n") }
-                          end
-                        end
-                      end
-                    end
-                  end
-                end
+            backtrace if @error.backtrace&.any?
+          end
+        end
 
-                div(class: "px-6 py-4 bg-gray-50 flex justify-center space-x-4") do
-                  render_preline_button(
-                    text: "Go Back",
-                    href: @back_path,
-                    variant: "primary",
-                    icon: "bi-arrow-left"
-                  )
+        # Ten frames: enough to name the call that failed and the path into
+        # it, without turning the page into a log.
+        def backtrace
+          render(Molecules::Field.new(label: "Backtrace",
+                                      hint: "The first ten frames.")) do
+            render Atoms::CodeBlock.new(@error.backtrace.first(10).join("\n"), height: :tall)
+          end
+        end
 
-                  render_preline_button(
-                    text: "Dashboard",
-                    href: "/raaf/dashboard",
-                    variant: "secondary",
-                    icon: "bi-house"
-                  )
-                end
-              end
-            end
+        def actions
+          div(class: "raaf-cluster") do
+            render Atoms::Button.new(label: "Go back", icon: "arrow-left", href: @back_path)
+            render Atoms::Button.new(label: "Overview", icon: "house", variant: :secondary,
+                                     href: dashboard_path)
           end
         end
       end
