@@ -10,9 +10,12 @@ module RAAF
       # sidebar of collapsible nav groups beside a sticky header carrying the
       # breadcrumb, title, time range, live toggle and search.
       #
-      # Navigation is declared once here as NAV_GROUPS. An item without a
-      # `href` renders as a "soon" placeholder, which is how the design shows
-      # screens that do not exist yet — so this list doubles as the roadmap.
+      # Navigation is declared once here as NAV_GROUPS. Every item routes: a
+      # nav that offers a screen the engine does not have sends the reader
+      # nowhere, and the one item that did — Chat, rendered as a "soon"
+      # placeholder — outlived the stub pages it stood for. Replays moved into
+      # Tracing when its group emptied, which is where a replay is found from
+      # anyway.
       #
       class BaseLayout < BaseComponent
         # Which nav item is current is read off the request path. The adapter
@@ -213,7 +216,8 @@ module RAAF
               { key: :spans, label: "Spans", icon: "layers", href: tracing_spans_path },
               { key: :search, label: "Search", icon: "search", href: tracing_search_path },
               { key: :flows, label: "Flows", icon: "share", href: flows_tracing_spans_path },
-              { key: :tools, label: "Tools", icon: "tools", href: tools_tracing_spans_path }
+              { key: :tools, label: "Tools", icon: "tools", href: tools_tracing_spans_path },
+              { key: :replays, label: "Replays", icon: "arrow-repeat", href: tracing_replays_path }
             ] },
             { id: :evaluate, label: "Evaluate", items: [
               { key: :datasets, label: "Datasets", icon: "collection", href: eval_datasets_path },
@@ -230,10 +234,6 @@ module RAAF
                 href: continuous_trends_path },
               { key: :health, label: "Health", icon: "heart-pulse",
                 href: continuous_health_path }
-            ] },
-            { id: :converse, label: "Conversations", items: [
-              { key: :chat, label: "Chat", icon: "chat-dots" },
-              { key: :replays, label: "Replays", icon: "arrow-repeat", href: tracing_replays_path }
             ] }
           ]
         end

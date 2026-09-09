@@ -38,8 +38,15 @@ module RAAF
           # @param meta [String, nil] the mono line beside the status
           # @param action [Hash, nil] arguments for Atoms::Button
           # @param stats [Array<Hash>] :label, :value, and an optional :tone
+          # @param parent [Hash, nil] :label and :href for the record this one
+          #   belongs to — an experiment's result belongs to the experiment,
+          #   and the shell's crumb can only name the section. Screens that
+          #   used to print a second, in-page breadcrumb for this are the
+          #   reason it exists: the trail was worth keeping, the repeated
+          #   title under it was not.
           def initialize(title:, mono: false, description: nil, status: nil, badges: [],
-                         meta: nil, action: nil, stats: [], class: nil, **attrs)
+                         meta: nil, action: nil, stats: [], parent: nil, class: nil, **attrs)
+            @parent = parent
             @title = title
             @mono = mono
             @description = description
@@ -67,6 +74,7 @@ module RAAF
 
           def body
             div(class: "raaf-rechead-body") do
+              parent_link if @parent
               h2(class: tokens("raaf-rechead-name", { "raaf-rechead-name--mono" => @mono })) { @title }
 
               if @description.present?
@@ -74,6 +82,13 @@ module RAAF
               end
 
               badges if @status.present? || @badges.any? || @meta.present?
+            end
+          end
+
+          def parent_link
+            a(href: @parent[:href], class: "raaf-rechead-parent") do
+              render Atoms::Icon.new("arrow-left-short", size: :sm)
+              plain @parent[:label]
             end
           end
 

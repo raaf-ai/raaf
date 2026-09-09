@@ -25,6 +25,21 @@
   flex: 1;
 }
 
+/* The record this one belongs to, above its name. A detail screen that needs
+   it used to print a whole second breadcrumb, which repeated the title on the
+   line below. */
+.raaf-rechead-parent {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: calc(var(--raaf-space-1) * -1);
+  font-size: var(--raaf-text-sm);
+  color: var(--raaf-text-muted);
+  text-decoration: none;
+}
+
+.raaf-rechead-parent:hover { color: var(--raaf-text); }
+
 .raaf-rechead-name {
   margin: 0;
   font-size: 18px;

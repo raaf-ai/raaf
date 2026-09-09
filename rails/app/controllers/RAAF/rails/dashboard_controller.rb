@@ -193,14 +193,6 @@ module RAAF
         end
       end
 
-      def conversations
-        render RAAF::Rails::SimpleDashboard.new(title: "Conversations")
-      end
-
-      def analytics
-        render RAAF::Rails::SimpleDashboard.new(title: "Analytics")
-      end
-
       private
 
       # The cost JSON this endpoint has always returned, built by CostManager

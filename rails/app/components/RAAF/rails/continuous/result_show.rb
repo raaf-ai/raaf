@@ -83,7 +83,6 @@ module RAAF
 
         def view_template
           div(class: "raaf-page") do
-            breadcrumb
             header
             div(class: "raaf-detail-split") do
               div(class: "raaf-stack") { main_column }
@@ -110,13 +109,6 @@ module RAAF
         end
 
         # ── Header ────────────────────────────────────────────────────────
-
-        def breadcrumb
-          render Molecules::Breadcrumb.new(items: [
-                                             { label: "Results", href: continuous_results_path },
-                                             { label: "##{@result.id}" }
-                                           ])
-        end
 
         def header
           render(Organisms::RecordHead.new(

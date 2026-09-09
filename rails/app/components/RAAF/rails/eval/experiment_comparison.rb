@@ -48,7 +48,6 @@ module RAAF
 
         def view_template
           div(class: "raaf-page") do
-            breadcrumb
             header
             picker
 
@@ -64,17 +63,9 @@ module RAAF
 
         private
 
-        def breadcrumb
-          render Molecules::Breadcrumb.new(items: [
-                                             { label: "Experiments", href: eval_experiments_path },
-                                             { label: @experiment.name,
-                                               href: eval_experiment_path(@experiment) },
-                                             { label: "Compare" }
-                                           ])
-        end
-
         def header
           render Organisms::RecordHead.new(
+            parent: { label: @experiment.name, href: eval_experiment_path(@experiment) },
             title: @against ? "#{@experiment.name} vs #{@against.name}" : @experiment.name,
             description: header_description,
             status: @experiment.status,

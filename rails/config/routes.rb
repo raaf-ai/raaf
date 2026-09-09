@@ -19,20 +19,16 @@ RAAF::Rails::Engine.routes.draw do
   get "/dashboard/costs", to: "dashboard#costs"
   get "/dashboard/errors", to: "dashboard#errors"
   get "/dashboard/agents", to: "dashboard#agents"
-  get "/dashboard/conversations", to: "dashboard#conversations"
-  get "/dashboard/analytics", to: "dashboard#analytics"
 
-  # Agent management routes
-  resources :agents do
-    member do
-      get :chat
-      post :test
-      patch :deploy
-      delete :undeploy
-    end
-
-    resources :conversations, only: %i[index show create]
-  end
+  # No agent-management or conversation screens. The five that were routed
+  # here -- /agents index, show, new, edit and chat, plus
+  # /dashboard/conversations and /dashboard/analytics -- rendered
+  # SimpleDashboard: a standalone HTML document with its own four-link nav and
+  # its own inline stylesheet, outside the console shell entirely. A reader who
+  # followed one lost the sidebar and landed somewhere that looked like a
+  # different application, and there was no feature behind any of them: the
+  # writes redirected to the stubs and the JSON members answered a fixed
+  # {status: "ok"}. The JSON API under /api/v1 is untouched.
 
   # API routes
   namespace :api do

@@ -31,7 +31,6 @@ module RAAF
 
         def view_template
           div(class: "raaf-page") do
-            breadcrumb
             header
             div(class: "raaf-detail-split") do
               div(class: "raaf-stack") { main_column }
@@ -57,19 +56,9 @@ module RAAF
 
         # ── Header ────────────────────────────────────────────────────────
 
-        def breadcrumb
-          render Molecules::Breadcrumb.new(items: [
-                                             { label: "Experiments", href: eval_experiments_path },
-                                             { label: @experiment.name,
-                                               href: eval_experiment_path(@experiment) },
-                                             { label: "Results",
-                                               href: eval_experiment_results_path(@experiment) },
-                                             { label: "##{@result.dataset_item_id}" }
-                                           ])
-        end
-
         def header
           render Organisms::RecordHead.new(
+            parent: { label: @experiment.name, href: eval_experiment_path(@experiment) },
             title: "Item ##{@result.dataset_item_id}", mono: true,
             description: item_description,
             status: @result.status,
