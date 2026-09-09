@@ -38,8 +38,15 @@ RSpec.describe RAAF::Rails do
       expect(File.exist?(File.join(File.dirname(__FILE__), "../lib/raaf/rails/controllers"))).to be true
     end
 
-    it "defines websocket handler" do
-      expect(defined?(RAAF::Rails::WebsocketHandler)).to eq("constant")
+    # The gem does not load the websocket handler: its require in raaf-rails.rb
+    # is commented out because the class needs websocket-rails, which is not a
+    # dependency. So the constant is absent, and the example that asserted it
+    # was defined passed only when a spec that required the file by path
+    # happened to run first — on its own it failed. That spec is gone, and this
+    # says what is true instead. It fails if anything starts loading the file,
+    # which is the change worth being told about.
+    it "does not define the websocket handler, which it never loads" do
+      expect(defined?(RAAF::Rails::WebsocketHandler)).to be_nil
     end
   end
 
