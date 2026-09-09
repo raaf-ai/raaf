@@ -316,8 +316,7 @@ module RAAF
           "/raaf/eval/prompts/#{prompt_id}"
         end
 
-        # What an experiment run cost, priced from the tokens it recorded
-        # against the model it ran.
+        # What an experiment run cost.
         #
         # An experiment run is the most expensive thing the console starts, and
         # neither tokens nor spend appeared on the run, the list or the
@@ -325,33 +324,22 @@ module RAAF
         # another when the scores are level, and it is the figure a reader
         # wants before pressing Run again.
         #
-        # Computed rather than stored: nothing in the eval schema records a
-        # cost, and pricing lives in SpanUsage, which is where every other
-        # screen in the console gets a bill from. Nil where the run recorded no
-        # tokens or the model has no published price — a dash, not $0.00.
+        # The run records it when it finishes, so the three screens read a
+        # figure rather than deriving one: a list of fifty pays for no pricing
+        # lookups, the list can order by it, and a run from three months ago
+        # keeps the number it was billed instead of being re-priced at today's
+        # rates on every page load. A run finished before the column existed is
+        # still priced here — see Experiment#spend.
+        #
+        # Nil where the run recorded no tokens or the model has no published
+        # price — a dash, not $0.00.
         def experiment_spend(experiment)
-          usage = experiment_usage(experiment)
-          return nil unless usage[:total]
-
-          ::RAAF::Tracing::SpanUsage.cost(usage)
+          experiment.spend
         end
 
-        # Tokens as SpanUsage wants them. `aggregate_metrics` is jsonb, so it
-        # comes back string-keyed from the database and symbol-keyed from a
-        # record still in memory.
+        # @return [Hash] :input, :output, :total, :model
         def experiment_usage(experiment)
-          tokens = experiment.aggregate_metrics.is_a?(Hash) ? experiment.aggregate_metrics : {}
-          tokens = tokens["tokens"] || tokens[:tokens] || {}
-
-          { input: dig_either(tokens, :total_input_tokens),
-            output: dig_either(tokens, :total_output_tokens),
-            total: dig_either(tokens, :total_tokens),
-            model: experiment.model.presence }
-        end
-
-        def dig_either(hash, key)
-          value = hash[key.to_s].nil? ? hash[key] : hash[key.to_s]
-          value&.to_i
+          experiment.usage
         end
 
         def money(amount, places: 2)

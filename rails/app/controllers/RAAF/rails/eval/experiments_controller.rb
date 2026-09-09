@@ -14,7 +14,13 @@ module RAAF
         def index
           # The list draws each experiment's dataset name, which is one query
           # per row without this.
-          @experiments = Experiment.recent.includes(:dataset)
+          #
+          # Dearest first is a column ordering rather than a re-sort of the
+          # page, which it could not have been while spend was priced as each
+          # row was drawn: "the most expensive runs" would have meant "the most
+          # expensive of the newest fifty".
+          @experiments = params[:sort] == "spend" ? Experiment.dearest_first : Experiment.recent
+          @experiments = @experiments.includes(:dataset)
           @experiments = @experiments.for_agent(params[:agent]) if params[:agent].present?
           @experiments = @experiments.for_model(params[:model]) if params[:model].present?
           @experiments = @experiments.by_status(params[:status]) if params[:status].present?
@@ -24,7 +30,7 @@ module RAAF
               component = RAAF::Rails::Eval::ExperimentList.new(
                 experiments: @experiments,
                 agents: Experiment.distinct.pluck(:agent_name).compact_blank.sort,
-                filters: { status: params[:status], agent: params[:agent] }
+                filters: { status: params[:status], agent: params[:agent], sort: params[:sort] }
               )
               render_in_layout component, title: "Experiments", crumb: "Evaluate", current: :experiments
             end

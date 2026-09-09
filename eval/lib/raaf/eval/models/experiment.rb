@@ -51,6 +51,28 @@ module RAAF
         scope :for_agent, ->(name) { where(agent_name: name) }
         scope :for_model, ->(model) { where(model: model) }
 
+        # Dearest first, which is how the list is read when the scores are
+        # level and the question is what each run cost. A run with no recorded
+        # cost sorts last: it has no figure to rank, and putting it at the top
+        # would bury the expensive runs under ones nobody priced.
+        #
+        # Falls back to doing nothing where the column has not been migrated
+        # in. RAAF's migrations are copied into a host application by hand, so
+        # a console running ahead of its database asks for an ordering it
+        # cannot have — and a list that 500s until somebody notices is a worse
+        # answer than one that is merely not sorted.
+        scope :dearest_first, lambda {
+          cost_stored? ? order(Arel.sql("cost DESC NULLS LAST")) : recent
+        }
+
+        ##
+        # @return [Boolean] whether this database carries the cost column
+        def self.cost_stored?
+          column_names.include?("cost")
+        rescue ActiveRecord::ActiveRecordError
+          false
+        end
+
         # ── What the edit screen writes ──────────────────────────────────
         #
         # The screen edits four run settings, a list of scorers and a
@@ -256,6 +278,47 @@ module RAAF
         end
 
         ##
+        # What the run cost, in USD.
+        #
+        # Recorded when the run finished, priced against the pricing table in
+        # force at the time. A run that finished before the column existed has
+        # nothing recorded, so it is priced now instead — which is what every
+        # screen used to do for every run, and is the reason a three-month-old
+        # figure moved whenever the pricing table did.
+        #
+        # @return [Float, nil] nil where the run recorded no tokens, or where
+        #   its model has no published price. A dash on screen, not $0.00.
+        def spend
+          recorded = self[:cost] if self.class.cost_stored?
+          return recorded if recorded
+
+          price_of(usage)
+        end
+
+        ##
+        # @return [Boolean] whether the figure `spend` returns is the one the
+        #   run recorded, rather than one derived at today's prices
+        def spend_recorded?
+          self.class.cost_stored? && !self[:cost].nil?
+        end
+
+        ##
+        # Tokens as SpanUsage wants them. `aggregate_metrics` is jsonb, so it
+        # comes back string-keyed from the database and symbol-keyed from a
+        # record still in memory.
+        #
+        # @return [Hash] :input, :output, :total, :model
+        def usage
+          totals = aggregate_metrics.is_a?(Hash) ? aggregate_metrics : {}
+          totals = totals["tokens"] || totals[:tokens] || {}
+
+          { input: token_count(totals, :total_input_tokens),
+            output: token_count(totals, :total_output_tokens),
+            total: token_count(totals, :total_tokens),
+            model: model.presence }
+        end
+
+        ##
         # Check if experiment is in progress
         # @return [Boolean]
         def in_progress?
@@ -277,6 +340,19 @@ module RAAF
           configuration.is_a?(Hash) ? configuration : {}
         end
 
+        def token_count(totals, key)
+          value = totals[key.to_s].nil? ? totals[key] : totals[key.to_s]
+          value&.to_i
+        end
+
+        # Pricing lives in SpanUsage, which is where every other screen in the
+        # console gets a bill from.
+        def price_of(counts)
+          return nil unless counts[:total]
+
+          ::RAAF::Tracing::SpanUsage.cost(counts)
+        end
+
         ##
         # Compute and store aggregate metrics from all results
         def compute_aggregate_metrics!
@@ -295,6 +371,11 @@ module RAAF
             tokens: aggregate_token_metrics(all_token_metrics),
             latency: aggregate_latency_metrics(all_latency_metrics)
           }
+
+          # Priced here, beside the tokens it is priced from, so what the run
+          # cost is a fact about the run rather than something re-derived at
+          # today's rates every time a page draws it.
+          self.cost = price_of(usage) if self.class.cost_stored?
         end
 
         def aggregate_scores(all_scores)

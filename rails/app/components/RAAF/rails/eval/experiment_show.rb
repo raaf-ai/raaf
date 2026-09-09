@@ -144,8 +144,14 @@ module RAAF
 
         # A run that recorded tokens but no price is a different fact from one
         # that recorded nothing, and the note is where the difference fits.
+        #
+        # So is a figure the run recorded against one derived from today's
+        # pricing table: the second moves when the table does, and a reader
+        # comparing it against a number they wrote down last month should be
+        # told which kind they are looking at.
         def spend_note(spend)
-          return "priced at #{@experiment.model}" if spend
+          return "priced at #{@experiment.model} when it ran" if spend && @experiment.spend_recorded?
+          return "priced at today's rate for #{@experiment.model}" if spend
           return "no price for #{@experiment.model}" if experiment_usage(@experiment)[:total]
 
           "nothing billed yet"

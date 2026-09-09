@@ -21,18 +21,23 @@ module RAAF
   module Rails
     module Eval
       RSpec.describe ExperimentComparison, type: :component do
-        def run(name, status: "completed")
+        def run(name, status: "completed", spend: 0.0125)
           instance_double("Experiment", id: name.hash.abs % 1000, name: name, status: status,
                                         agent_name: "Briefer", model: "gpt-4o",
                                         aggregate_metrics: aggregate_metrics,
+                                        spend: spend, usage: usage,
                                         dataset: instance_double("Dataset", name: "Briefings"))
         end
 
-        # The tokens the run recorded, which is what the Spend tile prices.
+        # The tokens the run recorded, and what it was billed for them. The
+        # run records its own cost now rather than being re-priced by whoever
+        # draws it.
         let(:aggregate_metrics) do
           { "tokens" => { "total_tokens" => 1400, "total_input_tokens" => 1000,
                           "total_output_tokens" => 400 } }
         end
+
+        let(:usage) { { input: 1000, output: 400, total: 1400, model: "gpt-4o" } }
 
         let(:experiment) { run("Briefing v2") }
         let(:against) { run("Briefing v1") }

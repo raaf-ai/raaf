@@ -59,6 +59,7 @@ module RAAF
         def filters
           render(Molecules::FilterBar.new(chips: status_chips, panel: true,
                                           lead: agent_filter)) do
+            render Atoms::Link.new(sort_label, href: sort_path, mono: true)
             render Atoms::Mono.new(count_label, tone: :muted)
             render Atoms::Button.new(label: "New experiment", icon: "plus-lg", size: :sm,
                                      href: "#{eval_experiments_path}/new")
@@ -82,7 +83,26 @@ module RAAF
         end
 
         def filtered_path(status)
-          carried = { agent: @filters[:agent], status: status }
+          path_with(status: status, sort: @filters[:sort])
+        end
+
+        # Dearest first is how the list is read when two runs scored alike and
+        # the question is what each of them cost. Newest first is how it is
+        # read the rest of the time, so that stays the default.
+        def sort_label
+          by_spend? ? "dearest first · show newest first" : "newest first · show dearest first"
+        end
+
+        def sort_path
+          path_with(status: @filters[:status], sort: by_spend? ? nil : "spend")
+        end
+
+        def by_spend?
+          @filters[:sort].to_s == "spend"
+        end
+
+        def path_with(params)
+          carried = { agent: @filters[:agent] }.merge(params)
           eval_experiments_path(carried.compact.reject { |_, value| value.to_s.empty? })
         end
 
