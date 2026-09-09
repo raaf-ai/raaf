@@ -61,6 +61,13 @@ module RAAF
             end
           end
 
+          # An agent that recorded no model has no model to name, and the
+          # separator alone in front of the run count reads as a missing word
+          # rather than as a missing measurement.
+          def meta_line(agent)
+            [agent[:model].presence, "#{agent[:runs]} runs"].compact.join(" · ")
+          end
+
           def tile(agent)
             health = (agent[:health] || :ok).to_sym
 
@@ -70,7 +77,7 @@ module RAAF
                 render Atoms::Dot.new(tone: health, size: :lg, glow: true, pulse: health == :bad)
                 div(class: "raaf-agent-id") do
                   span(class: "raaf-agent-name") { agent[:name] }
-                  span(class: "raaf-agent-meta") { "#{agent[:model]} · #{agent[:runs]} runs" }
+                  span(class: "raaf-agent-meta") { meta_line(agent) }
                 end
                 render Atoms::Icon.new("chevron-right", size: :sm, tone: :muted)
               end

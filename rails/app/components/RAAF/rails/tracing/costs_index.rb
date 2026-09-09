@@ -69,8 +69,8 @@ module RAAF
         end
 
         # What the same length of time immediately before this window cost, or
-        # nil where the controller did not carry one — the older /tracing/costs
-        # route bills from CostManager and has no preceding window to hand.
+        # nil where there was no spend to compare against. A first window of
+        # traffic is not "up 100%".
         def preceding
           @cost_data[:preceding].presence
         end

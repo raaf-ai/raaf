@@ -8,63 +8,24 @@ module RAAF
         before_action :set_time_range, only: %i[index breakdown trends forecast]
         before_action :set_tenant_filters, only: %i[index breakdown trends forecast]
 
+        # The console has one cost screen, and it is Monitor › Cost & usage.
+        #
+        # This route used to render the same component from a second billing
+        # source: CostManager totals whole traces, SpanRecord.cost_rollup
+        # totals the spans the Agents screen bills. The two disagree — a run
+        # whose agent span carries its children's tokens is counted once by
+        # one and twice by the other — and nothing on either screen said which
+        # you were reading. It also passed no preceding window, so its Spend
+        # and Cost/run tiles lost the deltas the dashboard's version has.
+        #
+        # The JSON payload is untouched: forecast, budget status and
+        # recommendations are what a caller polling this endpoint asked for,
+        # and they are now computed only when one does. The HTML branch used
+        # to build all three and render none of them.
         def index
-          @cost_breakdown = @cost_manager.get_cost_breakdown(
-            timeframe: @time_range,
-            **@tenant_filters
-          )
-
-          @forecast = @cost_manager.forecast_costs(
-            timeframe: 30.days,
-            **@tenant_filters
-          )
-
-          @budget_status = get_budget_status
-          @recommendations = @cost_manager.get_cost_optimization_recommendations(
-            timeframe: @time_range,
-            **@tenant_filters
-          )
-
-          # This route reaches the same screen as the dashboard's Cost & usage,
-          # but from CostManager rather than from SpanRecord.cost_rollup, and it
-          # has no agent split — so its second panel is titled for what it holds.
-          totals = @cost_breakdown[:totals]
-
-          cost_data = {
-            total_cost: totals[:total_cost],
-            total_tokens: totals[:total_input_tokens] + totals[:total_output_tokens],
-            input_tokens: totals[:total_input_tokens],
-            output_tokens: totals[:total_output_tokens],
-            runs: totals[:total_traces],
-            window_hours: @cost_breakdown.dig(:period, :duration_hours),
-            last_billed_at: RAAF::Rails::Tracing::SpanRecord.last_billed_at,
-            breakdowns: [
-              { title: "By model",
-                rows: @cost_breakdown[:by_model].map do |model, data|
-                  { name: model, cost: data[:cost], tokens: data[:input_tokens] + data[:output_tokens] }
-                end.sort_by { |row| -row[:cost] } },
-              { title: "By workflow",
-                rows: @cost_breakdown[:by_workflow].map do |workflow, data|
-                  { name: workflow, cost: data[:cost], tokens: data[:tokens] || 0 }
-                end.sort_by { |row| -row[:cost] } }
-            ]
-          }
-
           respond_to do |format|
-            format.html do
-              render RAAF::Rails::Tracing::CostsIndex.new(
-                cost_data: cost_data,
-                params: params.permit(:start_date, :end_date, :model)
-              )
-            end
-            format.json do
-              render json: {
-                breakdown: @cost_breakdown,
-                forecast: @forecast,
-                budget_status: @budget_status,
-                recommendations: @recommendations
-              }
-            end
+            format.html { redirect_to dashboard_costs_path(range: params[:range].presence) }
+            format.json { render json: cost_api_payload }
           end
         end
 
@@ -198,6 +159,19 @@ module RAAF
         end
 
         private
+
+        # Everything the JSON caller reads, built only for that caller.
+        def cost_api_payload
+          {
+            breakdown: @cost_manager.get_cost_breakdown(timeframe: @time_range, **@tenant_filters),
+            forecast: @cost_manager.forecast_costs(timeframe: 30.days, **@tenant_filters),
+            budget_status: get_budget_status,
+            recommendations: @cost_manager.get_cost_optimization_recommendations(
+              timeframe: @time_range, **@tenant_filters
+            )
+          }
+        end
+
 
         def set_cost_manager
           @cost_manager = RAAF::Tracing::CostManager.new(

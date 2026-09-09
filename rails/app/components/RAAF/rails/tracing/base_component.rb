@@ -114,8 +114,9 @@ module RAAF
           "/raaf/dashboard/costs"
         end
 
-        def dashboard_errors_path
-          "/raaf/dashboard/errors"
+        def dashboard_errors_path(params = {})
+          path = "/raaf/dashboard/errors"
+          params.empty? ? path : "#{path}?#{params.to_query}"
         end
 
         def tracing_search_path(params = {})

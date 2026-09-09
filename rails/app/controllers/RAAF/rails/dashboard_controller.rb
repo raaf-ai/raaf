@@ -22,10 +22,7 @@ module RAAF
 
         # Recent activity
         @recent_traces = RAAF::Rails::Tracing::TraceRecord.recent.limit(10).includes(:spans)
-        @recent_errors = RAAF::Rails::Tracing::SpanRecord.errors.recent.limit(10).includes(:trace)
 
-        # Performance trends (simplified for now)
-        @performance_trends = calculate_performance_trends(@time_range)
         @agent_series = agent_series(@top_workflows, @time_range)
 
         respond_to do |format|
@@ -38,6 +35,8 @@ module RAAF
                                 .error_signatures(timeframe: @time_range, limit: 6)
             @workflow_spend = RAAF::Rails::Tracing::SpanRecord
                               .spend_by_workflow(timeframe: @time_range)
+            @workflow_models = RAAF::Rails::Tracing::SpanRecord
+                               .models_by_workflow(timeframe: @time_range)
 
             dashboard_component = RAAF::Rails::Tracing::DashboardIndex.new(
               overview_stats: @overview_stats,
@@ -45,12 +44,20 @@ module RAAF
               recent_traces: @recent_traces,
               error_signatures: @error_signatures,
               workflow_spend: @workflow_spend,
-              agent_series: @agent_series
+              agent_series: @agent_series,
+              workflow_models: @workflow_models
             )
 
             render_in_layout dashboard_component, title: "Dashboard", range: current_range, range_href: range_href
           end
+          # The error list and the trend series are the JSON payload's alone —
+          # the screen renders neither. Computing them for an HTML request
+          # bought a bucketed aggregate over the whole window that nothing
+          # then read.
           format.json do
+            @recent_errors = RAAF::Rails::Tracing::SpanRecord.errors.recent.limit(10).includes(:trace)
+            @performance_trends = calculate_performance_trends(@time_range)
+
             render json: {
               overview: @overview_stats,
               workflows: @top_workflows,
@@ -143,7 +150,7 @@ module RAAF
 
             errors_component = RAAF::Rails::Tracing::ErrorsDashboard.new(
               signatures: @signatures,
-              params: params.permit(:range)
+              params: params.permit(:range, :agent, :q)
             )
 
             render_in_layout errors_component, title: "Errors", range: current_range, range_href: range_href

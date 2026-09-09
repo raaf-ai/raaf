@@ -17,14 +17,17 @@ module RAAF
         #   workflow recorded no usage at all
         # @param agent_series [Hash] workflow name => `{ counts:, tones: }` per
         #   time bucket, for the sparkline the design puts on each agent card
+        # @param workflow_models [Hash] workflow name => the model it mostly
+        #   ran; a missing workflow recorded no model at all
         def initialize(overview_stats:, top_workflows:, recent_traces:, error_signatures: [],
-                       workflow_spend: {}, agent_series: {})
+                       workflow_spend: {}, agent_series: {}, workflow_models: {})
           @overview_stats = overview_stats
           @top_workflows = top_workflows
           @recent_traces = recent_traces
           @error_signatures = error_signatures || []
           @workflow_spend = workflow_spend || {}
           @agent_series = agent_series || {}
+          @workflow_models = workflow_models || {}
         end
 
         # The design's Overview is the KPI row and the split beneath it. The
@@ -43,18 +46,39 @@ module RAAF
         # The KPI row from RAAF Console.dc.html — label + icon, a 30px tabular
         # figure with its delta, and a supporting note.
         def kpis
-          render Organisms::StatGrid.new(stats: [
-                                           { label: "Runs", value: number(@overview_stats[:total_traces]), tone: :accent,
-                                             note: "traces started · selected range", icon: "diagram-3" },
-                                           { label: "Failure rate", value: failure_rate, tone: :danger,
-                                             note: "#{number(@overview_stats[:failed_traces])} failed · " \
-                                                   "#{number(@overview_stats[:error_spans])} error spans",
-                                             icon: "exclamation-octagon", href: dashboard_errors_path },
-                                           { label: "Avg duration", value: average_duration, tone: :warning,
-                                             note: "across #{number(@overview_stats[:total_spans])} spans", icon: "speedometer2" },
-                                           { label: "Success rate", value: "#{@overview_stats[:success_rate]}%", tone: :success,
-                                             note: "#{number(@overview_stats[:completed_traces])} completed", icon: "check-circle" }
-                                         ])
+          render Organisms::StatGrid.new(stats: kpi_stats)
+        end
+
+        def kpi_stats
+          [
+            { label: "Runs", value: number(@overview_stats[:total_traces]), tone: :accent,
+              note: "traces started · selected range", icon: "diagram-3" },
+            { label: "Failure rate", value: failure_rate, tone: :danger,
+              note: "#{number(@overview_stats[:failed_traces])} failed · " \
+                    "#{number(@overview_stats[:error_spans])} error spans",
+              icon: "exclamation-octagon", href: dashboard_errors_path },
+            { label: "Avg duration", value: average_duration, tone: :warning,
+              note: "across #{number(@overview_stats[:total_spans])} spans", icon: "speedometer2" },
+            { label: "Spend", value: total_spend, tone: :success,
+              note: spend_note, icon: "cash-stack", href: dashboard_costs_path }
+          ]
+        end
+
+        # Spend takes the fourth slot from Success rate, which was Failure
+        # rate's complement: the two differed only by the traces still
+        # running, so one of them restated the other and the row carried
+        # three figures in four tiles. What the window cost is not derivable
+        # from anything else on the screen.
+        def total_spend
+          return "—" if @workflow_spend.empty?
+
+          "$#{'%.2f' % @workflow_spend.values.sum(0.0)}"
+        end
+
+        def spend_note
+          return "nothing billed · selected range" if @workflow_spend.empty?
+
+          "#{pluralize(@workflow_spend.size, 'workflow')} billed"
         end
 
         # The Overview's main split, per RAAF Console.dc.html: the agent fleet
@@ -81,7 +105,7 @@ module RAAF
 
             {
               name: workflow[:workflow_name],
-              model: "#{workflow[:trace_count]} traces",
+              model: @workflow_models[workflow[:workflow_name]],
               runs: number(workflow[:trace_count]),
               health: health,
               error_rate: "#{rate}%",
@@ -213,6 +237,7 @@ module RAAF
             {
               workflow: trace.workflow_name,
               spans: pluralize(trace.spans.count, "span"),
+              started: time_ago(trace.started_at),
               duration: format_duration(trace.duration_ms),
               tone: TRACE_TONES.fetch(trace.status.to_s, :idle),
               href: tracing_trace_path(trace.trace_id)

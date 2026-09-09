@@ -29,13 +29,21 @@ module RAAF
 
           private
 
+          # A panel titled Live has to say how live it is. Without a start
+          # time its top row could as easily be from yesterday as from ten
+          # seconds ago, and the duration beside it answers a different
+          # question — how long the run took, not when it began.
           def row(trace)
             a(href: trace[:href] || "#", class: "raaf-run-row") do
               render Atoms::Dot.new(tone: trace[:tone] || :idle, pulse: trace[:tone] == :info)
               span(class: "raaf-run-name") { trace[:workflow] }
-              span(class: "raaf-run-meta") { trace[:spans] }
+              span(class: "raaf-run-meta") { meta_line(trace) }
               render Atoms::Mono.new(trace[:duration], tone: :muted)
             end
+          end
+
+          def meta_line(trace)
+            [trace[:started].presence, trace[:spans].presence].compact.join(" · ")
           end
         end
       end

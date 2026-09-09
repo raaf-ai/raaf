@@ -32,8 +32,21 @@ module RAAF
 
         private
 
+        # Only the kinds that actually recorded a span.
+        #
+        # The controller asks about a fixed list of four, so a kind nothing
+        # ran still comes back with a row of zeroes. The Kinds tile counted
+        # that list and so read 4 on an empty window while its note claimed
+        # "span kinds observed", and By-kind drew a bar for a kind with
+        # nothing behind it.
+        def observed_by_kind
+          @observed_by_kind ||= @performance_by_kind.select do |_, stat|
+            stat[:total_spans].to_i.positive?
+          end
+        end
+
         def stats
-          @performance_by_kind.values
+          observed_by_kind.values
         end
 
         def total_spans
@@ -50,6 +63,20 @@ module RAAF
 
         def worst_p95
           stats.map { |s| s[:p95_duration_ms].to_f }.max || 0
+        end
+
+        # What counts as slow at the 95th percentile. The tile was toned red
+        # unconditionally, so the colour said only that the figure existed —
+        # a window whose slowest kind finished in 40ms got the same red as one
+        # taking half a minute.
+        P95_SLOW_MS = 10_000
+        P95_WATCH_MS = 3_000
+
+        def worst_p95_tone
+          return :danger if worst_p95 >= P95_SLOW_MS
+          return :warning if worst_p95 >= P95_WATCH_MS
+
+          :success
         end
 
         # The buckets behind the two headline figures, so a tile says whether
@@ -94,20 +121,20 @@ module RAAF
                                            { label: "Avg duration", value: format_duration(weighted_avg), tone: :warning,
                                              note: "weighted by span count", icon: "speedometer2",
                                              series: series_for(:avg_duration), series_tips: series_tips_for(:avg_duration) },
-                                           { label: "Worst p95", value: format_duration(worst_p95), tone: :danger,
+                                           { label: "Worst p95", value: format_duration(worst_p95), tone: worst_p95_tone,
                                              note: "slowest kind at the 95th percentile", icon: "graph-up-arrow" },
-                                           { label: "Kinds", value: @performance_by_kind.size, tone: :success,
+                                           { label: "Kinds", value: observed_by_kind.size, tone: :accent,
                                              note: "span kinds observed", icon: "diagram-2" }
                                          ])
         end
 
         def by_kind_panel
           render(Molecules::Panel.new(title: "By kind", icon: "bar-chart")) do
-            if @performance_by_kind.blank?
+            if observed_by_kind.blank?
               render Molecules::EmptyState.new(icon: "bar-chart", title: "No timings")
             else
               slowest = worst_p95
-              @performance_by_kind.each do |kind, stat|
+              observed_by_kind.each do |kind, stat|
                 p95 = stat[:p95_duration_ms].to_f
                 share = slowest.positive? ? (p95 / slowest * 100) : 0
 

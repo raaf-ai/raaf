@@ -439,6 +439,38 @@ module RAAF
             end
           end
 
+          # The model each workflow mostly ran, for the Overview's agent tiles.
+          #
+          # One name per workflow rather than a list: a tile has room for one,
+          # and a workflow that changed model mid-window is better described by
+          # the one it used most than by "and two others". A workflow absent
+          # from the result recorded no model at all, which the tile says by
+          # printing the run count on its own.
+          #
+          # Keyed by the trace's workflow name for the same reason
+          # {spend_by_workflow} is: the Overview lists workflows, and
+          # {agent_rollup} groups by agent span name, so borrowing its model
+          # would name one agent's model for a run that used three.
+          #
+          # @param timeframe [Range, nil] Window to read
+          # @return [Hash] workflow name => model name
+          def models_by_workflow(timeframe: nil)
+            query = unscope(:order).with_token_usage
+            query = query.within_timeframe(timeframe.begin, timeframe.end) if timeframe
+            spans = query.for_billing.to_a
+            return {} if spans.empty?
+
+            workflows = TraceRecord.where(trace_id: spans.map(&:trace_id).uniq)
+                                   .pluck(:trace_id, :workflow_name).to_h
+
+            spans.group_by { |span| workflows[span.trace_id] }
+                 .except(nil)
+                 .filter_map do |name, group|
+                   model = dominant_model(group)
+                   [name, model] if model
+                 end.to_h
+          end
+
           # When anything was last billed, ignoring the window.
           #
           # A window with no spend in it is ambiguous on its own: the reader
