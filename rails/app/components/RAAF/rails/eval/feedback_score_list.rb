@@ -39,7 +39,8 @@ module RAAF
         # @param stats [Hash] :count, :avg, :min, :max, :median over the
         #   numerical scores
         # @param distribution [Hash] category => how many scores carry it
-        # @param definitions [Array<Hash>] :name, :type, :range, :count
+        # @param definitions [Array<Hash>] :name, :type, :range, :count and
+        #   :declared — false for a name scored under no definition
         def initialize(scores:, stats: {}, distribution: {}, definitions: [])
           @scores = scores
           @stats = stats || {}
@@ -124,7 +125,7 @@ module RAAF
             render(Organisms::DataGrid.new(
                      columns: DEFINITION_COLUMNS,
                      empty: { icon: "list-check", title: "No definitions",
-                              text: "Nothing has been scored yet." }
+                              text: "Nothing declared and nothing scored." }
                    )) do |grid|
               @definitions.each { |definition| definition_row(grid, definition) }
             end
@@ -134,7 +135,7 @@ module RAAF
         def definition_row(grid, definition)
           grid.row(href: eval_feedback_scores_path(name: definition[:name]), cells: [
                      { value: Molecules::TitleMeta.new(definition[:name],
-                                                       pluralize(definition[:count].to_i, "score"),
+                                                       definition_meta(definition),
                                                        mono: true) },
                      { value: Atoms::Badge.new(definition[:type],
                                                variant: TYPE_VARIANTS.fetch(definition[:type],
@@ -142,6 +143,19 @@ module RAAF
                        align: :right },
                      { value: Atoms::Mono.new(definition[:range], tone: :muted), align: :right }
                    ])
+        end
+
+        # A declared definition reports its declared range whether or not
+        # anything has been scored against it. A name scored under no
+        # definition is described from its scores instead, and says so — the
+        # two are different facts and a reader comparing ranges needs to know
+        # which kind a row is.
+        def definition_meta(definition)
+          scored = pluralize(definition[:count].to_i, "score")
+          return "#{scored} · not declared" if definition[:declared] == false
+          return "declared · never scored" if definition[:count].to_i.zero?
+
+          scored
         end
 
         # ── Recent scores ─────────────────────────────────────────────────

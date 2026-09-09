@@ -295,6 +295,11 @@ module RAAF
           "/raaf/eval/prompts/#{prompt_id}"
         end
 
+        def diff_eval_prompt_path(id, params = {})
+          path = "#{eval_prompt_path(id)}/diff"
+          params.empty? ? path : "#{path}?#{params.to_query}"
+        end
+
         # What can be done to a span, as arguments for Atoms::Button.
         #
         # A span is read on two screens -- its own page, and the inspector

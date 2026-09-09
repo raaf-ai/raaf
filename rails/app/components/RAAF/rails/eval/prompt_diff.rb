@@ -3,6 +3,19 @@
 module RAAF
   module Rails
     module Eval
+      ##
+      # What changed between two versions of a prompt.
+      #
+      # It used to render both versions in full, side by side, one tinted red
+      # and one tinted green, with two dots underneath saying whether content
+      # and model had changed. On a 400-line system prompt that tells the
+      # reader something changed and leaves them to find it.
+      #
+      # It renders a line-level diff now, through the same diff2html bundle
+      # the Replay screen uses — the controller asks for `bundles: [:diff]`,
+      # and the `diff` Stimulus controller takes the two strings and draws
+      # them.
+      #
       class PromptDiff < RAAF::Rails::Tracing::BaseComponent
         def initialize(prompt:, diff:)
           @prompt = prompt
@@ -10,50 +23,83 @@ module RAAF
         end
 
         def view_template
-          div(class: "p-6") do
-            h1(class: "text-2xl font-bold text-gray-900 mb-6") { "Prompt Diff: #{@prompt.name}" }
-            if @diff
-              render_diff_view
-            else
-              div(class: "bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-700") do
-                "Could not compute diff. Ensure both versions exist."
-              end
-            end
+          div(class: "raaf-page") do
+            header
+            @diff ? body : missing
           end
         end
 
         private
 
-        def render_diff_view
-          div(class: "grid grid-cols-2 gap-4") do
-            div(class: "bg-white shadow rounded-lg p-4") do
-              h3(class: "text-sm font-medium text-gray-500 mb-2") { "Version #{@diff[:from][:version]}" }
-              span(class: "text-xs text-gray-400") { "Model: #{@diff[:from][:model] || 'N/A'}" }
-              pre(class: "mt-2 bg-red-50 rounded p-3 text-sm text-gray-800 whitespace-pre-wrap overflow-x-auto") do
-                @diff[:from][:content]
-              end
-            end
-            div(class: "bg-white shadow rounded-lg p-4") do
-              h3(class: "text-sm font-medium text-gray-500 mb-2") { "Version #{@diff[:to][:version]}" }
-              span(class: "text-xs text-gray-400") { "Model: #{@diff[:to][:model] || 'N/A'}" }
-              pre(class: "mt-2 bg-green-50 rounded p-3 text-sm text-gray-800 whitespace-pre-wrap overflow-x-auto") do
-                @diff[:to][:content]
-              end
-            end
-          end
+        def header
+          render Organisms::RecordHead.new(
+            parent: { label: @prompt.name, href: eval_prompt_path(@prompt) },
+            title: title,
+            description: @diff && summary,
+            meta: @diff && model_line
+          )
+        end
 
-          div(class: "mt-4 flex gap-4") do
-            div(class: "flex items-center gap-2") do
-              dot_class = @diff[:content_changed] ? "bg-yellow-400" : "bg-green-400"
-              div(class: "w-2 h-2 rounded-full #{dot_class}")
-              span(class: "text-sm text-gray-600") { "Content #{@diff[:content_changed] ? 'changed' : 'unchanged'}" }
-            end
-            div(class: "flex items-center gap-2") do
-              dot_class = @diff[:model_changed] ? "bg-yellow-400" : "bg-green-400"
-              div(class: "w-2 h-2 rounded-full #{dot_class}")
-              span(class: "text-sm text-gray-600") { "Model #{@diff[:model_changed] ? 'changed' : 'unchanged'}" }
+        def title
+          return "Diff" unless @diff
+
+          "v#{@diff[:from][:version]} → v#{@diff[:to][:version]}"
+        end
+
+        # The two dots the old screen printed said "content changed" and
+        # "model changed" beside a diff that shows the first of those. Only
+        # the model is worth stating, because it is the one change a
+        # line-level comparison of the wording cannot show.
+        def summary
+          return "The wording is identical between these two versions." unless @diff[:content_changed]
+
+          "The wording changed. The comparison below is line by line."
+        end
+
+        def model_line
+          from = @diff[:from][:model].presence || "no model"
+          to = @diff[:to][:model].presence || "no model"
+
+          @diff[:model_changed] ? "model #{from} → #{to}" : "model #{to}, unchanged"
+        end
+
+        def body
+          render(Organisms::Card.new(title: "Difference", flush: true)) do
+            div(data: { controller: "diff",
+                        diff_original_value: @diff[:from][:content].to_s,
+                        diff_replayed_value: @diff[:to][:content].to_s,
+                        diff_output_style_value: "side-by-side" }) do
+              toolbar
+              div(class: "raaf-diff-surface", data: { diff_target: "container" }) do
+                render Atoms::Text.new("Rendering the difference…", tone: :muted)
+              end
             end
           end
+        end
+
+        def toolbar
+          div(class: "raaf-diff-toolbar") do
+            nav(class: "raaf-tabs", role: "tablist") do
+              style_tab("Side by side", "side-by-side", active: true)
+              style_tab("Unified", "line-by-line", active: false)
+            end
+          end
+        end
+
+        def style_tab(label, style, active:)
+          button(type: "button", role: "tab",
+                 class: "raaf-tab#{' is-active' if active}",
+                 "aria-selected": active ? "true" : "false",
+                 data: { action: "click->diff#toggleView", diff_output_style_param: style }) do
+            span { label }
+          end
+        end
+
+        def missing
+          render Molecules::EmptyState.new(
+            icon: "file-diff", title: "Nothing to compare",
+            text: "Both versions have to exist. Pick two from the prompt's version history."
+          )
         end
       end
     end

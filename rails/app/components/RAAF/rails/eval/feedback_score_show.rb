@@ -3,37 +3,83 @@
 module RAAF
   module Rails
     module Eval
+      ##
+      # One recorded feedback score.
+      #
+      # The header carries what was scored and what it scored; the list under
+      # it carries the record's own fields. It rendered `bg-white` and
+      # `text-gray-900` into the dark shell before this.
+      #
       class FeedbackScoreShow < RAAF::Rails::Tracing::BaseComponent
         def initialize(score:)
           @score = score
         end
 
         def view_template
-          div(class: "p-6 max-w-2xl") do
-            h1(class: "text-2xl font-bold text-gray-900 mb-4") { "Feedback Score: #{@score.name}" }
-            render_details
+          div(class: "raaf-page") do
+            header
+            details
+            reason_panel if @score.reason.present?
           end
         end
 
         private
 
-        def render_details
-          div(class: "bg-white shadow rounded-lg p-6 space-y-3") do
-            render_detail("Name", @score.name)
-            render_detail("Value", @score.numerical? ? @score.value.to_s : @score.category_value)
-            render_detail("Type", @score.numerical? ? "Numerical" : "Categorical")
-            render_detail("Target", @score.span_level? ? "Span: #{@score.span_id}" : "Trace: #{@score.trace_id}")
-            render_detail("Source", @score.source)
-            render_detail("Scored By", @score.scored_by || "-")
-            render_detail("Reason", @score.reason || "-")
-            render_detail("Created", @score.created_at&.strftime("%Y-%m-%d %H:%M:%S"))
+        def header
+          render Organisms::RecordHead.new(
+            parent: { label: "Feedback scores", href: eval_feedback_scores_path },
+            title: @score.name.to_s,
+            mono: true,
+            description: @score.reason.presence,
+            meta: head_meta,
+            stats: [{ label: "Value", value: value_text },
+                    { label: "Type", value: @score.numerical? ? "numerical" : "categorical" }]
+          )
+        end
+
+        def head_meta
+          [@score.source.presence && "source #{@score.source}",
+           @score.scored_by.presence && "by #{@score.scored_by}",
+           @score.created_at&.strftime("%Y-%m-%d %H:%M:%S")].compact.join(" · ")
+        end
+
+        def value_text
+          @score.numerical? ? @score.value.to_s : @score.category_value.to_s
+        end
+
+        def details
+          render(Organisms::Card.new(title: "Record", flush: true)) do
+            render Molecules::KeyValueList.new(pairs: pairs, layout: :rows, mono: true, flush: true)
           end
         end
 
-        def render_detail(label, value)
-          div(class: "flex justify-between py-2 border-b border-gray-100") do
-            span(class: "text-sm font-medium text-gray-500") { label }
-            span(class: "text-sm text-gray-900") { value.to_s }
+        # The span or the trace, not both: a score is attached to one of them,
+        # and printing an empty slot for the other reads as a missing link.
+        def pairs
+          {
+            "Name" => @score.name.to_s,
+            "Value" => value_text,
+            target_label => target_id,
+            "Source" => @score.source.presence || "—",
+            "Scored by" => @score.scored_by.presence || "—",
+            "Created" => @score.created_at&.strftime("%Y-%m-%d %H:%M:%S") || "—"
+          }
+        end
+
+        def target_label
+          @score.span_level? ? "Span" : "Trace"
+        end
+
+        def target_id
+          @score.span_level? ? @score.span_id.to_s : @score.trace_id.to_s
+        end
+
+        # Prose, so it gets a panel of its own rather than a cell in a mono
+        # list — a rater's sentence is the one part of this record written for
+        # a person to read.
+        def reason_panel
+          render(Organisms::Card.new(title: "Reason")) do
+            render Atoms::Text.new(@score.reason, tone: :secondary)
           end
         end
       end

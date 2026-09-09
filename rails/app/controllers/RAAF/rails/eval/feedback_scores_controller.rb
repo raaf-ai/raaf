@@ -5,6 +5,8 @@ module RAAF
     module Eval
       # Controller for managing feedback scores
       class FeedbackScoresController < BaseController
+        Definition = RAAF::Eval::Models::FeedbackScoreDefinition
+
         FeedbackScore = RAAF::Eval::Models::FeedbackScore
 
         # GET /raaf/eval/feedback_scores
@@ -90,18 +92,15 @@ module RAAF
           end
         end
 
-        # GET /raaf/eval/feedback_scores/statistics
+        # GET /raaf/eval/feedback_scores/statistics.json
+        #
+        # JSON only. The HTML branch rendered the same five figures and the
+        # same category distribution the Feedback list already carries, in the
+        # light theme, and nothing had linked it since those moved onto the
+        # list.
         def statistics
-          stats = FeedbackScore.score_statistics
-          distribution = FeedbackScore.category_distribution
-
-          respond_to do |format|
-            format.html do
-              component = RAAF::Rails::Eval::FeedbackStatistics.new(stats: stats, distribution: distribution)
-              render_in_layout component, title: "Feedback Statistics"
-            end
-            format.json { render json: { statistics: stats, distribution: distribution } }
-          end
+          render json: { statistics: FeedbackScore.score_statistics,
+                         distribution: FeedbackScore.category_distribution }
         end
 
         # DELETE /raaf/eval/feedback_scores/:id
@@ -113,37 +112,59 @@ module RAAF
 
         private
 
-        # What each score name is, derived from the scores themselves — the
-        # schema has no definition table. A name is numerical or categorical
-        # by which column its scores fill, and its range is the span those
-        # scores cover, so the list describes what has actually been recorded
-        # rather than what someone once intended.
+        # What each score name is, read from the definitions table.
+        #
+        # This used to be derived from the scores themselves, under a comment
+        # saying the schema had no definition table. It has one:
+        # FeedbackScoreDefinition, with a full CRUD controller answering JSON.
+        # Inferring instead meant a definition configured but never scored was
+        # invisible, and one declared 1–5 showed as 2–4 until something extreme
+        # was recorded — the card described what had happened rather than what
+        # was agreed.
+        #
+        # A name that has been scored without a definition still gets a row,
+        # because dropping it would hide real data behind a missing record.
+        # Those rows say so, so the two kinds are not read as one.
         def score_definitions
-          numerical = FeedbackScore.numerical.group(:name)
-          categorical = FeedbackScore.categorical.group(:name)
+          counts = FeedbackScore.group(:name).count
+          declared = Definition.order(:name).map { |definition| declared_row(definition, counts) }
 
-          rows = numerical_definitions(numerical) + categorical_definitions(categorical)
-          rows.sort_by { |definition| -definition[:count] }
+          declared + undeclared_rows(counts, declared.pluck(:name))
         end
 
-        def numerical_definitions(scope)
-          counts = scope.count
-          minimums = scope.minimum(:value)
-          maximums = scope.maximum(:value)
+        def declared_row(definition, counts)
+          { name: definition.name, type: definition.score_type,
+            count: counts.fetch(definition.name, 0),
+            range: declared_range(definition), declared: true }
+        end
 
-          counts.map do |name, count|
-            { name: name, type: "numerical", count: count,
-              range: "#{format('%.2f', minimums[name].to_f)} – #{format('%.2f', maximums[name].to_f)}" }
+        # The range the definition declares, not the one its scores happen to
+        # cover.
+        def declared_range(definition)
+          if definition.numerical?
+            "#{format('%.2f', definition.min_value.to_f)} – #{format('%.2f', definition.max_value.to_f)}"
+          else
+            "#{Array(definition.categories).size} cats"
           end
         end
 
-        def categorical_definitions(scope)
-          categories = scope.distinct.count(:category_value)
+        # Scored under a name nothing declares. Described from the scores,
+        # since there is nothing else to describe it from.
+        def undeclared_rows(counts, declared_names)
+          (counts.keys - declared_names).map do |name|
+            scope = FeedbackScore.where(name: name)
+            numerical = scope.numerical.exists?
 
-          scope.count.map do |name, count|
-            { name: name, type: "categorical", count: count,
-              range: "#{categories[name].to_i} cats" }
-          end
+            { name: name, type: numerical ? "numerical" : "categorical",
+              count: counts[name], declared: false,
+              range: observed_range(scope, numerical) }
+          end.sort_by { |row| -row[:count] }
+        end
+
+        def observed_range(scope, numerical)
+          return "#{scope.distinct.count(:category_value)} cats" unless numerical
+
+          "#{format('%.2f', scope.minimum(:value).to_f)} – #{format('%.2f', scope.maximum(:value).to_f)}"
         end
 
         def feedback_score_params

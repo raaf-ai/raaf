@@ -98,7 +98,10 @@ module RAAF
           respond_to do |format|
             format.html do
               component = RAAF::Rails::Eval::PromptDiff.new(prompt: @prompt, diff: diff_result)
-              render_in_layout component, title: "Diff: #{@prompt.name}"
+              # diff2html draws the comparison, the same way the Replay screen
+              # does; without the bundle the surface stays on its placeholder.
+              render_in_layout component, title: "Diff: #{@prompt.name}", live: false,
+                                          bundles: [:diff]
             end
             format.json { render json: diff_result }
           end

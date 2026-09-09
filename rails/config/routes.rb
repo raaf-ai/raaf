@@ -169,14 +169,16 @@ RAAF::Rails::Engine.routes.draw do
       collection do
         post :score_span
         post :score_trace
-        get :statistics
+        # JSON only: the HTML screen behind this repeated the Feedback list's
+        # own figures, and nothing linked it.
+        get :statistics, defaults: { format: :json }
       end
     end
 
     resources :feedback_score_definitions, only: %i[index show create update destroy]
 
     resources :prompts do
-      resources :versions, controller: "prompt_versions", only: %i[index show create] do
+      resources :versions, controller: "prompt_versions", only: %i[index show new create] do
         member do
           post :publish
           post :archive

@@ -3,113 +3,165 @@
 module RAAF
   module Rails
     module Eval
+      ##
+      # A prompt and its versions.
+      #
+      # Three of the four controls on this screen used to do nothing. "New
+      # Version" linked to the page you were already on; "Publish" and
+      # "Archive" were anchors pointing at routes the routes file declares
+      # +post+ only, so following one raised a routing error. They are a link
+      # to a real form and two +button_to+ posts now.
+      #
+      # Nothing linked the diff either, though the route and the screen both
+      # existed. Every version below the newest offers a comparison against
+      # the one after it, which is the comparison a version history is read
+      # for.
+      #
       class PromptShow < RAAF::Rails::Tracing::BaseComponent
+        VERSION_COLUMNS = [
+          { label: "Version", span: 0.6 },
+          { label: "Status", span: 0.7 },
+          { label: "Message", span: 1.8 },
+          { label: "Model", span: 0.9 },
+          { label: "Created by", span: 0.8 },
+          { label: "Created", span: 0.9, align: :right },
+          { label: "", span: 1.4, align: :right }
+        ].freeze
+
         def initialize(prompt:, versions:, active_version:)
           @prompt = prompt
-          @versions = versions
+          @versions = versions.to_a
           @active_version = active_version
         end
 
         def view_template
-          div(class: "p-6") do
-            render_header
-            render_active_version
-            render_versions_table
+          div(class: "raaf-page") do
+            actions
+            header_panel
+            active_panel
+            versions_panel
           end
         end
 
         private
 
-        def render_header
-          div(class: "sm:flex sm:items-center sm:justify-between mb-6 pb-4 border-b border-gray-200") do
-            div do
-              h1(class: "text-2xl font-bold text-gray-900") { @prompt.name }
-              p(class: "mt-1 text-sm text-gray-500") { @prompt.description } if @prompt.description.present?
-              span(class: "text-xs text-gray-400") { "Agent: #{@prompt.agent_name}" } if @prompt.agent_name
-            end
-            div(class: "mt-4 sm:mt-0 flex gap-2") do
-              render_preline_button(text: "New Version", href: eval_prompt_path(@prompt), variant: "primary",
-                                    icon: "bi-plus-lg")
-            end
-          end
+        def actions
+          render Molecules::RowActions.new(class: "raaf-page-actions", actions: [
+                                             { label: "New version",
+                                               href: new_version_path }
+                                           ])
         end
 
-        def render_active_version
-          div(class: "mb-6") do
-            h2(class: "text-lg font-semibold text-gray-900 mb-3") { "Active Version" }
+        def header_panel
+          render Organisms::RecordHead.new(
+            title: @prompt.name,
+            mono: true,
+            description: @prompt.description,
+            status: @active_version ? "published" : "draft",
+            meta: head_meta,
+            stats: [{ label: "Versions", value: @versions.size.to_s },
+                    { label: "Active", value: active_label }]
+          )
+        end
+
+        def head_meta
+          [@prompt.agent_name.presence && "agent #{@prompt.agent_name}",
+           @prompt.created_at&.strftime("created %Y-%m-%d")].compact.join(" · ")
+        end
+
+        def active_label
+          @active_version ? "v#{@active_version.version_number}" : "—"
+        end
+
+        # ── The published version ─────────────────────────────────────────
+
+        def active_panel
+          render(Organisms::Card.new(title: "Published version", subtitle: active_subtitle)) do
             if @active_version
-              div(class: "bg-white shadow rounded-lg p-6") do
-                div(class: "flex justify-between items-center mb-3") do
-                  span(class: "text-sm font-medium text-gray-600") { "v#{@active_version.version_number}" }
-                  span(class: "px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800") do
-                    "Published"
-                  end
-                end
-                div(class: "text-xs text-gray-500 mb-2") { "Model: #{@active_version.model}" } if @active_version.model
-                pre(class: "bg-gray-50 rounded-lg p-4 text-sm text-gray-800 overflow-x-auto whitespace-pre-wrap") do
-                  @active_version.content
-                end
-              end
+              render Atoms::CodeBlock.new(@active_version.content, height: :tall)
             else
-              div(class: "bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-700") do
-                "No published version. Create and publish a version to make it active."
-              end
+              render Molecules::EmptyState.new(
+                icon: "file-earmark-text", title: "Nothing published",
+                text: "Create a version and publish it to make it the one agents run."
+              )
             end
           end
         end
 
-        def render_versions_table
-          h2(class: "text-lg font-semibold text-gray-900 mb-3") { "Version History" }
-          div(class: "bg-white shadow rounded-lg overflow-hidden") do
-            if @versions.any?
-              table(class: "min-w-full divide-y divide-gray-200") do
-                thead(class: "bg-gray-50") do
-                  tr do
-                    th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Version" }
-                    th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Status" }
-                    th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Message" }
-                    th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Model" }
-                    th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Created By" }
-                    th(class: "px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase") { "Created" }
-                    th(class: "px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase") { "Actions" }
-                  end
-                end
-                tbody(class: "bg-white divide-y divide-gray-200") do
-                  @versions.each { |v| render_version_row(v) }
-                end
-              end
-            else
-              div(class: "p-8 text-center text-gray-500") { "No versions yet." }
+        def active_subtitle
+          return nil unless @active_version
+
+          ["v#{@active_version.version_number}",
+           @active_version.model.presence].compact.join(" · ")
+        end
+
+        # ── History ───────────────────────────────────────────────────────
+
+        def versions_panel
+          render(Organisms::Card.new(title: "Version history", flush: true)) do
+            render(Organisms::DataGrid.new(
+                     columns: VERSION_COLUMNS,
+                     empty: { icon: "clock-history", title: "No versions",
+                              text: "A prompt with no versions has nothing to run." }
+                   )) do |grid|
+              @versions.each_with_index { |version, index| version_row(grid, version, index) }
             end
           end
         end
 
-        def render_version_row(version)
-          tr(class: "hover:bg-gray-50") do
-            td(class: "px-4 py-3 text-sm font-medium text-gray-900") { "v#{version.version_number}" }
-            td(class: "px-4 py-3") do
-              badge_class = case version.status
-                            when "published" then "bg-green-100 text-green-800"
-                            when "draft" then "bg-yellow-100 text-yellow-800"
-                            else "bg-gray-100 text-gray-800"
-                            end
-              span(class: "px-2 py-0.5 rounded-full text-xs font-medium #{badge_class}") { version.status }
-            end
-            td(class: "px-4 py-3 text-sm text-gray-600") { version.commit_message || "-" }
-            td(class: "px-4 py-3 text-sm text-gray-600") { version.model || "-" }
-            td(class: "px-4 py-3 text-sm text-gray-500") { version.created_by || "-" }
-            td(class: "px-4 py-3 text-sm text-gray-500") { version.created_at&.strftime("%Y-%m-%d %H:%M") }
-            td(class: "px-4 py-3 text-right flex gap-1 justify-end") do
-              if version.draft?
-                render_preline_button(text: "Publish",
-                                      href: "#{eval_prompt_path(@prompt)}/versions/#{version.id}/publish", variant: "success", size: "xs")
-              end
-              unless version.archived?
-                render_preline_button(text: "Archive",
-                                      href: "#{eval_prompt_path(@prompt)}/versions/#{version.id}/archive", variant: "secondary", size: "xs")
-              end
-            end
-          end
+        # No row href: a row carrying `button_to` controls cannot itself be a
+        # link, since the form would be nested inside the anchor.
+        def version_row(grid, version, index)
+          grid.row(cells: [
+                     { value: Atoms::Mono.new("v#{version.version_number}"), primary: true },
+                     { value: Atoms::StatusBadge.new(version.status) },
+                     { value: version.commit_message.presence || "—" },
+                     { value: Atoms::Mono.new(version.model.presence || "—", tone: :muted) },
+                     { value: Atoms::Mono.new(version.created_by.presence || "—", tone: :muted) },
+                     { value: Atoms::Mono.new(created_at(version), tone: :muted), align: :right },
+                     { value: row_actions(version, index), align: :right }
+                   ])
+        end
+
+        def created_at(version)
+          version.created_at&.strftime("%Y-%m-%d %H:%M") || "—"
+        end
+
+        # The comparison a version history is read for is "what changed in
+        # this one", so a version is diffed against the one before it. The
+        # oldest has nothing before it and offers no diff.
+        def row_actions(version, index)
+          previous = @versions[index + 1]
+
+          Molecules::RowActions.new(actions: [
+                                      (diff_action(previous, version) if previous),
+                                      (publish_action(version) if version.draft?),
+                                      (archive_action(version) unless version.archived?)
+                                    ].compact)
+        end
+
+        def diff_action(previous, version)
+          { label: "Diff", href: diff_eval_prompt_path(@prompt, from: previous.version_number,
+                                                                to: version.version_number) }
+        end
+
+        def publish_action(version)
+          { label: "Publish", href: version_member_path(version, "publish"), method: :post,
+            confirm: "Publish v#{version.version_number}? " \
+                     "It becomes the version agents run." }
+        end
+
+        def archive_action(version)
+          { label: "Archive", href: version_member_path(version, "archive"), method: :post,
+            tone: :danger, confirm: "Archive v#{version.version_number}?" }
+        end
+
+        def version_member_path(version, action)
+          "#{eval_prompt_path(@prompt)}/versions/#{version.id}/#{action}"
+        end
+
+        def new_version_path
+          "#{eval_prompt_path(@prompt)}/versions/new"
         end
       end
     end

@@ -23,6 +23,23 @@ module RAAF
           end
         end
 
+        # GET /raaf/eval/prompts/:prompt_id/versions/new
+        #
+        # The prompt screen's "New Version" control used to link back to the
+        # screen it was on, because there was no form behind it. The draft is
+        # seeded from the published version, since a new version is almost
+        # always an edit of the one in force rather than a blank page.
+        def new
+          seed = @prompt.active_version || @prompt.prompt_versions.recent.first
+
+          respond_to do |format|
+            format.html do
+              component = RAAF::Rails::Eval::PromptVersionForm.new(prompt: @prompt, seed: seed)
+              render_in_layout component, title: "New version of #{@prompt.name}", live: false
+            end
+          end
+        end
+
         # POST /raaf/eval/prompts/:prompt_id/versions
         def create
           @version = @prompt.create_version!(
