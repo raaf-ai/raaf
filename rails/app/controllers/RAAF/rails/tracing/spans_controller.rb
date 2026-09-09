@@ -325,6 +325,12 @@ module RAAF
           nodes = {}
           edges = {}
 
+          # When each node ran, so the Pipeline heat tab can report a share of
+          # elapsed time rather than a share of summed durations. Kept beside
+          # the totals rather than in place of them: the topology's average
+          # duration per call still wants the sum.
+          intervals = Hash.new { |all, id| all[id] = [] }
+
           spans.each do |span|
             # Add nodes for agents and tools
             if span.kind == "agent"
@@ -332,6 +338,7 @@ module RAAF
                            span.span_attributes&.dig("agent.name") ||
                            span.name.gsub("agent.", "")
               node_id = "agent_#{agent_name}"
+              intervals[node_id] << [span.start_time, span.end_time]
               nodes[node_id] = {
                 id: node_id,
                 name: agent_name,
@@ -350,6 +357,7 @@ module RAAF
                           end
 
               node_id = "tool_#{tool_name}"
+              intervals[node_id] << [span.start_time, span.end_time]
               nodes[node_id] = {
                 id: node_id,
                 name: tool_name,
@@ -423,6 +431,8 @@ module RAAF
             end
           end
 
+          nodes.each { |id, node| node[:busy_duration] = BusyTime.total_ms(intervals[id]) }
+
           {
             nodes: nodes.values,
             edges: edges.values,
@@ -430,6 +440,12 @@ module RAAF
               total_agents: nodes.values.count { |n| n[:type] == "agent" },
               total_tools: nodes.values.count { |n| n[:type] == "tool" },
               total_calls: edges.values.sum { |e| e[:count] },
+              # The elapsed time of the window that anything at all was
+              # running, taken across every node at once. Summing the nodes'
+              # own busy times would count a stretch twice wherever two of them
+              # overlapped, which is the arithmetic this figure exists to
+              # avoid.
+              busy_duration: BusyTime.total_ms(intervals.values.flatten(1)),
               time_range: { start: @start_time, end: @end_time }
             }
           }

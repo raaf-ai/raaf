@@ -129,21 +129,30 @@ module RAAF
         # ── Pipeline heat ─────────────────────────────────────────────────
         #
         # There is no declared pipeline structure in the trace store, so the
-        # steps are the nodes ordered by the time they account for. The bar is
-        # each node's share of the summed span durations.
+        # steps are the nodes ordered by how long they were running.
         #
-        # That sum is not the window's wall clock, which is what this panel
-        # used to claim. Spans that ran in parallel each contribute their full
-        # duration, and a nested span is counted inside its parent as well as
-        # on its own, so the total exceeds the elapsed time — often by a lot on
-        # a run that fans out. Producing a real wall-clock share would mean
-        # taking the union of the intervals, which answers a different question
-        # from the one the bars are ranked by. The label says what is measured
-        # instead.
+        # "How long it was running" is the time a clock measured, not the sum
+        # of its spans' durations. The sum is the wrong number twice over: ten
+        # spans of a second that ran side by side sum to ten seconds although
+        # one second passed, and a span nested inside another is counted on
+        # itself and again inside its parent. So the panel reads each node's
+        # spans as intervals and merges the overlapping ones — see
+        # Tracing::BusyTime — and divides by the same union taken across every
+        # node, which is the stretch of the window during which anything at
+        # all was running.
+        #
+        # Two steps that ran in parallel are each responsible for the same
+        # seconds, so their shares can add up past 100%. That is the honest
+        # answer to "how much of the elapsed time was this step running"; the
+        # alternative, dividing by the summed node totals, buys bars that add
+        # to exactly 100% by dividing by a number no clock measured.
+        #
+        # The bars are ranked by the figure they show, so order and percentage
+        # cannot disagree.
 
         def pipeline_panel
           render(Organisms::Card.new(title: "Pipeline heat · #{window_label}",
-                                     subtitle: "share of total span time, slowest first")) do
+                                     subtitle: "share of elapsed time, longest-running first")) do
             render Organisms::PipelineSteps.new(
               steps: pipeline_steps,
               empty: { icon: "list-ol", title: "No spans in this window",
@@ -153,19 +162,29 @@ module RAAF
         end
 
         def pipeline_steps
-          total = nodes.sum { |node| node[:total_duration].to_f }
-          return [] if total.zero?
+          elapsed = busy_duration
+          return [] if elapsed.zero?
 
-          nodes.sort_by { |node| -node[:total_duration].to_f }.map do |node|
+          nodes.sort_by { |node| -busy(node) }.map do |node|
             rate = error_rate(node)
 
             { kind: node[:type] == "tool" ? (node[:kind] || "tool") : "agent",
               name: readable(node[:name]),
-              pct: (node[:total_duration].to_f / total) * 100,
-              duration: duration(node[:total_duration]),
+              pct: (busy(node) / elapsed) * 100,
+              duration: duration(busy(node)),
               error_rate: rate,
               tone: tone_for(rate) }
           end
+        end
+
+        def busy(node)
+          node[:busy_duration].to_f
+        end
+
+        # The window's elapsed busy time, as the controller measured it across
+        # every node at once.
+        def busy_duration
+          @flow_data.dig(:stats, :busy_duration).to_f
         end
 
         # ── Single trace path ─────────────────────────────────────────────
