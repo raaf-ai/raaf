@@ -47,15 +47,49 @@ module RAAF
 
         # Maps a variant symbol onto its modifier class.
         #
+        # A variant the component does not understand is a mistake at the call
+        # site, and this used to answer it with nil — so the component rendered
+        # as its bare base and nothing said otherwise. A wrong tone became no
+        # tone, which is a quiet wrong colour rather than a failure. The policy
+        # form printed its validation errors as bare text that way for as long
+        # as it passed `:danger` to an Alert whose vocabulary is `error`.
+        #
+        # So it raises where a developer or CI will see it, and keeps the old
+        # silence in production, where a missing modifier is cosmetic and
+        # raising would turn it into a blank screen in front of a user.
+        #
+        # A nil variant is not a mistake: every component reads it as "no
+        # modifier" and most callers pass one.
+        #
         # @param base [String] the component's block class, e.g. "raaf-badge"
         # @param variant [Symbol, String, nil]
         # @param allowed [Array<Symbol>] variants this component understands
-        # @return [String, nil] the modifier class, or nil when unrecognised
+        # @raise [ArgumentError] outside production, when the variant is not in
+        #   +allowed+
+        # @return [String, nil] the modifier class, or nil for no variant
         def modifier(base, variant, allowed)
           return nil if variant.nil?
 
           key = variant.to_s.tr("_", "-").to_sym
-          allowed.include?(key) ? "#{base}--#{key}" : nil
+          return "#{base}--#{key}" if allowed.include?(key)
+
+          raise_unknown_variant(base, variant, allowed) unless production?
+
+          nil
+        end
+
+        # `private def` rather than a bare `private`, which would also capture
+        # `slot` below and quietly narrow a helper the whole library calls.
+        private def raise_unknown_variant(base, variant, allowed)
+          raise ArgumentError,
+                "#{self.class.name || 'component'} was given #{variant.inspect} for " \
+                "#{base}, which understands #{allowed.map(&:to_s).join(', ')}"
+        end
+
+        # Defined outside a Rails boot too: the style guide and a handful of
+        # specs load these components with no application around them.
+        private def production?
+          defined?(::Rails) && ::Rails.respond_to?(:env) && ::Rails.env.production?
         end
 
         # Renders a slot that may be a block, a component or a plain string.
