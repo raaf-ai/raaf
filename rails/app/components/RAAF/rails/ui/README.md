@@ -32,7 +32,20 @@ exactly one file.
   `span:` weight as `minmax(0, Nfr)` tracks. Fixed pixel columns are not
   supported — they clip the right-hand cells on narrow viewports.
 - **Variants are class modifiers, never inline styles.** Components take
-  symbols (`tone: :bad`, `size: :sm`) and map them onto modifier classes.
+  symbols (`tone: :danger`, `size: :sm`) and map them onto modifier classes.
+- **One KPI tile, two presentations.** `Molecules::StatCard` takes
+  `layout: :corner` (icon top right, the default) or `layout: :leading` (icon
+  box in front of the tile). Both carry the delta, the note and the sparkline,
+  because those belong to the number and not to where the icon sits.
+  `Molecules::MetricCard` is the icon-box tile it supersedes, still rendered by
+  five screens until they migrate. Its tone names are already the surviving
+  set, so migrating a tile is a rename and no more.
+- **One tone vocabulary on the KPI tile:** `accent`, `success`, `warning`,
+  `danger` — the semantic set the atoms speak, so `tone:` means the same word
+  on a card, an icon and a badge. `StatCard::TONE_ALIASES` maps the health
+  dialect (`ok`/`warn`/`bad`/`info`) onto it, and is the only place that
+  mapping is stated. A word from neither vocabulary is dropped rather than
+  passed on to the icon.
 - **Dynamic values travel as CSS custom properties** — `--raaf-bar-pct`,
   `--raaf-tree-level`, `--raaf-cols`, `--raaf-spark-h` — so markup carries no
   layout arithmetic.

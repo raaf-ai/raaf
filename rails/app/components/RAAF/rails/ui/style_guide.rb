@@ -24,6 +24,7 @@ module RAAF
           form_controls
           feedback
           navigation
+          kpi_tiles
           data_display
           charts
           tracing
@@ -221,6 +222,39 @@ module RAAF
                                                per_page: 25, href: ->(n) { "?page=#{n}" })
             end
           end
+        end
+
+        # One tile, two icon placements. They are here side by side because the
+        # console used to have a separate component for each, and a reader met
+        # a different KPI row every second screen with no change of subject to
+        # justify it. The delta, the note and the sparkline belong to both.
+        def kpi_tiles
+          render Molecules::SectionHeader.new(
+            title: "KPI tiles",
+            meta: "molecules/stat_card.css · icon top right and icon box left"
+          )
+
+          render Organisms::StatGrid.new(stats: kpi_stats)
+          render Organisms::StatGrid.new(
+            stats: kpi_stats.map { |tile| tile.merge(layout: :leading) }
+          )
+        end
+
+        # The four tones the tile speaks, one per card, and the sparkline on the
+        # one that has something to say about a trend.
+        def kpi_stats
+          [
+            { label: "Runs", value: "12,480", delta: "+8.2%", tone: :accent,
+              note: "hover a bar for the hour it covers", icon: "diagram-3",
+              series: CHART_SERIES.pluck(:runs),
+              series_tips: CHART_SERIES.map { |bucket| chart_tip(bucket) } },
+            { label: "Success rate", value: "98.2%", delta: "+0.4pt", tone: :success,
+              note: "12,256 of 12,480 runs", icon: "check-circle" },
+            { label: "Avg duration", value: "2.4s", delta: "+310ms", tone: :warning,
+              note: "p95 is 7.1s", icon: "hourglass-split" },
+            { label: "Failure rate", value: "1.8%", delta: "+0.6pt", tone: :danger,
+              note: "225 failed · 23 error signatures", icon: "exclamation-octagon" }
+          ]
         end
 
         def data_display

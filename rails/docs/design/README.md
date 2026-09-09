@@ -40,7 +40,13 @@ Kind colours (`KindBadge` owns this mapping, nothing else):
 | pipeline | `rgb(255 255 255 / 10%)` | `#d1d5db` |
 
 Health tones: ok `#11aa64` / text `#7ee0ae`; warn `#f59e0b` / `#f3c37b`;
-bad `#ef4444` / `#ff8f8f`.
+bad `#ef4444` / `#ff8f8f`. The three bases are `var(--raaf-success)`,
+`var(--raaf-warning)` and `var(--raaf-danger)` under the health dialect's
+names, so `warn` and `warning` are the same amber by construction.
+
+Components speak one tone vocabulary — `accent` / `success` / `warning` /
+`danger` — and `Molecules::StatCard::TONE_ALIASES` is the only place the
+health dialect is mapped onto it.
 
 ## Designed column sets
 
@@ -1329,3 +1335,49 @@ figure and the note — the design's health card is the console's KPI tile with
 bars under the number. `Atoms::StatusBadge` learned `healthy` / `drifting` /
 `stale`, since it owns the only mapping from a domain value to a colour and a
 scorer's condition is one.
+
+## One KPI tile, in three steps
+
+The console had two KPI tiles doing the same job in different halves of
+itself. `StatCard` put the icon top right, allowed a delta beside the figure
+and a sparkline under it, and spoke `ok / warn / bad / info`. `MetricCard` put
+an icon box on the left, had neither a delta nor a sparkline, and spoke
+`accent / success / warning / danger`. Twelve screens render one or the other,
+so a reader learned one KPI row on the Overview and met a different one on
+Policies with no change of subject to justify it.
+
+Swapping them in one commit would touch all twelve, so it is an expand,
+migrate and contract instead. This is the expand step.
+
+`StatCard` now takes `layout: :corner` (the default, unchanged) or
+`layout: :leading`, which puts the icon in a tinted box in front of the tile.
+The delta, the note and the sparkline are available to both, because they
+belong to the number rather than to where the icon sits. Nothing migrated
+here: every screen renders exactly what it rendered before, and `MetricCard`
+is untouched.
+
+### The tone question, settled once
+
+The surviving vocabulary is `accent / success / warning / danger` — the
+semantic set `Icon`, `IconBox` and the badges already speak, so `tone:` means
+the same word wherever it appears. `MetricCard`'s tones are that set already.
+The health dialect maps onto it in `StatCard::TONE_ALIASES` and nowhere else:
+`ok → success`, `warn → warning`, `bad → danger`, `info → accent`. A call site
+still speaking the old dialect renders identically, so the migrate step is a
+rename per tile rather than a judgment call per tile.
+
+Two colours were the same amber only because the same hex had been typed
+twice. `--raaf-tone-warn` is now `var(--raaf-warning)`, and `ok` and `bad` are
+aliased the same way, so the two names cannot drift apart.
+
+A tone from neither vocabulary is dropped rather than passed on. The Feedback
+screen scores a missing average `:muted`, which the card does not know but
+`Atoms::Icon` does; without the guard, a word the card had just refused would
+have coloured the icon behind its back.
+
+The rename broke one thing quietly on the way. `health.css` tinted the
+sparkline bars by `.raaf-stat-card--ok / --warn / --bad`, and those selectors
+stopped matching the moment the card started emitting the new names — the
+Health cards would have gone grey with every test still green. The rules are
+renamed, and a spec now reads every stylesheet in the library and fails on any
+rule still addressing a tone the card no longer emits.

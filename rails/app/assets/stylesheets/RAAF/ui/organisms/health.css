@@ -63,6 +63,6 @@
    one the bars follow it and the card reads as one thing rather than as a
    coloured figure standing over grey bars. */
 .raaf-stat-card-spark .raaf-sparkbar { background: rgb(0 154 204 / 50%); }
-.raaf-stat-card--ok .raaf-stat-card-spark .raaf-sparkbar { background: rgb(17 170 100 / 50%); }
-.raaf-stat-card--warn .raaf-stat-card-spark .raaf-sparkbar { background: rgb(232 168 44 / 55%); }
-.raaf-stat-card--bad .raaf-stat-card-spark .raaf-sparkbar { background: rgb(239 68 68 / 55%); }
+.raaf-stat-card--success .raaf-stat-card-spark .raaf-sparkbar { background: rgb(17 170 100 / 50%); }
+.raaf-stat-card--warning .raaf-stat-card-spark .raaf-sparkbar { background: rgb(232 168 44 / 55%); }
+.raaf-stat-card--danger .raaf-stat-card-spark .raaf-sparkbar { background: rgb(239 68 68 / 55%); }

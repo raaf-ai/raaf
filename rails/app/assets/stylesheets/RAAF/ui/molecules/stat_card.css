@@ -2,6 +2,11 @@
    Molecule — StatCard
    The KPI tile from RAAF Console.dc.html: label + icon, a large tabular value
    with a coloured delta beside it, and a note underneath.
+
+   Two presentations, one tile. The default puts the icon at the top right, on
+   the label's line. `--leading` turns the tile on its side and puts the icon
+   in a tinted box in front of it. Everything between the label and the note is
+   the same markup either way, so the two never drift apart.
    ========================================================================= */
 
 .raaf-stat-grid {
@@ -26,6 +31,27 @@
 a.raaf-stat-card:hover {
   border-color: var(--raaf-border-strong);
   text-decoration: none;
+}
+
+/* Icon-box presentation. The box is a sibling of the text rather than part of
+   it, so it sets its own height and the column beside it stays a column. */
+.raaf-stat-card--leading {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--raaf-space-4);
+  transition: var(--raaf-transition);
+}
+
+.raaf-stat-card--leading .raaf-stat-card-body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+}
+
+a.raaf-stat-card--leading:hover {
+  box-shadow: var(--raaf-shadow-md);
 }
 
 .raaf-stat-card-head {
@@ -67,8 +93,10 @@ a.raaf-stat-card:hover {
   color: var(--raaf-text-muted);
 }
 
-/* Tone applies to the icon and the delta — the two things that carry meaning. */
-.raaf-stat-card--ok .raaf-stat-card-delta { color: var(--raaf-tone-ok-text); }
-.raaf-stat-card--warn .raaf-stat-card-delta { color: var(--raaf-tone-warn-text); }
-.raaf-stat-card--bad .raaf-stat-card-delta { color: var(--raaf-tone-bad-text); }
-.raaf-stat-card--info .raaf-stat-card-delta { color: var(--raaf-text-secondary); }
+/* Tone applies to the icon and the delta — the two things that carry meaning.
+   `accent` is emphasis rather than a verdict, so its delta stays in plain ink;
+   a cyan "+8.2%" would read as a judgement the card is not making. */
+.raaf-stat-card--success .raaf-stat-card-delta { color: var(--raaf-tone-ok-text); }
+.raaf-stat-card--warning .raaf-stat-card-delta { color: var(--raaf-tone-warn-text); }
+.raaf-stat-card--danger .raaf-stat-card-delta { color: var(--raaf-tone-bad-text); }
+.raaf-stat-card--accent .raaf-stat-card-delta { color: var(--raaf-text-secondary); }

@@ -54,12 +54,16 @@
 
   /* Health tones from the Console design. `text` variants are the legible
      ink on dark; the base is the dot/mark colour. KindBadge and the health
-     components are the only things that map a domain value to these. */
-  --raaf-tone-ok: #11aa64;
+     components are the only things that map a domain value to these.
+
+     The bases are the status colours above under the health dialect's names,
+     so `warn` and `warning` are the same amber by construction rather than by
+     two hex values that happened to be typed the same. */
+  --raaf-tone-ok: var(--raaf-success);
   --raaf-tone-ok-text: #7ee0ae;
-  --raaf-tone-warn: #f59e0b;
+  --raaf-tone-warn: var(--raaf-warning);
   --raaf-tone-warn-text: #f3c37b;
-  --raaf-tone-bad: #ef4444;
+  --raaf-tone-bad: var(--raaf-danger);
   --raaf-tone-bad-text: #ff8f8f;
 
   /* Span-kind chips — background / ink pairs. */
