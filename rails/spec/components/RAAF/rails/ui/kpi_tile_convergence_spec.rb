@@ -8,28 +8,29 @@ require_relative "../../../../../app/components/RAAF/rails/ui/organisms/stat_gri
 
 # The console had two KPI tiles doing the same job in different halves of
 # itself, and a reader met a different KPI row every second screen with no
-# change of subject to justify it. `StatCard` now carries both presentations;
-# this is the step where every screen moves onto it.
+# change of subject to justify it. `StatCard` carries both presentations, every
+# screen renders it, and the tile it superseded is gone. This is what keeps it
+# that way.
 #
-# Both checks read source rather than rendered HTML on purpose. `StatCard`
-# aliases the health dialect onto the surviving vocabulary, so a tile that
-# still says `:bad` renders byte-identically to one that says `:danger` — the
-# thing being migrated is the word, and the word is only visible in the source.
+# Both checks read source rather than rendered HTML on purpose. A tile saying
+# `:bad` now renders as a tile with no tone at all, which is a quiet wrong
+# colour rather than a failure — the word is what is being held to, and the
+# word is only visible in the source.
 module RAAF
   module Rails
     module Ui
       RSpec.describe "the console's KPI tiles" do
         COMPONENT_ROOT = File.expand_path("../../../../../app/components/RAAF/rails", __dir__)
 
-        # The superseded tile and the grid that exists only to lay it out. Both
-        # go in the contract step; until then they are the only two files
-        # allowed to name the component.
-        SUPERSEDED_FILES = %w[
-          ui/molecules/metric_card.rb
-          ui/organisms/metric_grid.rb
-        ].freeze
-
+        # The tile that used to sit beside `StatCard`, the grid that existed
+        # only to lay it out, and the helper that rendered it. All three are
+        # deleted, so naming any of them is a reference to nothing.
         SUPERSEDED = /(?:Molecules::MetricCard|Organisms::MetricGrid|render_metric_card)/
+
+        # The health dialect `StatCard` accepted while the screens migrated. The
+        # card no longer knows these words, so a tile still saying one renders
+        # untinted.
+        RETIRED_TONES = %i[ok warn bad info].freeze
 
         # Every method that decides what a KPI tile says, per screen — the
         # hashes themselves and the helpers they take a tone from. Listing them
@@ -82,14 +83,13 @@ module RAAF
           let(:components) do
             Dir[File.join(COMPONENT_ROOT, "**", "*.rb")]
               .map { |path| path.delete_prefix("#{COMPONENT_ROOT}/") }
-              .reject { |path| SUPERSEDED_FILES.include?(path) }
           end
 
-          it "is rendered by nothing" do
+          it "is named by nothing" do
             offenders = components.select { |path| self.class.source_of(path).match?(SUPERSEDED) }
 
             expect(offenders).to be_empty,
-                                 "still rendering the superseded KPI tile: #{offenders.join(', ')}"
+                                 "still naming the deleted KPI tile: #{offenders.join(', ')}"
           end
         end
 
@@ -121,11 +121,11 @@ module RAAF
           end
         end
 
-        # `TONE_ALIASES` exists so a screen that had not migrated yet still
-        # rendered correctly. Once every screen has, nothing in the console
-        # should need it, and the contract step can take it out.
+        # While the screens were migrating, a tile still speaking the health
+        # dialect rendered correctly because the card aliased it. It no longer
+        # does, so a word from that dialect now costs a tile its colour.
         describe "the tone vocabulary" do
-          retired = Molecules::StatCard::TONE_ALIASES.keys
+          retired = RETIRED_TONES
 
           TILE_METHODS.each do |path, methods|
             it "is the surviving one throughout #{path}" do

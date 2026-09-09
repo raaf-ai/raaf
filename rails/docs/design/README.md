@@ -45,8 +45,10 @@ bad `#ef4444` / `#ff8f8f`. The three bases are `var(--raaf-success)`,
 names, so `warn` and `warning` are the same amber by construction.
 
 Components speak one tone vocabulary — `accent` / `success` / `warning` /
-`danger` — and `Molecules::StatCard::TONE_ALIASES` is the only place the
-health dialect is mapped onto it.
+`danger`. The health dialect survives in the token names and in the components
+that still tint by it (`Mono`, `Bar`, the meters, the waterfall); the KPI tile
+does not know it, and a screen crossing from one to the other does so at its
+own call site.
 
 ## Designed column sets
 
@@ -611,8 +613,9 @@ Rebuilt on the library, from the design:
 
 - **Headline stats** — `repeat(auto-fit, minmax(180px,1fr))`, each card a label
   with its icon opposite, a 24px mono value and a note. `Organisms::MetricGrid`
-  already had that shape. Counted over every policy, not the filtered page: the
-  headline says what the system is doing, and a filter should not move it.
+  already had that shape — it has since converged into `Organisms::StatGrid`.
+  Counted over every policy, not the filtered page: the headline says what the
+  system is doing, and a filter should not move it.
 - **Filter rail** — All / Active / Paused with the count opposite, plain pills
   on the page. This is the third chip treatment in the canvas, so `FilterBar`'s
   two axes are now independent: `grouped:` for the shared container (Traces has
@@ -1410,6 +1413,23 @@ Feedback screen except the KPI tile at the top. That tile maps it at its own
 call site, so the tile's word is the semantic one without the shared helper
 having to change vocabulary for the sake of one caller.
 
-What the contract step can now take out: `Molecules::MetricCard`,
-`Organisms::MetricGrid`, `molecules/metric_card.css`, and `TONE_ALIASES` along
-with everything that only existed to keep the two dialects rendering the same.
+### The contract step
+
+`Molecules::MetricCard`, `Organisms::MetricGrid` and `molecules/metric_card.css`
+are deleted, and so is `StatCard::TONE_ALIASES`. The card knows the four
+surviving words and nothing else, so `ok / warn / bad / info` are dropped the
+way any other unrecognised word is. Nothing passes them: the two adapters that
+carry a caller's own vocabulary — `render_stat_card` with its Preline colour
+names, `Tracing::MetricCard` with `color:` — map onto the surviving set
+themselves. One tile in the library, one tone vocabulary, one entry for it in
+the style guide showing both presentations.
+
+The two checks written for the migrate step stay, and are what stops the
+console drifting back: one fails on any component naming the deleted tile, the
+other on any tile method naming a retired tone. Both name the retired words
+themselves now rather than reading them off the card, since the card no longer
+states them anywhere.
+
+The stylesheet is assembled by globbing `app/assets/stylesheets/RAAF/ui/*/`, so
+deleting the CSS file is the whole of removing it — there is no manifest that
+could be left pointing at a file that is gone.

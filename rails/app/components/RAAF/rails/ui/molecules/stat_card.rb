@@ -39,17 +39,12 @@ module RAAF
           # and a badge.
           TONES = %i[accent success warning danger].freeze
 
-          # The health dialect (`ok / warn / bad / info`) mapped onto it. Kept
-          # so a call site that still speaks it renders identically, and so the
-          # mapping is stated once rather than decided per tile.
-          TONE_ALIASES = { ok: :success, warn: :warning, bad: :danger, info: :accent }.freeze
-
           # @param label [String] uppercase caption
           # @param value [String, Numeric] the headline figure
           # @param delta [String, nil] change beside the figure
           # @param note [String, nil] supporting line underneath
           # @param icon [String, nil] Bootstrap Icons name
-          # @param tone [Symbol, nil] a {TONES} name, or a {TONE_ALIASES} key
+          # @param tone [Symbol, nil] a {TONES} name
           # @param layout [Symbol] :corner or :leading
           # @param series [Array<Numeric>, nil] sparkline under the figure
           # @param series_tips [Array<String>, nil] hover readout per bucket
@@ -95,13 +90,13 @@ module RAAF
 
           # Resolved once, in the constructor, so the modifier class and the
           # icon can never disagree about which tone the card is in. A word
-          # from neither vocabulary is dropped rather than passed on: the atoms
+          # from outside {TONES} is dropped rather than passed on: the atoms
           # know tones this card does not, and a tile should not colour its
           # icon by a name it just refused to colour its delta by.
           def normalize_tone(tone)
             return nil if tone.nil?
 
-            resolved = TONE_ALIASES.fetch(tone.to_sym, tone.to_sym)
+            resolved = tone.to_sym
             TONES.include?(resolved) ? resolved : nil
           end
 

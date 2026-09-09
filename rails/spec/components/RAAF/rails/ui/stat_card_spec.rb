@@ -8,7 +8,6 @@ require_relative "../../../../../app/components/RAAF/rails/ui/atoms/icon"
 require_relative "../../../../../app/components/RAAF/rails/ui/atoms/icon_box"
 require_relative "../../../../../app/components/RAAF/rails/ui/molecules/sparkbars"
 require_relative "../../../../../app/components/RAAF/rails/ui/molecules/stat_card"
-require_relative "../../../../../app/components/RAAF/rails/ui/molecules/metric_card"
 
 # The console had two KPI tiles doing the same job in different halves of
 # itself: one with the icon top-right and a delta beside the figure, one with
@@ -18,6 +17,10 @@ module RAAF
   module Rails
     module Ui
       RSpec.describe Molecules::StatCard do
+        # The health dialect the card used to accept alongside its own. Named
+        # here now that the card itself no longer states it anywhere.
+        RETIRED_TONES = %i[ok warn bad info].freeze
+
         def render(**args)
           described_class.new(**args).call
         end
@@ -85,31 +88,20 @@ module RAAF
           end
         end
 
-        # One vocabulary, and an explicit mapping onto it from each of the two
-        # the console used to speak, so migrating a tile is a word and not a
-        # judgment call.
+        # One vocabulary, the semantic set the atoms already speak. The health
+        # dialect the icon-top-right tiles used to say — `ok / warn / bad /
+        # info` — was aliased onto it while the screens migrated, and is now a
+        # word the card does not know.
         describe "tone vocabulary" do
           it "names four tones" do
             expect(described_class::TONES).to eq(%i[accent success warning danger])
           end
 
-          it "carries a mapping for every tone the icon-top-right tiles spoke" do
-            expect(described_class::TONE_ALIASES).to eq(
-              { ok: :success, warn: :warning, bad: :danger, info: :accent }
-            )
-          end
-
-          it "already speaks every tone the icon-box tiles spoke" do
-            expect(Molecules::MetricCard::TONES - described_class::TONES).to be_empty
-          end
-
-          {
-            ok: :success, warn: :warning, bad: :danger, info: :accent
-          }.each do |legacy, canonical|
-            it "renders #{legacy.inspect} exactly as #{canonical.inspect}" do
+          RETIRED_TONES.each do |tone|
+            it "no longer answers to #{tone.inspect}" do
               args = { label: "Runs", value: 12, delta: "+1", icon: "diagram-3" }
 
-              expect(render(**args, tone: legacy)).to eq(render(**args, tone: canonical))
+              expect(render(**args, tone: tone)).to eq(render(**args))
             end
           end
 
@@ -120,7 +112,7 @@ module RAAF
           end
 
           it "colours the icon box with the tone the card was given" do
-            html = render(label: "Errors", value: 17, icon: "x-octagon", tone: :bad,
+            html = render(label: "Errors", value: 17, icon: "x-octagon", tone: :danger,
                           layout: :leading)
 
             expect(html).to include("raaf-icon-box--danger")
@@ -166,10 +158,8 @@ module RAAF
           # tones — a screen going grey with every test still green. Nothing
           # may be left addressing a name the card no longer emits.
           it "leaves no rule addressing a tone the card has stopped emitting" do
-            retired = described_class::TONE_ALIASES.keys
-
             stylesheets.each do |path, css|
-              retired.each do |tone|
+              RETIRED_TONES.each do |tone|
                 # `--warn` is a prefix of `--warning`, so the class has to end
                 # where the name does.
                 expect(css).not_to match(/\.raaf-stat-card--#{tone}(?![\w-])/),

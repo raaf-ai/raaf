@@ -39,18 +39,16 @@ exactly one file.
   because those belong to the number and not to where the icon sits. The row
   declares the presentation — `Organisms::StatGrid.new(layout: :leading, …)` —
   since a KPI row where one tile carried its icon somewhere else would be a
-  mistake rather than a choice. `Molecules::MetricCard` and
-  `Organisms::MetricGrid` are the tile it supersedes and the grid that laid it
-  out; nothing renders either any more, and the contract step deletes them.
+  mistake rather than a choice. It is the console's only KPI tile: the one it
+  superseded, and the grid that laid that one out, are deleted.
 - **One tone vocabulary on the KPI tile:** `accent`, `success`, `warning`,
   `danger` — the semantic set the atoms speak, so `tone:` means the same word
-  on a card, an icon and a badge. Every tile in the console now says it in
-  those words. `StatCard::TONE_ALIASES` maps the health dialect
-  (`ok`/`warn`/`bad`/`info`) onto it for a caller outside this engine, and is
-  the only place that mapping is stated; a screen that takes its tone from
-  `score_tone`, which answers in the dialect `Mono` and the bars speak, makes
-  the crossing at its own call site rather than leaving it to the card. A word
-  from neither vocabulary is dropped rather than passed on to the icon.
+  on a card, an icon and a badge. It is the only vocabulary the tile knows; the
+  health dialect (`ok`/`warn`/`bad`/`info`) was aliased onto it while the
+  screens migrated and is not accepted any more. A screen that takes its tone
+  from `score_tone`, which answers in the dialect `Mono` and the bars speak,
+  makes the crossing at its own call site. A word the tile does not know is
+  dropped rather than passed on to the icon.
 - **Dynamic values travel as CSS custom properties** — `--raaf-bar-pct`,
   `--raaf-tree-level`, `--raaf-cols`, `--raaf-spark-h` — so markup carries no
   layout arithmetic.
