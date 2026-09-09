@@ -197,27 +197,45 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
 
       after { RAAF::Eval::Continuous.disable! }
 
+      WARMUP_WRITES = 5
+      MEASURED_WRITES = 25
+
       # The hook is what makes continuous evaluation safe to leave on in
       # production: it runs on every span written, so what it costs is what
       # tracing costs. Measured against the same writes with no policy to match
       # rather than against a fixed number of milliseconds, so a slow machine
       # moves both figures.
-      it "adds under 5ms to a span write" do
-        baseline = average_create_time
+      #
+      # Stated as a ratio for the same reason: under load both sides stretch
+      # together, and what has to stay true is that the hook is cheap next to
+      # the write it hangs off, not that it lands under some millisecond count
+      # a busy runner cannot hit. The median is what survives one GC pause --
+      # a mean over five writes could be pushed past any budget by a single
+      # slow one.
+      it "costs a fraction of the write it hangs off" do
+        baseline = median_create_time
         create_policy(name: "Overhead Test Policy", agent_name: "TestAgent")
-        with_policy = average_create_time
+        with_policy = median_create_time
 
-        expect((with_policy - baseline) * 1000).to be < 5.0
+        expect(with_policy).to be < baseline * 2.0
       end
 
-      def average_create_time
-        times = Array.new(5) do
-          started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-          described_class.create!(span_attributes.merge(span_id: "span_#{SecureRandom.hex(12)}"))
-          Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
-        end
+      # Discards the first writes, which pay for connection warm-up and
+      # statement preparation on both sides, then takes the median of the rest.
+      def median_create_time
+        WARMUP_WRITES.times { create_span }
 
-        times.sum / times.size
+        times = Array.new(MEASURED_WRITES) do
+          started = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+          create_span
+          Process.clock_gettime(Process::CLOCK_MONOTONIC) - started
+        end.sort
+
+        times[times.size / 2]
+      end
+
+      def create_span
+        described_class.create!(span_attributes.merge(span_id: "span_#{SecureRandom.hex(12)}"))
       end
     end
 
