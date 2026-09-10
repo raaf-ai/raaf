@@ -60,12 +60,55 @@ RSpec.describe RAAF::Rails::Continuous::CheckSampling do
       expect(reader.policy_sampling_label(percentage)).to eq("25%")
     end
 
-    # check_sample_every_n only carries a value where one was entered.
+    # check_sample_every_n only carries a value where one was entered, and a
+    # check left on the default runs at the policy's stride.
     it "does not read a missing stride as 1/0" do
       defaulted = policy([evaluator(checks: %w[a:quality],
                                     modes: { "a:quality" => "every_n" })])
 
-      expect(reader.policy_sampling_label(defaulted)).to eq("every span")
+      expect(reader.policy_sampling_label(defaulted)).to eq("1/10")
+    end
+  end
+
+  # Only the editor writes the per-check maps. A policy declared in code
+  # carries none of them, and reading that as "every span" told every such
+  # policy it graded everything while it sampled one span in twenty — the
+  # opposite of the rate EvaluationPolicy#check_and_increment_counter runs at,
+  # which is the policy's own column and never the per-check maps.
+  describe "checks that declare no sampling of their own" do
+    let(:inherited) do
+      policy([ { "name" => "quality", "checks" => %w[a:quality b:quality] } ],
+             sample_every_n: 13)
+    end
+
+    it "reports the policy's stride rather than every span" do
+      expect(reader.policy_sampling_cell(inherited)).to eq("1/13")
+      expect(reader.policy_sampling_label(inherited)).to eq("1/13")
+    end
+
+    it "says so per check too" do
+      expect(reader.check_sampling(inherited).map { |entry| entry[:sampling] })
+        .to eq(%w[1/13 1/13])
+    end
+
+    it "reports every span only where the policy really samples everything" do
+      everything = policy([ { "name" => "quality", "checks" => %w[a:quality] } ],
+                          sampling_mode: "all")
+
+      expect(reader.policy_sampling_cell(everything)).to eq("all")
+    end
+
+    # A check that does override still wins, and the mix is still reported as
+    # a mix rather than collapsed onto the policy's figure.
+    it "lets a check override the policy stride" do
+      mixed = policy([evaluator(checks: %w[a:quality b:quality],
+                                modes: { "a:quality" => "every_n" },
+                                every_n: { "a:quality" => 100 })],
+                     sample_every_n: 13)
+
+      expect(reader.check_sampling(mixed).map { |entry| entry[:sampling] })
+        .to eq(%w[1/100 1/13])
+      expect(reader.policy_sampling_cell(mixed)).to eq("2 rates")
     end
   end
 

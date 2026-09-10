@@ -22,6 +22,14 @@ module RAAF
       # These read the per-check values instead, and say "varies" rather than
       # picking one of them when the checks disagree.
       #
+      # A check that declares no sampling of its own inherits the policy's,
+      # because that is what actually runs: EvaluationPolicy#check_and_increment_counter
+      # consults `sample_every_n` on the policy and never looks at the per-check
+      # maps at all. Only the editor writes those maps, so a policy declared in
+      # code carries none of them — and reading a missing override as "every
+      # span" told every such policy it graded everything while it sampled one
+      # span in twenty.
+      #
       module CheckSampling
         # Every check on the policy with the sampling and trigger it was
         # configured with.
@@ -31,7 +39,7 @@ module RAAF
           Array(policy.evaluators).flat_map do |evaluator|
             next [] unless evaluator.is_a?(Hash)
 
-            checks_of(evaluator).map { |check| check_entry(evaluator, check) }
+            checks_of(evaluator).map { |check| check_entry(policy, evaluator, check) }
           end.uniq { |entry| entry[:check] }
         end
 
@@ -68,28 +76,28 @@ module RAAF
           Array(evaluator["checks"] || evaluator[:checks]).map(&:to_s)
         end
 
-        def check_entry(evaluator, check)
+        def check_entry(policy, evaluator, check)
           { evaluator: (evaluator["name"] || evaluator[:name]).to_s,
             check: check,
-            sampling: sampling_phrase(evaluator, check),
+            sampling: sampling_phrase(policy, evaluator, check),
             trigger: setting(evaluator, "check_trigger_modes", check) || "automatic" }
         end
 
-        def sampling_phrase(evaluator, check)
+        def sampling_phrase(policy, evaluator, check)
           case setting(evaluator, "check_sampling_modes", check)
           when "percentage" then "#{setting(evaluator, 'check_sample_rates', check).to_i}%"
-          when "every_n" then every_n_phrase(evaluator, check)
-          else "every span"
+          when "every_n" then every_n_phrase(policy, evaluator, check)
+          else policy_fallback_cell(policy)
           end
         end
 
         # `check_sample_every_n` only carries a value where one was entered, so
-        # a check left on the default is described as such rather than as
-        # "1/0".
-        def every_n_phrase(evaluator, check)
+        # a check left on the default falls back to the policy's own stride
+        # rather than being reported as "1/0".
+        def every_n_phrase(policy, evaluator, check)
           every = setting(evaluator, "check_sample_every_n", check).to_i
 
-          every.positive? ? "1/#{every}" : "every span"
+          every.positive? ? "1/#{every}" : policy_fallback_cell(policy)
         end
 
         def setting(evaluator, group, check)
