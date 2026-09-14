@@ -57,26 +57,72 @@ module RAAF
         # one hard-coded period silently overrode it — a policy asking for 90
         # days lost its results at 30.
         #
-        # Results whose policy was deleted, or which never had one, fall back to
-        # the default period. Nothing is immortal.
+        # A row that carries its own retention_days is swept on that, and needs
+        # no policy at all. This is what lets a policy be retired without
+        # shortening the history it produced: before the column existed,
+        # deleting a policy nulled evaluation_policy_id on its results
+        # (+dependent: :nullify+) and dropped them into the fallback below, so a
+        # policy that declared 90 days lost its results at 30 and nothing said
+        # so.
+        #
+        # Results that carry neither — written before the column, and belonging
+        # to a policy that is already gone — fall back to the default period.
+        # Nothing is immortal.
         #
         # @param default_period [ActiveSupport::Duration] fallback retention
         # @return [Integer] rows deleted
         def cleanup_evaluation_results(default_period)
-          deleted = each_policy_retention do |policy, cutoff|
-            RAAF::Eval::Models::ContinuousEvaluationResult
+          deleted = cleanup_results_by_own_retention
+          deleted += each_policy_retention do |policy, cutoff|
+            results_without_own_retention
               .where(evaluation_policy_id: policy.id)
               .where("created_at < ?", cutoff)
               .delete_all
           end
 
-          deleted += RAAF::Eval::Models::ContinuousEvaluationResult
+          deleted += results_without_own_retention
                      .where(evaluation_policy_id: [nil] + policies_without_retention_ids)
                      .where("created_at < ?", default_period.ago)
                      .delete_all
 
-          RAAF.logger.info "[ContinuousEval] Deleted #{deleted} evaluation results (per-policy retention_days, default #{default_period.inspect})"
+          RAAF.logger.info "[ContinuousEval] Deleted #{deleted} evaluation results (own retention_days, then per-policy, default #{default_period.inspect})"
           deleted
+        end
+
+        ##
+        # Rows swept on the retention they carry themselves.
+        #
+        # Grouped by the value rather than compared row by row: a handful of
+        # distinct periods across the whole table, so this is a few ranged
+        # deletes against idx_eval_results_on_retention_and_time rather than one
+        # scan computing an interval per row.
+        #
+        # @return [Integer] rows deleted
+        def cleanup_results_by_own_retention
+          return 0 unless RAAF::Eval::Models::ContinuousEvaluationResult.policy_provenance_stored?
+
+          RAAF::Eval::Models::ContinuousEvaluationResult
+            .where.not(retention_days: nil)
+            .distinct
+            .pluck(:retention_days)
+            .inject(0) do |deleted, days|
+              deleted + RAAF::Eval::Models::ContinuousEvaluationResult
+                        .where(retention_days: days)
+                        .where("created_at < ?", days.days.ago)
+                        .delete_all
+            end
+        end
+
+        ##
+        # Results that have to be swept through their policy, because they carry
+        # no retention of their own.
+        #
+        # @return [ActiveRecord::Relation]
+        def results_without_own_retention
+          model = RAAF::Eval::Models::ContinuousEvaluationResult
+          return model.all unless model.policy_provenance_stored?
+
+          model.where(retention_days: nil)
         end
 
         ##

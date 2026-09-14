@@ -72,6 +72,47 @@ module RAAF
         end
 
         ##
+        # @return [Boolean] whether this database carries the provenance
+        #   columns -- the policy's name and its retention, copied onto the row
+        #   so neither depends on the policy still existing.
+        #
+        #   Guarded the same way as check_key_stored? and for the same reason:
+        #   RAAF's migrations are copied into a host application by hand, so a
+        #   console can run ahead of its database, and a writer that insists on
+        #   the column would stop grading rather than grade without it.
+        def self.policy_provenance_stored?
+          (%w[policy_name retention_days] - column_names).empty?
+        rescue ActiveRecord::ActiveRecordError
+          false
+        end
+
+        ##
+        # How long this row is worth keeping, in days.
+        #
+        # Its own value when it has one, and the policy's while the backfill has
+        # not reached it. Nil means neither is available -- a row whose policy
+        # is already gone -- and the caller's default applies.
+        #
+        # @return [Integer, nil]
+        def keep_for_days
+          own = self.class.policy_provenance_stored? ? self[:retention_days] : nil
+          own || evaluation_policy&.retention_days
+        end
+
+        ##
+        # The policy that produced this row, by name.
+        #
+        # Read from the row itself, so it survives the policy being deleted --
+        # which is the whole reason the column exists. Falls back to the
+        # association for rows written before the backfill.
+        #
+        # @return [String, nil]
+        def producing_policy_name
+          own = self.class.policy_provenance_stored? ? self[:policy_name] : nil
+          own || evaluation_policy&.name
+        end
+
+        ##
         # @return [Boolean] whether the score is one evaluator's own verdict
         def per_check?
           self.class.check_key_stored? && self[:check_key].present?

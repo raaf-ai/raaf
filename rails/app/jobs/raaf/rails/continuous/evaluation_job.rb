@@ -188,6 +188,7 @@ module RAAF
             span_id: span.span_id,
             trace_id: span.trace_id,
             evaluation_policy_id: policy.id,
+            **policy_provenance(policy),
             queue_item_id: queue_item.id,
             evaluation_type: "automated",
             evaluator_name: evaluator_config["name"] || evaluator_config[:name],
@@ -1186,6 +1187,7 @@ module RAAF
             span_id: span.span_id,
             trace_id: span.trace_id,
             evaluation_policy_id: policy.id,
+            **policy_provenance(policy),
             queue_item_id: queue_item.id,
             evaluation_type: "automated",
             evaluator_name: evaluator_name,
@@ -1225,6 +1227,29 @@ module RAAF
           return {} unless RAAF::Eval::Models::ContinuousEvaluationResult.check_key_stored?
 
           { check_key: check_key }
+        end
+
+        ##
+        # The policy's name and retention, copied onto the row.
+        #
+        # evaluation_policy_id alone is not enough to carry either fact.
+        # EvaluationPolicy declares +dependent: :nullify+, so deleting a policy
+        # leaves its results in place with that column nulled -- anonymous, and
+        # (because RetentionCleanupJob reads retention_days through the same
+        # association) suddenly subject to the job's own default instead of the
+        # period the policy declared. Writing both here makes the row answer for
+        # itself.
+        #
+        # Empty on a database that predates the columns, like
+        # check_key_attribute: a writer that insisted on them would stop grading
+        # rather than grade without them.
+        #
+        # @param policy [RAAF::Eval::Models::EvaluationPolicy, nil]
+        # @return [Hash]
+        def policy_provenance(policy)
+          return {} unless RAAF::Eval::Models::ContinuousEvaluationResult.policy_provenance_stored?
+
+          { policy_name: policy&.name, retention_days: policy&.retention_days }
         end
 
         ##
@@ -1407,6 +1432,7 @@ module RAAF
             span_id: span.span_id,
             trace_id: span.trace_id,
             evaluation_policy_id: policy.id,
+            **policy_provenance(policy),
             queue_item_id: queue_item.id,
             evaluation_type: "automated",
             evaluator_name: evaluator_config["name"] || evaluator_config[:name],

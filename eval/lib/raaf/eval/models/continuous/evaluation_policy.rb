@@ -39,6 +39,15 @@ module RAAF
                  class_name: "RAAF::Eval::Models::ContinuousEvaluationResult",
                  foreign_key: :evaluation_policy_id,
                  dependent: :nullify
+        # Declared for the same reason as the two above, and it was missing:
+        # raaf_evaluation_alerts carries a foreign key to this table, so without
+        # an association Rails never nulls it and the database refuses the
+        # delete with InvalidForeignKey. Nothing has written an alert yet, which
+        # is the only reason retiring a policy has ever worked.
+        has_many :evaluation_alerts,
+                 class_name: "RAAF::Eval::Models::EvaluationAlert",
+                 foreign_key: :evaluation_policy_id,
+                 dependent: :nullify
 
         # Validations
         validates :name, presence: true, uniqueness: true
