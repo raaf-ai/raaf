@@ -463,19 +463,43 @@ module RAAF
         contents = []
 
         messages.each do |message|
+          text = message_text(message[:content])
+
           if message[:role] == "system"
-            system_instruction = message[:content]
+            system_instruction = text unless text.empty?
           else
             # Convert OpenAI role to Gemini role
             gemini_role = message[:role] == "assistant" ? "model" : "user"
             contents << {
               role: gemini_role,
-              parts: [{ text: message[:content] }]
+              parts: [{ text: text }]
             }
           end
         end
 
         [system_instruction, contents]
+      end
+
+      ##
+      # Flattens message content into the scalar string a Gemini part carries
+      #
+      # Content arriving here is not always a plain string. The Responses API keeps
+      # it as an array of typed parts, and a replayed span hands back whatever was
+      # recorded. Gemini's `text` field is a scalar, so anything else fails the whole
+      # request with a 400 that names only the part index and not the message.
+      #
+      # @param content [String, Array, Hash, nil] Message content in any shape
+      # @return [String] Text for a single Gemini part
+      # @private
+      #
+      def message_text(content)
+        case content
+        when nil then ""
+        when String then content
+        when Array then content.map { |part| message_text(part) }.join
+        when Hash then content[:text] || content["text"] || JSON.generate(content)
+        else content.to_s
+        end
       end
 
       ##

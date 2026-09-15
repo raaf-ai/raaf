@@ -140,6 +140,47 @@ RSpec.describe RAAF::Models::GeminiProvider do
 
         expect(contents[0][:parts]).to eq([{ text: "Test message" }])
       end
+
+      it "flattens structured content into the scalar text a part carries" do
+        messages = [
+          { role: "assistant", content: [{ type: "text", text: "Part one. " }, { type: "text", text: "Part two." }] }
+        ]
+
+        _system_instruction, contents = provider.send(:extract_system_instruction, messages)
+
+        expect(contents[0][:parts]).to eq([{ text: "Part one. Part two." }])
+      end
+
+      it "serializes a content hash that carries no text" do
+        messages = [
+          { role: "assistant", content: { "score" => 80 } }
+        ]
+
+        _system_instruction, contents = provider.send(:extract_system_instruction, messages)
+
+        expect(contents[0][:parts]).to eq([{ text: '{"score":80}' }])
+      end
+
+      it "sends an empty string rather than null for missing content" do
+        messages = [
+          { role: "user", content: nil }
+        ]
+
+        _system_instruction, contents = provider.send(:extract_system_instruction, messages)
+
+        expect(contents[0][:parts]).to eq([{ text: "" }])
+      end
+
+      it "leaves the system instruction unset when the system message is empty" do
+        messages = [
+          { role: "system", content: nil },
+          { role: "user", content: "Hello" }
+        ]
+
+        system_instruction, = provider.send(:extract_system_instruction, messages)
+
+        expect(system_instruction).to be_nil
+      end
     end
   end
 
