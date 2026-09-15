@@ -41,6 +41,11 @@ RAAF::Rails::Engine.routes.draw do
   # reference for which component to reach for.
   get "/style_guide", to: "style_guide#show", as: :style_guide
 
+  # PROTOTYPE — throwaway, for prospects_radar#1091. Three variants of a
+  # "Search" plugin section, switchable with ?variant=A|B|C. 404s in
+  # production. Delete with the branch.
+  get "/prototype/search", to: "tracing/prototype_search#show", as: :prototype_search
+
   # Tracing routes
   namespace :tracing do
     resources :traces do
