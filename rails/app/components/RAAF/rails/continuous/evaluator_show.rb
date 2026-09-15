@@ -75,7 +75,7 @@ module RAAF
           [{ label: "Checks", value: @evaluator[:checks].to_a.size.to_s },
            { label: "Policies", value: @policies.size.to_s },
            { label: "Costs a call", value: judged_by_llm? ? "yes" : "no",
-             tone: judged_by_llm? ? :warning : nil }]
+             tone: judged_by_llm? ? :warn : nil }]
         end
 
         def type_badge
