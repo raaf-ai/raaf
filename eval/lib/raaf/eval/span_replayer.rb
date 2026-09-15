@@ -153,16 +153,42 @@ module RAAF
         begin
           messages = messages_json.is_a?(String) ? JSON.parse(messages_json) : messages_json
           # Ensure messages have the correct structure
-          messages.map do |msg|
+          normalized = messages.map do |msg|
             {
               role: msg["role"] || msg[:role],
               content: msg["content"] || msg[:content]
             }.compact
           end
+
+          prompt_messages(normalized)
         rescue JSON::ParserError => e
           RAAF.logger.warn "[SpanReplayer] Failed to parse messages: #{e.message}"
           []
         end
+      end
+
+      ##
+      # Cut the captured conversation back to the prompt
+      #
+      # A span records the whole conversation, so it ends with the answer the agent
+      # produced. Sending that back asks the model to continue past its own answer
+      # rather than produce a fresh one, which is not a replay of the original call
+      # -- and Gemini rejects the request outright when the recorded answer is a
+      # structured content array rather than a string. Assistant and tool turns
+      # before the last user message are part of the prompt and stay.
+      #
+      # @param messages [Array<Hash>] The full captured conversation
+      # @return [Array<Hash>] Messages up to and including the last user turn
+      def prompt_messages(messages)
+        last_user = messages.rindex { |msg| msg[:role].to_s == "user" }
+        return messages unless last_user
+
+        dropped = messages.size - (last_user + 1)
+        if dropped.positive?
+          RAAF.logger.debug "[SpanReplayer] Dropping #{dropped} recorded answer message(s) after the last user turn"
+        end
+
+        messages.first(last_user + 1)
       end
 
       ##
