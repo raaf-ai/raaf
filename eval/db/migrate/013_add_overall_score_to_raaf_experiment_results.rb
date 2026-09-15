@@ -11,12 +11,16 @@
 # not been written since, so nothing reads as unscored while old rows are
 # without it. A host that wants its history sortable backfills it as a data
 # update rather than here.
+# Guarded with `if_not_exists` because a host carries its own timestamped copy
+# of this file: whichever runs second finds the column and the index already
+# there, and without the guard it aborts the host's boot-time migrate.
 class AddOverallScoreToRAAFExperimentResults < ActiveRecord::Migration[7.0]
   def change
-    add_column :raaf_experiment_results, :overall_score, :float
+    add_column :raaf_experiment_results, :overall_score, :float, if_not_exists: true
 
     # Worst first within one run, which is the only order this is asked in.
     add_index :raaf_experiment_results, %i[experiment_id overall_score],
-              name: "idx_experiment_results_on_experiment_and_score"
+              name: "idx_experiment_results_on_experiment_and_score",
+              if_not_exists: true
   end
 end
