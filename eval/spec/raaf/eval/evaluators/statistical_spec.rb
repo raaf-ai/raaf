@@ -35,6 +35,44 @@ RSpec.describe "Statistical Evaluators" do
       end
     end
 
+    context "with a tolerance on a coarse scale" do
+      let(:result) { { data: [1, 1, 2] } }
+
+      it "accepts a one-point wobble that the coefficient of variation rejects" do
+        by_cv = evaluator.evaluate(field_context, std_dev: 0.1)
+        by_spread = evaluator.evaluate(field_context, tolerance: 1)
+
+        expect(by_cv[:label]).to eq("bad")
+        expect(by_spread[:label]).to eq("good")
+        expect(by_spread[:score]).to eq(1.0)
+        expect(by_spread[:details]).to include(spread: 1, tolerance: 1)
+        expect(by_spread[:message]).to eq("[GOOD] Consistency spread: 1 (tolerance: 1)")
+      end
+    end
+
+    context "with a tolerance and a spread past it" do
+      let(:result) { { data: [45, 10, 15] } }
+
+      it "still fails a real disagreement" do
+        result = evaluator.evaluate(field_context, tolerance: 10)
+
+        expect(result[:label]).to eq("bad")
+        expect(result[:score]).to eq(0.0)
+        expect(result[:details][:spread]).to eq(35)
+      end
+    end
+
+    context "with a tolerance and a spread between one and three times it" do
+      let(:result) { { data: [7, 5, 7] } }
+
+      it "scores linearly down from the tolerance" do
+        result = evaluator.evaluate(field_context, tolerance: 1)
+
+        expect(result[:score]).to eq(0.5)
+        expect(result[:label]).to eq("bad")
+      end
+    end
+
     context "with invalid input" do
       let(:result) { { data: "not an array" } }
 

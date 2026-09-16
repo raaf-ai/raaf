@@ -64,6 +64,9 @@ module RAAF
           # @param details [Hash] The evaluation details
           # @return [String] Markdown-formatted result
           def self.format_aggregate_result(details)
+            tolerance = details[:tolerance] || details["tolerance"]
+            return format_spread_result(details, tolerance) if tolerance
+
             cv = details[:coefficient_of_variation] || details["coefficient_of_variation"]
             max_cv = details[:max_std_dev] || details["max_std_dev"] || 0.1
             mean = details[:mean] || details["mean"]
@@ -93,6 +96,33 @@ module RAAF
               md << "allowed (#{(max_cv * 100).round(1)}%), indicating inconsistent behavior.\n"
             end
 
+            md
+          end
+
+          # Format a tolerance-based result as markdown
+          # @param details [Hash] The evaluation details
+          # @param tolerance [Numeric] The allowed spread, in the field's own units
+          # @return [String] Markdown-formatted result
+          def self.format_spread_result(details, tolerance)
+            spread = details[:spread] || details["spread"]
+            values = details[:values] || details["values"] || []
+            threshold_good = details[:threshold_good] || details["threshold_good"] || 0.8
+            threshold_average = details[:threshold_average] || details["threshold_average"] || 0.6
+            score = spread <= tolerance ? 1.0 : (1.0 - ((spread - tolerance) / (tolerance * 2.0))).clamp(0.0, 1.0)
+            status = if score >= threshold_good
+                       "✓ Good"
+                     elsif score >= threshold_average
+                       "◐ Average"
+                     else
+                       "✗ Bad"
+                     end
+
+            md = String.new("### Consistency Check\n\n")
+            md << "| Metric | Value | Threshold | Result |\n"
+            md << "|--------|------:|----------:|--------|\n"
+            md << "| Spread (max − min) | #{spread} | ≤#{tolerance} | #{status} |\n"
+            md << "| Values | #{values.join(", ")} | — | — |\n"
+            md << "\n"
             md
           end
 
@@ -147,7 +177,16 @@ module RAAF
 
           # Evaluate consistency of results
           # @param field_context [FieldContext] The field context containing value and baseline
-          # @param options [Hash] Options including :std_dev (default 0.1)
+          # With +tolerance:+ the check measures the spread (max - min) of the
+          # values in the field's own units instead of the coefficient of
+          # variation. Declare it for any score on a coarse or integer scale: the
+          # CV divides by the mean, so on a 1-10 scale [1, 1, 2] reads as 35%
+          # variation and fails a 10% ceiling, while [8, 8, 9] passes, although
+          # both moved by the same single point. A spread within the tolerance
+          # scores 1.0, falling linearly to 0.0 at three times the tolerance.
+          #
+          # @param options [Hash] Options including :std_dev (max CV, default 0.1)
+          #   and :tolerance (allowed spread; replaces the CV when given)
           # @return [Hash] Evaluation result
           def evaluate(field_context, **options)
             max_std_dev = options[:std_dev] || 0.1
@@ -168,6 +207,12 @@ module RAAF
                 },
                 message: "[BAD] Invalid input: expected array of values"
               }
+            end
+
+            tolerance = options[:tolerance]
+            if tolerance
+              return evaluate_spread(values, tolerance, good_threshold: good_threshold,
+                                                        average_threshold: average_threshold)
             end
 
             # Calculate standard deviation
@@ -197,6 +242,34 @@ module RAAF
           end
 
           private
+
+          def evaluate_spread(values, tolerance, good_threshold:, average_threshold:)
+            numeric_values = values.map { |v| v.is_a?(Numeric) ? v : v.to_s.length }
+            spread = (numeric_values.max - numeric_values.min).round(3)
+            score = calculate_spread_score(spread, tolerance)
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
+
+            {
+              label: label,
+              score: score,
+              details: {
+                values: values,
+                mean: calculate_mean(values).round(3),
+                spread: spread,
+                tolerance: tolerance,
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
+              },
+              message: "[#{label.upcase}] Consistency spread: #{spread} (tolerance: #{tolerance})"
+            }
+          end
+
+          def calculate_spread_score(spread, tolerance)
+            return 1.0 if spread <= tolerance
+            return 0.0 if spread >= tolerance * 3
+
+            (1.0 - ((spread - tolerance) / (tolerance * 2.0))).round(4)
+          end
 
           def calculate_mean(values)
             return 0 if values.empty?
