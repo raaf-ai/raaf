@@ -73,6 +73,55 @@ RSpec.describe "Statistical Evaluators" do
       end
     end
 
+    context "with runs keyed by item, listed in a different order each run" do
+      # The same three events, reordered: read positionally the first item
+      # would compare 7, 2 and 5, which are three different events.
+      let(:result) do
+        { data: [ { "e1" => 7, "e2" => 2, "e3" => 5 },
+                  { "e2" => 2, "e3" => 5, "e1" => 7 },
+                  { "e3" => 5, "e1" => 8, "e2" => 2 } ] }
+      end
+
+      it "compares each item with itself" do
+        result = evaluator.evaluate(field_context, tolerance: 1)
+
+        expect(result[:label]).to eq("good")
+        expect(result[:score]).to eq(1.0)
+        expect(result[:details]).to include(items_compared: 3, items_consistent: 3, worst_items: [])
+        expect(result[:message]).to eq("[GOOD] 3 of 3 items consistent across 3 runs (tolerance: 1)")
+      end
+    end
+
+    context "with one item that disagrees with itself" do
+      let(:result) do
+        { data: [ { "funding" => 100, "hiring" => 40 },
+                  { "hiring" => 40, "funding" => 55 },
+                  { "funding" => 55, "hiring" => 45 } ] }
+      end
+
+      it "scores the mean of the items and names the worst" do
+        result = evaluator.evaluate(field_context, tolerance: 10)
+
+        expect(result[:score]).to eq(0.5)
+        expect(result[:label]).to eq("bad")
+        expect(result[:details][:worst_items])
+          .to eq([ { key: "funding", values: [ 100, 55, 55 ], score: 0.0 } ])
+        expect(result[:message]).to end_with("; worst funding [100, 55, 55]")
+      end
+    end
+
+    context "with an item one run left out" do
+      let(:result) { { data: [ { "e1" => 3, "e2" => 4 }, { "e1" => 3 } ] } }
+
+      it "counts the omission as a different answer" do
+        result = evaluator.evaluate(field_context, tolerance: 1)
+
+        expect(result[:score]).to eq(0.5)
+        expect(result[:details][:items_missing_from_a_run]).to eq(1)
+        expect(described_class.format_result(result)).to include("| e2 | 4, missing | 0.0 |")
+      end
+    end
+
     context "with invalid input" do
       let(:result) { { data: "not an array" } }
 

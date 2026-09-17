@@ -64,6 +64,8 @@ module RAAF
           # @param details [Hash] The evaluation details
           # @return [String] Markdown-formatted result
           def self.format_aggregate_result(details)
+            return format_keyed_result(details) if details.key?(:items_compared) || details.key?("items_compared")
+
             tolerance = details[:tolerance] || details["tolerance"]
             return format_spread_result(details, tolerance) if tolerance
 
@@ -97,6 +99,30 @@ module RAAF
             end
 
             md
+          end
+
+          # Format a per-item result as markdown
+          # @param details [Hash] The evaluation details
+          # @return [String] Markdown-formatted result
+          def self.format_keyed_result(details)
+            fetch = ->(name) { details[name] || details[name.to_s] }
+            md = String.new("### Consistency Check\n\n")
+            md << "#{fetch.call(:items_consistent)} of #{fetch.call(:items_compared)} items gave the same answer " \
+                  "across #{fetch.call(:runs)} runs"
+            md << " (tolerance: #{fetch.call(:tolerance)})" if fetch.call(:tolerance)
+            md << ".\n\n"
+
+            worst = fetch.call(:worst_items) || []
+            return md if worst.empty?
+
+            md << "| Item | Values | Score |\n"
+            md << "|------|--------|------:|\n"
+            worst.each do |item|
+              key = item[:key] || item["key"]
+              values = (item[:values] || item["values"]).map { |v| v.nil? ? "missing" : v }
+              md << "| #{key} | #{values.join(", ")} | #{(item[:score] || item["score"]).round(2)} |\n"
+            end
+            md << "\n"
           end
 
           # Format a tolerance-based result as markdown
@@ -177,6 +203,11 @@ module RAAF
 
           # Evaluate consistency of results
           # @param field_context [FieldContext] The field context containing value and baseline
+          # When each run is a Hash (item key => value, from a selection that
+          # declares +key:+), every item is compared with itself across the runs
+          # and the score is the mean of the items' own scores. An item missing
+          # from one run scores 0.0: leaving it out is a different answer.
+          #
           # With +tolerance:+ the check measures the spread (max - min) of the
           # values in the field's own units instead of the coefficient of
           # variation. Declare it for any score on a coarse or integer scale: the
@@ -210,6 +241,11 @@ module RAAF
             end
 
             tolerance = options[:tolerance]
+            if values.all?(Hash)
+              return evaluate_keyed(values, tolerance: tolerance, max_std_dev: max_std_dev,
+                                            good_threshold: good_threshold, average_threshold: average_threshold)
+            end
+
             if tolerance
               return evaluate_spread(values, tolerance, good_threshold: good_threshold,
                                                         average_threshold: average_threshold)
@@ -242,6 +278,71 @@ module RAAF
           end
 
           private
+
+          # How many of the least consistent items a keyed result names.
+          WORST_ITEMS_REPORTED = 3
+
+          def evaluate_keyed(runs, tolerance:, max_std_dev:, good_threshold:, average_threshold:)
+            item_keys = runs.flat_map(&:keys).map(&:to_s).uniq
+            items = item_keys.map do |item_key|
+              values = runs.map { |run| run[item_key] || run[item_key.to_sym] }
+              { key: item_key, values: values, score: keyed_item_score(values, tolerance, max_std_dev) }
+            end
+            return keyed_result_without_items(good_threshold, average_threshold) if items.empty?
+
+            score = (items.sum { |item| item[:score] } / items.size).round(4)
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
+            consistent = items.count { |item| item[:score] >= 1.0 }
+            missing = items.count { |item| item[:values].any?(&:nil?) }
+            worst = items.select { |item| item[:score] < 1.0 }.min_by(WORST_ITEMS_REPORTED) { |item| item[:score] }
+
+            message = "[#{label.upcase}] #{consistent} of #{items.size} items consistent across #{runs.size} runs"
+            message << " (tolerance: #{tolerance})" if tolerance
+            message << "; worst #{worst.first[:key]} #{worst.first[:values].inspect}" if worst.any?
+
+            {
+              label: label,
+              score: score,
+              details: {
+                runs: runs.size,
+                items_compared: items.size,
+                items_consistent: consistent,
+                items_missing_from_a_run: missing,
+                worst_items: worst,
+                tolerance: tolerance,
+                max_std_dev: tolerance ? nil : max_std_dev,
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
+              }.compact,
+              message: message
+            }
+          end
+
+          def keyed_item_score(values, tolerance, max_std_dev)
+            return 0.0 if values.any?(&:nil?)
+
+            numeric = values.map { |v| v.is_a?(Numeric) ? v : v.to_s.length }
+            if tolerance
+              calculate_spread_score((numeric.max - numeric.min).round(3), tolerance)
+            else
+              mean = numeric.sum.to_f / numeric.size
+              cv = mean.zero? ? 0 : calculate_std_dev(numeric) / mean.abs
+              calculate_score(cv, max_std_dev)
+            end
+          end
+
+          def keyed_result_without_items(good_threshold, average_threshold)
+            {
+              label: "bad",
+              score: 0.0,
+              details: {
+                error: "No item appeared in any run",
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
+              },
+              message: "[BAD] Invalid input: no items to compare across runs"
+            }
+          end
 
           def evaluate_spread(values, tolerance, good_threshold:, average_threshold:)
             numeric_values = values.map { |v| v.is_a?(Numeric) ? v : v.to_s.length }

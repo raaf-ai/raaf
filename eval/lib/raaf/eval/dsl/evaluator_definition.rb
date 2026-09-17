@@ -260,10 +260,20 @@ module RAAF
           # Select a field for evaluation with optional alias
           # @param path [String] Field path (supports dot notation)
           # @param as [Symbol] Alias for the field
+          # @param key [String, Symbol, Array, nil] For a path through a list
+          #   ("items.*.score"), the item field that says which item a value
+          #   belongs to. A consistency check then compares each item with
+          #   itself across runs. Without it the check reads only the first
+          #   item of each run, which is a different item whenever the model
+          #   orders its answer differently. An Array names fallbacks, the
+          #   first present one wins.
           # @example
           #   select 'usage.total_tokens', as: :tokens
-          def select(path, as:, optional: false)
-            @_evaluator_config[:selections] << { path: path, as: as, optional: optional }
+          #   select 'scored_events.*.relevance_score', as: :scores, key: :event_id
+          def select(path, as:, optional: false, key: nil)
+            selection = { path: path, as: as, optional: optional }
+            selection[:key] = key if key
+            @_evaluator_config[:selections] << selection
           end
 
           # Define evaluators for a specific field

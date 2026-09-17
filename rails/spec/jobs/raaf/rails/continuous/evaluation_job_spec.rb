@@ -385,6 +385,42 @@ RSpec.describe RAAF::Rails::Continuous::EvaluationJob, type: :job do
     end
   end
 
+  # A consistency check lines replays up item by item. Reading a list path
+  # positionally took the first item of each replay, which is a different item
+  # whenever the model orders its answer differently.
+  describe "collecting a list field from replays" do
+    let(:job) { described_class.new }
+    let(:replays) do
+      [
+        { "scored_events" => [ { "event_id" => 1, "relevance_score" => 7 }, { "event_id" => 2, "relevance_score" => 2 } ] },
+        { "scored_events" => [ { "event_id" => 2, "relevance_score" => 2 }, { "event_id" => 1, "relevance_score" => 7 } ] }
+      ]
+    end
+
+    def collect(selection)
+      replays.map { |replay| job.send(:extract_field_value_from_result, replay, :scores, [ selection ]) }
+    end
+
+    it "keys each value by its item when the selection names a key" do
+      selection = { path: "scored_events.*.relevance_score", as: :scores, key: :event_id }
+
+      expect(collect(selection)).to eq([ { "1" => 7, "2" => 2 }, { "2" => 2, "1" => 7 } ])
+    end
+
+    it "falls back to the next key field when the first is blank" do
+      replay = { "prospect_evaluations" => [ { "coc_number" => "", "website" => "acme.nl", "score" => 40 } ] }
+      selection = { path: "prospect_evaluations.*.score", as: :scores, key: %w[coc_number website] }
+
+      expect(job.send(:extract_field_value_from_result, replay, :scores, [ selection ])).to eq("acme.nl" => 40)
+    end
+
+    it "still reads the first item when the selection names no key" do
+      selection = { path: "scored_events.*.relevance_score", as: :scores }
+
+      expect(collect(selection)).to eq([ 7, 2 ])
+    end
+  end
+
   describe "retry behavior" do
     it "queues an evaluation on the evaluations queue" do
       described_class.perform_later(span_id: span.span_id, policy_id: policy.id)

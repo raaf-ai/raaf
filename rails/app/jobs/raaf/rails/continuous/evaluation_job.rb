@@ -824,6 +824,10 @@ module RAAF
             selection = field_selections.find { |s| s[:as]&.to_sym == field_name.to_sym }
             if selection && selection[:path]
               ::Rails.logger.info "📦 [EvaluationJob] Using field_selection path: #{selection[:path]} for alias: #{field_name}"
+              if selection[:key] && selection[:path].split(".").include?("*")
+                val = extract_keyed_values(result, selection[:path], selection[:key])
+                return val if val.present?
+              end
               val = extract_value_by_path(result, selection[:path])
               return val if val.present?
             end
@@ -839,6 +843,36 @@ module RAAF
           end
 
           nil
+        end
+
+        ##
+        # Extract every item's value along a list path, keyed by the item it
+        # belongs to: { "412" => 7, "413" => 3 }.
+        #
+        # A consistency check compares runs of the same call. Taking the first
+        # item of each run compares whatever the model happened to list first,
+        # which for a batch of events or nine readiness categories is not the
+        # same item from one replay to the next. Keyed values let the check
+        # line each item up with itself.
+        #
+        # @param data [Hash] The result hash
+        # @param path [String] Dot-notation path with one list wildcard ("items.*.score")
+        # @param key [String, Symbol, Array] The item field (or fallbacks) naming the item
+        # @return [Hash, nil] Item key => value; nil when the path reaches no list
+        def extract_keyed_values(data, path, key)
+          parts = path.split(".")
+          star = parts.index("*")
+          items = extract_value_by_parts(data, parts.first(star))
+          return nil unless items.is_a?(Array)
+
+          key_fields = Array(key).map(&:to_s)
+          items.each_with_object({}) do |item, keyed|
+            next unless item.respond_to?(:key?)
+
+            item_key = key_fields.lazy.map { |field| item[field] || item[field.to_sym] }.find(&:present?)
+            value = extract_value_by_parts(item, parts.drop(star + 1))
+            keyed[item_key.to_s] = value if item_key.present? && !value.nil?
+          end.presence
         end
 
         ##
