@@ -2,29 +2,34 @@
 
 require "spec_helper"
 require "digest"
-require "open3"
 
-# base_store used to exist twice: at lib/raaf/base_store.rb and at
-# lib/raaf/memory/base_store.rb, byte for byte. The gem only ever required the second,
-# so a fix to the first went nowhere (#1182).
+# Stores used to exist twice: at lib/raaf/<name>.rb and at lib/raaf/memory/<name>.rb,
+# some byte for byte, some drifted apart. The gem only ever required the second, so a
+# fix to the first went nowhere (#1182).
 RSpec.describe "raaf-memory load paths" do
   lib_dir = File.expand_path("../lib", __dir__)
 
-  it "defines RAAF::Memory::BaseStore from raaf/memory/base_store.rb" do
-    file, = Object.const_source_location("RAAF::Memory::BaseStore")
+  {
+    "RAAF::Memory::BaseStore" => "raaf/memory/base_store.rb",
+    "RAAF::Memory::FileStore" => "raaf/memory/file_store.rb",
+    "RAAF::Memory::InMemoryStore" => "raaf/memory/in_memory_store.rb",
+    "RAAF::Memory::MemoryManager" => "raaf/memory/memory_manager.rb"
+  }.each do |constant, path|
+    it "defines #{constant} from #{path}" do
+      file, = Object.const_source_location(constant)
 
-    expect(file).to eq(File.join(lib_dir, "raaf/memory/base_store.rb"))
+      expect(file).to eq(File.join(lib_dir, path))
+    end
   end
 
-  # The flat stores are older copies nothing in the gem requires, but they are still
-  # reachable by path and must not raise LoadError. Loaded in a child process: they
-  # reopen RAAF::Memory::FileStore and InMemoryStore with their older method bodies.
-  %w[raaf/file_store raaf/in_memory_store].each do |path|
-    it "still loads #{path}" do
-      output, status = Open3.capture2e(RbConfig.ruby, "-I", lib_dir, "-e", "require #{path.dump}")
+  # Two names are shared on purpose: raaf/memory.rb is the namespace's entry file, and
+  # raaf/vector_store.rb defines RAAF::VectorStore, a different class from
+  # RAAF::Memory::VectorStore.
+  it "has no file in lib/raaf/ named like one in lib/raaf/memory/, apart from the two that differ" do
+    flat = Dir.children(File.join(lib_dir, "raaf")).grep(/\.rb\z/)
+    namespaced = Dir.children(File.join(lib_dir, "raaf/memory"))
 
-      expect(status).to be_success, output
-    end
+    expect(flat & namespaced).to contain_exactly("memory.rb", "vector_store.rb")
   end
 
   it "has no Ruby file under lib/ that is a byte-for-byte copy of another" do

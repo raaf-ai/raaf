@@ -98,7 +98,6 @@ module RAAF
     # @example With memory manager
     #   # Note: Requires 'raaf-memory' gem
     #   require 'raaf/memory'
-    #   require 'raaf/memory_manager'
     #
     #   memory_manager = RAAF::MemoryManager.new(store: RAAF::Memory.create(:file))
     #   runner = RAAF::Runner.new(agent: agent, memory_manager: memory_manager)

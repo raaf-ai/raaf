@@ -14,6 +14,7 @@ require_relative "guardrails/parallel_guardrails"
 require_relative "guardrails/input_guardrail"
 require_relative "guardrails/output_guardrail"
 require_relative "guardrails/built_in"
+require_relative "guardrails/tripwire"
 
 module RAAF
   ##

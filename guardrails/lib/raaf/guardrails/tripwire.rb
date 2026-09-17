@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "base_guardrail"
-require_relative "../logging"
+require "raaf/logging"
 
 module RAAF
 
@@ -137,18 +137,21 @@ module RAAF
         return unless @custom_detector
 
         begin
-          if @custom_detector.call(content_str)
-            trigger_tripwire(
-              "Custom detector triggered",
-              triggered_by: "custom",
-              content: content_str,
-              metadata: { context: context }
-            )
-          end
+          detected = @custom_detector.call(content_str)
         rescue StandardError => e
-          # Don't let custom detector errors break the flow
+          # Don't let custom detector errors break the flow. The rescue covers the
+          # detector only: TripwireException is a StandardError too.
           log_error("Custom detector error: #{e.message}", guardrail: "TripwireGuardrail", error_class: e.class.name)
+          return
         end
+        return unless detected
+
+        trigger_tripwire(
+          "Custom detector triggered",
+          triggered_by: "custom",
+          content: content_str,
+          metadata: { context: context }
+        )
       end
 
       def trigger_tripwire(message, triggered_by:, content:, metadata: {})

@@ -10,7 +10,7 @@
 # maintaining compliance in production AI applications.
 
 require "raaf"
-require_relative "../lib/openai_agents/guardrails/tripwire"
+require "raaf-guardrails"
 
 # Example demonstrating Guardrail Tripwire functionality
 

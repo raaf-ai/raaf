@@ -3,7 +3,6 @@
 
 require "raaf"
 require "raaf/memory"
-require "raaf/memory_manager"
 
 # Example: Using Runner with Memory Manager for Context-Aware Conversations
 # 
