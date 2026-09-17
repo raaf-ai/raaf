@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require_relative "base_store"
+require_relative "memory/base_store"
 require_relative "memory"
 require "json"
 require "fileutils"

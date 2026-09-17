@@ -326,7 +326,7 @@ This document provides a comprehensive reference for all environment variables u
 
 ### `RAAF_WORKSPACE`
 - **Function**: Base directory for tool workspaces (code execution, file operations)
-- **Used in**: `tools/lib/raaf/code_interpreter_tool.rb`, `tools/lib/raaf/tools/code_interpreter_tool.rb`
+- **Used in**: `tools/lib/raaf/tools/code_interpreter_tool.rb`
 - **What**: Directory where tools create temporary workspaces for code execution, file manipulation, and other operations
 - **Why**: Provides isolated, controlled environment for potentially unsafe operations and allows cleanup of temporary files
 - **Format**: Directory path
