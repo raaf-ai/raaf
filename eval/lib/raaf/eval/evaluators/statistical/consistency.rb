@@ -227,16 +227,24 @@ module RAAF
             # Expect value to be an array of results from multiple runs
             values = field_context.value
 
+            # Not a verdict about the agent. Reaching here means the check was
+            # handed one run's value where it needs several, so it never saw the
+            # thing it grades — and a score of 0.0 without the flag is stored as
+            # the agent having answered badly. FieldEvaluatorSet#failure_result
+            # sets the same top-level +error+ for an evaluator that raised, and
+            # the results page, Ai::EvaluatorSmokeRun and the eval report all
+            # read that key to tell a crash from a verdict.
             unless values.is_a?(Array) && !values.empty?
               return {
                 label: "bad",
                 score: 0.0,
+                error: true,
                 details: {
                   error: "Expected array of values from multiple runs",
                   threshold_good: good_threshold,
                   threshold_average: average_threshold
                 },
-                message: "[BAD] Invalid input: expected array of values"
+                message: "[ERROR] Invalid input: expected array of values"
               }
             end
 
