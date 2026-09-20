@@ -164,13 +164,26 @@ trip rather than sent as `"#<Object:0x...>"`.
 
 ### Providers
 
-- `:jev` / `:typesafe` → `JevProvider` (raaf-providers, `TYPESAFE_API_KEY`)
+- `:jev` / `:typesafe` → `JevProvider`, TypeSafe's own endpoint (raaf-providers,
+  `TYPESAFE_API_KEY`)
+- `:openrouter` → `OpenRouterDecisionProvider`, the same body shape through
+  OpenRouter's Decisions API, so no separate vendor account is needed
+  (`OPENROUTER_API_KEY`). Model slugs there are tilde-prefixed,
+  `~typesafe/jev-latest`, and the endpoint is on OpenRouter's `alpha` path, so
+  treat its shape as liable to move.
 - `:llm` → `Decision::LLMBackedProvider`, which implements the same interface on
   top of any chat model RAAF can reach
 
-`DecisionRegistry.default` picks the vendor provider when its API key is present
-and falls back to the LLM-backed one, so code written against the interface runs
-without a decision API key. Set `RAAF_DECISION_PROVIDER` to pin a choice.
+`DecisionRegistry.default` takes the first provider whose API key is present,
+preferring the vendor's own endpoint over routing through OpenRouter, and falls
+back to the LLM-backed one, so code written against the interface runs without a
+decision API key. Set `RAAF_DECISION_PROVIDER` to pin a choice.
+
+Note that the chat-completions `OpenRouterProvider` is a different thing and
+will not serve these models: it waves through any slug containing a slash, so a
+decision model passes its validation and reaches `/chat/completions`, where it
+has no business being. Route by `DecisionRegistry`, which sends a tilde slug to
+the decisions endpoint.
 
 **The LLM-backed provider's probabilities are not calibrated.** A chat model's
 self-reported probability is a token it generated; it clusters on round numbers

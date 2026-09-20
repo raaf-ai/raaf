@@ -32,11 +32,16 @@ module RAAF
     PROVIDER_CLASSES = {
       jev: "RAAF::Models::JevProvider",
       typesafe: "RAAF::Models::JevProvider",
+      openrouter: "RAAF::Models::OpenRouterDecisionProvider",
       llm: "RAAF::Models::Decision::LLMBackedProvider"
     }.freeze
 
     # Map of model name patterns to provider short names
+    #
+    # OpenRouter prefixes the decision models it routes with a tilde, as in
+    # +~typesafe/jev-latest+, which is what tells the two apart.
     MODEL_PATTERNS = {
+      /^~/ => :openrouter,
       /^jev/i => :jev
     }.freeze
 
@@ -100,7 +105,8 @@ module RAAF
       # Build the configured decision provider
       #
       # Uses +RAAF_DECISION_PROVIDER+ when it is set. Otherwise it picks the
-      # vendor provider whose API key is present, and falls back to
+      # first provider whose API key is present, preferring the vendor's own
+      # endpoint over routing through OpenRouter, and falls back to
       # {RAAF::Models::Decision::LLMBackedProvider} so that code written
       # against the decision interface still runs with no decision API key.
       #
@@ -112,6 +118,7 @@ module RAAF
         return create(configured, **) if configured && !configured.strip.empty?
 
         return create(:jev, **) if ENV["TYPESAFE_API_KEY"] && defined?(RAAF::Models::JevProvider)
+        return create(:openrouter, **) if ENV["OPENROUTER_API_KEY"] && defined?(RAAF::Models::OpenRouterDecisionProvider)
 
         create(:llm, **)
       end

@@ -9,9 +9,15 @@ RSpec.describe RAAF::DecisionRegistry do
       expect(described_class.detect("jev-1")).to eq(:jev)
     end
 
+    it "detects OpenRouter's tilde-prefixed decision slugs" do
+      expect(described_class.detect("~typesafe/jev-latest")).to eq(:openrouter)
+      expect(described_class.detect("~other/model")).to eq(:openrouter)
+    end
+
     it "returns nil for a chat model" do
       expect(described_class.detect("gpt-4o")).to be_nil
       expect(described_class.detect("claude-3-5-sonnet-20241022")).to be_nil
+      expect(described_class.detect("openai/gpt-4o")).to be_nil
     end
 
     it "returns nil without a model name" do
@@ -65,10 +71,15 @@ RSpec.describe RAAF::DecisionRegistry do
       ENV["RAAF_DECISION_PROVIDER"] = original
     end
 
-    it "falls back to the LLM-backed provider with nothing configured" do
-      ENV.delete("RAAF_DECISION_PROVIDER")
+    def without_decision_keys
       allow(ENV).to receive(:[]).and_call_original
       allow(ENV).to receive(:[]).with("TYPESAFE_API_KEY").and_return(nil)
+      allow(ENV).to receive(:[]).with("OPENROUTER_API_KEY").and_return(nil)
+    end
+
+    it "falls back to the LLM-backed provider with nothing configured" do
+      ENV.delete("RAAF_DECISION_PROVIDER")
+      without_decision_keys
 
       expect(described_class.default).to be_a(RAAF::Models::Decision::LLMBackedProvider)
     end
@@ -81,8 +92,7 @@ RSpec.describe RAAF::DecisionRegistry do
 
     it "ignores a blank RAAF_DECISION_PROVIDER" do
       ENV["RAAF_DECISION_PROVIDER"] = "  "
-      allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with("TYPESAFE_API_KEY").and_return(nil)
+      without_decision_keys
 
       expect(described_class.default).to be_a(RAAF::Models::Decision::LLMBackedProvider)
     end
@@ -116,7 +126,7 @@ RSpec.describe RAAF::DecisionRegistry do
 
   describe ".providers" do
     it "lists the built-in decision providers" do
-      expect(described_class.providers).to include(:jev, :typesafe, :llm)
+      expect(described_class.providers).to include(:jev, :typesafe, :openrouter, :llm)
     end
   end
 end

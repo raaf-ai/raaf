@@ -38,6 +38,9 @@ module RAAF
     #
     # @see https://docs.typesafe.ai/concepts/system-one
     #
+    # Subclasses serving the same body shape from another host override the
+    # five constants below; see {OpenRouterDecisionProvider}.
+    #
     class JevProvider < DecisionInterface
       # Default API base URL
       API_BASE = "https://api.typesafe.ai/v1"
@@ -76,26 +79,26 @@ module RAAF
       def initialize(api_key: nil, api_base: nil, model: nil, timeout: 10, open_timeout: 5, **options)
         super(api_key: api_key, api_base: api_base, model: model, **options)
 
-        @api_key ||= ENV.fetch(API_KEY_ENV, nil)
-        @api_base ||= API_BASE
+        @api_key ||= ENV.fetch(self.class::API_KEY_ENV, nil)
+        @api_base ||= self.class::API_BASE
         @timeout = timeout
         @open_timeout = open_timeout
 
-        raise AuthenticationError, "#{PROVIDER_DISPLAY_NAME} API key is required" unless @api_key
+        raise AuthenticationError, "#{provider_name} API key is required" unless @api_key
       end
 
       ##
       # @return [String] {PROVIDER_DISPLAY_NAME}
       #
       def provider_name
-        PROVIDER_DISPLAY_NAME
+        self.class::PROVIDER_DISPLAY_NAME
       end
 
       ##
       # @return [String] {DEFAULT_MODEL}
       #
       def default_model
-        DEFAULT_MODEL
+        self.class::DEFAULT_MODEL
       end
 
       ##
@@ -130,7 +133,7 @@ module RAAF
       # @raise [APIError] If the request fails
       #
       def post(body)
-        uri = URI("#{@api_base}#{ENDPOINT_PATH}")
+        uri = URI("#{@api_base}#{self.class::ENDPOINT_PATH}")
 
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = uri.scheme == "https"
@@ -140,12 +143,22 @@ module RAAF
         request = Net::HTTP::Post.new(uri)
         request["Authorization"] = "Bearer #{@api_key}"
         request["Content-Type"] = "application/json"
+        extra_headers.each { |name, value| request[name] = value }
         request.body = body.to_json
 
         response = http.request(request)
         handle_api_error(response) unless response.code.start_with?("2")
 
         [RAAF::Utils.parse_json(response.body), response]
+      end
+
+      ##
+      # Headers this host wants beyond authentication
+      #
+      # @return [Hash{String => String}]
+      #
+      def extra_headers
+        {}
       end
 
       ##
@@ -174,7 +187,7 @@ module RAAF
           provider: provider_name,
           raw: response,
           usage: response["usage"],
-          request_id: headers && headers[REQUEST_ID_HEADER]
+          request_id: headers && headers[self.class::REQUEST_ID_HEADER]
         )
       end
 
