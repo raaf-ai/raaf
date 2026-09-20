@@ -20,11 +20,9 @@ module RAAF
     #
     # == Wire format
     #
-    # The request shape and the +noul+ answer field are taken from TypeSafe's
-    # published examples. The +choice+ and +score+ answer fields are inferred
-    # from their prose documentation, so {Decision::Answers} accepts a few
-    # aliases for each; if a field turns out to be named differently, the fix
-    # belongs in {Decision::Answers}, not here.
+    # Request and response shapes follow TypeSafe's SDKs: a body of +model+,
+    # +state+ and +questions+, and a response of +model+, +usage+ and +answers+
+    # keyed by question name.
     #
     # @example
     #   provider = JevProvider.new(api_key: ENV["TYPESAFE_API_KEY"])
@@ -63,16 +61,19 @@ module RAAF
       # Response keys that belong to the envelope rather than to an answer
       ENVELOPE_METADATA_KEYS = %w[id model object usage created created_at latency_ms].freeze
 
+      # Response header carrying the request id, worth quoting in a support request
+      REQUEST_ID_HEADER = "x-typesafe-request-id"
+
       ##
       # @param api_key [String, nil] TypeSafe API key (default: +TYPESAFE_API_KEY+)
       # @param api_base [String, nil] API base URL (default: {API_BASE})
       # @param model [String, nil] Model id (default: {DEFAULT_MODEL})
-      # @param timeout [Integer] Read timeout in seconds (default: 30)
-      # @param open_timeout [Integer] Connect timeout in seconds (default: 10)
+      # @param timeout [Numeric] Read timeout in seconds (default: 10)
+      # @param open_timeout [Numeric] Connect timeout in seconds (default: 5)
       # @param options [Hash] Additional options passed to {DecisionInterface}
       # @raise [AuthenticationError] If no API key is available
       #
-      def initialize(api_key: nil, api_base: nil, model: nil, timeout: 30, open_timeout: 10, **options)
+      def initialize(api_key: nil, api_base: nil, model: nil, timeout: 10, open_timeout: 5, **options)
         super(api_key: api_key, api_base: api_base, model: model, **options)
 
         @api_key ||= ENV.fetch(API_KEY_ENV, nil)
@@ -115,8 +116,8 @@ module RAAF
           questions: questions.transform_values(&:to_request)
         }.merge(kwargs)
 
-        response = post(body)
-        build_result(response, questions, body[:model])
+        response, headers = post(body)
+        build_result(response, questions, body[:model], headers)
       end
 
       private
@@ -125,7 +126,7 @@ module RAAF
       # POSTs to the System One endpoint
       #
       # @param body [Hash] Request body
-      # @return [Hash] Parsed response body
+      # @return [Array(Hash, Net::HTTPResponse)] Parsed body and the response
       # @raise [APIError] If the request fails
       #
       def post(body)
@@ -144,7 +145,7 @@ module RAAF
         response = http.request(request)
         handle_api_error(response) unless response.code.start_with?("2")
 
-        RAAF::Utils.parse_json(response.body)
+        [RAAF::Utils.parse_json(response.body), response]
       end
 
       ##
@@ -153,10 +154,11 @@ module RAAF
       # @param response [Hash] Parsed response body
       # @param questions [Hash{String => Decision::Question}] The questions asked
       # @param model [String] The model that was asked
+      # @param headers [Net::HTTPResponse, nil] The response, for its headers
       # @return [Decision::Result]
       # @raise [Decision::MalformedAnswerError] If an answer is missing
       #
-      def build_result(response, questions, model)
+      def build_result(response, questions, model, headers = nil)
         bodies = answer_bodies(response)
 
         answers = questions.each_with_object({}) do |(name, question), result|
@@ -171,7 +173,8 @@ module RAAF
           model: response["model"] || model,
           provider: provider_name,
           raw: response,
-          usage: response["usage"]
+          usage: response["usage"],
+          request_id: headers && headers[REQUEST_ID_HEADER]
         )
       end
 
@@ -208,7 +211,7 @@ module RAAF
         when 401, 403
           raise AuthenticationError, "Invalid #{provider_name} API key"
         when 429
-          retry_after = response["retry-after"] || response["x-ratelimit-reset"]
+          retry_after = response["retry-after-ms"] || response["retry-after"] || response["x-ratelimit-reset"]
           raise RateLimitError, "#{provider_name} rate limit exceeded. Retry after: #{retry_after}"
         when 500..599
           raise ServerError, "Server error from #{provider_name}: #{response.code}"
@@ -218,14 +221,46 @@ module RAAF
       end
 
       ##
+      # The API's error message, from wherever it put it
+      #
+      # Validation failures come back FastAPI-shaped, as a +detail+ array of
+      # +loc+/+msg+ entries, which reads as nothing useful unless it is walked.
+      #
       # @param response [Net::HTTPResponse] The error response
-      # @return [String] The API's error message, or the raw body
+      # @return [String] The error message, or the raw body
       #
       def error_message(response)
         parsed = JSON.parse(response.body.to_s)
-        parsed.dig("error", "message") || parsed["message"] || response.body
+        return response.body unless parsed.is_a?(Hash)
+
+        message_from(parsed["error"]) || message_from(parsed["message"]) ||
+          message_from(parsed["detail"]) || response.body
       rescue JSON::ParserError
         response.body
+      end
+
+      ##
+      # @param value [Object] An error, message or detail field
+      # @return [String, nil] Its message, when it has one
+      #
+      def message_from(value)
+        case value
+        when String then value.empty? ? nil : value
+        when Hash then message_from(value["message"] || value["msg"])
+        when Array then message_from(value.filter_map { |entry| validation_entry(entry) }.join("; "))
+        end
+      end
+
+      ##
+      # @param entry [Object] One FastAPI validation error
+      # @return [String, nil] The field path and message
+      #
+      def validation_entry(entry)
+        return unless entry.is_a?(Hash) && entry["msg"].is_a?(String)
+
+        location = entry["loc"]
+        path = location.is_a?(Array) ? location.reject { |item| item == "body" }.join(".") : ""
+        path.empty? ? entry["msg"] : "#{path}: #{entry['msg']}"
       end
     end
   end

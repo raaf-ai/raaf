@@ -147,9 +147,10 @@ module RAAF
             }
 
             Probabilities are between 0.0 and 1.0. Probabilities over a set of
-            options or levels must sum to 1.0. Report the probability you
-            actually hold, including values near 0.5 when the state is
-            genuinely ambiguous.
+            options or levels must sum to 1.0. A score is the level numbers
+            weighted by their probabilities, so it lands between levels more
+            often than on one. Report the probability you actually hold,
+            including values near 0.5 when the state is genuinely ambiguous.
           PROMPT
         end
 
@@ -159,10 +160,28 @@ module RAAF
         # @return [String] The question rendered for the prompt
         #
         def render_question(name, question)
-          lines = ["### #{name} (#{question.type})", question.instructions]
-          lines << "Options: #{question.options.join(", ")}" if question.is_a?(Choice)
-          lines << "Levels, lowest first: #{question.levels.join(", ")}" if question.is_a?(Score)
+          lines = ["### #{name} (#{question.type})"]
+          lines << question.instructions if question.instructions
+          lines.concat(criteria_lines(question))
           lines.join("\n")
+        end
+
+        ##
+        # @param question [Question] The question
+        # @return [Array<String>] Its criteria, one per line
+        #
+        def criteria_lines(question)
+          case question
+          when Choice
+            ["Options:"] + question.criteria.map do |option, description|
+              description.nil? ? "- #{option}" : "- #{option}: #{description}"
+            end
+          when Score
+            ["Levels, lowest first, numbered from zero:"] +
+              question.levels.each_with_index.map { |level, index| "- #{index}: #{level}" }
+          else
+            question.criteria.nil? ? [] : question.criteria.map { |key, value| "- #{key}: #{value}" }
+          end
         end
 
         ##

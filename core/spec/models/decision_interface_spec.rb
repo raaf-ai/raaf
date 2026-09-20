@@ -92,6 +92,11 @@ RSpec.describe RAAF::Models::DecisionInterface do
       expect { provider.decide(state: "x", questions: []) }
         .to raise_error(ArgumentError, /must be a Hash/)
     end
+
+    it "rejects a state that cannot be sent as JSON" do
+      expect { provider.decide(state: Object.new, questions: { a: { type: :noul, instructions: "y" } }) }
+        .to raise_error(ArgumentError, /must be a String, Hash or Array/)
+    end
   end
 
   describe "#noul" do

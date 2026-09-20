@@ -12,8 +12,8 @@ RSpec.describe RAAF::Models::Decision::LLMBackedProvider do
       "team" => {
         "type" => "choice",
         "choice" => "billing",
-        "probabilities" => { "billing" => 0.8, "eng" => 0.2 },
-        "confidence" => 0.8
+        "confidence" => 0.8,
+        "probabilities" => { "billing" => 0.8, "eng" => 0.2 }
       }
     }.to_json
   end
@@ -32,7 +32,7 @@ RSpec.describe RAAF::Models::Decision::LLMBackedProvider do
         state: "Stripe has been failing for three days",
         questions: {
           urgent: RAAF::Models::Decision::Noul.new(instructions: "The message conveys urgency"),
-          team: { type: :choice, instructions: "Which team?", options: %w[billing eng] }
+          team: { type: :choice, instructions: "Which team?", criteria: { billing: nil, eng: nil } }
         }
       )
 
@@ -42,16 +42,36 @@ RSpec.describe RAAF::Models::Decision::LLMBackedProvider do
       expect(result.model).to eq("gpt-4o")
     end
 
-    it "puts the state, the instructions and the options in the prompt" do
+    it "puts the state, the instructions and the criteria in the prompt" do
       provider.decide(
         state: "Stripe has been failing",
-        questions: { team: { type: :choice, instructions: "Which team?", options: %w[billing eng] } }
+        questions: {
+          team: {
+            type: :choice,
+            instructions: "Which team?",
+            criteria: { billing: "Payment issues", eng: "Bugs" }
+          }
+        }
       )
 
       expect(runner).to have_received(:run) do |prompt, **_kwargs|
         expect(prompt).to include("Stripe has been failing")
         expect(prompt).to include("Which team?")
-        expect(prompt).to include("billing, eng")
+        expect(prompt).to include("- billing: Payment issues")
+      end
+    end
+
+    it "numbers a score's levels from zero in the prompt" do
+      stub_reply({ "tone" => { "type" => "score", "score" => 1.0, "confidence" => 0.7 } }.to_json)
+
+      provider.decide(
+        state: "x",
+        questions: { tone: { type: :score, instructions: "How angry?", criteria: %w[calm angry] } }
+      )
+
+      expect(runner).to have_received(:run) do |prompt, **_kwargs|
+        expect(prompt).to include("- 0: calm")
+        expect(prompt).to include("- 1: angry")
       end
     end
 

@@ -9,7 +9,8 @@ RSpec.describe RAAF::Models::Decision::Result do
       model: "jev-latest",
       provider: "Jev",
       raw: { "urgent" => { "noul" => 0.9 } },
-      usage: { "tokens" => 12 }
+      usage: { "input_tokens" => 12, "output_tokens" => 1 },
+      request_id: "req_abc"
     )
   end
 
@@ -28,7 +29,8 @@ RSpec.describe RAAF::Models::Decision::Result do
   it "exposes the response metadata" do
     expect(result.model).to eq("jev-latest")
     expect(result.provider).to eq("Jev")
-    expect(result.usage).to eq("tokens" => 12)
+    expect(result.usage).to eq("input_tokens" => 12, "output_tokens" => 1)
+    expect(result.request_id).to eq("req_abc")
     expect(result.names).to eq(["urgent"])
   end
 

@@ -166,15 +166,22 @@ module RAAF
         []
       end
 
+      # The state shapes a decision model accepts
+      STATE_TYPES = [String, Symbol, Hash, Array].freeze
+
       private
 
       ##
       # @param state [Object] The state to check
-      # @raise [ArgumentError] If the state is missing or empty
+      # @raise [ArgumentError] If the state is missing, empty, or a shape that
+      #   cannot be sent as JSON
       #
       def validate_state!(state)
         raise ArgumentError, "state is required" if state.nil?
         raise ArgumentError, "state cannot be empty" if state.respond_to?(:empty?) && state.empty?
+        return if STATE_TYPES.any? { |type| state.is_a?(type) }
+
+        raise ArgumentError, "state must be a String, Hash or Array, got #{state.class}"
       end
 
       ##

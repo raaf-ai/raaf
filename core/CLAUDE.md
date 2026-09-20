@@ -111,7 +111,11 @@ result = provider.decide(
     urgent: RAAF::Models::Decision::Noul.new(instructions: "The message conveys urgency"),
     team: RAAF::Models::Decision::Choice.new(
       instructions: "Which team should handle this?",
-      options: %w[billing engineering success]
+      criteria: {
+        billing: "Payment or subscription issues",
+        engineering: "Bugs or integration problems",
+        success: "Pricing or account questions"
+      }
     )
   }
 )
@@ -119,6 +123,7 @@ result = provider.decide(
 result[:urgent].probability  # => 0.999
 result[:urgent].true?        # => true
 result[:team].option         # => "billing"
+result[:team].confidence     # => 0.8
 result[:team].probabilities  # => { "billing" => 0.8, ... }
 ```
 
@@ -127,16 +132,35 @@ questions about one state costs roughly one question's latency.
 
 ### Question Types
 
-- `Noul` - a calibrated yes or no; the answer is the probability the statement holds
-- `Choice` - one option out of a set, with a probability per option
-- `Score` - a place on an ordered rubric, with the distribution across levels
+Each question takes optional `instructions` (what to decide, in a sentence) and
+`criteria` (the structure the answer must take).
 
-Questions can also be written in their wire form, which `decide` builds for you:
+- `Noul` - a calibrated yes or no. The answer is the probability the statement
+  holds. Criteria are optional and describe what true and false mean.
+- `Choice` - one option out of a set. Criteria are required, a Hash of option to
+  description; a description may be `nil`, and an Array of names is shorthand for
+  exactly that. The answer carries the option, a confidence and a probability per
+  option.
+- `Score` - a place on an ordered rubric. Criteria are required, an Array of
+  level descriptions, lowest first, with each level's position as its score
+  starting at zero. The answer's `score` is probability-weighted, so 1.6 is a
+  real answer, and `probabilities` and `legend` are keyed by level index.
+
+A noul carries no confidence of its own, so `confidence` is derived from how far
+its probability sits from a coin flip. A choice and a score report theirs.
+
+Questions can also be written in their wire form, which `decide` builds for you.
+Keys RAAF does not model are passed through untouched, so a field the API ships
+first still reaches it:
 
 ```ruby
 provider.decide(state: ticket, questions: { urgent: { type: :noul, instructions: "It is urgent" } })
+provider.decide(state: ticket, questions: { urgent: { type: :noul, instructions: "...", weight: 2 } })
 provider.noul(state: ticket, instructions: "It is urgent")  # single question
 ```
+
+State is a String, Hash or Array; anything else is rejected before the round
+trip rather than sent as `"#<Object:0x...>"`.
 
 ### Providers
 

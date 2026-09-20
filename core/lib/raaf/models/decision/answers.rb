@@ -34,6 +34,9 @@ module RAAF
           # @return [Hash] The provider's raw answer body
           attr_reader :raw
 
+          # @return [Float] How sure the model is, from 0.0 to 1.0
+          attr_reader :confidence
+
           ##
           # @param question [Decision::Question] The question being answered
           # @param raw [Hash] The provider's answer body for that question
@@ -43,13 +46,6 @@ module RAAF
             @raw = raw.is_a?(Hash) ? raw : {}
             parse!
           end
-
-          ##
-          # How sure the model is, from 0.0 to 1.0
-          #
-          # @return [Float]
-          #
-          attr_reader :confidence
 
           ##
           # @return [Hash] The answer as a plain Hash
@@ -107,16 +103,19 @@ module RAAF
           end
 
           ##
-          # Coerces a Hash of name => probability
+          # Coerces a Hash of key => probability, keeping the keys as given
           #
           # @param value [Object] The raw distribution
-          # @return [Hash{String => Float}] Empty when the provider sends none
+          # @param indexed [Boolean] Whether the API keys this distribution by
+          #   level index rather than by name
+          # @return [Hash] Empty when the provider sends none
           #
-          def distribution_for(value)
+          def distribution_for(value, indexed: false)
             return {} unless value.is_a?(Hash)
 
             value.each_with_object({}) do |(key, probability), result|
-              result[key.to_s] = Float(probability)
+              name = indexed ? key.to_i : key.to_s
+              result[name] = Float(probability)
             rescue ::ArgumentError, ::TypeError
               next
             end
@@ -126,6 +125,10 @@ module RAAF
 
         ##
         # The answer to a {Decision::Noul}: a calibrated probability
+        #
+        # The API returns the probability alone, so {#confidence} is derived
+        # from how far that probability sits from a coin flip. A choice or a
+        # score carries a confidence of its own; a noul does not.
         #
         class Noul < Base
 
@@ -151,8 +154,6 @@ module RAAF
           def parse!
             @probability = probability!(value_for(:noul, :probability, :value), "noul")
 
-            # Vendors that report a separate confidence win; otherwise distance
-            # from the coin flip is the only confidence signal a noul carries.
             supplied = value_for(:confidence)
             @confidence = supplied.nil? ? ((@probability - 0.5).abs * 2) : probability!(supplied, "confidence")
           end
@@ -177,7 +178,7 @@ module RAAF
           private
 
           def parse!
-            @probabilities = distribution_for(value_for(:probabilities, :distribution, :options))
+            @probabilities = distribution_for(value_for(:probabilities, :distribution))
             @option = resolve_option
 
             unless question.options.include?(@option)
@@ -210,57 +211,84 @@ module RAAF
         ##
         # The answer to a {Decision::Score}: a place on the rubric
         #
+        # The score is probability-weighted, so it lands between levels more
+        # often than on one. Both {#probabilities} and {#legend} are keyed by
+        # level index, counting from zero, which is how the API reports them.
+        #
         class Score < Base
 
-          # @return [Float] The continuous score across the rubric
+          # @return [Float] The probability-weighted score across the rubric
           attr_reader :score
 
-          # @return [String] The level the score lands on
-          attr_reader :level
+          # @return [Hash{Integer => Float}] Probability per level index
+          attr_reader :probabilities
 
-          # @return [Hash{String => Float}] Probability per level
-          attr_reader :distribution
+          # @return [Hash{Integer => String}] The rubric, by level index
+          attr_reader :legend
+
+          ##
+          # The level index the answer lands on
+          #
+          # Derived: the most probable level, or the rounded score when the
+          # provider sends no distribution.
+          #
+          # @return [Integer]
+          #
+          def level_index
+            @level_index ||= begin
+              best = probabilities.max_by { |_index, probability| probability }
+              best ? best.first : score.round.clamp(0, question.levels.size - 1)
+            end
+          end
+
+          ##
+          # The description of the level the answer lands on
+          #
+          # Derived from {#level_index}, taking the provider's legend when it
+          # sends one and the question's own criteria otherwise.
+          #
+          # @return [String, nil]
+          #
+          def level
+            legend[level_index] || question.levels[level_index]
+          end
 
           def to_h
-            super.merge(score: score, level: level, distribution: distribution)
+            super.merge(score: score, probabilities: probabilities, legend: legend)
           end
 
           private
 
           def parse!
-            raw_score = value_for(:score, :value)
-            raise MalformedAnswerError, "score answer is missing score" if raw_score.nil?
-
-            begin
-              @score = Float(raw_score)
-            rescue ::ArgumentError, ::TypeError
-              raise MalformedAnswerError, "score answer score is not a number: #{raw_score.inspect}"
-            end
-
-            @distribution = distribution_for(value_for(:distribution, :probabilities, :levels))
-            @level = resolve_level
+            @score = read_score
+            @probabilities = distribution_for(value_for(:probabilities, :distribution), indexed: true)
+            @legend = read_legend
 
             supplied = value_for(:confidence)
-            @confidence = supplied.nil? ? (@distribution[@level] || 0.0) : probability!(supplied, "confidence")
+            @confidence = supplied.nil? ? (@probabilities[level_index] || 0.0) : probability!(supplied, "confidence")
           end
 
           ##
-          # The level for this score
+          # @return [Float] The reported score
+          # @raise [MalformedAnswerError] If it is missing or not a number
           #
-          # Uses the provider's own label when it sends one, then the most
-          # probable level, and finally the score rounded onto the rubric.
-          #
-          # @return [String]
-          #
-          def resolve_level
-            supplied = value_for(:level, :label)
-            return supplied.to_s unless supplied.nil?
+          def read_score
+            raw_score = value_for(:score, :value)
+            raise MalformedAnswerError, "score answer is missing score" if raw_score.nil?
 
-            best = @distribution.max_by { |_level, probability| probability }
-            return best.first unless best.nil?
+            Float(raw_score)
+          rescue ::ArgumentError, ::TypeError
+            raise MalformedAnswerError, "score answer score is not a number: #{raw_score.inspect}"
+          end
 
-            index = @score.round.clamp(0, question.levels.size - 1)
-            question.levels[index]
+          ##
+          # @return [Hash{Integer => String}] The rubric by level index
+          #
+          def read_legend
+            supplied = value_for(:legend)
+            return {} unless supplied.is_a?(Hash)
+
+            supplied.to_h { |index, description| [index.to_i, description] }
           end
 
         end
@@ -297,19 +325,24 @@ module RAAF
         # @return [Hash, nil] Token usage, when the provider reports it
         attr_reader :usage
 
+        # @return [String, nil] The provider's request id, for support requests
+        attr_reader :request_id
+
         ##
         # @param answers [Hash] Answers keyed by question name
         # @param model [String, nil] The model that answered
         # @param provider [String, nil] The provider that answered
         # @param raw [Hash] The provider's raw response body
         # @param usage [Hash, nil] Token usage, when reported
+        # @param request_id [String, nil] The provider's request id
         #
-        def initialize(answers:, model: nil, provider: nil, raw: {}, usage: nil)
-          @answers = answers.each_with_object({}) { |(name, answer), result| result[name.to_s] = answer }
+        def initialize(answers:, model: nil, provider: nil, raw: {}, usage: nil, request_id: nil)
+          @answers = answers.to_h { |name, answer| [name.to_s, answer] }
           @model = model
           @provider = provider
           @raw = raw
           @usage = usage
+          @request_id = request_id
         end
 
         ##

@@ -24,13 +24,15 @@ RSpec.describe RAAF::Models::Decision::Answers do
       expect(answer.true?(threshold: 0.5)).to be(true)
     end
 
+    # The API returns the probability alone for a noul, so this is the only
+    # confidence signal there is.
     it "derives confidence from the distance to a coin flip" do
       expect(question.parse("noul" => 0.5).confidence).to eq(0.0)
       expect(question.parse("noul" => 1.0).confidence).to eq(1.0)
       expect(question.parse("noul" => 0.75).confidence).to eq(0.5)
     end
 
-    it "prefers a confidence the provider reports" do
+    it "prefers a confidence a provider does report" do
       expect(question.parse("noul" => 0.75, "confidence" => 0.2).confidence).to eq(0.2)
     end
 
@@ -46,14 +48,18 @@ RSpec.describe RAAF::Models::Decision::Answers do
 
   describe RAAF::Models::Decision::Answers::Choice do
     let(:question) do
-      RAAF::Models::Decision::Choice.new(instructions: "Which team?", options: %w[billing eng success])
+      RAAF::Models::Decision::Choice.new(
+        instructions: "Which team?",
+        criteria: { billing: "Payments", eng: "Bugs", success: "Accounts" }
+      )
     end
 
-    it "reads the option and its distribution" do
+    it "reads the option, its confidence and its distribution" do
       answer = question.parse(
+        "type" => "choice",
         "choice" => "billing",
-        "probabilities" => { "billing" => 0.8, "eng" => 0.15, "success" => 0.05 },
-        "confidence" => 0.8
+        "confidence" => 0.8,
+        "probabilities" => { "billing" => 0.8, "eng" => 0.15, "success" => 0.05 }
       )
 
       expect(answer.option).to eq("billing")
@@ -69,7 +75,7 @@ RSpec.describe RAAF::Models::Decision::Answers do
     end
 
     it "rejects an option outside the question's set" do
-      expect { question.parse("choice" => "legal") }
+      expect { question.parse("choice" => "legal", "confidence" => 0.9) }
         .to raise_error(RAAF::Models::Decision::MalformedAnswerError, /not one of/)
     end
 
@@ -81,35 +87,50 @@ RSpec.describe RAAF::Models::Decision::Answers do
 
   describe RAAF::Models::Decision::Answers::Score do
     let(:question) do
-      RAAF::Models::Decision::Score.new(instructions: "How bad?", levels: %w[low medium high critical])
+      RAAF::Models::Decision::Score.new(
+        instructions: "How frustrated?",
+        criteria: ["Calm", "Frustrated but civil", "Very angry"]
+      )
     end
 
-    it "reads the score, level and distribution" do
+    # The API keys a score's probabilities and legend by level index, not by
+    # the level's text, and the score itself is probability-weighted.
+    it "reads the score, confidence, legend and distribution by level index" do
       answer = question.parse(
-        "score" => 2.4,
-        "level" => "high",
-        "distribution" => { "low" => 0.05, "medium" => 0.2, "high" => 0.6, "critical" => 0.15 }
+        "type" => "score",
+        "score" => 1.6,
+        "confidence" => 0.7,
+        "legend" => { "0" => "Calm", "1" => "Frustrated but civil", "2" => "Very angry" },
+        "probabilities" => { "0" => 0.05, "1" => 0.3, "2" => 0.65 }
       )
 
-      expect(answer.score).to eq(2.4)
-      expect(answer.level).to eq("high")
-      expect(answer.confidence).to eq(0.6)
+      expect(answer.score).to eq(1.6)
+      expect(answer.confidence).to eq(0.7)
+      expect(answer.legend).to eq(0 => "Calm", 1 => "Frustrated but civil", 2 => "Very angry")
+      expect(answer.probabilities).to eq(0 => 0.05, 1 => 0.3, 2 => 0.65)
     end
 
-    it "falls back to the most probable level" do
-      answer = question.parse("score" => 1.1, "distribution" => { "low" => 0.1, "medium" => 0.9 })
+    it "lands on the most probable level" do
+      answer = question.parse("score" => 1.6, "confidence" => 0.7, "probabilities" => { "1" => 0.3, "2" => 0.65 })
 
-      expect(answer.level).to eq("medium")
+      expect(answer.level_index).to eq(2)
+      expect(answer.level).to eq("Very angry")
     end
 
-    it "falls back to rounding the score onto the rubric" do
-      expect(question.parse("score" => 2.6).level).to eq("critical")
-      expect(question.parse("score" => 0.2).level).to eq("low")
+    it "names the level from the question when the provider sends no legend" do
+      answer = question.parse("score" => 0.2, "confidence" => 0.8, "probabilities" => { "0" => 0.9, "1" => 0.1 })
+
+      expect(answer.level).to eq("Calm")
     end
 
-    it "clamps a score that runs past the rubric" do
-      expect(question.parse("score" => 99).level).to eq("critical")
-      expect(question.parse("score" => -5).level).to eq("low")
+    it "falls back to rounding the score when there is no distribution" do
+      expect(question.parse("score" => 1.6, "confidence" => 0.5).level_index).to eq(2)
+      expect(question.parse("score" => 0.2, "confidence" => 0.5).level_index).to eq(0)
+    end
+
+    it "clamps a rounded score that runs past the rubric" do
+      expect(question.parse("score" => 99, "confidence" => 0.5).level_index).to eq(2)
+      expect(question.parse("score" => -5, "confidence" => 0.5).level_index).to eq(0)
     end
 
     it "rejects a missing or non-numeric score" do
