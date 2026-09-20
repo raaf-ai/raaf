@@ -94,6 +94,78 @@ RAAF::ProviderRegistry.registered?(:anthropic)  # => true
 - `:together` → `TogetherProvider`
 - `:litellm` → `LiteLLMProvider`
 
+## Decision Models (System One)
+
+A decision model answers typed questions about a piece of state and returns
+probabilities. It generates no text, calls no tools and does not stream, so it
+implements **DecisionInterface** rather than `ModelInterface`, and it is listed
+in **DecisionRegistry** rather than `ProviderRegistry`. Keeping the two apart
+means a chat caller can never be handed a model that cannot answer it.
+
+```ruby
+provider = RAAF::DecisionRegistry.create(:jev, api_key: ENV["TYPESAFE_API_KEY"])
+
+result = provider.decide(
+  state: "Stripe has been failing for three days and I am losing sales",
+  questions: {
+    urgent: RAAF::Models::Decision::Noul.new(instructions: "The message conveys urgency"),
+    team: RAAF::Models::Decision::Choice.new(
+      instructions: "Which team should handle this?",
+      options: %w[billing engineering success]
+    )
+  }
+)
+
+result[:urgent].probability  # => 0.999
+result[:urgent].true?        # => true
+result[:team].option         # => "billing"
+result[:team].probabilities  # => { "billing" => 0.8, ... }
+```
+
+Every question in a request is evaluated in parallel, so asking several
+questions about one state costs roughly one question's latency.
+
+### Question Types
+
+- `Noul` - a calibrated yes or no; the answer is the probability the statement holds
+- `Choice` - one option out of a set, with a probability per option
+- `Score` - a place on an ordered rubric, with the distribution across levels
+
+Questions can also be written in their wire form, which `decide` builds for you:
+
+```ruby
+provider.decide(state: ticket, questions: { urgent: { type: :noul, instructions: "It is urgent" } })
+provider.noul(state: ticket, instructions: "It is urgent")  # single question
+```
+
+### Providers
+
+- `:jev` / `:typesafe` → `JevProvider` (raaf-providers, `TYPESAFE_API_KEY`)
+- `:llm` → `Decision::LLMBackedProvider`, which implements the same interface on
+  top of any chat model RAAF can reach
+
+`DecisionRegistry.default` picks the vendor provider when its API key is present
+and falls back to the LLM-backed one, so code written against the interface runs
+without a decision API key. Set `RAAF_DECISION_PROVIDER` to pin a choice.
+
+**The LLM-backed provider's probabilities are not calibrated.** A chat model's
+self-reported probability is a token it generated; it clusters on round numbers
+and moves with prompt wording. Use it as a baseline to compare against, and keep
+whatever calibration step you would apply to a raw LLM judge.
+
+### Judging with a Decision Model
+
+`RAAF::Eval::LLMJudge::StatisticalJudge` takes one, and asks a noul instead of
+running a chat completion per judgement:
+
+```ruby
+judge = RAAF::Eval::LLMJudge::StatisticalJudge.new(decision_provider: :jev)
+```
+
+Calibration still matters. A decision model is calibrated against its own
+training distribution, not against your task, so its sensitivity and specificity
+on your data are unknown until a `CalibrationSet` measures them.
+
 ## Usage Tracking and Token Field Naming
 
 **RAAF uses canonical token field names** aligned with modern LLM APIs for consistent usage tracking across all providers.

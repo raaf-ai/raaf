@@ -50,10 +50,29 @@ module RAAF
       #   puts results[:bias_corrected_accuracy]
       #   puts results[:confidence_interval]
       #
+      # ## Judging with a decision model
+      #
+      # By default each judgement is a chat completion that returns JSON. A
+      # decision model ("System One" model) answers the same yes/no question
+      # directly as a calibrated probability, without generating text, which is
+      # both cheaper and faster. Pass one as +decision_provider+ to use it:
+      #
+      #   judge = StatisticalJudge.new(decision_provider: :jev)
+      #
+      # The bias correction above still applies and is still worth doing. A
+      # decision model is calibrated against its own training distribution, not
+      # against your task, so its sensitivity and specificity on your data are
+      # still unknown until you measure them with a {CalibrationSet}.
+      #
       # @see https://arxiv.org/abs/2511.21140
       # @see https://github.com/UW-Madison-Lee-Lab/LLM-judge-reporting
+      # @see RAAF::Models::DecisionInterface
       #
       class StatisticalJudge
+
+        # Environment variable naming a decision provider to judge with
+        DECISION_PROVIDER_ENV = "RAAF_EVAL_DECISION_PROVIDER"
+
         # @return [String] The model used for judging
         attr_reader :model
 
@@ -72,6 +91,9 @@ module RAAF
         # @return [Hash] Calibration metadata
         attr_reader :calibration_metadata
 
+        # @return [RAAF::Models::DecisionInterface, nil] Decision model used for judging
+        attr_reader :decision_provider
+
         ##
         # Creates a new statistical LLM judge
         #
@@ -80,13 +102,23 @@ module RAAF
         # @param cache [Boolean] Whether to cache judge responses
         # @param timeout [Integer] Timeout in seconds for API calls
         # @param criteria [String] Default evaluation criteria/prompt
-        def initialize(model: "gpt-4o", temperature: 0.0, cache: true, timeout: 30, criteria: nil)
+        # @param decision_provider [RAAF::Models::DecisionInterface, Symbol, String, nil]
+        #   Decision model to judge with instead of a chat completion. Accepts a
+        #   provider instance or a name for {RAAF::DecisionRegistry}. Defaults to
+        #   +RAAF_EVAL_DECISION_PROVIDER+ when that is set, and to no decision
+        #   model otherwise.
+        # @param decision_threshold [Float] Probability at or above which a
+        #   decision model's answer counts as a pass (default: 0.5)
+        def initialize(model: "gpt-4o", temperature: 0.0, cache: true, timeout: 30, criteria: nil,
+                       decision_provider: :from_env, decision_threshold: 0.5)
           @model = model
           @temperature = temperature
           @cache_enabled = cache
           @timeout = timeout
           @default_criteria = criteria
           @cache = {}
+          @decision_threshold = decision_threshold
+          @decision_provider = resolve_decision_provider(decision_provider)
 
           # Calibration state
           @sensitivity = nil
@@ -423,7 +455,8 @@ module RAAF
             sensitivity: @sensitivity,
             specificity: @specificity,
             better_than_random: calibrated? ? better_than_random? : nil,
-            calibration_metadata: @calibration_metadata
+            calibration_metadata: @calibration_metadata,
+            decision_provider: @decision_provider&.provider_name
           }
         end
 
@@ -454,10 +487,54 @@ module RAAF
         end
 
         def execute_judgment(input, output, criteria)
+          return judge_with_decision_model(input, output, criteria) if @decision_provider
+
           prompt = build_judgment_prompt(input, output, criteria)
 
           response = call_judge_model(prompt)
           parse_judgment_response(response)
+        end
+
+        ##
+        # Judges one sample by asking a decision model a single yes/no question
+        #
+        # The result has the same shape as the chat path's, so calibration and
+        # bias correction are unchanged. There is no reasoning text: a decision
+        # model returns a probability, not prose.
+        #
+        # @param input [String] The prompt given to the agent
+        # @param output [String] The output being judged
+        # @param criteria [String] The evaluation criteria
+        # @return [Hash] +:passed+, +:confidence+, +:reasoning+ and +:probability+
+        #
+        def judge_with_decision_model(input, output, criteria)
+          answer = @decision_provider.noul(
+            state: { input: input, output: output },
+            instructions: "The output satisfies this criterion: #{criteria}"
+          )
+
+          {
+            passed: answer.true?(threshold: @decision_threshold),
+            confidence: answer.confidence,
+            probability: answer.probability,
+            reasoning: "#{@decision_provider.provider_name} noul p=#{answer.probability.round(4)} " \
+                       "(threshold #{@decision_threshold})"
+          }
+        end
+
+        ##
+        # Builds the decision provider from a constructor argument
+        #
+        # @param value [RAAF::Models::DecisionInterface, Symbol, String, nil] The argument
+        # @return [RAAF::Models::DecisionInterface, nil]
+        #
+        def resolve_decision_provider(value)
+          value = ENV.fetch(DECISION_PROVIDER_ENV, nil) if value == :from_env
+          return nil if value.nil? || value == false
+          return nil if value.is_a?(String) && value.strip.empty?
+          return value unless value.is_a?(Symbol) || value.is_a?(String)
+
+          RAAF::DecisionRegistry.create(value)
         end
 
         def build_judgment_prompt(input, output, criteria)

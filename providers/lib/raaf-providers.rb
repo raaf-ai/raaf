@@ -20,6 +20,7 @@ require_relative "raaf/multi_provider"
 require_relative "raaf/litellm_provider"
 require_relative "raaf/xai_provider"
 require_relative "raaf/openrouter_provider"
+require_relative "raaf/jev_provider"
 
 ##
 # RAAF Providers - Additional LLM provider integrations
