@@ -113,20 +113,47 @@
   cursor: default;
 }
 
-/* Δ vs median — how far this bucket sits from the row's own middle. */
-.raaf-heat--up-2 { background: rgb(17 170 100 / 75%); }
-.raaf-heat--up-1 { background: rgb(17 170 100 / 38%); }
-.raaf-heat--flat { background: var(--raaf-glass-white-8); }
-.raaf-heat--down-1 { background: rgb(245 158 11 / 52%); }
-.raaf-heat--down-2 { background: rgb(239 68 68 / 75%); }
+/* Both scales are diverging orange <-> blue rather than the traffic light they
+   used to be, for three reasons that were measured against this card's own
+   surface (--raaf-teal-700, #1a2e3a) rather than argued:
 
-/* Pass rate — where this bucket sits on the scale itself. */
-.raaf-heat--t5 { background: rgb(17 170 100 / 82%); }
-.raaf-heat--t4 { background: rgb(17 170 100 / 52%); }
-.raaf-heat--t3 { background: rgb(17 170 100 / 28%); }
-.raaf-heat--t2 { background: rgb(245 158 11 / 42%); }
-.raaf-heat--t1 { background: rgb(245 158 11 / 68%); }
-.raaf-heat--t0 { background: rgb(239 68 68 / 72%); }
+   - The amber and red tiers were the same colour to a deuteranope: OKLab
+     Delta E 2.4, against a floor of 8. Half of each scale's bad end was
+     unreadable for the readers most likely to be looking for it.
+   - Green reads as a verdict, and only one of these scales passes one.
+     Delta-vs-median says a bucket moved against that row's own habit, which
+     is not the same claim as "this evaluator is good" — a rule that lives at
+     0.4 every day was solid green under the old ramp. Blue carries the
+     direction without the praise.
+   - The flat cell was the same white-8% as the hatch behind an unscored one,
+     Delta E 10 under full colour vision, so "typical" and "nothing ran"
+     looked alike. Flat is its own solid plate now, 15.8 from its neighbours.
+
+   Solid rather than alpha over the glass: these sit on .raaf-heatgrid-row,
+   which washes white-5% on hover, and a translucent cell changed tone under
+   the pointer.
+
+   Both ramps clear the CVD and normal-vision floors on this surface (median
+   13.7 / 15.8, pass rate 16.2 / 17.1). The two steps either side of each
+   middle sit under 3:1 against the surface, which is what a diverging
+   midpoint is for; the per-cell tooltip and the NOW and delta columns are
+   the reading that does not depend on the tone. */
+
+/* Δ vs median — how far this bucket sits from the row's own middle. */
+.raaf-heat--up-2 { background: #6ab4f0; }
+.raaf-heat--up-1 { background: #35699c; }
+.raaf-heat--flat { background: #33414d; }
+.raaf-heat--down-1 { background: #96552f; }
+.raaf-heat--down-2 { background: #f28f36; }
+
+/* Pass rate — where this bucket sits on the scale itself, the arms either
+   side of the .88 tier the scale is really asking about. */
+.raaf-heat--t5 { background: #8fd0ff; }
+.raaf-heat--t4 { background: #5197d0; }
+.raaf-heat--t3 { background: #2c5d90; }
+.raaf-heat--t2 { background: #8a4d27; }
+.raaf-heat--t1 { background: #dd7a25; }
+.raaf-heat--t0 { background: #fbbd7a; }
 
 /* A bucket nothing ran in is a gap, not a zero, in either colouring. It is
    hatched rather than tinted so it cannot be mistaken for a flat cell. */
