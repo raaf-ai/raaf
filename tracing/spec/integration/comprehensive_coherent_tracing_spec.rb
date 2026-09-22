@@ -1337,11 +1337,11 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         spans = memory_processor.spans
         expect(spans.length).to eq(600) # 100 runs * (1 agent + 5 tools)
 
-        puts "\n🔍 Performance Impact Analysis:"
-        puts "   Baseline time (100 runs): #{baseline_time.round(4)}s"
-        puts "   Traced time (100 runs): #{traced_time.round(4)}s"
-        puts "   Overhead ratio: #{overhead_ratio.round(2)}x"
-        puts "   Spans created: #{spans.length}"
+        bench_puts "\n🔍 Performance Impact Analysis:"
+        bench_puts "   Baseline time (100 runs): #{baseline_time.round(4)}s"
+        bench_puts "   Traced time (100 runs): #{traced_time.round(4)}s"
+        bench_puts "   Overhead ratio: #{overhead_ratio.round(2)}x"
+        bench_puts "   Spans created: #{spans.length}"
       end
 
       it "measures memory allocation impact" do
@@ -1358,10 +1358,10 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         expect(total_allocated).to be < performance_baseline[:memory_allocation]
         expect(total_retained).to be < (performance_baseline[:memory_allocation] / 10)
 
-        puts "\n💾 Memory Impact Analysis:"
-        puts "   Total allocated: #{total_allocated} objects"
-        puts "   Total retained: #{total_retained} objects"
-        puts "   Allocated per run: #{(total_allocated / 10.0).round(1)} objects"
+        bench_puts "\n💾 Memory Impact Analysis:"
+        bench_puts "   Total allocated: #{total_allocated} objects"
+        bench_puts "   Total retained: #{total_retained} objects"
+        bench_puts "   Allocated per run: #{(total_allocated / 10.0).round(1)} objects"
       end
     end
 
@@ -1395,11 +1395,11 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         # Should create many spans but still perform well
         expect(spans.length).to be > 50 # Many components
 
-        puts "\n⚡ Complex Hierarchy Performance:"
-        puts "   Execution time (10 runs): #{complex_time.round(4)}s"
-        puts "   Time per run: #{(complex_time / 10.0).round(4)}s"
-        puts "   Total spans created: #{spans.length}"
-        puts "   Spans per run: #{(spans.length / 10.0).round(1)}"
+        bench_puts "\n⚡ Complex Hierarchy Performance:"
+        bench_puts "   Execution time (10 runs): #{complex_time.round(4)}s"
+        bench_puts "   Time per run: #{(complex_time / 10.0).round(4)}s"
+        bench_puts "   Total spans created: #{spans.length}"
+        bench_puts "   Spans per run: #{(spans.length / 10.0).round(1)}"
       end
     end
 
@@ -1433,11 +1433,11 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         trace_ids = spans.map { |s| s[:trace_id] }.uniq
         expect(trace_ids.length).to be >= 40 # Each run should have unique trace
 
-        puts "\n🔄 Concurrent Execution Performance:"
-        puts "   Total time (4 threads, 10 runs each): #{concurrent_time.round(4)}s"
-        puts "   Effective time per run: #{(concurrent_time / 40.0).round(4)}s"
-        puts "   Total spans: #{spans.length}"
-        puts "   Unique traces: #{trace_ids.length}"
+        bench_puts "\n🔄 Concurrent Execution Performance:"
+        bench_puts "   Total time (4 threads, 10 runs each): #{concurrent_time.round(4)}s"
+        bench_puts "   Effective time per run: #{(concurrent_time / 40.0).round(4)}s"
+        bench_puts "   Total spans: #{spans.length}"
+        bench_puts "   Unique traces: #{trace_ids.length}"
       end
     end
   end
@@ -1576,7 +1576,7 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
               expect(result[:success]).to be(true) unless test_case[:input].nil?
             rescue StandardError => e
               # Some edge cases may cause errors, which is acceptable
-              puts "   Edge case '#{test_case[:description]}' caused error: #{e.message}"
+              bench_puts "   Edge case '#{test_case[:description]}' caused error: #{e.message}"
             end
 
             # Should still create spans even if processing fails
@@ -1662,11 +1662,11 @@ RSpec.describe "RAAF Coherent Tracing - Comprehensive Integration", :integration
         span_types = spans.map { |s| s[:kind] }.uniq
         expect(span_types).to include(:pipeline, :agent, :tool)
 
-        puts "\n✅ Integration Validation Complete:"
-        puts "   Components tested: #{components_tested.keys.join(", ")}"
-        puts "   Total spans created: #{spans.length}"
-        puts "   Span types: #{span_types.join(", ")}"
-        puts "   Execution time: #{execution_time.round(4)}s"
+        bench_puts "\n✅ Integration Validation Complete:"
+        bench_puts "   Components tested: #{components_tested.keys.join(", ")}"
+        bench_puts "   Total spans created: #{spans.length}"
+        bench_puts "   Span types: #{span_types.join(", ")}"
+        bench_puts "   Execution time: #{execution_time.round(4)}s"
       end
     end
   end

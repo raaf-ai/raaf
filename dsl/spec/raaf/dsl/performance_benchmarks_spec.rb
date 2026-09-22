@@ -36,9 +36,9 @@ RSpec.describe "Performance Benchmarks" do
 
   # A single resolve is at or below the clock's resolution, so time the whole
   # loop and divide, rather than timing each call.
-  def ms_per_call(iterations)
+  def ms_per_call(iterations, &block)
     start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-    iterations.times { yield }
+    iterations.times(&block)
     ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start) * 1000) / iterations
   end
 
@@ -79,10 +79,10 @@ RSpec.describe "Performance Benchmarks" do
       min_time_ms = times.min
 
       # Report results
-      puts "\n  Agent Initialization Performance:"
-      puts "    Average: #{'%.4f' % avg_time_ms}ms"
-      puts "    Min:     #{'%.4f' % min_time_ms}ms"
-      puts "    Max:     #{'%.4f' % max_time_ms}ms"
+      bench_puts "\n  Agent Initialization Performance:"
+      bench_puts "    Average: #{'%.4f' % avg_time_ms}ms"
+      bench_puts "    Min:     #{'%.4f' % min_time_ms}ms"
+      bench_puts "    Max:     #{'%.4f' % max_time_ms}ms"
 
       # Verify against requirement
       expect(avg_time_ms).to be < MAX_INITIALIZATION_TIME_MS
@@ -140,10 +140,10 @@ RSpec.describe "Performance Benchmarks" do
       lazy_avg = lazy_times.sum / lazy_times.length
       improvement = ((eager_avg - lazy_avg) / eager_avg) * 100
 
-      puts "\n  Lazy Loading Improvement:"
-      puts "    Eager avg: #{'%.4f' % eager_avg}ms"
-      puts "    Lazy avg:  #{'%.4f' % lazy_avg}ms"
-      puts "    Improvement: #{'%.1f' % improvement}%"
+      bench_puts "\n  Lazy Loading Improvement:"
+      bench_puts "    Eager avg: #{'%.4f' % eager_avg}ms"
+      bench_puts "    Lazy avg:  #{'%.4f' % lazy_avg}ms"
+      bench_puts "    Improvement: #{'%.1f' % improvement}%"
 
       # The timings above are reported for information only. Comparing two
       # sub-millisecond averages is far too noisy to assert on under load, so
@@ -188,9 +188,9 @@ RSpec.describe "Performance Benchmarks" do
       avg_time = resolution_times.sum / resolution_times.length
       max_time = resolution_times.max
 
-      puts "\n  Tool Resolution Performance:"
-      puts "    Average: #{'%.4f' % avg_time}ms"
-      puts "    Max:     #{'%.4f' % max_time}ms"
+      bench_puts "\n  Tool Resolution Performance:"
+      bench_puts "    Average: #{'%.4f' % avg_time}ms"
+      bench_puts "    Max:     #{'%.4f' % max_time}ms"
 
       # Should be very fast (sub-millisecond)
       expect(avg_time).to be < 1.0
@@ -213,10 +213,10 @@ RSpec.describe "Performance Benchmarks" do
       WARM_UP_ITERATIONS.times { RAAF::ToolRegistry.resolve(tool_name) }
       cached = ms_per_call(ITERATIONS) { RAAF::ToolRegistry.resolve(tool_name) }
 
-      puts "\n  Cache Performance:"
-      puts "    Auto-discovery: #{'%.4f' % uncached}ms"
-      puts "    Registry hit:   #{'%.4f' % cached}ms"
-      puts "    Speedup:        #{format('%.1f', uncached / cached)}x"
+      bench_puts "\n  Cache Performance:"
+      bench_puts "    Auto-discovery: #{'%.4f' % uncached}ms"
+      bench_puts "    Registry hit:   #{'%.4f' % cached}ms"
+      bench_puts "    Speedup:        #{format('%.1f', uncached / cached)}x"
 
       # A registry hit avoids the namespace scan
       expect(cached).to be < uncached
@@ -244,10 +244,10 @@ RSpec.describe "Performance Benchmarks" do
       final_memory = get_memory_usage
       memory_increase_mb = (final_memory - initial_memory) / 1024.0 / 1024.0
 
-      puts "\n  Memory Usage:"
-      puts "    Initial: #{format('%.2f', initial_memory / 1024.0 / 1024.0)}MB"
-      puts "    Final:   #{format('%.2f', final_memory / 1024.0 / 1024.0)}MB"
-      puts "    Increase: #{'%.2f' % memory_increase_mb}MB for 100 agents"
+      bench_puts "\n  Memory Usage:"
+      bench_puts "    Initial: #{format('%.2f', initial_memory / 1024.0 / 1024.0)}MB"
+      bench_puts "    Final:   #{format('%.2f', final_memory / 1024.0 / 1024.0)}MB"
+      bench_puts "    Increase: #{'%.2f' % memory_increase_mb}MB for 100 agents"
 
       # Memory increase should be reasonable (< 50MB for 100 agents)
       expect(memory_increase_mb).to be < 50
@@ -280,11 +280,11 @@ RSpec.describe "Performance Benchmarks" do
       total_agents = thread_count * agents_per_thread
       avg_time_ms = (total_time * 1000) / total_agents
 
-      puts "\n  Thread Safety Performance:"
-      puts "    Total agents:     #{total_agents}"
-      puts "    Total time:       #{format('%.2f', total_time * 1000)}ms"
-      puts "    Avg per agent:    #{'%.4f' % avg_time_ms}ms"
-      puts "    Threads:          #{thread_count}"
+      bench_puts "\n  Thread Safety Performance:"
+      bench_puts "    Total agents:     #{total_agents}"
+      bench_puts "    Total time:       #{format('%.2f', total_time * 1000)}ms"
+      bench_puts "    Avg per agent:    #{'%.4f' % avg_time_ms}ms"
+      bench_puts "    Threads:          #{thread_count}"
 
       # Should still meet performance requirements under concurrent load
       expect(avg_time_ms).to be < MAX_INITIALIZATION_TIME_MS * 2 # Allow some overhead for threading
@@ -315,8 +315,8 @@ RSpec.describe "Performance Benchmarks" do
       end
 
       avg_time = search_times.sum / search_times.length
-      puts "\n  Namespace Search (worst-case):"
-      puts "    Average: #{'%.4f' % avg_time}ms"
+      bench_puts "\n  Namespace Search (worst-case):"
+      bench_puts "    Average: #{'%.4f' % avg_time}ms"
 
       # Even worst-case should be fast
       expect(avg_time).to be < 2.0
@@ -361,11 +361,11 @@ RSpec.describe "Performance Benchmarks" do
       after_avg = after_times.sum / after_times.length
       improvement_factor = before_avg / after_avg
 
-      puts "\n  === PERFORMANCE SUMMARY ==="
-      puts "  Before optimizations: #{'%.4f' % before_avg}ms avg"
-      puts "  After optimizations:  #{'%.4f' % after_avg}ms avg"
-      puts "  Improvement factor:   #{'%.1f' % improvement_factor}x faster"
-      puts "  ==========================="
+      bench_puts "\n  === PERFORMANCE SUMMARY ==="
+      bench_puts "  Before optimizations: #{'%.4f' % before_avg}ms avg"
+      bench_puts "  After optimizations:  #{'%.4f' % after_avg}ms avg"
+      bench_puts "  Improvement factor:   #{'%.1f' % improvement_factor}x faster"
+      bench_puts "  ==========================="
 
       # New implementation should be faster
       expect(after_avg).to be < before_avg

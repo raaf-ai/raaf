@@ -2,7 +2,6 @@
 
 require "spec_helper"
 require "benchmark"
-require "fiber"
 require "timeout"
 require "ostruct"
 require "securerandom"
@@ -268,10 +267,11 @@ RSpec.describe "TracingRegistry End-to-End Integration", :integration do
 
       private
 
-      def execute_pipeline(input)
+      def execute_pipeline(_input)
         results = []
+        # A real pipeline would feed each step the previous step's output; these
+        # simulated agents ignore their input, so nothing is threaded through.
         @agents.each_with_index do |agent, index|
-          index == 0 ? input : results.last[:output]
           results << agent.run_simulation.merge(step: index + 1)
         end
         { pipeline_results: results, final_output: results.last }
@@ -855,10 +855,10 @@ RSpec.describe "TracingRegistry End-to-End Integration", :integration do
         expect(mock_overhead).to be < 2.0
 
         # Log performance results
-        puts "\nPerformance Results (#{iterations} iterations):"
-        puts "  No tracing: #{(no_tracing_time * 1000).round(2)}ms"
-        puts "  Registry + NoOp: #{(registry_noop_time * 1000).round(2)}ms (#{(noop_overhead * 100).round(1)}% overhead)"
-        puts "  Registry + Mock: #{(registry_mock_time * 1000).round(2)}ms (#{(mock_overhead * 100).round(1)}% overhead)"
+        bench_puts "\nPerformance Results (#{iterations} iterations):"
+        bench_puts "  No tracing: #{(no_tracing_time * 1000).round(2)}ms"
+        bench_puts "  Registry + NoOp: #{(registry_noop_time * 1000).round(2)}ms (#{(noop_overhead * 100).round(1)}% overhead)"
+        bench_puts "  Registry + Mock: #{(registry_mock_time * 1000).round(2)}ms (#{(mock_overhead * 100).round(1)}% overhead)"
       end
 
       it "measures context lookup performance under high concurrency" do
@@ -888,10 +888,10 @@ RSpec.describe "TracingRegistry End-to-End Integration", :integration do
         # Context lookup should be very fast (< 10 microseconds per operation)
         expect(avg_operation_time).to be < 10.0
 
-        puts "\nConcurrency Performance:"
-        puts "  #{threads} threads × #{operations_per_thread} operations = #{total_operations} total"
-        puts "  Total time: #{(concurrent_time * 1000).round(2)}ms"
-        puts "  Average per operation: #{avg_operation_time.round(2)}μs"
+        bench_puts "\nConcurrency Performance:"
+        bench_puts "  #{threads} threads × #{operations_per_thread} operations = #{total_operations} total"
+        bench_puts "  Total time: #{(concurrent_time * 1000).round(2)}ms"
+        bench_puts "  Average per operation: #{avg_operation_time.round(2)}μs"
       end
     end
   end
@@ -951,10 +951,10 @@ RSpec.describe "TracingRegistry End-to-End Integration", :integration do
         memory_growth = (final_memory - initial_memory).to_f / initial_memory
         expect(memory_growth).to be < 0.1
 
-        puts "\nMemory Test Results:"
-        puts "  Initial memory: #{initial_memory} live slots"
-        puts "  Final memory: #{final_memory} live slots"
-        puts "  Memory growth: #{(memory_growth * 100).round(2)}%"
+        bench_puts "\nMemory Test Results:"
+        bench_puts "  Initial memory: #{initial_memory} live slots"
+        bench_puts "  Final memory: #{final_memory} live slots"
+        bench_puts "  Memory growth: #{(memory_growth * 100).round(2)}%"
       end
     end
 

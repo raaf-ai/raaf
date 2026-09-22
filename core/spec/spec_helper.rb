@@ -114,6 +114,11 @@ ENV["RAAF_LOG_LEVEL"] = "fatal"
 # Suppress deprecation warnings during tests
 ENV["RAAF_SUPPRESS_WARNINGS"] = "true"
 
+# The async gem reports every task that fails while nothing is waiting on it,
+# which the streaming specs do on purpose. Console reads this before it builds
+# its default logger, so it has to be set before async is required.
+ENV["CONSOLE_LEVEL"] ||= "fatal"
+
 # Set dummy API key for tests to allow provider initialization
 # Use consistent dummy key that matches VCR recordings
 ENV["OPENAI_API_KEY"] = "test-api-key" if ENV["OPENAI_API_KEY"].to_s.empty?
@@ -154,6 +159,22 @@ RSpec.configure do |config|
 
   # Include benchmark matchers if available
   config.include RSpec::Benchmark::Matchers if defined?(RSpec::Benchmark)
+
+  # RAAF::Logging keeps one Configuration for the process, and its level is read
+  # lazily and then memoized. A spec that sets a level and does not put it back
+  # decides how loudly every spec after it logs -- which, with a random order, is a
+  # different set of specs on every run. Put it back here, whoever moved it.
+  config.around do |example|
+    configuration = RAAF::Logging.instance_variable_get(:@configuration)
+    logger = RAAF::Logging.instance_variable_get(:@logger)
+
+    begin
+      example.run
+    ensure
+      RAAF::Logging.instance_variable_set(:@configuration, configuration)
+      RAAF::Logging.instance_variable_set(:@logger, logger)
+    end
+  end
 
   # Test categorization and configuration
   config.define_derived_metadata(file_path: %r{/spec/integration/}) do |metadata|

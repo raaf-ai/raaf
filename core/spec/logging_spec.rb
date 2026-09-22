@@ -4,23 +4,30 @@ require "spec_helper"
 
 # rubocop:disable RSpec/MultipleDescribes
 RSpec.describe RAAF::Logging do
-  let(:original_configuration) { described_class.instance_variable_get(:@configuration) }
-  let(:original_logger) { described_class.instance_variable_get(:@logger) }
   let(:mock_logger) { double("Logger", info: nil, warn: nil, error: nil, fatal: nil, debug: nil) }
 
-  before do
-    # Reset configuration and logger between tests
+  # Reset the singleton for the example and put it back afterwards. Read here, not
+  # through a `let` referenced from an `after` hook: a lazy `let` first runs at
+  # restore time, so what it captured was the level the example had just set, and
+  # the "restore" handed that level to every spec that ran after this file.
+  around do |example|
+    configuration = described_class.instance_variable_get(:@configuration)
+    logger = described_class.instance_variable_get(:@logger)
+
     described_class.instance_variable_set(:@configuration, nil)
     described_class.instance_variable_set(:@logger, nil)
 
-    # Mock the logger to capture log calls
-    allow(described_class).to receive(:logger).and_return(mock_logger)
+    begin
+      example.run
+    ensure
+      described_class.instance_variable_set(:@configuration, configuration)
+      described_class.instance_variable_set(:@logger, logger)
+    end
   end
 
-  after do
-    # Restore original state
-    described_class.instance_variable_set(:@configuration, original_configuration)
-    described_class.instance_variable_set(:@logger, original_logger)
+  before do
+    # Mock the logger to capture log calls
+    allow(described_class).to receive(:logger).and_return(mock_logger)
   end
 
   describe ".configure" do

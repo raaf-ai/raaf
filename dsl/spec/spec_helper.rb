@@ -7,6 +7,12 @@ parent_dir = File.expand_path("../..", __dir__)
 core_lib = File.join(parent_dir, "core/lib")
 $LOAD_PATH.unshift(core_lib) if File.directory?(core_lib)
 
+# Silence RAAF logging during tests. Specs drive error and fallback paths on
+# purpose, and each one logs; the output buries the actual spec
+# results. Set RAAF_LOG_LEVEL to get it back while debugging one.
+ENV["RAAF_LOG_LEVEL"] ||= "fatal"
+ENV["RAAF_DISABLE_TRACING"] ||= "true"
+
 # Require core gem first for logging and other dependencies
 require "raaf-core"
 
@@ -45,6 +51,8 @@ end
 # Force loading of autoloaded constants to prevent NameError in specs
 
 RSpec.configure do |config|
+  config.include BenchmarkOutput
+
   # Enable flags like --only-failures and --next-failure
   config.example_status_persistence_file_path = ".rspec_status"
 

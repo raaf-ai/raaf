@@ -6,6 +6,12 @@ $LOAD_PATH.unshift File.expand_path("../../dsl/lib", __dir__)
 $LOAD_PATH.unshift File.expand_path("../../providers/lib", __dir__)
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 
+# Silence RAAF logging during tests. Specs drive error and fallback paths on
+# purpose, and each one logs; the output buries the actual spec
+# results. Set RAAF_LOG_LEVEL to get it back while debugging one.
+ENV["RAAF_LOG_LEVEL"] ||= "fatal"
+ENV["RAAF_DISABLE_TRACING"] ||= "true"
+
 require "raaf-core"
 require "raaf/errors" # Load error classes
 require "raaf-dsl"

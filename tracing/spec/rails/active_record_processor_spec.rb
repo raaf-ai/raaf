@@ -11,7 +11,7 @@ begin
   # Check if database connection is available
   ActiveRecord::Base.connection.migration_context.current_version
 rescue LoadError, ActiveRecord::ConnectionNotDefined, ActiveRecord::NoDatabaseError => e
-  puts "Skipping Rails tests: #{e.message}"
+  RailsSpecSkip.announce(e)
   return
 end
 

@@ -13,6 +13,16 @@ require "vcr"
 require "webmock/rspec"
 require "pry"
 
+# Silence RAAF logging during tests. Several provider specs deliberately drive
+# the retry path, which logs a warning per attempt and an error at the end.
+# Set RAAF_LOG_LEVEL to get the output back while debugging one.
+ENV["RAAF_LOG_LEVEL"] ||= "fatal"
+ENV["RAAF_DISABLE_TRACING"] ||= "true"
+
+# OpenAIProvider prints a deprecation notice per instance, and its own spec
+# builds one per example. The notice is for users, not for this suite.
+ENV["RAAF_SUPPRESS_WARNINGS"] ||= "true"
+
 # Require the main library
 require "raaf-providers"
 

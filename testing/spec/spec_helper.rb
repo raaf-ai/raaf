@@ -1,6 +1,13 @@
 # frozen_string_literal: true
 
 require "bundler/setup"
+
+# Silence RAAF logging during tests. Specs drive error and fallback paths on
+# purpose, and each one logs; the output buries the actual spec
+# results. Set RAAF_LOG_LEVEL to get it back while debugging one.
+ENV["RAAF_LOG_LEVEL"] ||= "fatal"
+ENV["RAAF_DISABLE_TRACING"] ||= "true"
+
 require "raaf-testing"
 require "raaf-dsl" # Required for prompt classes in specs
 require "rspec"

@@ -9,6 +9,12 @@ require "factory_bot"
 # RAAF-cased constants; standalone specs have no engine, so register it here too.
 ActiveSupport::Inflector.inflections(:en) { |inflect| inflect.acronym "RAAF" }
 
+# Silence RAAF logging during tests. Specs drive error and fallback paths on
+# purpose, and each one logs; the output buries the actual spec
+# results. Set RAAF_LOG_LEVEL to get it back while debugging one.
+ENV["RAAF_LOG_LEVEL"] ||= "fatal"
+ENV["RAAF_DISABLE_TRACING"] ||= "true"
+
 # Load the gem
 # The gem's own entry point loads raaf-core, and the library leans on what it
 # defines — RAAF.logger above all, which 46 call sites reach for. Loading only
@@ -22,6 +28,9 @@ require_relative "../lib/raaf/eval/rspec"
 
 # Configure RAAF Eval for testing
 RAAF::Eval.configure do |config|
+  # RAAF::Eval logs through a Logger of its own, which RAAF_LOG_LEVEL does not
+  # reach. Specs call fail! and the other error paths deliberately.
+  config.logger = Logger.new(IO::NULL)
   config.database_url = "postgresql://localhost/raaf_eval_test"
   config.llm_judge_model = "gpt-4o"
   config.llm_judge_cache = true

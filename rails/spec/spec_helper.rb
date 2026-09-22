@@ -4,6 +4,13 @@ require "bundler/setup"
 
 ENV["RAILS_ENV"] = "test"
 
+# Silence RAAF logging during tests. Specs drive error and fallback paths on
+# purpose, and the jobs log their own progress; the output buries the actual
+# spec results. Set before the engine boots, since the level is memoized on
+# first read. Set RAAF_LOG_LEVEL to get it back when debugging a spec.
+ENV["RAAF_LOG_LEVEL"] ||= "fatal"
+ENV["RAAF_DISABLE_TRACING"] ||= "true"
+
 # Add sibling gems to the load path when running from a checkout.
 parent_dir = File.expand_path("../..", __dir__)
 %w[core memory tracing].each do |gem_name|
@@ -31,7 +38,7 @@ require_relative "schema_loader"
 ActiveRecord::Base.establish_connection(:test)
 DATABASE_AVAILABLE = SchemaLoader.load!
 
-Dir[File.join(__dir__, "support/**/*.rb")].sort.each { |f| require f }
+Dir[File.join(__dir__, "support/**/*.rb")].each { |f| require f }
 
 RSpec.configure do |config|
   config.example_status_persistence_file_path = ".rspec_status"
