@@ -131,21 +131,30 @@ module RAAF
         # produced — same retention_days, same fallback. Failed and cancelled
         # items keep their own shorter default, since nothing downstream reads
         # them once somebody has looked.
+        #
+        # Every delete here is narrowed to {#unreferenced_queue_items}, because
+        # the two sweeps do not agree on when a row is old and the database has
+        # an opinion about the disagreement: a queue item on the job-wide 7-day
+        # default can easily outlive its own results' 30-day one, and
+        # +raaf_evaluation_results.queue_item_id+ is a foreign key with no
+        # ON DELETE. +dependent: :nullify+ does not save this — +delete_all+
+        # skips the model's callbacks by definition — so the item that is still
+        # pointed at has to be left where it is.
         def cleanup_queue_items(retention)
           finished_deleted = each_policy_retention do |policy, cutoff|
-            RAAF::Eval::Models::EvaluationQueueItem
+            unreferenced_queue_items
               .where(evaluation_policy_id: policy.id, status: %w[completed partial])
               .where("completed_at < ?", cutoff)
               .delete_all
           end
 
-          finished_deleted += RAAF::Eval::Models::EvaluationQueueItem
+          finished_deleted += unreferenced_queue_items
                               .where(evaluation_policy_id: [nil] + policies_without_retention_ids, status: %w[completed
                                                                                                               partial])
                               .where("completed_at < ?", retention[:queue_items_completed].ago)
                               .delete_all
 
-          failed_deleted = RAAF::Eval::Models::EvaluationQueueItem
+          failed_deleted = unreferenced_queue_items
                            .where(status: %w[failed cancelled])
                            .where("completed_at < ?", retention[:queue_items_failed].ago)
                            .delete_all
@@ -153,6 +162,30 @@ module RAAF
           total = finished_deleted + failed_deleted
           RAAF.logger.info "[ContinuousEval] Deleted #{total} queue items (#{finished_deleted} finished, #{failed_deleted} failed)"
           total
+        end
+
+        ##
+        # Queue items no surviving result points at.
+        #
+        # Written as NOT EXISTS rather than NOT IN, because a result carrying a
+        # NULL queue_item_id — every row written before the column existed —
+        # makes a NOT IN comparison unknown for every queue item, and nothing
+        # would ever be swept again. NOT EXISTS answers false for that row and
+        # true for the rest.
+        #
+        # This runs after {#cleanup_evaluation_results}, so a result already
+        # past its own retention is gone by now and the item it pointed at is
+        # swept in the same pass rather than waiting for tomorrow's.
+        #
+        # @return [ActiveRecord::Relation]
+        def unreferenced_queue_items
+          queue = RAAF::Eval::Models::EvaluationQueueItem
+          results = RAAF::Eval::Models::ContinuousEvaluationResult
+
+          queue.where(
+            "NOT EXISTS (SELECT 1 FROM #{results.quoted_table_name} " \
+            "WHERE #{results.quoted_table_name}.queue_item_id = #{queue.quoted_table_name}.id)"
+          )
         end
 
         ##
