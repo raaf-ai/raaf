@@ -397,7 +397,11 @@ module RAAF
         else
           # Use agent_name from metadata if available, otherwise use class name
           actual_kind = component_type
-          display_name = metadata[:agent_name] || component_name
+          # +span_display_name+ names a span after something that is not an
+          # agent — the model a decision provider asked, say. Deleted rather
+          # than read, because everything left in metadata is merged into the
+          # span's attributes, and a naming hint is not an attribute.
+          display_name = metadata.delete(:span_display_name) || metadata[:agent_name] || component_name
         end
 
         span_name = build_span_name(actual_kind, display_name, method_name)

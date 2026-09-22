@@ -63,7 +63,7 @@ module RAAF
         validates :kind, inclusion: {
           in: %w[agent llm tool handoff guardrail mcp_list_tools response
                  speech_group speech transcription custom internal trace pipeline
-                 job component search]
+                 job component search decision]
         }
         validates :status, inclusion: { in: %w[ok error cancelled skipped] }
 
@@ -212,7 +212,11 @@ module RAAF
         # components unless they declare +trace_as :tool+. Excluding them left
         # the screen empty for applications whose agents call plain service
         # objects rather than registered tools.
-        TOOL_KINDS = %w[tool custom component].freeze
+        #
+        # "decision" is a call to a decision model, which is something outside
+        # the agent that charges per call, so it belongs on this screen beside
+        # the search providers rather than on the Agents one.
+        TOOL_KINDS = %w[tool custom component decision].freeze
 
         # JSON columns are natively serialized in Rails 8+
         # No need for explicit serialization

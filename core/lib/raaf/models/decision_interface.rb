@@ -55,6 +55,9 @@ module RAAF
 
       include Logger
       include RetryHandler
+      include RAAF::Tracing::Traceable
+
+      trace_as :decision
 
       # @return [String, nil] The model this provider asks by default
       attr_reader :model
@@ -65,13 +68,19 @@ module RAAF
       # @param api_key [String, nil] API key for authentication
       # @param api_base [String, nil] Custom API base URL
       # @param model [String, nil] Default model id for {#decide}
+      # @param tracer [Object, nil] Tracer to send decision spans to, instead
+      #   of whichever tracer is configured globally
+      # @param trace_state [Boolean, nil] Whether to record the state decided
+      #   about on the span. nil defers to +RAAF_TRACE_DECISION_STATE+.
       # @param options [Hash] Additional provider-specific options
       #
-      def initialize(api_key: nil, api_base: nil, model: nil, **options)
+      def initialize(api_key: nil, api_base: nil, model: nil, tracer: nil, trace_state: nil, **options)
         @api_key = api_key
         @api_base = api_base
         @options = options
         @model = model || default_model
+        @tracer = tracer
+        @trace_state = trace_state
         initialize_retry_config
       end
 
@@ -96,9 +105,17 @@ module RAAF
       def decide(state:, questions:, model: nil, **kwargs)
         validate_state!(state)
         built = build_questions(questions)
+        asked = model || @model
 
-        with_retry(:decide) do
-          perform_decision(state: state, questions: built, model: model || @model, **kwargs)
+        # One span per call, wrapped outside the retries: a caller reading the
+        # trace wants to know that a decision was made and what it cost, and
+        # three spans for one answer would be counted three times on the bill.
+        with_traced_decision(state: state, questions: built) do
+          with_tracing(:decide, span_display_name: asked) do
+            with_retry(:decide) do
+              perform_decision(state: state, questions: built, model: asked, **kwargs)
+            end
+          end
         end
       end
 
@@ -166,10 +183,59 @@ module RAAF
         []
       end
 
+      ##
+      # Whether the state decided about is recorded on the span
+      #
+      # The state is whatever the caller is deciding about, which in an
+      # application is customer data. Copying it into a span payload is a
+      # decision somebody has to make deliberately, so it is off unless the
+      # provider was built asking for it or +RAAF_TRACE_DECISION_STATE+ is
+      # "true". An explicit +trace_state:+ wins over the environment.
+      #
+      # @return [Boolean]
+      #
+      def trace_state?
+        return @trace_state ? true : false unless @trace_state.nil?
+
+        ENV["RAAF_TRACE_DECISION_STATE"].to_s == "true"
+      end
+
+      ##
+      # The call this provider has in flight on this thread
+      #
+      # The questions are arguments to one call rather than state of the
+      # provider, so {RAAF::Tracing::SpanCollectors::DecisionCollector} has
+      # nowhere else to read them from. Kept per thread and keyed by the
+      # provider itself, because a provider is registered once and shared: two
+      # threads deciding at the same time would otherwise record each other's
+      # questions.
+      #
+      # @return [Hash{Symbol => Object}, nil] +{ state:, questions: }+, or nil
+      #   outside a call
+      #
+      def traced_decision
+        Thread.current[:raaf_decision_calls]&.[](self)
+      end
+
       # The state shapes a decision model accepts
       STATE_TYPES = [String, Symbol, Hash, Array].freeze
 
       private
+
+      ##
+      # Publish the call in flight for {#traced_decision}, and take it down again
+      #
+      # @param call [Hash] The state and built questions of this call
+      # @return [Object] Whatever the block returns
+      #
+      def with_traced_decision(**call)
+        calls = (Thread.current[:raaf_decision_calls] ||= {}.compare_by_identity)
+        calls[self] = call
+        yield
+      ensure
+        calls.delete(self)
+        Thread.current[:raaf_decision_calls] = nil if calls.empty?
+      end
 
       ##
       # @param state [Object] The state to check

@@ -42,18 +42,28 @@ module RAAF
       # +llm.tokens.input+ is what +LLMCollector+ emits today; the
       # +llm.usage.*+ pair comes from +LLMSpanWrapper+. Cache-read tokens are
       # deliberately absent — the provider already counts them inside input.
+      #
+      # +decision.tokens.*+ is what +DecisionCollector+ writes. A decision span
+      # is billed by the fee it reports rather than by these, but the counts
+      # still say how much state was sent, which is the figure a caller tunes.
       INPUT_KEYS = ["input_tokens", "llm.usage.input_tokens", "llm.usage.prompt_tokens",
-                    "llm.tokens.input"].freeze
+                    "llm.tokens.input", "decision.tokens.input"].freeze
 
       # Attribute keys carrying the output token count, most specific first.
       OUTPUT_KEYS = ["output_tokens", "llm.usage.output_tokens", "llm.usage.completion_tokens",
-                     "llm.tokens.output"].freeze
+                     "llm.tokens.output", "decision.tokens.output"].freeze
 
       # Attribute keys carrying the total token count, most specific first.
-      TOTAL_KEYS = ["total_tokens", "llm.usage.total_tokens", "llm.tokens.total"].freeze
+      TOTAL_KEYS = ["total_tokens", "llm.usage.total_tokens", "llm.tokens.total",
+                    "decision.tokens.total"].freeze
 
       # Attribute keys carrying the model name, most specific first.
-      MODEL_KEYS = ["agent.model", "llm.request.model", "llm.model", "model"].freeze
+      #
+      # +decision.result.model+ comes before +decision.model+ because a vendor
+      # resolves an alias like +jev-latest+ to a dated build, and the build that
+      # answered is the one the call was charged for.
+      MODEL_KEYS = ["agent.model", "llm.request.model", "llm.model", "model",
+                    "decision.result.model", "decision.model"].freeze
 
       # Span kinds that buy nothing themselves. A job span brackets a run; the
       # spend belongs to the spans inside it, each of which reports its own.
@@ -62,18 +72,22 @@ module RAAF
       # Spans charged per call rather than per token. `search` is the kind a
       # hand-rolled provider sets; `component.type` is what RAAF's own search
       # components record, and it is the axis the spans index already filters
-      # on.
-      PER_CALL_KINDS = %w[search].freeze
+      # on. `decision` is here because a decision provider reports the exact
+      # fee for the call it just answered, and no token price table has an
+      # entry for a decision model — pricing one off its tokens bills it as
+      # free.
+      PER_CALL_KINDS = %w[search decision].freeze
       PER_CALL_TYPES = %w[search].freeze
 
       # Where a per-call charge is recorded, in cents. Written by the component
       # that made the call rather than by the tracer, so more than one spelling
       # is in the field.
-      FEE_CENT_KEYS = ["cost_cents", "search.cost_cents", "component.cost_cents"].freeze
+      FEE_CENT_KEYS = ["cost_cents", "search.cost_cents", "component.cost_cents",
+                       "decision.cost_cents"].freeze
 
       # Who charged it. A flat fee means nothing without the name beside it,
       # and it is what a per-call span has instead of a model.
-      PROVIDER_KEYS = ["provider", "search.provider"].freeze
+      PROVIDER_KEYS = ["provider", "search.provider", "decision.provider"].freeze
 
       # Where a component says what it is, and what it is called.
       COMPONENT_TYPE_KEY = "component.type"

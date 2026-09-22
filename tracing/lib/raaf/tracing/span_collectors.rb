@@ -7,6 +7,7 @@ require_relative "span_collectors/tool_collector"
 require_relative "span_collectors/error_collector"
 require_relative "span_collectors/pipeline_collector"
 require_relative "span_collectors/job_collector"
+require_relative "span_collectors/decision_collector"
 require_relative "span_collectors/dsl/agent_collector"
 
 # RAAF Tracing Span Collectors
@@ -100,17 +101,30 @@ module RAAF
       #   4. Fallback to BaseCollector for unknown types
       #
       # @note Special handling for agent hierarchies to select appropriate dialog collection
-      def self.collector_for(component)
-        class_name = component.class.name
+      # The collector for a component matched by what it inherits from, rather
+      # than by what it is called.
+      #
+      # Inheritance rather than an exact class name, so a subclass of
+      # RAAF::DSL::Agent still gets DSL::AgentCollector. It also catches the
+      # anonymous subclasses a spec or a registry builds, whose nil class name
+      # can never match a *Collector constant and would otherwise fall through
+      # to BaseCollector.
+      #
+      # @param component [Object] Component to find a collector for
+      # @return [BaseCollector, nil] The collector, or nil when nothing matches
+      def self.collector_by_ancestry(component)
+        return DSL::AgentCollector.new if defined?(RAAF::DSL::Agent) && component.is_a?(RAAF::DSL::Agent)
+        return AgentCollector.new if defined?(RAAF::Agent) && component.is_a?(RAAF::Agent)
+        return unless defined?(RAAF::Models::DecisionInterface)
 
-        # Handle specific agent types with different data requirements
-        # Use inheritance checking instead of exact class name matching
-        # This ensures subclasses of RAAF::DSL::Agent get the DSL::AgentCollector
-        if defined?(RAAF::DSL::Agent) && component.is_a?(RAAF::DSL::Agent)
-          return DSL::AgentCollector.new
-        elsif defined?(RAAF::Agent) && component.is_a?(RAAF::Agent)
-          return AgentCollector.new
-        end
+        DecisionCollector.new if component.is_a?(RAAF::Models::DecisionInterface)
+      end
+
+      def self.collector_for(component)
+        by_ancestry = collector_by_ancestry(component)
+        return by_ancestry if by_ancestry
+
+        class_name = component.class.name
 
         # Anonymous classes (e.g. Class.new(Base) without assignment) have nil
         # #name. They can never match a *Collector constant, so go straight to
