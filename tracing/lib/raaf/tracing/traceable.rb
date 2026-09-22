@@ -248,10 +248,10 @@ module RAAF
 
       # Expose current_span for child components to access
       def current_span
-        fiber_store = span_storage[Fiber.current.object_id]
+        fiber_store = span_storage[Fiber.current]
         return nil unless fiber_store
 
-        stack = fiber_store[object_id]
+        stack = fiber_store[self]
         stack&.last
       end
 
@@ -295,28 +295,33 @@ module RAAF
       private
 
       def push_span(span_data)
-        fiber_store = span_storage[Fiber.current.object_id] ||= {}
-        stack = fiber_store[object_id] ||= []
+        fiber_store = span_storage[Fiber.current] ||= {}.compare_by_identity
+        stack = fiber_store[self] ||= []
         stack.push(span_data)
       end
 
       def pop_span
-        fiber_store = span_storage[Fiber.current.object_id]
+        fiber_store = span_storage[Fiber.current]
         return unless fiber_store
 
-        stack = fiber_store[object_id]
+        stack = fiber_store[self]
         return unless stack
 
         stack.pop
 
         return unless stack.empty?
 
-        fiber_store.delete(object_id)
-        span_storage.delete(Fiber.current.object_id) if fiber_store.empty?
+        fiber_store.delete(self)
+        span_storage.delete(Fiber.current) if fiber_store.empty?
       end
 
+      # Keyed by the Fiber and the component themselves rather than by their
+      # `object_id`, which Ruby reuses once the object is collected — a live
+      # span could then be read out under a recycled id. Both levels are
+      # deleted as soon as a stack empties, and the store is thread-local, so
+      # nothing is retained past the span it belongs to.
       def span_storage
-        Thread.current[:raaf_traceable_span_storage] ||= {}
+        Thread.current[:raaf_traceable_span_storage] ||= {}.compare_by_identity
       end
 
       # Detect if there's an existing compatible span that should be reused
