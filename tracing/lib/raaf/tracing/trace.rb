@@ -3,7 +3,9 @@
 require "securerandom"
 
 module RAAF
+
   module Tracing
+
     # Thread-local context management for traces and spans
     #
     # The Context class provides thread-safe storage for the current trace
@@ -22,6 +24,7 @@ module RAAF
     #
     # @api private
     class Context
+
       # Key for storing current trace in thread-local storage
       TRACE_KEY = :openai_agents_current_trace
 
@@ -29,6 +32,7 @@ module RAAF
       SPAN_KEY = :openai_agents_current_span
 
       class << self
+
         # Returns the current trace for this thread
         #
         # @return [Trace, nil] The current trace or nil if not in a trace context
@@ -69,7 +73,9 @@ module RAAF
           Thread.current[TRACE_KEY] = nil
           Thread.current[SPAN_KEY] = nil
         end
+
       end
+
     end
 
     # High-level container for grouping related spans in a workflow
@@ -119,6 +125,7 @@ module RAAF
     #     # Trace is currently running
     #   end
     class Trace
+
       # @return [String] Unique identifier for this trace
       attr_reader :trace_id
 
@@ -341,6 +348,7 @@ module RAAF
         # This is where we would notify processors about trace completion
         # For now, the spans handle their own notification
       end
+
     end
 
     # Creates a trace with automatic lifecycle management
@@ -373,5 +381,7 @@ module RAAF
     def self.trace(workflow_name, **, &)
       Trace.create(workflow_name, **, &)
     end
+
   end
+
 end

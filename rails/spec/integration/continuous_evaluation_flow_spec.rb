@@ -101,7 +101,7 @@ RSpec.describe "Continuous Evaluation End-to-End Flow", type: :integration do
       let(:mock_evaluator) do
         double("Evaluator").tap do |evaluator|
           allow(evaluator).to receive(:evaluate).and_return(
-field_result(score: 0.85, reasoning: "Test passed")
+            field_result(score: 0.85, reasoning: "Test passed")
           )
         end
       end
@@ -181,7 +181,7 @@ field_result(score: 0.85, reasoning: "Test passed")
       let(:mock_evaluator_1) do
         double("Evaluator1").tap do |evaluator|
           allow(evaluator).to receive(:evaluate).and_return(
-field_result(score: 0.90, reasoning: "First evaluator passed")
+            field_result(score: 0.90, reasoning: "First evaluator passed")
           )
         end
       end
@@ -189,7 +189,7 @@ field_result(score: 0.90, reasoning: "First evaluator passed")
       let(:mock_evaluator_2) do
         double("Evaluator2").tap do |evaluator|
           allow(evaluator).to receive(:evaluate).and_return(
-field_result(score: 0.75, reasoning: "Second evaluator passed")
+            field_result(score: 0.75, reasoning: "Second evaluator passed")
           )
         end
       end
@@ -230,7 +230,7 @@ field_result(score: 0.75, reasoning: "Second evaluator passed")
       let(:successful_evaluator) do
         double("SuccessfulEvaluator").tap do |evaluator|
           allow(evaluator).to receive(:evaluate).and_return(
-field_result(score: 0.85, reasoning: "Success")
+            field_result(score: 0.85, reasoning: "Success")
           )
         end
       end

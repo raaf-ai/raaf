@@ -89,10 +89,6 @@ module RAAF
       include RAAF::DSL::Pipelineable
       include RAAF::DSL::SharedContextBuilder
 
-      # Thread-safe storage for result fields by service instance
-      # Prevents race conditions when multiple service instances run concurrently
-      @@last_result_fields_by_instance = Concurrent::Hash.new
-
       # Context accessor for compatibility with ContextAccess module
       attr_reader :context
 
@@ -176,24 +172,21 @@ module RAAF
         result = call
 
         # Capture result fields for pipeline integration
-        if result.is_a?(Hash)
-          @last_result_fields = result.keys.map(&:to_sym)
-          # Store per-instance using thread-safe hash instead of class-level variable
-          # This prevents race conditions when multiple Service instances run concurrently
-          @@last_result_fields_by_instance[object_id] = @last_result_fields
-        end
+        @last_result_fields = result.keys.map(&:to_sym) if result.is_a?(Hash)
 
         result
       end
 
       # Get the fields from the last execution (for pipeline validation)
       #
-      # Thread-safe: Retrieves fields from instance-keyed storage
+      # The fields live on the instance that captured them, so concurrent
+      # services never see each other's. An earlier version mirrored them into
+      # a class-level Concurrent::Hash keyed by `object_id`, which could only
+      # ever answer for the instance whose ivar was already set, and which was
+      # never pruned.
       #
       # @return [Array<Symbol>, nil] Array of field names or nil if not captured
-      def last_result_fields
-        @last_result_fields || @@last_result_fields_by_instance[object_id]
-      end
+      attr_reader :last_result_fields
 
       # Access context variables directly
       #

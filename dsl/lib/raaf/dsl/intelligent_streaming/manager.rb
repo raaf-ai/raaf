@@ -14,7 +14,6 @@ module RAAF
       #   manager = Manager.new
       #   scopes = manager.detect_scopes(flow_chain)
       class Manager
-
         # Detect streaming scopes from a pipeline flow chain
         #
         # @param flow_chain [Object] The pipeline flow chain (can be nested with >> and | operators)

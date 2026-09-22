@@ -73,7 +73,6 @@ module RAAF
             metadata: build_metadata(chunks, true)
           }
         rescue StandardError => e
-
           {
             content: nil,
             metadata: build_metadata(chunks, false, e)

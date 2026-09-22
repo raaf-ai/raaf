@@ -77,9 +77,9 @@ RSpec.describe "Statistical Evaluators" do
       # The same three events, reordered: read positionally the first item
       # would compare 7, 2 and 5, which are three different events.
       let(:result) do
-        { data: [ { "e1" => 7, "e2" => 2, "e3" => 5 },
-                  { "e2" => 2, "e3" => 5, "e1" => 7 },
-                  { "e3" => 5, "e1" => 8, "e2" => 2 } ] }
+        { data: [{ "e1" => 7, "e2" => 2, "e3" => 5 },
+                 { "e2" => 2, "e3" => 5, "e1" => 7 },
+                 { "e3" => 5, "e1" => 8, "e2" => 2 }] }
       end
 
       it "compares each item with itself" do
@@ -94,9 +94,9 @@ RSpec.describe "Statistical Evaluators" do
 
     context "with one item that disagrees with itself" do
       let(:result) do
-        { data: [ { "funding" => 100, "hiring" => 40 },
-                  { "hiring" => 40, "funding" => 55 },
-                  { "funding" => 55, "hiring" => 45 } ] }
+        { data: [{ "funding" => 100, "hiring" => 40 },
+                 { "hiring" => 40, "funding" => 55 },
+                 { "funding" => 55, "hiring" => 45 }] }
       end
 
       it "scores the mean of the items and names the worst" do
@@ -105,13 +105,13 @@ RSpec.describe "Statistical Evaluators" do
         expect(result[:score]).to eq(0.5)
         expect(result[:label]).to eq("bad")
         expect(result[:details][:worst_items])
-          .to eq([ { key: "funding", values: [ 100, 55, 55 ], score: 0.0 } ])
+          .to eq([{ key: "funding", values: [100, 55, 55], score: 0.0 }])
         expect(result[:message]).to end_with("; worst funding [100, 55, 55]")
       end
     end
 
     context "with an item one run left out" do
-      let(:result) { { data: [ { "e1" => 3, "e2" => 4 }, { "e1" => 3 } ] } }
+      let(:result) { { data: [{ "e1" => 3, "e2" => 4 }, { "e1" => 3 }] } }
 
       it "counts the omission as a different answer" do
         result = evaluator.evaluate(field_context, tolerance: 1)

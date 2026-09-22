@@ -252,7 +252,7 @@ module RAAF
 
             provider = provider_for(model)
             api_key = ENV.fetch(provider[:key_env], nil)
-            unless api_key&.present?
+            unless api_key.present?
               RAAF.logger&.warn("[GEval] #{provider[:key_env]} not set, cannot run #{model}")
               return nil
             end

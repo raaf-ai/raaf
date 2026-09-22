@@ -200,6 +200,10 @@ module RAAF
           module HaveConfidenceInterval
             include Base
 
+            # Two-sided z for the confidence levels a caller can name. Anything
+            # else falls back to 0.95's z.
+            Z_SCORES = { 0.90 => 1.645, 0.95 => 1.96, 0.99 => 2.576 }.freeze
+
             def matcher_defaults
               @min_value = nil
               @max_value = nil
@@ -274,13 +278,10 @@ module RAAF
             end
 
             def confidence_level_to_z(level)
-              # Simplified - would use proper statistical tables
-              case level
-              when 0.90 then 1.645
-              when 0.95 then 1.96
-              when 0.99 then 2.576
-              else 1.96
-              end
+              # Simplified - would use proper statistical tables. A lookup keyed
+              # by the level matches the caller's literal exactly, where a `case`
+              # over float literals reads as arithmetic it is not doing.
+              Z_SCORES.fetch(level, 1.96)
             end
           end
         end

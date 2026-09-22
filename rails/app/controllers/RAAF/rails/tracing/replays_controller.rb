@@ -52,7 +52,7 @@ module RAAF
                 # PollController reloads this page when the worker finishes.
                 # A second timer on top of it would throw the comparison away
                 # every 30 seconds while the replay is still running.
-                live: false, bundles: [ :diff ]
+                live: false, bundles: [:diff]
               )
             end
             format.json { render json: build_replay_result_data(@replay) }

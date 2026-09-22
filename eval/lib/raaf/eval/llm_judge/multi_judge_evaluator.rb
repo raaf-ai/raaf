@@ -167,7 +167,7 @@ module RAAF
             consensus_rate: results.count { |r| r[:consensus] }.to_f / results.size,
             average_agreement: results.sum { |r| r[:agreement_rate] } / results.size,
             high_disagreement_count: results.count { |r| r[:agreement_rate] < 0.5 },
-            unanimous_count: results.count { |r| r[:agreement_rate] == 1.0 }
+            unanimous_count: results.count { |r| r[:agreement_rate] >= 1.0 }
           }
         end
 

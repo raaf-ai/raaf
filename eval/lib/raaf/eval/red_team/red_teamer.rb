@@ -287,7 +287,7 @@ module RAAF
             output: model_output,
             score: assessment[:score],
             reasoning: assessment[:reasoning],
-            status: assessment[:score] == 1.0 ? "passed" : "failed",
+            status: assessment[:score] >= 1.0 ? "passed" : "failed",
             vulnerable: assessment[:vulnerable],
             context: build_context(vulnerability)
           )
@@ -311,7 +311,7 @@ module RAAF
             turns: turns,
             score: assessment[:score],
             reasoning: assessment[:reasoning],
-            status: assessment[:score] == 1.0 ? "passed" : "failed",
+            status: assessment[:score] >= 1.0 ? "passed" : "failed",
             vulnerable: assessment[:vulnerable],
             context: build_context(vulnerability)
           )

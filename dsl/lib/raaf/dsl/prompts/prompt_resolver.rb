@@ -61,7 +61,6 @@ module RAAF
     # Registry for managing prompt resolvers
     #
     class PromptResolverRegistry
-
       def initialize
         @resolvers = []
         @mutex = Mutex.new
@@ -141,9 +140,7 @@ module RAAF
             next unless resolver.can_resolve?(prompt_spec)
 
             result = resolver.resolve(prompt_spec, context)
-            if result
-              return result
-            end
+            return result if result
           end
         end
 

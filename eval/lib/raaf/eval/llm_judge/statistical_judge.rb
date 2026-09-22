@@ -69,7 +69,6 @@ module RAAF
       # @see RAAF::Models::DecisionInterface
       #
       class StatisticalJudge
-
         # Environment variable naming a decision provider to judge with
         DECISION_PROVIDER_ENV = "RAAF_EVAL_DECISION_PROVIDER"
 
@@ -225,13 +224,17 @@ module RAAF
         # @param input [String] The input/prompt
         # @param output [String] The output to evaluate
         # @param criteria [String, nil] Evaluation criteria
+        # @param cache [Boolean, nil] Whether to use the judge's response cache for this
+        #   judgement. Defaults to the judge's own setting. Pass +false+ to ask the model
+        #   again for a question it has already answered -- what a caller measuring the
+        #   judge's own repeatability needs, since a cached answer repeats by definition.
         # @return [Hash] Judgment result with :passed, :confidence, :reasoning
-        def evaluate(input:, output:, criteria: nil)
+        def evaluate(input:, output:, criteria: nil, cache: nil)
           eval_criteria = criteria || @default_criteria
 
           raise ArgumentError, "Evaluation criteria required" unless eval_criteria
 
-          judge_output(input, output, eval_criteria)
+          judge_output(input, output, eval_criteria, cache: cache)
         end
 
         ##
@@ -468,14 +471,18 @@ module RAAF
           end
         end
 
-        def judge_output(input, output, criteria)
+        def judge_output(input, output, criteria, cache: nil)
+          use_cache = cache.nil? ? @cache_enabled : cache
           cache_key = Digest::SHA256.hexdigest("#{input}|#{output}|#{criteria}")
 
-          return @cache[cache_key] if @cache_enabled && @cache.key?(cache_key)
+          return @cache[cache_key] if use_cache && @cache.key?(cache_key)
 
           result = execute_judgment(input, output, criteria)
 
-          @cache[cache_key] = result if @cache_enabled
+          # An uncached judgement is also kept out of the cache: it was asked for
+          # because this question's answer is expected to vary, so it is not an
+          # answer any later caller should be handed as settled.
+          @cache[cache_key] = result if use_cache
           result
         rescue StandardError => e
           {

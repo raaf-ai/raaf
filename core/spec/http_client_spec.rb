@@ -413,10 +413,12 @@ RSpec.describe RAAF::HTTPClient do
         parameters = { model: "gpt-4o", messages: [] }
         expected_params = parameters.merge(stream: true)
 
-        block = proc { |chunk| puts chunk }
+        block = proc { |chunk| chunk }
 
         expect(client).to receive(:make_request)
-          .with("POST", "/chat/completions", body: expected_params, stream: true, &block)
+          .with("POST", "/chat/completions", body: expected_params, stream: true) do |*, &forwarded|
+            expect(forwarded).to be(block)
+          end
 
         completions_resource.stream_raw(parameters, &block)
       end

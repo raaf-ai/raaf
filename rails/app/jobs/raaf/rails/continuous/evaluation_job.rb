@@ -42,7 +42,9 @@ module RAAF
         # constant unconditionally raised NameError while the class was being
         # loaded, so the job could not be defined at all in an application
         # without it.
-        retry_on Faraday::ConnectionFailed, wait: :polynomially_longer, attempts: 3 if defined?(Faraday::ConnectionFailed)
+        if defined?(Faraday::ConnectionFailed)
+          retry_on Faraday::ConnectionFailed, wait: :polynomially_longer, attempts: 3
+        end
 
         ##
         # Execute evaluation for a span
@@ -784,7 +786,7 @@ module RAAF
             ::Rails.logger.info "📦 [EvaluationJob] Processing field '#{field_name}' with #{field_trials} trials"
 
             # Get field selections from the evaluator class to find field paths
-            field_selections = evaluator_class&.respond_to?(:field_selections) ? evaluator_class.field_selections : []
+            field_selections = evaluator_class.respond_to?(:field_selections) ? evaluator_class.field_selections : []
             ::Rails.logger.info "📦 [EvaluationJob] Field selections available: #{field_selections&.size || 0}"
 
             # Collect values, limiting to the number of trials requested for this field
@@ -1678,9 +1680,9 @@ module RAAF
         def extract_token_usage(span)
           attrs = span.span_attributes || {}
           {
-            input_tokens: attrs["input_tokens"]&.to_i || 0,
-            output_tokens: attrs["output_tokens"]&.to_i || 0,
-            total_tokens: attrs["total_tokens"]&.to_i || 0
+            input_tokens: attrs["input_tokens"].to_i,
+            output_tokens: attrs["output_tokens"].to_i,
+            total_tokens: attrs["total_tokens"].to_i
           }
         end
 

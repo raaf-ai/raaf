@@ -39,6 +39,9 @@ module RailsGuides
         elsif /^(TIP|IMPORTANT|CAUTION|WARNING|NOTE|INFO|TODO)[.:]/.match?(text)
           convert_notes(text)
         elsif text.include?("DO NOT READ THIS FILE ON GITHUB")
+          # The banner is for people browsing the source; it is dropped
+          # from the rendered guide.
+          nil
         elsif text =~ %r{^\[<sup>(\d+)\]:</sup> (.+)$}
           linkback = %(<a href="#footnote-#{::Regexp.last_match(1)}-ref"><sup>#{::Regexp.last_match(1)}</sup></a>)
           %(<p class="footnote" id="footnote-#{::Regexp.last_match(1)}">#{linkback} #{::Regexp.last_match(2)}</p>)

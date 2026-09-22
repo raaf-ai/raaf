@@ -21,7 +21,9 @@ module RAAF
         NOT_GIVEN = Object.new.freeze
         private_constant :NOT_GIVEN
 
-        attr_reader :stream_size, :array_field, :incremental, :blocks
+        # `stream_size` and `incremental` are reader-or-writer methods written
+        # out below, so they are not generated here.
+        attr_reader :array_field, :blocks
 
         # The configured blocks, under the name the DSL documentation uses.
         alias hooks blocks
@@ -227,7 +229,7 @@ module RAAF
         end
 
         def validate_incremental!(value)
-          return if value == true || value == false
+          return if [true, false].include?(value)
 
           raise ArgumentError, "incremental must be true or false, got: #{value.inspect}"
         end

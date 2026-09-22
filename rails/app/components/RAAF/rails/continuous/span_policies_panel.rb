@@ -63,10 +63,10 @@ module RAAF
           end
         end
 
-        private
-
         SUBTITLE = "Grade this span now instead of waiting for the sampler. " \
                    "A manual run ignores the sampling counter and the daily cap."
+
+        private
 
         def body
           if !response_recorded?

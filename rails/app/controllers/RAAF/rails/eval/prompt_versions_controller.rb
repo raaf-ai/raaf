@@ -73,7 +73,7 @@ module RAAF
         end
 
         def current_user_name
-          respond_to?(:current_user) && current_user&.respond_to?(:name) ? current_user.name : "system"
+          respond_to?(:current_user) && current_user.respond_to?(:name) ? current_user.name : "system"
         end
       end
     end

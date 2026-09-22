@@ -29,14 +29,14 @@ module RAAF
           end
         end
 
-        private
-
         STATUSES = [
           { label: "All", value: nil },
           { label: "Completed", value: "completed" },
           { label: "Failed", value: "failed" },
           { label: "Running", value: "running" }
         ].freeze
+
+        private
 
         def filters
           render(Molecules::FilterBar.new(chips: status_chips, panel: true,

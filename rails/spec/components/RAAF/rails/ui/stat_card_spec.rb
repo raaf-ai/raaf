@@ -19,7 +19,7 @@ module RAAF
       RSpec.describe Molecules::StatCard do
         # The health dialect the card used to accept alongside its own. Named
         # here now that the card itself no longer states it anywhere.
-        RETIRED_TONES = %i[ok warn bad info].freeze
+        def self.retired_tones = %i[ok warn bad info].freeze
 
         def render(**args)
           described_class.new(**args).call
@@ -97,7 +97,7 @@ module RAAF
             expect(described_class::TONES).to eq(%i[accent success warning danger])
           end
 
-          RETIRED_TONES.each do |tone|
+          retired_tones.each do |tone|
             it "no longer answers to #{tone.inspect}" do
               args = { label: "Runs", value: 12, delta: "+1", icon: "diagram-3" }
 
@@ -159,7 +159,7 @@ module RAAF
           # may be left addressing a name the card no longer emits.
           it "leaves no rule addressing a tone the card has stopped emitting" do
             stylesheets.each do |path, css|
-              RETIRED_TONES.each do |tone|
+              self.class.retired_tones.each do |tone|
                 # `--warn` is a prefix of `--warning`, so the class has to end
                 # where the name does.
                 expect(css).not_to match(/\.raaf-stat-card--#{tone}(?![\w-])/),

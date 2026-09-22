@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+
 require "rails_helper"
 
 # The registry groups in SQL; billing groups in Ruby. If the two disagree about

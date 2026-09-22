@@ -77,9 +77,6 @@ module RAAF
         # @param subclass [Class] The inheriting subclass
         # @api private
         #
-        def self.inherited(subclass)
-          super
-        end
 
         # Schema functionality has been moved to agent classes
         # Prompts now focus purely on content generation

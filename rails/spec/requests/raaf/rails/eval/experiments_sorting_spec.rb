@@ -10,7 +10,7 @@ RSpec.describe "ordering experiments by what they cost", type: :request do
 
   def experiment(name, cost:, created_at: Time.current)
     RAAF::Eval::Models::Experiment.create!(name: name, dataset: dataset, model: "gpt-4o",
-                                          cost: cost, created_at: created_at)
+                                           cost: cost, created_at: created_at)
   end
 
   before do
@@ -21,7 +21,7 @@ RSpec.describe "ordering experiments by what they cost", type: :request do
 
   def names_in_order
     body = response.body
-    %w[Cheap\ and\ new Dear\ and\ old Never\ priced].sort_by { |name| body.index(name) || Float::INFINITY }
+    ["Cheap and new", "Dear and old", "Never priced"].sort_by { |name| body.index(name) || Float::INFINITY }
   end
 
   it "lists the newest first by default" do

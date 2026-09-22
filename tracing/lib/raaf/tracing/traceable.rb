@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "securerandom"
-require "set"
 require_relative "tracing_registry"
 require_relative "no_op_tracer"
 
@@ -440,7 +439,7 @@ module RAAF
 
           # Fallback: Check if we're in an agent context (thread-local storage)
           agent_context = Thread.current[:current_agent]
-          if agent_context&.respond_to?(:current_span) && agent_context.current_span
+          if agent_context.respond_to?(:current_span) && agent_context.current_span
             return agent_context.current_span[:span_id]
           end
 
@@ -479,7 +478,7 @@ module RAAF
       def get_trace_id(parent_component_arg)
         parent_component = parent_component_arg || @parent_component
 
-        if parent_component&.respond_to?(:current_span) && parent_component.current_span
+        if parent_component.respond_to?(:current_span) && parent_component.current_span
           return parent_component.current_span[:trace_id]
         elsif parent_component.is_a?(Hash) && parent_component[:trace_id]
           return parent_component[:trace_id]
@@ -491,7 +490,7 @@ module RAAF
 
         # Fallback: Check agent context for trace ID inheritance
         agent_context = Thread.current[:current_agent]
-        if agent_context&.respond_to?(:current_span) && agent_context.current_span
+        if agent_context.respond_to?(:current_span) && agent_context.current_span
           return agent_context.current_span[:trace_id]
         end
 
@@ -671,7 +670,7 @@ module RAAF
         return @tracer if defined?(@tracer) && @tracer
 
         # 2. Try parent component tracer (critical for tool execution context)
-        if defined?(@parent_component) && @parent_component&.respond_to?(:trace_parent_span)
+        if defined?(@parent_component) && @parent_component.respond_to?(:trace_parent_span)
           parent_span = @parent_component.trace_parent_span
           # get_tracer_for_span_sending is private, so respond_to? has to be
           # told to look at private methods or this branch never fires and a
@@ -686,7 +685,7 @@ module RAAF
         if defined?(RAAF::Tracing::TraceProvider)
           begin
             provider = RAAF::Tracing::TraceProvider.instance
-            return provider if provider&.respond_to?(:processors) && provider.processors.any?
+            return provider if provider.respond_to?(:processors) && provider.processors.any?
           rescue StandardError
             # TraceProvider not available or failed
           end

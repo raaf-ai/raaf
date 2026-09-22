@@ -490,19 +490,18 @@ module RAAF
       when "string"
         value.to_s
       when "integer"
-        if value.is_a?(String) && value.match?(/^\d+$/)
-          value.to_i
-        elsif value.is_a?(Numeric)
+        if value.is_a?(Numeric) || (value.is_a?(String) && value.match?(/^\d+$/))
           value.to_i
         else
+          # Left as it is for validation to reject rather than coerced.
           value
         end
       when "number"
         if value.is_a?(String) && value.match?(/^\d*\.?\d+$/)
           value.include?(".") ? value.to_f : value.to_i
-        elsif value.is_a?(Numeric)
-          value
         else
+          # A Numeric is already what was asked for; anything else is left for
+          # validation to reject rather than coerced into a number.
           value
         end
       when "boolean"

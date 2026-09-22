@@ -29,7 +29,6 @@ module RAAF
       #   end
       #
       class SmartBuilder
-
         def initialize(**options)
           @context_variables = ContextVariables.new({}, **options)
           @proxy_configs = {}

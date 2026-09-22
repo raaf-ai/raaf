@@ -612,6 +612,10 @@ puts "Agreement rate: #{result[:agreement_rate]}"
 puts "Confidence variance: #{result[:confidence_variance]}"
 ```
 
+Each repetition is asked for with `cache: false`, so the example above costs five
+judgements rather than one. That is what the measurement is: an answer replayed from
+the judge's cache repeats whether or not the judge would have repeated it.
+
 ---
 
 ## RSpec Integration

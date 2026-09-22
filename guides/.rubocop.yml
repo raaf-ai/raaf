@@ -2,6 +2,14 @@ inherit_from:
   - '../.rubocop_app_cops.yml'
   - '../.rubocop.yml'
 
+# A child config's `Exclude` replaces an inherited one rather than adding to it,
+# which would drop every entry ../.rubocop_todo.yml records for this gem the
+# moment this file names the same cop. Merging keeps both.
+inherit_mode:
+  merge:
+    - Exclude
+
+
 Layout/IndentationConsistency:
   Enabled: false
 
@@ -16,3 +24,10 @@ Style/TrivialAccessors:
 
 Style/RedundantPercentQ:
   Enabled: false
+
+# `bug_report_templates/` holds single-file scripts a reporter copies and runs.
+# Each one boots an application inside a block and then defines the models the
+# report is about, which is the shape of the template, not a defect in it.
+Lint/ConstantDefinitionInBlock:
+  Exclude:
+    - 'bug_report_templates/**/*'

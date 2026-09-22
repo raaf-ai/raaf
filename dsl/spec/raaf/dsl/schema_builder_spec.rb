@@ -390,7 +390,7 @@ RSpec.describe RAAF::DSL::SchemaBuilder do
         scoring = schema["properties"]["scoring_dimensions"]
         expect(scoring["type"]).to eq("object")
         expect(scoring["properties"]["product_market_fit"]).to include("type" => "integer", "minimum" => 0,
-                                                                      "maximum" => 100)
+                                                                       "maximum" => 100)
 
         # Check arrays
         expect(schema["properties"]["search_terms"]["type"]).to eq("array")

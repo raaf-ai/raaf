@@ -175,8 +175,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "#unsupported_parameters" do
         .with do |req|
           body = JSON.parse(req.body)
           # Verify supported params ARE present
-          body["temperature"] == 0.7 &&
-            body["top_p"] == 0.9 &&
+          body.values_at("temperature", "top_p") == [0.7, 0.9] &&
             body["max_output_tokens"] == 100 &&
             # Verify unsupported param is NOT present
             !body.key?("frequency_penalty")
@@ -285,7 +284,7 @@ RSpec.describe RAAF::Models::ResponsesProvider, "#unsupported_parameters" do
         .with do |req|
           body = JSON.parse(req.body)
           # Verify temperature and top_p ARE present for non-reasoning models
-          body["temperature"] == 0.7 && body["top_p"] == 0.9
+          body.values_at("temperature", "top_p") == [0.7, 0.9]
         end)
     end
 

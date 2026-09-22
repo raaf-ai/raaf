@@ -32,6 +32,26 @@ module RAAF
         # What every id is prefixed with — see {#truncate_id}.
         ID_PREFIX = /\A(?:trace|span)_/
 
+        # Colours the old Tailwind palette names used across the dashboard onto
+        # the design system's semantic tones.
+        METRIC_TONES = {
+          "green" => :success,
+          "red" => :danger,
+          "yellow" => :warning,
+          "purple" => :accent,
+          "indigo" => :accent,
+          "blue" => nil
+        }.freeze
+
+        # Maps the old Preline variant names onto Button's variants. "primary"
+        # is the library's default, so it maps to nil.
+        BUTTON_VARIANTS = {
+          "primary" => nil,
+          "success" => nil,
+          "secondary" => :secondary,
+          "danger" => :danger
+        }.freeze
+
         private
 
         # Route helper methods for the RAAF Rails engine
@@ -529,17 +549,6 @@ module RAAF
           :ok
         end
 
-        # Colours the old Tailwind palette names used across the dashboard onto
-        # the design system's semantic tones.
-        METRIC_TONES = {
-          "green" => :success,
-          "red" => :danger,
-          "yellow" => :warning,
-          "purple" => :accent,
-          "indigo" => :accent,
-          "blue" => nil
-        }.freeze
-
         # The screens still calling this predate the design system and pass a
         # Tailwind colour name. They get the console's KPI tile, in the
         # icon-box presentation the tile they used to render always had.
@@ -554,15 +563,6 @@ module RAAF
             href: href
           )
         end
-
-        # Maps the old Preline variant names onto Button's variants. "primary"
-        # is the library's default, so it maps to nil.
-        BUTTON_VARIANTS = {
-          "primary" => nil,
-          "success" => nil,
-          "secondary" => :secondary,
-          "danger" => :danger
-        }.freeze
 
         # Retained under its original name because 33 components call it; the
         # body now renders the Button atom.

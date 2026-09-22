@@ -55,7 +55,7 @@ module RAAF
           build_prompt(prompt_instance, context)
         rescue StandardError => e
           # Log detailed error information
-          error_details = {
+          {
             prompt_class: prompt_spec.name,
             error_class: e.class.name,
             error_message: e.message,

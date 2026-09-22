@@ -31,15 +31,21 @@ module RAAF
           end
         end
 
+        RESULT_COLUMNS = [
+          { label: "Evaluator", span: 2 },
+          { label: "Verdict", span: 1 },
+          { label: "Score", span: 0.8, align: :right }
+        ].freeze
+
         private
 
         def actions
           render Molecules::RowActions.new(class: "raaf-page-actions", actions: [
-                                             (retry_action if failed?),
-                                             (cancel_action if in_flight?),
-                                             span_action,
-                                             (policy_action if @queue_item.evaluation_policy)
-                                           ].compact)
+            (retry_action if failed?),
+            (cancel_action if in_flight?),
+            span_action,
+            (policy_action if @queue_item.evaluation_policy)
+          ].compact)
         end
 
         def retry_action
@@ -123,12 +129,6 @@ module RAAF
         end
 
         # ── Results ───────────────────────────────────────────────────────
-
-        RESULT_COLUMNS = [
-          { label: "Evaluator", span: 2 },
-          { label: "Verdict", span: 1 },
-          { label: "Score", span: 0.8, align: :right }
-        ].freeze
 
         def results_card
           render(Organisms::Card.new(title: "Results", subtitle: results_subtitle, flush: true)) do

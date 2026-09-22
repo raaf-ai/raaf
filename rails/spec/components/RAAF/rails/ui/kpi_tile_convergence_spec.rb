@@ -30,7 +30,7 @@ module RAAF
         # The health dialect `StatCard` accepted while the screens migrated. The
         # card no longer knows these words, so a tile still saying one renders
         # untinted.
-        RETIRED_TONES = %i[ok warn bad info].freeze
+        retired_tones = %i[ok warn bad info].freeze
 
         # Every method that decides what a KPI tile says, per screen — the
         # hashes themselves and the helpers they take a tone from. Listing them
@@ -125,7 +125,7 @@ module RAAF
         # dialect rendered correctly because the card aliased it. It no longer
         # does, so a word from that dialect now costs a tile its colour.
         describe "the tone vocabulary" do
-          retired = RETIRED_TONES
+          retired = retired_tones
 
           TILE_METHODS.each do |path, methods|
             it "is the surviving one throughout #{path}" do

@@ -459,7 +459,7 @@ RSpec.describe "RAAF Pipeline Hierarchy Tracing" do
       expect(agent_names).to eq(%w[Agent1 Agent2 Agent3])
 
       # Each agent should start after the previous one finishes (sequential)
-      (0...agent_spans.length - 1).each do |i|
+      (0...(agent_spans.length - 1)).each do |i|
         current_end = span_time(agent_spans[i][:end_time])
         next_start = span_time(agent_spans[i + 1][:start_time])
         expect(next_start).to be >= current_end

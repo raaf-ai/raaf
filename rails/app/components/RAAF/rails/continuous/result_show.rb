@@ -174,16 +174,16 @@ module RAAF
 
             if @result.evaluation_policy
               render Atoms::Link.new(policy_name, mono: true,
-                                     href: continuous_policy_path(@result.evaluation_policy))
+                                                  href: continuous_policy_path(@result.evaluation_policy))
             end
 
             if @result.evaluation_queue_item
               render Atoms::Link.new("queue item", mono: true,
-                                     href: continuous_queue_item_path(@result.evaluation_queue_item))
+                                                   href: continuous_queue_item_path(@result.evaluation_queue_item))
             end
 
             render Atoms::Link.new("more from #{@result.agent_name}", mono: true,
-                                   href: continuous_results_path(agent: @result.agent_name))
+                                                                      href: continuous_results_path(agent: @result.agent_name))
           end
         end
 
@@ -264,7 +264,7 @@ module RAAF
 
             { name: name, key: "#{field_name}:#{name}", score: score,
               note: payload["reasoning"] || payload["message"] ||
-                    payload[:reasoning] || payload[:message] }
+                payload[:reasoning] || payload[:message] }
           end
         end
 
@@ -535,7 +535,7 @@ module RAAF
 
             if read[:conclusion].present?
               render Atoms::Text.new(read[:conclusion], tone: :secondary, wrap: true,
-                                     class: "raaf-finding-summary")
+                                                        class: "raaf-finding-summary")
             end
 
             criteria_list(read[:criteria]) if read[:criteria].any?
@@ -569,7 +569,7 @@ module RAAF
 
             if criterion[:reasoning].present?
               render Atoms::Text.new(criterion[:reasoning], size: :"body-sm", tone: :secondary,
-                                     wrap: true)
+                                                            wrap: true)
             end
 
             criterion_ask(criterion)
@@ -587,7 +587,7 @@ module RAAF
           details(class: "raaf-criterion-ask") do
             summary { "what this criterion asks" }
             render Atoms::Text.new(criterion[:description], size: :"body-sm", tone: :muted,
-                                   wrap: true)
+                                                            wrap: true)
           end
         end
 
@@ -745,7 +745,13 @@ module RAAF
           when nil, true, false then { nil => nil, true => "yes", false => "no" }[value]
           when Numeric then numeric_measurement(key, value)
           when String then value.truncate(600)
-          when Array then value.empty? ? "none" : value.map { |item| inline_measurement(item) }.join(" · ").truncate(600)
+          when Array then if value.empty?
+                            "none"
+                          else
+                            value.map do |item|
+                              inline_measurement(item)
+                            end.join(" · ").truncate(600)
+                          end
           when Hash then hash_measurement(key, value)
           else value.to_s.truncate(600)
           end
@@ -1172,17 +1178,17 @@ module RAAF
         def repeats_subtitle
           return "no other span for this check to be read against" if @history.repeat_count < 2
 
-          "#{counted(@history.repeat_count, "run")} on this span · no other span yet"
+          "#{counted(@history.repeat_count, 'run')} on this span · no other span yet"
         end
 
         def nothing_to_compare
           return no_other_span if @history.repeat_count < 2
 
           render Molecules::Alert.new(
-            :info, title: "Only this span, graded #{counted(@history.repeat_count, "time")}",
-            text: "#{repeat_agreement} That says the check repeats, not that it can " \
-                  "tell two spans apart — #{check_display_name(field_name)} has graded " \
-                  "no other span in the last 30 days."
+            :info, title: "Only this span, graded #{counted(@history.repeat_count, 'time')}",
+                   text: "#{repeat_agreement} That says the check repeats, not that it can " \
+                         "tell two spans apart — #{check_display_name(field_name)} has graded " \
+                         "no other span in the last 30 days."
           )
         end
 

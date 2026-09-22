@@ -109,8 +109,7 @@ module RAAF
 
             # Process each chunk
             accumulated_results = []
-            chunks.each_with_index do |chunk, index|
-
+            chunks.each_with_index do |chunk, _index|
               # Create chunk context with this chunk
               chunk_context = context.set(field_to_batch, chunk)
 
@@ -122,7 +121,6 @@ module RAAF
               extraction_field = @output_field || field_to_batch
               extracted_data = extract_result_data(chunk_result, extraction_field)
               accumulated_results << extracted_data if extracted_data
-
             end
 
             # Merge all chunk results (use same extraction field for consistency)
@@ -211,18 +209,14 @@ module RAAF
           # Priority 2: Single array in context
           array_fields = context.to_h.select { |_k, v| v.is_a?(Array) }.keys
 
-          if array_fields.size == 1
-            return array_fields.first
-          end
+          return array_fields.first if array_fields.size == 1
 
           # Priority 3: Infer from provided_fields
           if @wrapped_component.respond_to?(:provided_fields)
             provided = @wrapped_component.provided_fields
             array_candidates = array_fields & provided
 
-            if array_candidates.size == 1
-              return array_candidates.first
-            end
+            return array_candidates.first if array_candidates.size == 1
           end
 
           # Error: Ambiguous or no array fields
@@ -300,14 +294,10 @@ module RAAF
           # Filter out nils and flatten
           valid_results = chunk_results.compact
 
-          if valid_results.empty?
-            return []
-          end
+          return [] if valid_results.empty?
 
           # Flatten all arrays into single result array
-          merged = valid_results.flatten
-
-          merged
+          valid_results.flatten
         end
       end
     end

@@ -81,17 +81,17 @@ module RAAF
       #
       def detect_agent_context
         # Strategy 1: Check thread-local storage for explicitly set agent
-        if Thread.current[:current_agent]&.respond_to?(:traced?) && Thread.current[:current_agent].traced?
+        if Thread.current[:current_agent].respond_to?(:traced?) && Thread.current[:current_agent].traced?
           return Thread.current[:current_agent]
         end
 
         # Strategy 2: Check instance variable for injected agent context
-        if instance_variable_defined?(:@agent_context) && @agent_context&.respond_to?(:traced?) && @agent_context.traced?
+        if instance_variable_defined?(:@agent_context) && @agent_context.respond_to?(:traced?) && @agent_context.traced?
           return @agent_context
         end
 
         # Strategy 3: Check for parent component passed during initialization
-        if instance_variable_defined?(:@parent_component) && @parent_component&.respond_to?(:traced?) && @parent_component.traced?
+        if instance_variable_defined?(:@parent_component) && @parent_component.respond_to?(:traced?) && @parent_component.traced?
           return @parent_component
         end
 
@@ -237,7 +237,7 @@ module RAAF
         # For now, we rely on thread-local storage set by the runner
         # but we still need to check if the agent is currently being traced
         current_agent = Thread.current[:current_agent]
-        return unless current_agent&.respond_to?(:traced?) && current_agent.traced?
+        return unless current_agent.respond_to?(:traced?) && current_agent.traced?
 
         current_agent
       end

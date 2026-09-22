@@ -1,11 +1,19 @@
 inherit_from:
   - '../.rubocop_app_cops.yml'
 
+# A child config's `Exclude` replaces an inherited one rather than adding to it,
+# which would drop every entry ../.rubocop_todo.yml records for this gem the
+# moment this file names the same cop. Merging keeps both.
+inherit_mode:
+  merge:
+    - Exclude
+
+
 plugins:
   - rubocop-rspec
 
 AllCops:
-  TargetRubyVersion: 3.0
+  TargetRubyVersion: 3.2
   NewCops: enable
   Exclude:
     - 'vendor/**/*'
@@ -77,3 +85,10 @@ RSpec/NestedGroups:
 
 RSpec/DescribeClass:
   Enabled: false
+
+# Both examples exist to show what `eval` does to a tool that takes user input —
+# one of them is titled "CRITICAL SECURITY RISK" in its own comments. Flagging
+# the demonstration is the cop working on the wrong file.
+Security/Eval:
+  Exclude:
+    - 'examples/**/*'

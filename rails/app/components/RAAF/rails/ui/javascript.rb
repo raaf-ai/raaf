@@ -74,7 +74,7 @@ module RAAF
           # other, so their order among themselves carries no meaning and a
           # stable one keeps the digest from moving when nothing changed.
           def paths_for(layer)
-            ::Dir.glob(::File.join(ROOT, layer, "*.js")).sort
+            ::Dir.glob(::File.join(ROOT, layer, "*.js"))
           end
 
           def section(path)

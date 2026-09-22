@@ -10,7 +10,6 @@ module RAAF
     # execution, and advanced workflow patterns.
     #
     class WorkflowBuilder
-
       @@count = 0
 
       # @return [String] Workflow name

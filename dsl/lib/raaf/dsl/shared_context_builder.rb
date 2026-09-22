@@ -18,7 +18,6 @@ module RAAF
     # - DSL rule application (defaults, requirements, validation)
     #
     module SharedContextBuilder
-
       # Build context automatically from provided arguments
       #
       # This method handles the intelligent context building that looks at:

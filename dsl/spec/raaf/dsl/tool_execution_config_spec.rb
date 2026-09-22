@@ -27,7 +27,6 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Configuration", type: :unit do
       expect(agent.validation_enabled?).to be true
       expect(agent.metadata_enabled?).to be true
     end
-
   end
 
   describe "class-level configuration" do
@@ -247,7 +246,6 @@ RSpec.describe "RAAF::DSL::Agent Tool Execution Configuration", type: :unit do
       expect(agent).to respond_to(:validation_enabled?)
       expect(agent).to respond_to(:metadata_enabled?)
     end
-
   end
 
   describe "tool_execution_enabled? integration" do

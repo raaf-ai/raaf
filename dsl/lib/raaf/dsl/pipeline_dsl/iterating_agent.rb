@@ -33,7 +33,6 @@ module RAAF
           @parallel = @options.delete(:parallel) || false
           @custom_output_field = @options.delete(:to)&.to_sym
           @custom_field_name = @options.delete(:as)&.to_sym
-
         end
 
         # Create a new wrapper with merged options (required by WrapperDSL)
@@ -96,9 +95,7 @@ module RAAF
 
             items = extract_items(context)
 
-            if items.empty?
-              return context
-            end
+            return context if items.empty?
 
             results = if @parallel
                         execute_parallel(items, context)
@@ -124,9 +121,7 @@ module RAAF
           items = items.to_a if items.respond_to?(:to_a)
 
           # Apply limit if specified
-          if @options[:limit]
-            items = items.first(@options[:limit])
-          end
+          items = items.first(@options[:limit]) if @options[:limit]
 
           items
         end
@@ -135,22 +130,17 @@ module RAAF
           results = []
 
           items.each_with_index do |item, index|
-
-            begin
-              result = execute_single_item(item, context, index)
-              results << result
-            rescue StandardError => e
-              error_msg = "Error processing item #{index + 1} in field '#{@field}': #{e.message}"
-
-              # For sequential execution, we can choose to continue or stop
-              # For now, continue but mark the failure
-              results << {
-                error: true,
-                message: e.message,
-                item_index: index,
-                original_item: item
-              }
-            end
+            result = execute_single_item(item, context, index)
+            results << result
+          rescue StandardError => e
+            # For sequential execution, we can choose to continue or stop
+            # For now, continue but mark the failure
+            results << {
+              error: true,
+              message: e.message,
+              item_index: index,
+              original_item: item
+            }
           end
 
           results
@@ -160,20 +150,15 @@ module RAAF
           # Use thread pool pattern similar to existing ParallelAgents
           threads = items.map.with_index do |item, index|
             Thread.new do
-
-              begin
-                execute_single_item(item, context.dup, index)
-              rescue StandardError => e
-                error_msg = "Error processing item #{index + 1} in field '#{@field}': #{e.message}"
-
-                # Return error result for this item
-                {
-                  error: true,
-                  message: e.message,
-                  item_index: index,
-                  original_item: item
-                }
-              end
+              execute_single_item(item, context.dup, index)
+            rescue StandardError => e
+              # Return error result for this item
+              {
+                error: true,
+                message: e.message,
+                item_index: index,
+                original_item: item
+              }
             end
           end
 

@@ -56,6 +56,9 @@ module RAAF
           end
         end
 
+        RESULTS_SUBTITLE = "One row per graded field, newest first. Open one to read the " \
+                           "score, the reasoning and the span it came from."
+
         private
 
         # The one thing on this page that does something rather than reports.
@@ -95,9 +98,6 @@ module RAAF
             end
           end
         end
-
-        RESULTS_SUBTITLE = "One row per graded field, newest first. Open one to read the " \
-                           "score, the reasoning and the span it came from."
 
         def all_results_link
           render Atoms::Button.new(label: "All results", size: :sm, icon: "list-ul",
@@ -218,7 +218,7 @@ module RAAF
           div(class: "raaf-scorer") do
             div(class: "raaf-scorer-head") do
               render Atoms::Text.new(title || check.to_s.tr("_", " "), as: :span,
-                                     mono: title.blank?, class: "raaf-scorer-name")
+                                                                       mono: title.blank?, class: "raaf-scorer-name")
               render Atoms::Mono.new(score_text(measured&.dig(:average)),
                                      tone: score_tone(measured&.dig(:average)))
             end

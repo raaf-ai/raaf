@@ -407,9 +407,14 @@ module RAAF
           # Recursively eager load nested modules that also support eager loading
           const.eager_load! if const.is_a?(Module) && const.respond_to?(:eager_load!)
         rescue NameError, LoadError => e
-          # Log any errors but don't fail the entire eager loading process
-          # Use basic warn instead of Rails.logger since logger may not be available during initialization
-          warn "RAAF::DSL eager loading warning for #{const_name}: #{e.message}"
+          # Report the error but don't fail the entire eager loading process.
+          # RAAF.logger may not exist this early in boot, so fall back to stderr.
+          message = "RAAF::DSL eager loading warning for #{const_name}: #{e.message}"
+          if RAAF.respond_to?(:logger)
+            RAAF.logger.warn(message)
+          else
+            warn message
+          end
         end
       end
     end

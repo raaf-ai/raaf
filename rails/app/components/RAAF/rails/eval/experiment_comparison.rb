@@ -61,6 +61,16 @@ module RAAF
           end
         end
 
+        # The same judgement in the dialect `Atoms::Mono` speaks.
+        #
+        # `delta_tone` answers in the KPI tile's vocabulary, which is what the
+        # three metric tiles above want. The item table renders its delta as a
+        # Mono, and Mono's tones are the older ok/warn/bad set — so it was
+        # being handed `:danger`, which it did not recognise, and every delta
+        # in that column rendered with no colour at all. A run that fell and a
+        # run that improved looked identical.
+        MONO_TONES = { success: :ok, danger: :bad }.freeze
+
         private
 
         def header
@@ -293,16 +303,6 @@ module RAAF
           improved = lower_is_better ? delta.negative? : delta.positive?
           improved ? :success : :danger
         end
-
-        # The same judgement in the dialect `Atoms::Mono` speaks.
-        #
-        # `delta_tone` answers in the KPI tile's vocabulary, which is what the
-        # three metric tiles above want. The item table renders its delta as a
-        # Mono, and Mono's tones are the older ok/warn/bad set — so it was
-        # being handed `:danger`, which it did not recognise, and every delta
-        # in that column rendered with no colour at all. A run that fell and a
-        # run that improved looked identical.
-        MONO_TONES = { success: :ok, danger: :bad }.freeze
 
         def mono_delta_tone(delta)
           MONO_TONES[delta_tone(delta)]

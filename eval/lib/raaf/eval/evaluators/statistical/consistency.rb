@@ -285,10 +285,10 @@ module RAAF
             }
           end
 
-          private
-
           # How many of the least consistent items a keyed result names.
           WORST_ITEMS_REPORTED = 3
+
+          private
 
           def evaluate_keyed(runs, tolerance:, max_std_dev:, good_threshold:, average_threshold:)
             item_keys = runs.flat_map(&:keys).map(&:to_s).uniq

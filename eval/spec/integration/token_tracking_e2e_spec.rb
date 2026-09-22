@@ -67,8 +67,8 @@ RSpec.describe "End-to-End Token Tracking", type: :integration do
     end
 
     it "populates span attributes with normalized token data" do
-      skip "spans are emitted through the agent's own tracing collector, not the tracer "\
-           "handed to Runner, so a locally built SpanTracer never sees them and has no "\
+      skip "spans are emitted through the agent's own tracing collector, not the tracer " \
+           "handed to Runner, so a locally built SpanTracer never sees them and has no " \
            "#spans to read either"
       # Create tracer to capture spans
       tracer = RAAF::Tracing::SpanTracer.new
@@ -90,8 +90,8 @@ RSpec.describe "End-to-End Token Tracking", type: :integration do
     end
 
     it "serializes span with token data for eval system" do
-      skip "spans are emitted through the agent's own tracing collector, not the tracer "\
-           "handed to Runner, so a locally built SpanTracer never sees them and has no "\
+      skip "spans are emitted through the agent's own tracing collector, not the tracer " \
+           "handed to Runner, so a locally built SpanTracer never sees them and has no " \
            "#spans to read either"
       # Create tracer to capture spans
       tracer = RAAF::Tracing::SpanTracer.new

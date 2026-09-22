@@ -59,7 +59,7 @@ RSpec.describe "experiment spend", type: :component do
     it "does not re-price a recorded run when the pricing table moves" do
       run = experiment(tokens: recorded, cost: 0.42)
 
-      allow(::RAAF::Tracing::SpanUsage).to receive(:cost).and_return(99.0)
+      allow(RAAF::Tracing::SpanUsage).to receive(:cost).and_return(99.0)
 
       expect(run.spend).to eq(0.42)
     end

@@ -21,11 +21,13 @@ module RAAF
       ].freeze
 
       def initialize(api_key: nil, api_base: nil, **kwargs)
-        # Issue deprecation warning
-        warn "DEPRECATION WARNING: OpenAIProvider is deprecated and will be removed in a future version. " \
-             "Use ResponsesProvider instead (it's the default). OpenAIProvider is maintained only for " \
-             "backwards compatibility and streaming support. " \
-             "Called from #{caller_locations(1, 1).first}"
+        # Issue deprecation warning unless suppressed
+        unless ENV["RAAF_SUPPRESS_WARNINGS"] == "true"
+          warn "DEPRECATION WARNING: OpenAIProvider is deprecated and will be removed in a future version. " \
+               "Use ResponsesProvider instead (it's the default). OpenAIProvider is maintained only for " \
+               "backwards compatibility and streaming support. " \
+               "Called from #{caller_locations(1, 1).first}"
+        end
 
         @api_key = api_key || ENV.fetch("OPENAI_API_KEY", nil)
         @api_base = api_base || ENV["OPENAI_API_BASE"] || "https://api.openai.com/v1"

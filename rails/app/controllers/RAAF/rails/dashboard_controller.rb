@@ -193,6 +193,15 @@ module RAAF
         end
       end
 
+      # The design gives every agent card a sparkline of its recent activity.
+      # One query for the whole grid, bucketed in Ruby: `date_trunc` cannot
+      # divide an arbitrary window into a fixed number of columns, and the
+      # window here is whatever the topbar says.
+      AGENT_SERIES_BUCKETS = 18
+
+      # How many bars the trend series on this dashboard are cut into.
+      SERIES_BUCKETS = 24
+
       private
 
       # The cost JSON this endpoint has always returned, built by CostManager
@@ -245,12 +254,6 @@ module RAAF
         }
       end
 
-      # The design gives every agent card a sparkline of its recent activity.
-      # One query for the whole grid, bucketed in Ruby: `date_trunc` cannot
-      # divide an arbitrary window into a fixed number of columns, and the
-      # window here is whatever the topbar says.
-      AGENT_SERIES_BUCKETS = 18
-
       # Per workflow: the run count per bucket, and the buckets that contain a
       # failed run. The design colours those bars red — a sparkline that is one
       # flat colour says only "it ran", which the run count beside it already
@@ -297,9 +300,6 @@ module RAAF
           range.begin + (span * index / AGENT_SERIES_BUCKETS)
         end.freeze
       end
-
-      # How many bars the trend series on this dashboard are cut into.
-      SERIES_BUCKETS = 24
 
       # The bucket geometry for a window: how wide each bucket is, how many
       # there are, and when each begins.

@@ -682,10 +682,9 @@ module RAAF
 
       def parse_time_reference(reference)
         case reference.downcase
-        when /yesterday/ then 1.day
+        when /yesterday/, /last day/ then 1.day
         when /today/ then Time.current.beginning_of_day..Time.current
         when /last hour/ then 1.hour
-        when /last day/ then 1.day
         when /last week/ then 1.week
         when /last month/ then 1.month
         else 24.hours

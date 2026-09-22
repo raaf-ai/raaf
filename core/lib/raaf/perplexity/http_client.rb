@@ -191,7 +191,7 @@ module RAAF
         error_data = JSON.parse(response_body)
         message = error_data.dig("error", "message") || response_body
         truncate_message(message)
-      rescue JSON::ParserError, StandardError
+      rescue StandardError
         # Handle HTML error pages (CloudFlare, proxy errors, etc.)
         if html_response?(response_body)
           extract_html_error(response_body)

@@ -33,6 +33,7 @@ if defined?(ActiveRecord)
 end
 
 module RAAF
+
   # Comprehensive tracing system for RAAF
   #
   # The Tracing module provides a complete observability solution for agent workflows,
@@ -84,7 +85,9 @@ module RAAF
   #
   # @see https://platform.openai.com/traces OpenAI Traces Dashboard
   module Tracing
+
     class << self
+
       # Configuration object for tracing settings
       attr_accessor :configuration
 
@@ -256,11 +259,14 @@ module RAAF
       def shutdown
         TraceProvider.shutdown
       end
+
     end
+
   end
 
   # Module-level convenience methods
   class << self
+
     # Create a trace
     #
     # @example
@@ -275,7 +281,9 @@ module RAAF
     def tracer
       @tracer ||= Tracing.tracer
     end
+
   end
+
 end
 
 # Ensure tracing is properly cleaned up on exit

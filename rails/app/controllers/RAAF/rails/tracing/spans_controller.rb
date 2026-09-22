@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require "set"
-
 module RAAF
   module Rails
     module Tracing
@@ -209,6 +207,16 @@ module RAAF
             format.json { render json: { message: "Successfully deleted #{count} span(s)", count: count } }
           end
         end
+
+        # The queue row is what a page reads to say "Pending", and the job is
+        # what creates it. Between pressing the button and a worker picking the
+        # job up there is nothing on the page to show, so the redraw comes back
+        # offering the same button as if nothing had happened. Claiming the row
+        # here closes that window; the job's own find_or_create finds this one.
+        #
+        # A row that is already pending or running belongs to a job in flight —
+        # resetting it would strand that job in a state it cannot complete from.
+        RESETTABLE_QUEUE_STATUSES = %w[completed partial failed cancelled].freeze
 
         private
 
@@ -450,16 +458,6 @@ module RAAF
             }
           }
         end
-
-        # The queue row is what a page reads to say "Pending", and the job is
-        # what creates it. Between pressing the button and a worker picking the
-        # job up there is nothing on the page to show, so the redraw comes back
-        # offering the same button as if nothing had happened. Claiming the row
-        # here closes that window; the job's own find_or_create finds this one.
-        #
-        # A row that is already pending or running belongs to a job in flight —
-        # resetting it would strand that job in a state it cannot complete from.
-        RESETTABLE_QUEUE_STATUSES = %w[completed partial failed cancelled].freeze
 
         def claim_queue_item(policy)
           item = RAAF::Eval::Models::EvaluationQueueItem.find_or_create_by!(

@@ -30,6 +30,14 @@ module RAAF
           end
         end
 
+        # What counts as slow at the 95th percentile. The tile was toned red
+        # unconditionally, so the colour said only that the figure existed —
+        # a window whose slowest kind finished in 40ms got the same red as one
+        # taking half a minute.
+        P95_SLOW_MS = 10_000
+
+        P95_WATCH_MS = 3_000
+
         private
 
         # Only the kinds that actually recorded a span.
@@ -64,13 +72,6 @@ module RAAF
         def worst_p95
           stats.map { |s| s[:p95_duration_ms].to_f }.max || 0
         end
-
-        # What counts as slow at the 95th percentile. The tile was toned red
-        # unconditionally, so the colour said only that the figure existed —
-        # a window whose slowest kind finished in 40ms got the same red as one
-        # taking half a minute.
-        P95_SLOW_MS = 10_000
-        P95_WATCH_MS = 3_000
 
         def worst_p95_tone
           return :danger if worst_p95 >= P95_SLOW_MS

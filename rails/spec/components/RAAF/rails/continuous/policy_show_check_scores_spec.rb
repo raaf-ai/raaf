@@ -15,14 +15,13 @@ RSpec.describe RAAF::Rails::Continuous::PolicyShow, type: :component do
                      "checks" => %w[confidence:llm_judge confidence:value_range] }]
     )
   end
-
-  def screen(check_scores)
-    described_class.new(policy: policy, check_scores: check_scores)
-  end
-
   let(:per_check) do
     { "confidence:llm_judge" => { average: 0.9, count: 4 },
       "confidence:value_range" => { average: 0.4, count: 4 } }
+  end
+
+  def screen(check_scores)
+    described_class.new(policy: policy, check_scores: check_scores)
   end
 
   it "gives each check the score its own evaluator produced" do

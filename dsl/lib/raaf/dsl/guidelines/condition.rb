@@ -206,7 +206,7 @@ module RAAF
         def matches?(context, input)
           result = @proc.call(context, input)
           result == true
-        rescue StandardError => e
+        rescue StandardError
           false
         end
 
@@ -243,7 +243,7 @@ module RAAF
           )
 
           parse_llm_response(response)
-        rescue StandardError => e
+        rescue StandardError
           false
         end
 

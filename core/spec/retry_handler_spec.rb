@@ -18,6 +18,11 @@ RSpec.describe RAAF::RetryHandler do
 
   let(:handler) { test_class.new }
 
+  # Every example below that drives a retry sleeps between attempts. At the default
+  # one-second base delay this file spent close to two minutes asleep for a backoff
+  # schedule only the two examples that set their own delays are about.
+  before { handler.configure_retry(base_delay: 0.001, max_delay: 0.005) }
+
   describe "#with_retry" do
     it "executes block successfully without retry" do
       result = handler.with_retry(:test_operation) { "success" }

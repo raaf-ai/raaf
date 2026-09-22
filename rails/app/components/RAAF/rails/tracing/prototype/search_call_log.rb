@@ -79,7 +79,7 @@ module RAAF
           def provider_chips
             all = { label: "All", active: @provider.nil?, count: @calls.size,
                     href: "/raaf/prototype/search?variant=A" }
-            [ all ] + providers.map do |name, calls|
+            [all] + providers.map do |name, calls|
               { label: provider_label(name), active: @provider == name, count: calls.size,
                 href: "/raaf/prototype/search?variant=A&provider=#{name}" }
             end
@@ -90,10 +90,10 @@ module RAAF
           end
 
           def columns
-            [ { label: "When", span: 1.1 }, { label: "Provider", span: 0.9 },
-              { label: "Query", span: 3 }, { label: "Results", span: 0.6, align: :right },
-              { label: "Cost", span: 0.7, align: :right }, { label: "Duration", span: 0.7, align: :right },
-              { label: "Account", span: 0.6, align: :right }, { label: "Called by", span: 1.2, align: :right } ]
+            [{ label: "When", span: 1.1 }, { label: "Provider", span: 0.9 },
+             { label: "Query", span: 3 }, { label: "Results", span: 0.6, align: :right },
+             { label: "Cost", span: 0.7, align: :right }, { label: "Duration", span: 0.7, align: :right },
+             { label: "Account", span: 0.6, align: :right }, { label: "Called by", span: 1.2, align: :right }]
           end
 
           def table

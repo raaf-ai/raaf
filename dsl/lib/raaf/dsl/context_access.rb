@@ -113,9 +113,7 @@ module RAAF
         return super if EXCLUDED_METHODS.include?(method_name.to_sym)
 
         # Guard against infinite recursion - return nil if max depth reached
-        if context_access_depth >= MAX_RECURSION_DEPTH
-          return nil
-        end
+        return nil if context_access_depth >= MAX_RECURSION_DEPTH
 
         begin
           increment_context_access_depth
@@ -134,10 +132,10 @@ module RAAF
           variable_name = method_str.chomp("=").to_sym
 
           # Try to set in primary context
-          if respond_to?(:context, true) && context&.respond_to?(:set)
+          if respond_to?(:context, true) && context.respond_to?(:set)
             # For pipelines with output variables, always allow setting
             if respond_to?(:context_config, true) &&
-               context_config&.respond_to?(:output_variables) &&
+               context_config.respond_to?(:output_variables) &&
                context_config.output_variables&.include?(variable_name)
               context.set(variable_name, args[0])
               return args[0] # Return the assigned value like normal Ruby assignment
@@ -187,7 +185,7 @@ module RAAF
           end
 
           # 2. Context variables (prompt-style from agents)
-          if instance_variable_defined?(:@context_variables) && @context_variables&.respond_to?(:has?) && @context_variables.has?(method_name)
+          if instance_variable_defined?(:@context_variables) && @context_variables.respond_to?(:has?) && @context_variables.has?(method_name)
             return @context_variables.get(method_name)
           end
 
@@ -259,12 +257,12 @@ module RAAF
       # @return [Boolean] true if variable exists in any context
       def variable_exists_in_context?(method_name)
         # Check primary context (agent/service-style) - use direct instance variable check to avoid recursion
-        if instance_variable_defined?(:@context) && @context&.respond_to?(:has?) && @context.has?(method_name)
+        if instance_variable_defined?(:@context) && @context.respond_to?(:has?) && @context.has?(method_name)
           return true
         end
 
         # Check context variables (prompt-style from agents)
-        if instance_variable_defined?(:@context_variables) && @context_variables&.respond_to?(:has?) && @context_variables.has?(method_name)
+        if instance_variable_defined?(:@context_variables) && @context_variables.respond_to?(:has?) && @context_variables.has?(method_name)
           return true
         end
 
@@ -291,7 +289,7 @@ module RAAF
         # Safely collect from primary context using instance variable
         if instance_variable_defined?(:@context)
           ctx = @context
-          if ctx&.respond_to?(:keys)
+          if ctx.respond_to?(:keys)
             keys.concat(ctx.keys)
           elsif ctx&.respond_to?(:to_h)
             keys.concat(ctx.to_h.keys)
@@ -303,7 +301,7 @@ module RAAF
         # Collect from context variables
         if instance_variable_defined?(:@context_variables)
           vars = @context_variables
-          if vars&.respond_to?(:keys)
+          if vars.respond_to?(:keys)
             keys.concat(vars.keys)
           elsif vars&.respond_to?(:to_h)
             keys.concat(vars.to_h.keys)

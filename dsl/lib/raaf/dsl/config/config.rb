@@ -183,15 +183,13 @@ module RAAF
                           Pathname.new(config_file).absolute? ? config_file : File.join(Dir.pwd, config_file)
                         end
 
-          unless File.exist?(config_path)
-            return {}
-          end
+          return {} unless File.exist?(config_path)
 
           begin
             YAML.load_file(config_path, aliases: true) || {}
-          rescue Psych::SyntaxError => e
+          rescue Psych::SyntaxError
             {}
-          rescue StandardError => e
+          rescue StandardError
             {}
           end
         end

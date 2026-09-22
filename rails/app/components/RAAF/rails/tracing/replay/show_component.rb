@@ -49,6 +49,19 @@ module RAAF
             end
           end
 
+          # An answer has been written under a different key in every
+          # generation of the tracer, so all of them are tried before
+          # concluding a span said nothing.
+          OUTPUT_KEYS = [
+            %w[agent.final_agent_response],
+            %w[final_agent_response],
+            %w[response.content],
+            %w[llm.response.content],
+            %w[llm response content],
+            %w[llm response choices 0 message content],
+            %w[agent final_agent_response]
+          ].freeze
+
           private
 
           # ── Header ────────────────────────────────────────────────────────
@@ -383,19 +396,6 @@ module RAAF
           def replayed_output
             @replayed_output ||= output_of(@replayed_span)
           end
-
-          # An answer has been written under a different key in every
-          # generation of the tracer, so all of them are tried before
-          # concluding a span said nothing.
-          OUTPUT_KEYS = [
-            %w[agent.final_agent_response],
-            %w[final_agent_response],
-            %w[response.content],
-            %w[llm.response.content],
-            %w[llm response content],
-            %w[llm response choices 0 message content],
-            %w[agent final_agent_response]
-          ].freeze
 
           def output_of(span)
             return "" unless span

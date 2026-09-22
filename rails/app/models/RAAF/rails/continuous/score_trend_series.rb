@@ -320,7 +320,7 @@ module RAAF
             SELECT #{keys.join(', ')}, #{bucket_of('created_at')}, sum(#{score}), count(*)
             FROM #{model.table_name}
             WHERE created_at >= ?::timestamptz AND #{score} IS NOT NULL
-            GROUP BY #{(1..keys.size + 1).to_a.join(', ')}
+            GROUP BY #{(1..(keys.size + 1)).to_a.join(', ')}
           SQL
 
           model.connection.select_rows(sql)

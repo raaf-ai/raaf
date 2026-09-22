@@ -209,6 +209,10 @@ RSpec.describe RAAF::Models::PerplexityProvider do
     end
 
     context "when using ModelInterface.with_retry" do
+      # The backoff schedule is not what these examples are about, and at the
+      # default one-second base delay they spend ~17 seconds asleep.
+      before { provider.configure_retry(base_delay: 0.001, max_delay: 0.005) }
+
       it "retries on Net::ReadTimeout" do
         call_count = 0
         allow(provider).to receive(:make_api_call) do

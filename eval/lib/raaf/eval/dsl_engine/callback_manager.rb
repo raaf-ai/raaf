@@ -60,8 +60,8 @@ module RAAF
         # @param error [StandardError] The error that occurred
         # @param event [ProgressEvent] The event being processed
         def log_callback_error(error, event)
-          warn "⚠️ Progress callback error: #{error.message} (event: #{event.type})"
-          warn "   Backtrace: #{error.backtrace.first}" if error.backtrace
+          RAAF::Eval.logger.warn("Progress callback error: #{error.message} (event: #{event.type})")
+          RAAF::Eval.logger.warn("  Backtrace: #{error.backtrace.first}") if error.backtrace
         end
       end
     end

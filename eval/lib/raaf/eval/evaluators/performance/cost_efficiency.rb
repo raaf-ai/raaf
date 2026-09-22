@@ -60,8 +60,8 @@ module RAAF
               )
               # Simple score mapping: good=1.0, average=0.5, bad=0.0
               score = case label
-                      when :good then 1.0
-                      when :average then 0.5
+                      when "good" then 1.0
+                      when "average" then 0.5
                       else 0.0
                       end
               details = {
@@ -119,13 +119,13 @@ module RAAF
           # @return [Symbol] :good, :average, or :bad
           def calculate_label_from_discrete_thresholds(cost, good_threshold_cost:, average_threshold_cost:)
             # If good_threshold_cost provided and cost is under it, return "good"
-            return :good if good_threshold_cost && cost <= good_threshold_cost
+            return "good" if good_threshold_cost && cost <= good_threshold_cost
 
             # If average_threshold_cost provided and cost is under it, return "average"
-            return :average if average_threshold_cost && cost <= average_threshold_cost
+            return "average" if average_threshold_cost && cost <= average_threshold_cost
 
             # Otherwise, return "bad"
-            :bad
+            "bad"
           end
         end
       end

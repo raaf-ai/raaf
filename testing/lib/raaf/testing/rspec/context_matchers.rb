@@ -47,8 +47,8 @@ module RAAF
             if context.respond_to?(:to_h)
               context.to_h.keys
             elsif context.respond_to?(:keys)
-              context.keys
-            elsif context.is_a?(Hash)
+              # Covers Hash, which answers `keys` without answering `to_h` in
+              # some of the context objects these matchers are handed.
               context.keys
             else
               []

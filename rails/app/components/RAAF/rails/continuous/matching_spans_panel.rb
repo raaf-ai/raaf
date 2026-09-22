@@ -61,17 +61,8 @@ module RAAF
           end
         end
 
-        private
-
         SUBTITLE = "Grade one now instead of waiting for the sampler. " \
                    "A manual run ignores the sampling counter and the daily cap."
-
-        def browse_link
-          return if @policy.agent_name.blank?
-
-          render Atoms::Button.new(label: "Browse spans", size: :sm, icon: "layers",
-                                   href: tracing_spans_path(search: @policy.agent_name))
-        end
 
         # An evaluation started here is answered by a worker, so the row that
         # would show the grade is not written by the request that queued it.
@@ -83,7 +74,26 @@ module RAAF
         # showing a stale badge. So the wait is bounded: past this, the row is
         # not something anybody is still waiting for.
         WAITING_STATUSES = %w[pending running].freeze
+
         STALE_AFTER = 5.minutes
+
+        # What this policy already said about this span, so a re-evaluation
+        # can be compared with something rather than started blind.
+        #
+        # A policy stores one result per graded field, so the worst of them is
+        # the summary worth showing: a span with one bad field among six good
+        # ones is the interesting one, and reporting the newest row instead
+        # would hide it whenever a good field happened to finish last.
+        WORST_FIRST = %w[error bad average good].freeze
+
+        private
+
+        def browse_link
+          return if @policy.agent_name.blank?
+
+          render Atoms::Button.new(label: "Browse spans", size: :sm, icon: "layers",
+                                   href: tracing_spans_path(search: @policy.agent_name))
+        end
 
         def work_outstanding?
           @queue_items_by_span.values.any? do |item|
@@ -184,15 +194,6 @@ module RAAF
             plain "Running"
           end
         end
-
-        # What this policy already said about this span, so a re-evaluation
-        # can be compared with something rather than started blind.
-        #
-        # A policy stores one result per graded field, so the worst of them is
-        # the summary worth showing: a span with one bad field among six good
-        # ones is the interesting one, and reporting the newest row instead
-        # would hide it whenever a good field happened to finish last.
-        WORST_FIRST = %w[error bad average good].freeze
 
         def graded_badge(span_record)
           results = @results_by_span[span_record.span_id]

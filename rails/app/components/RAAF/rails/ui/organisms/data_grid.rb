@@ -64,7 +64,7 @@ module RAAF
           # truncate instead of pushing the row wider than its container.
           # 1.9 stays 1.9; 1.0 becomes 1 rather than "1.0fr".
           def format_weight(weight)
-            weight.to_f == weight.to_i ? weight.to_i : weight
+            (weight.to_f % 1).zero? ? weight.to_i : weight
           end
 
           def template

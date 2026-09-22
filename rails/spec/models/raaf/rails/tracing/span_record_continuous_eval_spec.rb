@@ -96,10 +96,10 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
         end
 
         it "logs the error but does not raise" do
-          allow(::Rails.logger).to receive(:warn)
+          allow(Rails.logger).to receive(:warn)
 
           expect { described_class.create!(span_attributes) }.not_to raise_error
-          expect(::Rails.logger).to have_received(:warn).with(/Failed to enqueue evaluations: Test error/)
+          expect(Rails.logger).to have_received(:warn).with(/Failed to enqueue evaluations: Test error/)
         end
 
         it "still creates the span successfully" do
@@ -119,10 +119,10 @@ RSpec.describe RAAF::Rails::Tracing::SpanRecord, type: :model do
         end
 
         it "logs the error but does not raise" do
-          allow(::Rails.logger).to receive(:warn)
+          allow(Rails.logger).to receive(:warn)
 
           expect { described_class.create!(span_attributes) }.not_to raise_error
-          expect(::Rails.logger).to have_received(:warn).with(/Failed to enqueue evaluations: Queue error/)
+          expect(Rails.logger).to have_received(:warn).with(/Failed to enqueue evaluations: Queue error/)
         end
 
         it "still creates the span successfully" do

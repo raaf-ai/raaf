@@ -85,8 +85,8 @@ module RAAF
 
         # Collapse Active Record column types onto their JSON Schema equivalent,
         # leaving semantic types (which own their own definition) untouched.
-        unless RAAF::DSL::Types.semantic?(actual_type)
-          actual_type = TYPE_ALIASES.fetch(actual_type.to_sym, actual_type) if actual_type.respond_to?(:to_sym)
+        if !RAAF::DSL::Types.semantic?(actual_type) && actual_type.respond_to?(:to_sym)
+          actual_type = TYPE_ALIASES.fetch(actual_type.to_sym, actual_type)
         end
 
         # Handle semantic types first

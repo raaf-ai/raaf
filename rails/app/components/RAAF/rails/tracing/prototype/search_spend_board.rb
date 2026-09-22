@@ -64,14 +64,14 @@ module RAAF
 
           def headline
             render Organisms::StatGrid.new(stats: [
-              { label: "Search spend", value: usd(total_cost), icon: "cash-stack", tone: :accent,
-                layout: :leading, note: "across #{providers.size} providers" },
-              { label: "Cost / result", value: usd(total_results.zero? ? 0 : total_cost / total_results, places: 4),
-                icon: "receipt", tone: :success, layout: :leading, note: "#{count(total_results)} results bought" },
-              { label: "Wasted calls", value: pct(empties, @calls.size), icon: "trash",
-                tone: empties.zero? ? :success : :danger, layout: :leading,
-                note: "#{count(empties)} returned nothing", series: waste_series }
-            ])
+                                             { label: "Search spend", value: usd(total_cost), icon: "cash-stack", tone: :accent,
+                                               layout: :leading, note: "across #{providers.size} providers" },
+                                             { label: "Cost / result", value: usd(total_results.zero? ? 0 : total_cost / total_results, places: 4),
+                                               icon: "receipt", tone: :success, layout: :leading, note: "#{count(total_results)} results bought" },
+                                             { label: "Wasted calls", value: pct(empties, @calls.size), icon: "trash",
+                                               tone: empties.zero? ? :success : :danger, layout: :leading,
+                                               note: "#{count(empties)} returned nothing", series: waste_series }
+                                           ])
           end
 
           # Zero-result share per provider, biggest first — the shape of the
@@ -83,7 +83,7 @@ module RAAF
           def provider_chips
             all = { label: "All providers", active: @drilled.nil?, count: @calls.size,
                     href: "/raaf/prototype/search?variant=B" }
-            [ all ] + providers.map do |name, calls|
+            [all] + providers.map do |name, calls|
               { label: provider_label(name), active: @drilled == name, count: calls.size,
                 href: "/raaf/prototype/search?variant=B&provider=#{name}" }
             end
@@ -147,21 +147,23 @@ module RAAF
           end
 
           def consumers
-            @consumers ||= @calls.group_by { |c| [ c.account_id, c.agent ] }
+            @consumers ||= @calls.group_by { |c| [c.account_id, c.agent] }
                                  .sort_by { |_, calls| -calls.sum(&:cost_usd) }
           end
 
           def consumer_columns
-            [ { label: "Account", span: 0.6 }, { label: "Caller", span: 2 },
-              { label: "Providers", span: 1.4 }, { label: "Calls", span: 0.6, align: :right },
-              { label: "Spend", span: 0.8, align: :right }, { label: "Empty", span: 0.7, align: :right } ]
+            [{ label: "Account", span: 0.6 }, { label: "Caller", span: 2 },
+             { label: "Providers", span: 1.4 }, { label: "Calls", span: 0.6, align: :right },
+             { label: "Spend", span: 0.8, align: :right }, { label: "Empty", span: 0.7, align: :right }]
           end
 
           def consumer_row(grid, account_id, agent, calls)
             grid.row(cells: [
                        { value: Atoms::Mono.new(account_id.to_s, tone: :muted) },
                        { value: Molecules::TitleMeta.new(short_agent(agent), agent), primary: true },
-                       { value: Molecules::TagList.new(calls.map(&:provider).uniq.map { |p| provider_label(p) }, limit: 3) },
+                       { value: Molecules::TagList.new(calls.map(&:provider).uniq.map do |p|
+                         provider_label(p)
+                       end, limit: 3) },
                        { value: Atoms::Mono.new(count(calls.size)), align: :right },
                        { value: Atoms::Mono.new(usd(calls.sum(&:cost_usd), places: 3), tone: :accent), align: :right },
                        { value: Atoms::Mono.new(pct(calls.count { |c| c.results.zero? }, calls.size),
@@ -184,8 +186,8 @@ module RAAF
           end
 
           def drill_columns
-            [ { label: "When", span: 1 }, { label: "Query", span: 3.4 },
-              { label: "Results", span: 0.6, align: :right }, { label: "Cost", span: 0.7, align: :right } ]
+            [{ label: "When", span: 1 }, { label: "Query", span: 3.4 },
+             { label: "Results", span: 0.6, align: :right }, { label: "Cost", span: 0.7, align: :right }]
           end
 
           def drill_row(grid, call)

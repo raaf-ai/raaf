@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "concurrent"
-require "set"
 require_relative "../../../../core/lib/raaf/logging"
 
 module RAAF
@@ -538,18 +537,19 @@ module RAAF
         return if emergency_spans.empty?
 
         # Attempt direct export with retries
-        3.times do |attempt|
+        exported = 3.times.any? do |attempt|
           @exporter.export(emergency_spans)
           log_debug_tracing("[BatchTraceProcessor] Emergency flush succeeded on attempt #{attempt + 1}",
                             attempt: attempt + 1)
-          return
+          true
         rescue StandardError => e
           log_debug_tracing("[BatchTraceProcessor] Emergency flush attempt #{attempt + 1} failed: #{e.message}",
                             attempt: attempt + 1, error: e.message)
           sleep(0.1) if attempt < 2
+          false
         end
 
-        log_debug_tracing("[BatchTraceProcessor] Emergency flush failed after 3 attempts")
+        log_debug_tracing("[BatchTraceProcessor] Emergency flush failed after 3 attempts") unless exported
       end
 
       # Python-style synchronous final export

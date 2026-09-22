@@ -1,3 +1,10 @@
+# `.rubocop_todo.yml` is pulled in here rather than from the root config, because
+# a sub-gem's .rubocop.yml inherits this file and not the root one. Without it,
+# the debt ledger would apply to the handful of files the root governs and to
+# nothing else.
+inherit_from:
+  - .rubocop_todo.yml
+
 # Turns off the ai-rubocops cops that encode ProspectsRadar *application*
 # conventions, which do not apply to the framework those applications build on.
 #
@@ -37,3 +44,127 @@ RAAF/PromptUserInputEscaping:
   Enabled: false
 RAAF/SchemaNestedArrayRequired:
   Enabled: false
+
+# Assumes every hash reaching it has been through `.with_indifferent_access`,
+# which is an ActiveSupport idiom the framework cannot rely on: RAAF passes
+# plain Hashes around, and provider payloads arrive from `JSON.parse` with
+# string keys. Its autocorrector rewrites `payload["text"]` to `payload[:text]`
+# in place, so a repo-wide `rubocop -a` silently turns working lookups into
+# `nil` — including collapsing the `h[:k] || h["k"]` fallbacks that exist
+# precisely because both key types occur.
+Convention/PreferSymbolJsonAccess:
+  Enabled: false
+
+# The same reasoning extends to whole cop families the shared gem carries for
+# the host application. In ProspectsRadar each is scoped to app/**; here those
+# paths do not exist, so the cops run unscoped against a framework that has no
+# controllers-with-services layering, no glass_morph component library, no
+# Cucumber suite, no tenant column and no hashed record ids. Several of them
+# autocorrect, and a repo-wide `rubocop -a` with them on rewrote
+# `class Service` to `class Service < BaseService` — a base class that exists
+# only in the host — which stops raaf-dsl loading at all.
+Architecture:
+  Enabled: false
+Cucumber:
+  Enabled: false
+DesignSystem:
+  Enabled: false
+FactoryBot/ExplicitTenantHandling:
+  Enabled: false
+Mcp:
+  Enabled: false
+MultiTenancy:
+  Enabled: false
+SharedWork:
+  Enabled: false
+Convention/EncodeRecordIdsInViews:
+  Enabled: false
+Convention/NoDoubleDecodeHashedId:
+  Enabled: false
+
+# ai-rubocops' RSpec cops that assume the host's FactoryBot factories, its
+# tenant fixtures and its service objects.
+RSpec/NoActionInLet:
+  Enabled: false
+RSpec/PreferBuildStubbedForNonPersisted:
+  Enabled: false
+RSpec/ServiceRequiresTenantSetup:
+  Enabled: false
+RSpec/TestDataOrdering:
+  Enabled: false
+
+# Only rails/ is Rails code. The root config says so and turns the department
+# off, but a sub-gem config inherits this file rather than the root, so the
+# switch has to live here too — otherwise `rubocop-rails`, loaded process-wide
+# by the root plugins declaration, policies every plain-Ruby gem. Rails/Delegate
+# alone rewrote a hand-written reader in raaf-tracing into an ActiveSupport
+# `delegate` call, which raises NoMethodError the moment the gem is required
+# without Rails. rails/.rubocop.yml turns the department back on for itself.
+Rails:
+  Enabled: false
+
+# Both rewrite a named `**options` / `&block` parameter into Ruby 3.2's
+# anonymous `**` / `&`. Two reasons not to here. RuboCop's autocorrect for
+# ArgumentsForwarding is not sound on this codebase — it turned
+# `@config[...][name] = { type: type.to_s, **options }` in raaf-dsl's
+# ToolBuilder into `@config[...][name](= { type: type.to_s, ** })`, a syntax
+# error that stopped the gem loading. And every one of these methods carries a
+# YARD `@param options` / `@param block` line, which an anonymous parameter
+# leaves documenting a name the signature no longer has.
+Style/ArgumentsForwarding:
+  Enabled: false
+Naming/BlockForwarding:
+  Enabled: false
+
+# Marked safe-correctable, but `:aggregate_failures` changes what an example
+# does: a failed expectation is collected instead of raised. raaf-eval's matcher
+# specs assert on failure messages by letting the expectation raise and rescuing
+# it in the example body, and 27 of them start failing the moment the tag is
+# added. It also fires 1807 times, so turning it on is a rewrite of the whole
+# test suite's semantics rather than a lint fix.
+RSpec/AggregateFailures:
+  Enabled: false
+
+# `be > 0` in a spec is an RSpec matcher, not an integer comparison, and this
+# cop's autocorrect rewrites it to `be.positive?` — which calls `positive?` on
+# the matcher object and raises NoMethodError. It did that to 20-odd examples
+# across raaf-tracing, raaf-dsl and raaf-providers. The comparison form is what
+# the codebase uses anyway.
+Style/NumericPredicate:
+  Enabled: false
+
+# Every unused argument these two find in this repo is a keyword argument that
+# names part of an interface: a provider's `stream:`, a tool's `api_type:`, a
+# tracing no-op's `kind:`. Renaming one to `_kind:` does not silence anything —
+# it changes the keyword the method accepts and breaks its callers. RuboCop
+# ships this switch for exactly that case.
+Lint/UnusedMethodArgument:
+  AllowUnusedKeywordArguments: true
+Lint/UnusedBlockArgument:
+  AllowUnusedKeywordArguments: true
+
+# Defining a helper class inside a `describe` block is how these suites build
+# their fixtures, and every one of the 117 hits is a spec doing exactly that.
+# The alternative the cop points at — `stub_const` with an anonymous class —
+# would rewrite the fixtures of forty-odd files to say the same thing less
+# clearly. Lint/DuplicateMethods follows it into the same files, where it reads
+# two same-named methods in two different fixture classes as one `::Object`
+# redefined.
+Lint/ConstantDefinitionInBlock:
+  Exclude:
+    - '**/spec/**/*'
+Lint/DuplicateMethods:
+  Exclude:
+    - '**/spec/**/*'
+
+# Almost every hit is a dispatch table: span kinds mapped onto OpenTelemetry
+# constants, query words mapped onto symbols, a Datadog type mapped onto
+# "custom". Listing each input explicitly is the point of writing it as a
+# `case`, even where several of them land on the same value, and the `else` is
+# expected to repeat whichever branch is the default. RuboCop ships these three
+# switches for exactly that shape; what stays flagged is a branch that repeats
+# real logic.
+Lint/DuplicateBranch:
+  IgnoreLiteralBranches: true
+  IgnoreConstantBranches: true
+  IgnoreDuplicateElseBranch: true

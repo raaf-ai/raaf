@@ -9,7 +9,7 @@ require "active_support/core_ext/string/filters"
 
 ui_root = File.expand_path("../../../../../app/components/RAAF/rails/ui", __dir__)
 require File.join(ui_root, "base")
-Dir[File.join(ui_root, "{atoms,molecules,organisms}/*.rb")].sort.each { |file| require file }
+Dir[File.join(ui_root, "{atoms,molecules,organisms}/*.rb")].each { |file| require file }
 require File.expand_path("../../../../../app/components/RAAF/rails/tracing/base_component", __dir__)
 require File.expand_path("../../../../../app/components/RAAF/rails/eval/experiment_result_show", __dir__)
 

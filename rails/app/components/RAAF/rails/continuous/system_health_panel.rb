@@ -29,6 +29,10 @@ module RAAF
           end
         end
 
+        # Molecules::Alert's own vocabulary, which is not the tone vocabulary
+        # the KPI tiles use.
+        SEVERITY_TONES = { "critical" => :error, "warning" => :warning }.freeze
+
         private
 
         def header
@@ -91,10 +95,6 @@ module RAAF
 
           "#{pluralize(@alerts.size, 'alert')}, newest first"
         end
-
-        # Molecules::Alert's own vocabulary, which is not the tone vocabulary
-        # the KPI tiles use.
-        SEVERITY_TONES = { "critical" => :error, "warning" => :warning }.freeze
 
         def alert_row(alert)
           render(Molecules::Alert.new(SEVERITY_TONES.fetch(alert[:severity].to_s, :info),

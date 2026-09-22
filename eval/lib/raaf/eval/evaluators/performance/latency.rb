@@ -49,8 +49,8 @@ module RAAF
               )
               # Simple score mapping: good=1.0, average=0.5, bad=0.0
               score = case label
-                      when :good then 1.0
-                      when :average then 0.5
+                      when "good" then 1.0
+                      when "average" then 0.5
                       else 0.0
                       end
               details = {
@@ -105,13 +105,13 @@ module RAAF
           # @return [Symbol] :good, :average, or :bad
           def calculate_label_from_discrete_thresholds(latency, good_threshold_ms:, average_threshold_ms:)
             # If good_threshold_ms provided and latency is under it, return "good"
-            return :good if good_threshold_ms && latency <= good_threshold_ms
+            return "good" if good_threshold_ms && latency <= good_threshold_ms
 
             # If average_threshold_ms provided and latency is under it, return "average"
-            return :average if average_threshold_ms && latency <= average_threshold_ms
+            return "average" if average_threshold_ms && latency <= average_threshold_ms
 
             # Otherwise, return "bad"
-            :bad
+            "bad"
           end
         end
       end

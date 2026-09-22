@@ -10,7 +10,6 @@ module RAAF
     # Configuration for prompt resolution system
     #
     class PromptConfiguration
-
       attr_reader :paths, :resolvers, :default_format
 
       ##
@@ -121,7 +120,6 @@ module RAAF
         @resolvers.each do |name|
           create_resolver(name) unless DSL.prompt_resolvers.find(name)
         end
-
       end
 
       ##

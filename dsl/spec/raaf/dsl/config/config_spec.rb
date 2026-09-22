@@ -438,7 +438,6 @@ RSpec.describe RAAF::DSL::Config, :with_temp_files do
           config = described_class.global
           expect(config).to eq({})
         end
-
       end
 
       context "with invalid YAML" do

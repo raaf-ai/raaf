@@ -216,10 +216,11 @@ module RAAF
         # For skipped items, we already have the mapping
 
         # Build skipped lookup by original item reference
-        skipped_lookup = {}
+        # Keyed by identity: two equal-but-distinct records must not collide,
+        # and `object_id` as a key can be recycled after a GC.
+        skipped_lookup = {}.compare_by_identity
         skipped_items.each do |skipped|
-          # Use object_id as key for exact reference matching
-          skipped_lookup[skipped[:original].object_id] = skipped[:data]
+          skipped_lookup[skipped[:original]] = skipped[:data]
         end
 
         # Build processed lookup by matching items that were processed
@@ -230,9 +231,9 @@ module RAAF
         result = []
 
         original_items.each do |original_item|
-          if skipped_lookup.key?(original_item.object_id)
+          if skipped_lookup.key?(original_item)
             # Use skipped data
-            result << skipped_lookup[original_item.object_id]
+            result << skipped_lookup[original_item]
           else
             # Use processed data
             processed_item = processed_items[processed_index]

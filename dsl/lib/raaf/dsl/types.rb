@@ -21,7 +21,7 @@ module RAAF
           format: :email,
           # Local part is dot-separated atoms, so a run of dots ("a..b@x.com")
           # is rejected the way a single leading/trailing dot already was.
-          pattern: /\A[\w+\-]+(\.[\w+\-]+)*@[a-z\d-]+(\.[a-z\d-]+)*\.[a-z]+\z/i
+          pattern: /\A[\w+-]+(\.[\w+-]+)*@[a-z\d-]+(\.[a-z\d-]+)*\.[a-z]+\z/i
         },
         url: {
           type: :string,

@@ -157,6 +157,22 @@ module RAAF
           redirect_to edit_continuous_policy_path(new_policy), notice: "Policy duplicated."
         end
 
+        # The trend answers the window the topbar is set to, so it has to
+        # bucket four windows that are three orders of magnitude apart. A day
+        # per bar says nothing over an hour, and a minute per bar is 43,200
+        # bars over a month, so each range names its own bucket.
+        TREND_BUCKETS = {
+          "1h" => { size: 1.minute, unit: "minute", format: "%H:%M" },
+          "24h" => { size: 1.hour, unit: "hour", format: "%H:%M" },
+          "7d" => { size: 1.day, unit: "day", format: "%b %d" },
+          "30d" => { size: 1.day, unit: "day", format: "%b %d" }
+        }.freeze
+
+        # How the window is said out loud, in the card title and its empty
+        # state.
+        TREND_WINDOWS = { "1h" => "1 hour", "24h" => "24 hours",
+                          "7d" => "7 days", "30d" => "30 days" }.freeze
+
         private
 
         # Counted over every policy, not the filtered page: the headline says
@@ -371,22 +387,6 @@ module RAAF
         rescue StandardError
           {}
         end
-
-        # The trend answers the window the topbar is set to, so it has to
-        # bucket four windows that are three orders of magnitude apart. A day
-        # per bar says nothing over an hour, and a minute per bar is 43,200
-        # bars over a month, so each range names its own bucket.
-        TREND_BUCKETS = {
-          "1h" => { size: 1.minute, unit: "minute", format: "%H:%M" },
-          "24h" => { size: 1.hour, unit: "hour", format: "%H:%M" },
-          "7d" => { size: 1.day, unit: "day", format: "%b %d" },
-          "30d" => { size: 1.day, unit: "day", format: "%b %d" }
-        }.freeze
-
-        # How the window is said out loud, in the card title and its empty
-        # state.
-        TREND_WINDOWS = { "1h" => "1 hour", "24h" => "24 hours",
-                          "7d" => "7 days", "30d" => "30 days" }.freeze
 
         # One point per bucket, oldest first, with the buckets nothing ran in
         # left scoreless so the trend draws them as gaps rather than zeroes.

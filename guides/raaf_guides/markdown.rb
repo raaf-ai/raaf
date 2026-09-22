@@ -176,7 +176,8 @@ module RailsGuides
     end
 
     def generate_title
-      @title = if @heading = html_fragment(@header).at(:h1)
+      @heading = html_fragment(@header).at(:h1)
+      @title = if @heading
                  "#{@heading.text} — Ruby on Rails Guides"
                else
                  "Ruby on Rails Guides"

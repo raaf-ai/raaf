@@ -77,7 +77,7 @@ RSpec.describe RAAF::Rails::Continuous::CheckSampling do
   # which is the policy's own column and never the per-check maps.
   describe "checks that declare no sampling of their own" do
     let(:inherited) do
-      policy([ { "name" => "quality", "checks" => %w[a:quality b:quality] } ],
+      policy([{ "name" => "quality", "checks" => %w[a:quality b:quality] }],
              sample_every_n: 13)
     end
 
@@ -92,7 +92,7 @@ RSpec.describe RAAF::Rails::Continuous::CheckSampling do
     end
 
     it "reports every span only where the policy really samples everything" do
-      everything = policy([ { "name" => "quality", "checks" => %w[a:quality] } ],
+      everything = policy([{ "name" => "quality", "checks" => %w[a:quality] }],
                           sampling_mode: "all")
 
       expect(reader.policy_sampling_cell(everything)).to eq("all")

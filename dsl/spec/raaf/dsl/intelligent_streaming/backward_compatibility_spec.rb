@@ -273,6 +273,7 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
         Class.new(RAAF::DSL::Agent) do
           agent_name "ParallelOne"
           context { output :parallel1 }
+
           def run
             { parallel1: true }
           end
@@ -283,6 +284,7 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
         Class.new(RAAF::DSL::Agent) do
           agent_name "ParallelTwo"
           context { output :parallel2 }
+
           def run
             { parallel2: true }
           end
@@ -308,6 +310,7 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
         streaming_one = Class.new(streaming_agent_class) do
           agent_name "StreamingOne"
           context { output :stream1 }
+
           def run
             { stream1: true }
           end
@@ -316,6 +319,7 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
         streaming_two = Class.new(streaming_agent_class) do
           agent_name "StreamingTwo"
           context { output :stream2 }
+
           def run
             { stream2: true }
           end
@@ -342,6 +346,7 @@ RSpec.describe "IntelligentStreaming Backward Compatibility" do
           Class.new(RAAF::DSL::Agent) do
             agent_name name
             context { output field }
+
             define_method(:run) { { field => true } }
           end
         end

@@ -208,7 +208,7 @@ RSpec.describe RAAF::Tracing::ToolIntegration do
           expect(current_agent.traced?).to be(false)
 
           # This should be the condition that passes: agent exists, responds to traced?, but traced? is false
-          should_return_agent = current_agent&.respond_to?(:traced?) && current_agent.traced?
+          should_return_agent = current_agent.respond_to?(:traced?) && current_agent.traced?
           expect(should_return_agent).to be(false)
 
           detected = tool.detect_agent_context

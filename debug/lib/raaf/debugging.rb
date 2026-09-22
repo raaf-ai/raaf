@@ -3,7 +3,6 @@
 require "json"
 require "time"
 require "logger"
-require "set"
 require_relative "tracing/spans"
 
 module RAAF

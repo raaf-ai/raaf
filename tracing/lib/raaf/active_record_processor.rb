@@ -9,7 +9,6 @@ rescue LoadError
 end
 
 require "digest"
-require "set"
 require "raaf/logging"
 require_relative "tracing/base_processor"
 require_relative "tracing/span_usage"
@@ -63,6 +62,7 @@ module RAAF
     # - Optimized for high-throughput applications
     # - Background processing for non-blocking operation
     class ActiveRecordProcessor < BaseProcessor
+
       # The NUL character itself, spelled rather than typed: a literal one in a
       # source file is invisible to every reader of it.
       NUL_CHARACTER = 0.chr(Encoding::UTF_8)
@@ -152,6 +152,52 @@ module RAAF
       # @return [void]
       def export(spans)
         export_batch(spans)
+      end
+
+      # Extract token usage and model into the native indexed columns.
+      #
+      # Token usage and model are emitted inside the span attributes payload,
+      # never as dedicated fields, and each emitter picks its own key shape.
+      # {RAAF::Tracing::SpanUsage} owns that knowledge; this method only maps
+      # what it resolves onto column names, so a reader and this writer can
+      # never drift into disagreeing about where the tokens live.
+      #
+      # Copying the counts into columns lets cost queries aggregate with plain
+      # SUM/GROUP BY instead of scanning the JSON blob.
+      #
+      # Returns a hash of only the columns that could be resolved, so callers
+      # can merge it without clobbering existing values with nils.
+      #
+      # +total_tokens+ is carried because some providers bill more than
+      # input + output: Gemini 2.5 reports thinking tokens only inside its
+      # total, and a cost query that never sees the total cannot charge for
+      # them. Storing it keeps that reconstruction possible after the JSON
+      # payload has been aged out by a retention sweep.
+      #
+      # @param attributes [Hash, nil] Sanitized span attributes
+      # @return [Hash] Subset of
+      #   { input_tokens:, output_tokens:, total_tokens:, agent_model:,
+      #     call_fee_cents: }
+      def self.token_columns_from(attributes)
+        usage = ::RAAF::Tracing::SpanUsage.from_attributes(attributes)
+
+        { input_tokens: usage[:input],
+          output_tokens: usage[:output],
+          total_tokens: usage[:total],
+          agent_model: usage[:model],
+          call_fee_cents: ::RAAF::Tracing::SpanUsage.fee_cents_from(attributes) }.compact
+      end
+
+      # +token_columns_from+ narrowed to the columns the span table actually
+      # has, so a host app running an older schema keeps its spans instead of
+      # losing them to an unknown attribute.
+      #
+      # @param attributes [Hash, nil] Sanitized span attributes
+      # @return [Hash] Resolvable columns that exist on raaf_tracing_spans
+      def self.persistable_token_columns(attributes)
+        columns = token_columns_from(attributes)
+        known = ::RAAF::Tracing::SpanRecord.column_names
+        columns.select { |column, _value| known.include?(column.to_s) }
       end
 
       protected
@@ -543,52 +589,6 @@ module RAAF
         end
       end
 
-      # Extract token usage and model into the native indexed columns.
-      #
-      # Token usage and model are emitted inside the span attributes payload,
-      # never as dedicated fields, and each emitter picks its own key shape.
-      # {RAAF::Tracing::SpanUsage} owns that knowledge; this method only maps
-      # what it resolves onto column names, so a reader and this writer can
-      # never drift into disagreeing about where the tokens live.
-      #
-      # Copying the counts into columns lets cost queries aggregate with plain
-      # SUM/GROUP BY instead of scanning the JSON blob.
-      #
-      # Returns a hash of only the columns that could be resolved, so callers
-      # can merge it without clobbering existing values with nils.
-      #
-      # +total_tokens+ is carried because some providers bill more than
-      # input + output: Gemini 2.5 reports thinking tokens only inside its
-      # total, and a cost query that never sees the total cannot charge for
-      # them. Storing it keeps that reconstruction possible after the JSON
-      # payload has been aged out by a retention sweep.
-      #
-      # @param attributes [Hash, nil] Sanitized span attributes
-      # @return [Hash] Subset of
-      #   { input_tokens:, output_tokens:, total_tokens:, agent_model:,
-      #     call_fee_cents: }
-      def self.token_columns_from(attributes)
-        usage = ::RAAF::Tracing::SpanUsage.from_attributes(attributes)
-
-        { input_tokens: usage[:input],
-          output_tokens: usage[:output],
-          total_tokens: usage[:total],
-          agent_model: usage[:model],
-          call_fee_cents: ::RAAF::Tracing::SpanUsage.fee_cents_from(attributes) }.compact
-      end
-
-      # +token_columns_from+ narrowed to the columns the span table actually
-      # has, so a host app running an older schema keeps its spans instead of
-      # losing them to an unknown attribute.
-      #
-      # @param attributes [Hash, nil] Sanitized span attributes
-      # @return [Hash] Resolvable columns that exist on raaf_tracing_spans
-      def self.persistable_token_columns(attributes)
-        columns = token_columns_from(attributes)
-        known = ::RAAF::Tracing::SpanRecord.column_names
-        columns.select { |column, _value| known.include?(column.to_s) }
-      end
-
       # Remove NUL characters from every string in a sanitized payload
       #
       # Walks the parsed structure rather than its JSON text, so a backslash in
@@ -633,17 +633,16 @@ module RAAF
                                  # Preserve all messages without truncation (do not limit to 100 items)
                                  # Sanitize each message's content to handle circular references
                                  value.map { |msg| sanitize_message_for_storage(msg, visited.dup) }
-                               # Special handling for conversation messages - don't truncate JSON structure
-                               elsif key_str.include?("conversation_messages") && value.is_a?(String)
-                                 value # Keep conversation messages intact
-                               # Special handling for prompt content - preserve full text without truncation
-                               # Prompt content is critical for debugging and RAAF Eval analysis
-                               elsif prompt_attribute?(key_str) && value.is_a?(String)
-                                 value # Keep prompt content intact
-                               # Special handling for response content - preserve full text without truncation
-                               # Response content is critical for debugging, RAAF Eval comparison, and replay features
-                               elsif response_attribute?(key_str) && value.is_a?(String)
-                                 value # Keep response content intact
+                               # Conversation messages, prompts and responses go
+                               # in whole. Truncating them would cost the very
+                               # thing a reader, RAAF Eval and replay come for,
+                               # and for the messages it would also break the
+                               # JSON structure.
+                               elsif value.is_a?(String) &&
+                                     (key_str.include?("conversation_messages") ||
+                                      prompt_attribute?(key_str) ||
+                                      response_attribute?(key_str))
+                                 value
                                else
                                  sanitize_value(value, visited)
                                end
@@ -695,10 +694,9 @@ module RAAF
         visited = visited.dup.add(object_id) if value.is_a?(Hash) || value.is_a?(Array)
 
         case value
-        when String
-          # NO TRUNCATION for message content
-          value
-        when Numeric, TrueClass, FalseClass, NilClass
+        # Strings included: this path exists precisely so message content is
+        # never truncated.
+        when String, Numeric, TrueClass, FalseClass, NilClass
           value
         when Hash
           sanitized = {}

@@ -79,7 +79,7 @@ module RAAF
             # Use file modification time in development
             begin
               File.mtime(model_class_file(model_class))
-            rescue Errno::ENOENT, StandardError
+            rescue StandardError
               # Fallback if file doesn't exist or other error
               Time.at(0)
             end

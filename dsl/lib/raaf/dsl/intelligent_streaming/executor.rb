@@ -27,7 +27,6 @@ module RAAF
       #   executor = Executor.new(scope: scope, context: context, config: config)
       #   results = executor.execute(agent_chain)
       class Executor
-
         attr_reader :scope, :context, :config, :accumulated_results, :execution_stats
 
         # Initialize a new executor
@@ -257,7 +256,6 @@ module RAAF
         end
 
         def handle_stream_error(stream_num, total_streams, stream_items, error)
-
           # Fire error hook if configured
           return unless config.blocks[:on_stream_error]
 

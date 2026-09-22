@@ -7,8 +7,8 @@ RSpec.describe CodeValidator do
 
   describe "#extract_code_blocks" do
     before do
-      Dir.mkdir("spec") unless Dir.exist?("spec")
-      Dir.mkdir("spec/fixtures") unless Dir.exist?("spec/fixtures")
+      FileUtils.mkdir_p("spec")
+      FileUtils.mkdir_p("spec/fixtures")
 
       File.write("spec/fixtures/test_guide.md", <<~MARKDOWN)
         # Test Guide
@@ -43,7 +43,7 @@ RSpec.describe CodeValidator do
     end
 
     after do
-      FileUtils.rm_rf("spec") if Dir.exist?("spec")
+      FileUtils.rm_rf("spec")
     end
 
     it "extracts Ruby code blocks from markdown files" do

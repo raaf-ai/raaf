@@ -14,6 +14,11 @@ RSpec.describe RAAF::Rails::Tracing::Replay::ShowComponent, type: :component do
       status: "completed", started_at: 1.hour.ago
     )
   end
+  # The shape a DSL agent writes, which the old reader missed entirely.
+  let(:dsl_agent_span) { span("input_tokens" => 1200, "output_tokens" => 340, "agent.model" => "gpt-4o") }
+  # The shape the old reader did understand, kept so the change is a widening
+  # rather than a swap.
+  let(:llm_span) { span("llm" => { "usage" => { "input_tokens" => 90, "output_tokens" => 20 } }) }
 
   def span(attributes)
     create_span(
@@ -27,13 +32,6 @@ RSpec.describe RAAF::Rails::Tracing::Replay::ShowComponent, type: :component do
     replay = instance_double(RAAF::Rails::Tracing::SpanReplay, replayed_span: replayed)
     described_class.new(replay: replay, original_span: original)
   end
-
-  # The shape a DSL agent writes, which the old reader missed entirely.
-  let(:dsl_agent_span) { span("input_tokens" => 1200, "output_tokens" => 340, "agent.model" => "gpt-4o") }
-
-  # The shape the old reader did understand, kept so the change is a widening
-  # rather than a swap.
-  let(:llm_span) { span("llm" => { "usage" => { "input_tokens" => 90, "output_tokens" => 20 } }) }
 
   it "reads the tokens a DSL agent span recorded" do
     usage = screen(llm_span, dsl_agent_span).send(:usage, dsl_agent_span)

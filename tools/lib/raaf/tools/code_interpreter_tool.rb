@@ -159,6 +159,26 @@ module RAAF
         FileUtils.rm_rf(@workspace_dir) if @workspace_dir && Dir.exist?(@workspace_dir)
       end
 
+      # Schema for function parameters
+      def self.schema
+        {
+          type: "object",
+          properties: {
+            code: {
+              type: "string",
+              description: "The Python or Ruby code to execute"
+            },
+            language: {
+              type: "string",
+              enum: %w[python ruby],
+              description: "Programming language to use",
+              default: "python"
+            }
+          },
+          required: ["code"]
+        }
+      end
+
       private
 
       def execute_code(code:, language: "python")
@@ -368,26 +388,6 @@ module RAAF
         end
 
         files
-      end
-
-      # Schema for function parameters
-      def self.schema
-        {
-          type: "object",
-          properties: {
-            code: {
-              type: "string",
-              description: "The Python or Ruby code to execute"
-            },
-            language: {
-              type: "string",
-              enum: %w[python ruby],
-              description: "Programming language to use",
-              default: "python"
-            }
-          },
-          required: ["code"]
-        }
       end
 
     end

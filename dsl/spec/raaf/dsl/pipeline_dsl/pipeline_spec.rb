@@ -233,6 +233,7 @@ RSpec.describe RAAF::Pipeline do
           context do
             output :result1
           end
+
           def run
             { result1: "parallel1" }
           end
@@ -246,6 +247,7 @@ RSpec.describe RAAF::Pipeline do
           context do
             output :result2
           end
+
           def run
             { result2: "parallel2" }
           end

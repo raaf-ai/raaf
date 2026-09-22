@@ -1,8 +1,11 @@
 # frozen_string_literal: true
 
 module RAAF
+
   module Tracing
+
     class DistributedTracer
+
       # Enhanced tracing with distributed system support
       # Correlates traces across multiple services, processes, and applications
 
@@ -51,7 +54,7 @@ module RAAF
         @baggage_context = @baggage_context.merge(baggage) if baggage.any?
 
         # Start the trace with distributed context
-        RAAF::trace(name, trace_id: trace_id) do |trace|
+        RAAF.trace(name, trace_id: trace_id) do |trace|
           # Add distributed tracing metadata
           trace.metadata.merge!(
             service_name: @config[:service_name],
@@ -85,7 +88,7 @@ module RAAF
       end
 
       def create_outbound_headers(current_trace = nil)
-        current_trace ||= RAAF::current_trace
+        current_trace ||= RAAF.current_trace
         return {} unless current_trace
 
         headers = {
@@ -120,7 +123,7 @@ module RAAF
       end
 
       def correlate_with_external_service(service_name, operation, headers: {})
-        current_trace = RAAF::current_trace
+        current_trace = RAAF.current_trace
         return yield if current_trace.nil?
 
         # Create span for external service call
@@ -236,9 +239,9 @@ module RAAF
         analysis
       end
 
-      def create_profiling_span(name, **metadata)
+      def create_profiling_span(name, **_metadata)
         # Enhanced span with profiling capabilities
-        span = RAAF::current_trace&.start_span(name)
+        span = RAAF.current_trace&.start_span(name)
         return yield unless span
 
         # Capture method information
@@ -495,7 +498,7 @@ module RAAF
              end
       end
 
-      def find_correlated_traces(trace_id)
+      def find_correlated_traces(_trace_id)
         # Find other traces that share baggage or correlation IDs
         # This would require more sophisticated correlation tracking
         []
@@ -578,40 +581,41 @@ module RAAF
         }
       end
 
-      def execute_replay(context)
+      def execute_replay(_context)
         # This would need to be implemented based on specific replay requirements
         # Placeholder for actual replay logic
         nil
       end
 
-      def compare_traces(original, replay)
+      def compare_traces(_original, _replay)
         # Compare two traces and identify differences
         []
       end
 
-      def find_critical_path(trace)
+      def find_critical_path(_trace)
         # Identify the critical path through the trace
         []
       end
 
-      def identify_performance_bottlenecks(trace)
+      def identify_performance_bottlenecks(_trace)
         []
       end
 
-      def generate_performance_recommendations(analysis)
+      def generate_performance_recommendations(_analysis)
         []
       end
 
-      def calculate_longest_chain(topology)
+      def calculate_longest_chain(_topology)
         0
       end
 
-      def calculate_service_utilization(topology)
+      def calculate_service_utilization(_topology)
         {}
       end
 
       # Middleware for HTTP request correlation
       class DistributedTracingMiddleware
+
         def initialize(app)
           @app = app
         end
@@ -646,10 +650,12 @@ module RAAF
 
           tracing_headers
         end
+
       end
 
       # Job integration module
       module DistributedJobTracing
+
         extend ActiveSupport::Concern
 
         included do
@@ -674,7 +680,11 @@ module RAAF
           # Look for trace context in job metadata
           {}
         end
+
       end
+
     end
+
   end
+
 end

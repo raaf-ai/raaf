@@ -44,6 +44,7 @@ module RAAF
       #   (defaults to ~/.openai_agents/memories)
       #
       def initialize(base_dir = nil)
+        super()
         @base_dir = base_dir || File.join(Dir.home, ".openai_agents", "memories")
         @index_file = File.join(@base_dir, "index.json")
         @mutex = Mutex.new

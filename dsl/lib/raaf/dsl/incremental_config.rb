@@ -31,8 +31,7 @@ module RAAF
     #   end
     #
     class IncrementalConfig
-      # @return [Integer, nil] Size of batches for processing (nil = process all at once)
-      attr_reader :chunk_size
+      # `chunk_size` is both reader and writer, and is written out below.
 
       # @return [Proc, nil] Block to check if record should be skipped
       attr_reader :skip_if_block

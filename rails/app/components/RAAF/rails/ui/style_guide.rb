@@ -88,6 +88,18 @@ module RAAF
             duration: "—", level: 1, tone: :idle }
         ].freeze
 
+        SAMPLE_RESULTS = [
+          { title: "Vandelay Industries acquires Kruger Latex",
+            url: "https://example.com/news/vandelay-kruger",
+            snippet: "The acquisition adds 140 staff and a second Rotterdam site.",
+            score: 0.8213 },
+          { title: "Vandelay Industries BV — company profile",
+            url: "https://example.com/companies/vandelay",
+            snippet: "Importer and exporter of latex goods, founded 1989.",
+            score: 0.6041 },
+          { title: nil, url: "https://example.com/filings/2024-vandelay.pdf" }
+        ].freeze
+
         private
 
         def section(title, meta = nil, &block)
@@ -398,18 +410,6 @@ module RAAF
             end
           end
         end
-
-        SAMPLE_RESULTS = [
-          { title: "Vandelay Industries acquires Kruger Latex",
-            url: "https://example.com/news/vandelay-kruger",
-            snippet: "The acquisition adds 140 staff and a second Rotterdam site.",
-            score: 0.8213 },
-          { title: "Vandelay Industries BV — company profile",
-            url: "https://example.com/companies/vandelay",
-            snippet: "Importer and exporter of latex goods, founded 1989.",
-            score: 0.6041 },
-          { title: nil, url: "https://example.com/filings/2024-vandelay.pdf" }
-        ].freeze
 
         def tracing_results
           section("Search results", "molecules/result_list.css") do

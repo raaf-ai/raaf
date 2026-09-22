@@ -1038,8 +1038,6 @@ module RAAF
           (events || []).sort_by { |e| e["timestamp"] }
         end
 
-        private
-
         # Extract readable name from technical span names
         # The tracer writes span names as "run.workflow.<kind>.<Class>.<method>",
         # e.g. "run.workflow.custom.Ecosystem::TedClient.search". Strip that
@@ -1052,6 +1050,7 @@ module RAAF
         # "Overture::CompanyMatchService/match") are already readable and are
         # returned whole.
         INTERNAL_SPAN_NAME = /\Arun\.workflow\.[a-z_]+\.(?<path>.+)\z/
+
         TRAILING_METHOD = /\.[a-z_][A-Za-z0-9_]*\z/
 
         # The same two rules in SQL, so a filter can compare against the name a
@@ -1064,6 +1063,14 @@ module RAAF
         READABLE_NAME_SQL =
           "regexp_replace(regexp_replace(name, '^run\\.workflow\\.[a-z_]+\\.', ''), " \
           "'\\.[a-z_][A-Za-z0-9_]*$', '')"
+
+        # An argument list that is not JSON — a job whose arguments were written
+        # with `inspect` — arrives as `[{period_type: "daily"}]`. The brackets are
+        # the container, not the subject, so a listing reads better without them:
+        # `period_type: "daily"`.
+        UNWRAPPED_SUBJECT = /\A\[(.*)\]\z|\A\{(.*)\}\z/m
+
+        private
 
         def extract_readable_name
           return nil unless name
@@ -1131,12 +1138,6 @@ module RAAF
         rescue ::JSON::ParserError
           unwrap_subject(value.to_s)
         end
-
-        # An argument list that is not JSON — a job whose arguments were written
-        # with `inspect` — arrives as `[{period_type: "daily"}]`. The brackets are
-        # the container, not the subject, so a listing reads better without them:
-        # `period_type: "daily"`.
-        UNWRAPPED_SUBJECT = /\A\[(.*)\]\z|\A\{(.*)\}\z/m
 
         def unwrap_subject(value)
           previous = nil

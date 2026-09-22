@@ -91,7 +91,7 @@ module RAAF
             field_result[:current_value]
           elsif field_result[:score]
             [field_result[:score]]
-          elsif field_result[:details]&.is_a?(Hash)
+          elsif field_result[:details].is_a?(Hash)
             [field_result[:details][:current_value]].compact
           else
             []

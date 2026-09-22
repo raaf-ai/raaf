@@ -17,6 +17,7 @@ require_relative "guardrails/built_in"
 require_relative "guardrails/tripwire"
 
 module RAAF
+
   ##
   # Guardrails provide safety and validation mechanisms for agent conversations
   #
@@ -40,12 +41,12 @@ module RAAF
   #
   # @example Using built-in guardrails
   #   agent = RAAF::Agent.new(name: "Support")
-  #   
+  #
   #   # Add input validation
   #   agent.add_input_guardrail(
   #     RAAF::Guardrails.profanity_guardrail
   #   )
-  #   
+  #
   #   # Add output validation
   #   agent.add_output_guardrail(
   #     RAAF::Guardrails.pii_guardrail(
@@ -71,6 +72,7 @@ module RAAF
   #   )
   #
   module Guardrails
+
     # Make builder methods available at module level
     extend InputGuardrailBuilder
     extend OutputGuardrailBuilder
@@ -178,5 +180,7 @@ module RAAF
     def self.topic_relevance_guardrail(**)
       BuiltIn::TopicRelevanceGuardrail.new(**)
     end
+
   end
+
 end

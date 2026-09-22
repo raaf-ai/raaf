@@ -8,6 +8,18 @@ require "raaf/dsl/core/context_variables"
 
 RSpec.describe "IntelligentStreaming Error Scenarios" do
   let(:context_class) { RAAF::DSL::ContextVariables }
+  let(:passing_agent) do
+    Class.new do
+      def self.name
+        "PassingAgent"
+      end
+
+      def run(context: {})
+        context.merge(processed: true)
+      end
+    end
+  end
+  let(:items) { (1..15).map { |i| { id: i } } }
 
   # Agent that fails for the records the caller nominates.
   def failing_agent(fail_on: [], message: "Stream processing failed")
@@ -18,18 +30,6 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
         record = context[:current_record]
         raise StandardError, message if fail_on.include?(record[:id])
 
-        context.merge(processed: true)
-      end
-    end
-  end
-
-  let(:passing_agent) do
-    Class.new do
-      def self.name
-        "PassingAgent"
-      end
-
-      def run(context: {})
         context.merge(processed: true)
       end
     end
@@ -55,8 +55,6 @@ RSpec.describe "IntelligentStreaming Error Scenarios" do
     config.instance_eval(&block) if block
     config
   end
-
-  let(:items) { (1..15).map { |i| { id: i } } }
 
   describe "stream execution failures" do
     context "partial stream failures" do

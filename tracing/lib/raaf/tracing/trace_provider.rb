@@ -6,7 +6,9 @@ require_relative "openai_processor"
 require_relative "../../../../core/lib/raaf/logging"
 
 module RAAF
+
   module Tracing
+
     # Global singleton that manages tracing configuration and processors
     #
     # TraceProvider is the central coordination point for the tracing system.
@@ -47,10 +49,13 @@ module RAAF
     #     CustomBackendProcessor.new
     #   )
     class TraceProvider
+
       include Logger
 
       class << self
+
         include Logger
+
         # @api private
         attr_writer :instance
 
@@ -128,6 +133,7 @@ module RAAF
         def enable!
           instance.enable!
         end
+
       end
 
       # @return [Array<Object>] Active span processors
@@ -459,6 +465,7 @@ module RAAF
           warn "[TraceProvider] Error shutting down processor #{processor.class.name}: #{e.message}"
         end
       end
+
     end
 
     # No-operation tracer returned when tracing is disabled
@@ -481,6 +488,7 @@ module RAAF
     #
     # @api private
     class NoOpTracer
+
       # Creates a no-op span that performs no tracing
       #
       # @param name [String] Span name (ignored)
@@ -547,6 +555,7 @@ module RAAF
       def handoff_span(from_agent, to_agent, **attributes, &)
         span("handoff", type: :handoff, from: from_agent, to: to_agent, **attributes, &)
       end
+
     end
 
     # No-operation span returned by NoOpTracer
@@ -557,6 +566,7 @@ module RAAF
     #
     # @api private
     class NoOpSpan
+
       # Sets an attribute (no-op)
       # @param key [String, Symbol] Attribute key (ignored)
       # @param value [Object] Attribute value (ignored)
@@ -588,6 +598,9 @@ module RAAF
       # Ends the span (no-op)
       # @return [void]
       def end_span; end
+
     end
+
   end
+
 end

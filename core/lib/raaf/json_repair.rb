@@ -105,9 +105,7 @@ module RAAF
         fixed = fixed.gsub("\n", " ") unless fixed.include?('\\n')
 
         # Fix missing quotes around unquoted keys
-        fixed = fixed.gsub(/(\w+)\s*:/, '"\1":')
-
-        fixed
+        fixed.gsub(/(\w+)\s*:/, '"\1":')
       end
 
       # Extract JSON from markdown code blocks

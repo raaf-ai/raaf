@@ -65,8 +65,10 @@ module RAAF
 
           def add_tool(tool)
             case tool
-            when RAAF::Tool
-              # New unified tool - convert to FunctionTool if needed
+            # A unified tool converts itself, and so does anything else that
+            # answers to_function_tool. Nothing in the branches below defines
+            # that method, so testing for it first changes no dispatch.
+            when RAAF::Tool, ->(candidate) { candidate.respond_to?(:to_function_tool) }
               add_tool_original(tool.to_function_tool)
             when RAAF::FunctionTool
               # Existing FunctionTool - use as-is
@@ -74,8 +76,6 @@ module RAAF
             when Method, Proc
               # Raw callable - wrap in FunctionTool
               add_tool_original(FunctionTool.new(tool))
-            when ->(candidate) { candidate.respond_to?(:to_function_tool) }
-              add_tool_original(tool.to_function_tool)
             else
               # Hand anything else to the original method: it accepts duck-typed
               # callables and raises ToolError for what it cannot use.

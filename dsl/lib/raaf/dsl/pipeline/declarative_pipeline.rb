@@ -207,7 +207,7 @@ module RAAF
 
         # Execute the pipeline
         def call
-          pipeline_name = self.class.name
+          self.class.name
 
           begin
             execute_pipeline_with_retry
@@ -264,9 +264,8 @@ module RAAF
             else
               # Try fallback method if configured
               fallback_method = self.class._error_handlers&.dig(:pipeline, :fallback_method)
-              if fallback_method && respond_to?(fallback_method, true)
-                return send(fallback_method, e, @step_results)
-              end
+              return send(fallback_method, e, @step_results) if fallback_method && respond_to?(fallback_method, true)
+
               raise
             end
           end
@@ -389,14 +388,12 @@ module RAAF
 
             # Store result
             store_step_result(step_name, step_config, result)
-
           rescue StandardError => e
             handle_step_error(step_name, step_config, e)
           end
         end
 
         def execute_parallel_steps(step_names)
-
           threads = step_names.map do |step_name|
             Thread.new do
               step_config = find_step_config(step_name)
@@ -421,7 +418,6 @@ module RAAF
               store_step_result(step_name, step_config, result)
             end
           end
-
         end
 
         def find_step_config(step_name)
@@ -486,7 +482,6 @@ module RAAF
         end
 
         def handle_step_error(step_name, step_config, error)
-
           # Check for step-specific error handler
           error_handler = self.class._error_handlers&.[](step_name)
 
@@ -527,7 +522,6 @@ module RAAF
         end
 
         def handle_pipeline_error(error)
-
           {
             success: false,
             error: "Pipeline execution failed: #{error.message}",
@@ -538,8 +532,7 @@ module RAAF
         end
 
         def log_pipeline_completion
-          duration = @execution_log.any? ? Time.current - @execution_log.first[:timestamp] : 0
-
+          @execution_log.any? ? Time.current - @execution_log.first[:timestamp] : 0
         end
 
         # Default finalization method (can be overridden)
@@ -553,7 +546,11 @@ module RAAF
       end
     end
 
-    # Convenience alias
-    Pipeline = Pipeline::DeclarativePipeline
+    # No `Pipeline = Pipeline::DeclarativePipeline` alias here. `RAAF::DSL::Pipeline`
+    # is already an autoload target in raaf-dsl.rb, and rebinding it to this class
+    # would replace the module this class lives in — so the constant path used to
+    # reach it would stop resolving. Refer to it as
+    # RAAF::DSL::Pipeline::DeclarativePipeline; the chaining DSL's base class is
+    # RAAF::Pipeline, in pipeline_dsl/pipeline.rb.
   end
 end

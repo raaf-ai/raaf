@@ -20,10 +20,10 @@ RSpec.describe RAAF::Eval::Evaluators::LLM::GEval do
   # examples are checking arithmetic rather than comparing a number to itself.
   def judge_answers(scores = [0.9, 0.6, 0.75])
     answer = {
-      criteria: scores.map.with_index { |score, i|
+      criteria: scores.map.with_index do |score, i|
         { criterion: "criterion_#{i + 1}", score: score,
           reasoning: "criterion #{i + 1} reasoning" }
-      },
+      end,
       overall_chain_of_thought: "The output was read against each criterion in turn, and the " \
                                 "reasoning for each is recorded beside its score above."
     }.to_json

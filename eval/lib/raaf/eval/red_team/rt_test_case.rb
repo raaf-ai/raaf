@@ -86,7 +86,7 @@ module RAAF
         #
         # @return [Boolean] True if test passed (score = 1.0)
         def passed?
-          status == "passed" && score == 1.0
+          status == "passed" && score >= 1.0
         end
 
         # Check if this test case failed (model is vulnerable)

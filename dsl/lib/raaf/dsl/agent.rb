@@ -1146,7 +1146,8 @@ module RAAF
                       :_execution_conditions
       end
 
-      # Instance attributes
+      # Instance attributes. `context` is public because prompt blocks and
+      # specs read it directly.
       attr_reader :context, :processing_params, :debug_enabled
 
       # Initialize a new agent instance
@@ -1190,8 +1191,7 @@ module RAAF
         # setup_context_configuration  # REMOVED: Empty method causing method_missing conflicts
         # setup_logging_and_metrics    # REMOVED: Empty method causing method_missing conflicts
 
-        return unless @debug_enabled
-
+        nil unless @debug_enabled
       end
 
       # Inject pipeline schema from pipeline (called by pipeline execution)
@@ -1317,7 +1317,6 @@ module RAAF
       #
       # @return [Hash] Results with processed and skipped items merged
       def run_with_incremental_processing(context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
-
         # DEFENSIVE FIX: Ensure @context is always initialized
         @context ||= RAAF::DSL::ContextVariables.new({}, debug: @debug_enabled)
 
@@ -1331,9 +1330,7 @@ module RAAF
 
         # Get input data from context with defensive check
         input_data = @context[input_field]
-        if input_data.nil?
-          input_data = []
-        end
+        input_data = [] if input_data.nil?
 
         # Initialize processor
         processor = RAAF::DSL::IncrementalProcessor.new(self, incremental_config)
@@ -1457,7 +1454,7 @@ module RAAF
       end
 
       def handle_smart_error(error)
-        agent_name = self.class._context_config&.dig(:name) || self.class.name
+        self.class._context_config&.dig(:name) || self.class.name
 
         # Record circuit breaker failure
         record_circuit_breaker_failure!
@@ -1560,14 +1557,10 @@ module RAAF
                       end
 
         # Preserve metadata from the original raaf_result (e.g., search_results from Perplexity)
-        if raaf_result.is_a?(Hash) && raaf_result.key?(:metadata)
-          base_result[:metadata] = raaf_result[:metadata]
-        end
+        base_result[:metadata] = raaf_result[:metadata] if raaf_result.is_a?(Hash) && raaf_result.key?(:metadata)
 
         # Preserve usage from the original raaf_result (token tracking for evaluations)
-        if raaf_result.is_a?(Hash) && raaf_result.key?(:usage)
-          base_result[:usage] = raaf_result[:usage]
-        end
+        base_result[:usage] = raaf_result[:usage] if raaf_result.is_a?(Hash) && raaf_result.key?(:usage)
 
         # Apply result transformations if configured, or auto-generate them for output fields
         final_result = if self.class._result_transformations
@@ -1605,31 +1598,26 @@ module RAAF
 
           identifier = tool_config[:tool_identifier] || tool_config[:identifier]
 
-          begin
-            # Resolve using ToolRegistry
-            tool_class = RAAF::ToolRegistry.resolve(identifier)
+          # Resolve using ToolRegistry
+          tool_class = RAAF::ToolRegistry.resolve(identifier)
 
-            unless tool_class
-              # Enhanced error with DidYouMean suggestions
-              result = RAAF::ToolRegistry.resolve_with_details(identifier)
+          unless tool_class
+            # Enhanced error with DidYouMean suggestions
+            result = RAAF::ToolRegistry.resolve_with_details(identifier)
 
-              error_message = "Failed to resolve tool '#{identifier}' for agent '#{self.class.name}'
+            error_message = "Failed to resolve tool '#{identifier}' for agent '#{self.class.name}'
 "
-              error_message += "Searched namespaces: #{result[:searched_namespaces].join(', ')}
+            error_message += "Searched namespaces: #{result[:searched_namespaces].join(', ')}
 "
 
-              error_message += "Did you mean? #{result[:suggestions].join(', ')}" if result[:suggestions].any?
+            error_message += "Did you mean? #{result[:suggestions].join(', ')}" if result[:suggestions].any?
 
-              raise ArgumentError, error_message
-            end
-
-            # Store resolved class and cache in instance
-            tool_config[:tool_class] = tool_class
-            @resolved_tools[identifier] = tool_class
-
-          rescue StandardError => e
-            raise
+            raise ArgumentError, error_message
           end
+
+          # Store resolved class and cache in instance
+          tool_config[:tool_class] = tool_class
+          @resolved_tools[identifier] = tool_class
         end
       end
 
@@ -1718,7 +1706,7 @@ module RAAF
       end
 
       def run_with_timeout(timeout_seconds, context: nil, input_context_variables: nil, stop_checker: nil, skip_retries: false, previous_result: nil)
-        agent_name = self.class._context_config&.dig(:name) || self.class.name
+        self.class._context_config&.dig(:name) || self.class.name
 
         begin
           Timeout.timeout(timeout_seconds) do
@@ -1760,8 +1748,8 @@ module RAAF
         end
 
         # Check if we should use smart features
-        agent_name = self.class._context_config&.dig(:name) || self.class.name
-        has_smart = has_smart_features?
+        self.class._context_config&.dig(:name) || self.class.name
+        has_smart_features?
 
         if skip_retries || !has_smart_features?
           # Direct execution without retries/circuit breaker, but still apply transformations
@@ -1829,7 +1817,7 @@ module RAAF
           raise RAAF::DSL::Error,
                 "Prompt validation failed for agent #{self.class.name}:
 #{e.message}"
-        rescue StandardError => e
+        rescue StandardError
           true
         end
       end
@@ -1977,7 +1965,7 @@ module RAAF
                   "Available context variables: #{available_context.join(', ')}"
 
           # Re-raise other NameErrors as they might be legitimate method issues
-          rescue StandardError => e
+          rescue StandardError
             # Log but don't fail on other errors during dry-run
             # These might be legitimate errors that only occur with real data
           end
@@ -1986,13 +1974,13 @@ module RAAF
         true
       end
 
+      public
+
       # Class method to validate with specific context (for pipeline validation)
       def self.validate_with_context(context)
         agent = new(**context)
         agent.validate_prompt_context!
       end
-
-      public
 
       # Validate this agent for pipeline use (implements Pipelineable interface)
       #
@@ -2014,7 +2002,6 @@ module RAAF
 
       # Create the underlying RAAF::Agent instance
       def create_agent
-
         create_openai_agent_instance
       end
 
@@ -2040,9 +2027,7 @@ module RAAF
       # Build base system instructions (original logic)
       def build_base_instructions
         # First check for DSL-configured static instructions
-        if self.class._prompt_config[:static_instructions]
-          return self.class._prompt_config[:static_instructions]
-        end
+        return self.class._prompt_config[:static_instructions] if self.class._prompt_config[:static_instructions]
 
         # Then check for instruction template with context
         if self.class._prompt_config[:instruction_template]
@@ -2193,24 +2178,18 @@ module RAAF
       # Can be a prompt class, file name, or other spec that resolvers can handle
       def determine_prompt_spec
         # Check for configured prompt class first
-        if self.class._prompt_config[:class]
-          return self.class._prompt_config[:class]
-        end
+        return self.class._prompt_config[:class] if self.class._prompt_config[:class]
 
         # Ensure resolvers are initialized before trying to resolve prompts
         DSL.ensure_prompt_resolvers_initialized!
 
         # Try to infer prompt class by convention (e.g., Ai::Agents::MyAgent -> Ai::Prompts::MyAgent)
         inferred_prompt_class = infer_prompt_class_name
-        if inferred_prompt_class
-          return inferred_prompt_class
-        end
+        return inferred_prompt_class if inferred_prompt_class
 
         # Try multiple naming conventions for prompt class inference
         alternative_prompt_class = try_alternative_prompt_conventions
-        if alternative_prompt_class
-          return alternative_prompt_class
-        end
+        return alternative_prompt_class if alternative_prompt_class
 
         # Try to infer from agent name (e.g., MyAgent -> "my_agent.md")
         agent_name_file = agent_name.underscore
@@ -2244,7 +2223,7 @@ module RAAF
               nil
             end
           end
-        rescue NameError => e
+        rescue NameError
           # Class doesn't exist - this is expected when no prompt class is defined
           nil
         rescue StandardError => e
@@ -2285,33 +2264,24 @@ module RAAF
         # Pattern: Directly under Ai::Prompts with category
         # Ai::Agents::Market::Analysis -> Ai::Prompts::MarketAnalysis
         # Only meaningful for a class nested at least three levels deep.
-        if namespace_segments.length > 2
-          alternative_patterns << "Ai::Prompts::#{namespace_segments[2..].join}"
-        end
+        alternative_patterns << "Ai::Prompts::#{namespace_segments[2..].join}" if namespace_segments.length > 2
 
         alternative_patterns.each do |pattern|
-
-          begin
-            if defined?(Rails) && Rails.respond_to?(:application)
-              # Use Rails constantize for proper autoloading/eager loading
+          if defined?(Rails) && Rails.respond_to?(:application)
+            # Use Rails constantize for proper autoloading/eager loading
+            prompt_class = pattern.constantize
+            return prompt_class if prompt_class.is_a?(Class)
+          else
+            # Non-Rails environment
+            if Object.const_defined?(pattern)
               prompt_class = pattern.constantize
-              if prompt_class.is_a?(Class)
-                return prompt_class
-              end
-            else
-              # Non-Rails environment
-              if Object.const_defined?(pattern)
-                prompt_class = pattern.constantize
-                if prompt_class.is_a?(Class)
-                  return prompt_class
-                end
-              end
+              return prompt_class if prompt_class.is_a?(Class)
             end
-          rescue NameError => e
-            # Continue to next pattern
-          rescue StandardError => e
-            # Continue to next pattern
           end
+        rescue NameError
+          # Continue to next pattern
+        rescue StandardError
+          # Continue to next pattern
         end
 
         nil
@@ -2372,16 +2342,11 @@ module RAAF
         result
       end
 
-      def agent_name
-        self.class._context_config[:name] || self.class.name.split("::").last
-      end
-
       public
 
       # Agent Hooks instance method (consolidated from AgentHooks)
       # RAAF DSL method - build response schema
       def build_schema
-
         # First check if pipeline schema is available
         if @pipeline_schema
 
@@ -2391,15 +2356,11 @@ module RAAF
         end
 
         # Next check if agent has directly defined schema
-        if self.class._schema_definition
-          return self.class._schema_definition
-        end
+        return self.class._schema_definition if self.class._schema_definition
 
         # Check if prompt class has a schema
         prompt_spec = determine_prompt_spec
-        if prompt_spec && prompt_spec.respond_to?(:has_schema?) && prompt_spec.has_schema?
-          return prompt_spec.get_schema
-        end
+        return prompt_spec.get_schema if prompt_spec && prompt_spec.respond_to?(:has_schema?) && prompt_spec.has_schema?
 
         # Fall back to default schema
         default_schema
@@ -2533,17 +2494,12 @@ module RAAF
       end
 
       def response_format
-
         # Check if unstructured output is requested
-        if self.class._context_config&.dig(:output_format) == :unstructured
-          return
-        end
+        return if self.class._context_config&.dig(:output_format) == :unstructured
 
         # Check if schema is nil (indicating unstructured output)
         schema_def = build_schema
-        if schema_def.nil?
-          return
-        end
+        return if schema_def.nil?
 
         # Extract validation mode from schema definition
         validation_mode = if schema_def.is_a?(Hash) && schema_def[:config]
@@ -2554,9 +2510,7 @@ module RAAF
 
         # In tolerant/partial mode, don't use OpenAI response_format
         # Let the agent return flexible JSON and validate on our side
-        if %i[tolerant partial].include?(validation_mode)
-          return nil
-        end
+        return nil if %i[tolerant partial].include?(validation_mode)
 
         # Strict mode uses OpenAI response_format (backward compatible)
         schema_data = if schema_def.is_a?(Hash) && schema_def[:schema]
@@ -2570,7 +2524,7 @@ module RAAF
           schema_data = RAAF::StrictSchema.ensure_strict_json_schema(schema_data)
         end
 
-        response_format_obj = {
+        {
           type: "json_schema",
           json_schema: {
             name: schema_name,
@@ -2578,8 +2532,6 @@ module RAAF
             schema: schema_data
           }
         }
-
-        response_format_obj
       end
 
       def schema_name
@@ -2599,9 +2551,6 @@ module RAAF
           agent.name == handoff_name || (agent.respond_to?(:agent_name) && agent.agent_name == handoff_name)
         end
       end
-
-      # Public context accessor for testing and prompt blocks
-      attr_reader :context
 
       # Context access now handled by RAAF::DSL::ContextAccess module
 
@@ -2631,13 +2580,9 @@ module RAAF
         self.class._retry_config.each do |error_type, config|
           case error_type
           when :rate_limit
-            if error.message.include?("rate limit")
-              return config
-            end
+            return config if error.message.include?("rate limit")
           when :timeout
-            if error.is_a?(Timeout::Error)
-              return config
-            end
+            return config if error.is_a?(Timeout::Error)
           when :network
             network_match = false
             begin
@@ -2646,13 +2591,9 @@ module RAAF
               # Net::Error class not available in this environment
               network_match = false
             end
-            if network_match || error.message.include?("connection") || error.message.include?("503")
-              return config
-            end
+            return config if network_match || error.message.include?("connection") || error.message.include?("503")
           when Class
-            if error.is_a?(error_type)
-              return config
-            end
+            return config if error.is_a?(error_type)
           end
         end
 
@@ -2734,109 +2675,6 @@ module RAAF
 
         # Return base_result WITHOUT applying transformations
         # Transformations will be applied by process_raaf_result() to avoid double execution
-        base_result
-      end
-
-      # Resolve context for run execution
-      def resolve_run_context(override_context)
-        case override_context
-        when RAAF::DSL::ContextVariables
-          override_context
-        when Hash
-          # Merge override context with instance context
-          merged_data = @context.to_h.merge(override_context)
-          RAAF::DSL::ContextVariables.new(merged_data, debug: @debug_enabled)
-        when nil
-          @context
-        else
-          raise ArgumentError, "Context must be ContextVariables, Hash, or nil"
-        end
-      end
-
-      # Build user prompt with context
-      def build_user_prompt_with_context(run_context)
-        # Set context for prompt access
-        original_context = @context
-        @context = run_context
-
-        # Build prompt
-        prompt = build_user_prompt
-
-        # Restore original context
-        @context = original_context
-
-        prompt
-      end
-
-      # Transform AI result to expected DSL format
-      def transform_ai_result(run_result, run_context)
-        # Extract parsed output from messages (works for any AI provider)
-        parsed_output = extract_final_output(run_result)
-
-        # Extract usage data from run_result if available
-        usage_data = if run_result.respond_to?(:usage)
-                       run_result.usage
-                     elsif run_result.is_a?(Hash) && (run_result[:usage] || run_result["usage"])
-                       run_result[:usage] || run_result["usage"]
-                     else
-                       nil
-                     end
-
-        # Build result in expected DSL format
-        result_hash = {
-          workflow_status: "completed",
-          success: true,
-          message: parsed_output || {},
-          parsed_output: parsed_output,
-          context_variables: run_context,
-          raw_response: run_result,
-          agent_class: self.class.name,
-          agent_name: agent_name,
-          execution_metadata: {
-            executed_at: Time.current,
-            execution_time: nil
-          }
-        }
-
-        # Include usage data if available (for token tracking in evaluations)
-        result_hash[:usage] = usage_data if usage_data
-
-        result_hash
-      end
-
-      # Apply result transformations if configured
-      def apply_result_transformations(base_result)
-        return base_result unless self.class._result_transformations
-
-        transformations = self.class._result_transformations
-        transformed_result = base_result.dup
-        transformations.each do |field, transformation|
-          transformed_result[field] = transformation.call(base_result) if transformation.respond_to?(:call)
-        rescue StandardError
-          # Continue with other transformations
-        end
-
-        transformed_result
-      end
-
-      # Generate automatic transformations for output fields
-      def generate_auto_transformations_for_output_fields(base_result)
-        return base_result unless self.class.respond_to?(:provided_fields)
-
-        output_fields = self.class.provided_fields
-        return base_result if output_fields.nil? || output_fields.empty?
-
-        source_data = base_result[:parsed_output] || base_result[:data] || base_result
-        return base_result unless source_data.respond_to?(:[])
-
-        output_fields.each do |field_name|
-          field_data = source_data[field_name] ||
-                       source_data[field_name.to_s] ||
-                       source_data[field_name.to_sym]
-
-          base_result[field_name] = field_data if field_data
-        end
-
         base_result
       end
 
@@ -3256,7 +3094,7 @@ module RAAF
 
           begin
             RAAF::ProviderRegistry.create(provider_name, **provider_opts)
-          rescue StandardError => e
+          rescue StandardError
             nil
           end
         else
@@ -3502,43 +3340,6 @@ module RAAF
         self.class._execution_conditions.evaluate(context, previous_result)
       end
 
-      # Create a span for skipped agents to make them visible in traces
-      def create_skipped_span(skip_reason, result_data, context)
-        agent_name = self.class._context_config&.dig(:name) || self.class.name
-
-        # Get the tracer following TracingRegistry priority hierarchy
-        tracer = get_tracer_for_skipped_span
-
-        if tracer
-          # Create a span for the skipped agent
-          tracer.agent_span(agent_name) do |span|
-            # Add attributes to indicate this agent was skipped
-            span.set_attribute("agent.skipped", true)
-            span.set_attribute("agent.skip_reason", skip_reason)
-            span.set_attribute("agent.name", agent_name)
-            span.set_attribute("agent.class", self.class.name)
-
-            # Add context information for debugging
-            if context
-              available_keys = context.respond_to?(:keys) ? context.keys : []
-              span.set_attribute("agent.available_context_keys", available_keys.join(", "))
-            end
-
-            # Add any required context that might be missing
-            if self.class._required_context_keys && context
-              missing_keys = self.class._required_context_keys.reject do |key|
-                context.respond_to?(:has?) ? context.has?(key) : context.key?(key)
-              end
-              span.set_attribute("agent.missing_required_keys", missing_keys.join(", ")) if missing_keys.any?
-            end
-
-          end
-        end
-
-        # Return the result data
-        result_data
-      end
-
       # Check if agent has a schema defined
       #
       # Agents without schemas expect raw text output (CSV, plain text, etc.)
@@ -3555,9 +3356,7 @@ module RAAF
 
       def extract_result_data(results)
         # NEW: Handle plain String results (CSV, text output) when no schema defined
-        if results.is_a?(String) && !has_schema_defined?
-          return { success: true, raw_content: results, data: results }
-        end
+        return { success: true, raw_content: results, data: results } if results.is_a?(String) && !has_schema_defined?
 
         # If results is already a Hash with structured data matching agent's output fields, return it
         if results.is_a?(Hash) && !results.empty?
@@ -3697,7 +3496,7 @@ module RAAF
           # Use RAAF::Utils.parse_json to get HashWithIndifferentAccess with nested conversion
           parsed = RAAF::Utils.parse_json(content)
           { success: true, data: parsed }
-        rescue JSON::ParserError => e
+        rescue JSON::ParserError
           # Return content as-is since core Agent handles repair when needed
           { success: true, data: content }
         end
@@ -3730,9 +3529,7 @@ module RAAF
           # Try both string and symbol keys to extract the field
           field_value = source_data[field_key] || source_data[field_symbol]
 
-          if field_value
-            filtered_results[field_symbol] = field_value
-          end
+          filtered_results[field_symbol] = field_value if field_value
         end
 
         # Update the :message key with only the declared output fields
@@ -3974,7 +3771,7 @@ module RAAF
             begin
               # Use Utils.parse_json which returns HashWithIndifferentAccess
               content = RAAF::Utils.parse_json(content)
-            rescue JSON::ParserError => e
+            rescue JSON::ParserError
               # Return as-is if parsing fails
             end
           end
@@ -4034,7 +3831,6 @@ module RAAF
             computed: !field_config[:computed].nil?
           }
         rescue StandardError => e
-
           # Set field to nil or default if transformation fails
           transformed_result[field_name] = field_config[:default] || nil
           metadata[field_name] = { error: e.message }
@@ -4043,11 +3839,9 @@ module RAAF
         # Merge transformed fields into the original result structure
         # This preserves all original fields (like workflow_status, results, etc.)
         # while adding the new transformed fields
-        final_result = base_result.merge(transformed_result).merge(
+        base_result.merge(transformed_result).merge(
           transformation_metadata: metadata
         )
-
-        final_result
       end
 
       def extract_field_value(input_data, field_config)
@@ -4276,7 +4070,7 @@ module RAAF
           begin
             instance_eval(&block)
             @use_automatic_mode = false
-          rescue NoMethodError, NameError
+          rescue NameError
             # If we get NoMethodError or NameError during explicit DSL evaluation,
             # this likely means the block uses automatic context access
             @conditions.clear # Clear any partial conditions
@@ -4540,7 +4334,7 @@ module RAAF
         # Fall back to existing TraceProvider behavior
         begin
           RAAF::Tracing::TraceProvider.tracer
-        rescue NameError, NoMethodError
+        rescue NameError
           # Final fallback if TraceProvider is not available
           nil
         end

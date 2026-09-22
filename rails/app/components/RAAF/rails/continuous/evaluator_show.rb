@@ -57,6 +57,11 @@ module RAAF
           end
         end
 
+        POLICY_COLUMNS = [
+          { label: "Policy", span: 2.4 },
+          { label: "State", span: 0.8, align: :right }
+        ].freeze
+
         private
 
         def header
@@ -139,11 +144,6 @@ module RAAF
         end
 
         # ── Policies ──────────────────────────────────────────────────────
-
-        POLICY_COLUMNS = [
-          { label: "Policy", span: 2.4 },
-          { label: "State", span: 0.8, align: :right }
-        ].freeze
 
         def policies_card
           render(Organisms::Card.new(title: "Graded by", subtitle: policies_subtitle,

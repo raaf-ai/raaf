@@ -207,7 +207,7 @@ module RAAF
           EvaluationResult
             .where(evaluator_name: @result.evaluator_name, span_id: @result.span_id)
             .where.not(id: @result.id)
-            .where(created_at: @now - @window..)
+            .where(created_at: (@now - @window)..)
             .where(
               "COALESCE(metadata->>'field_name', details->>'field_name') = ?",
               field.to_s
@@ -229,7 +229,7 @@ module RAAF
           EvaluationResult
             .where(evaluator_name: @result.evaluator_name)
             .where.not(span_id: @result.span_id)
-            .where(created_at: @now - @window..)
+            .where(created_at: (@now - @window)..)
             .where(
               "COALESCE(metadata->>'field_name', details->>'field_name') = ?",
               field.to_s

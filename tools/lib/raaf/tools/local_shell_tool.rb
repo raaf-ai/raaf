@@ -106,6 +106,33 @@ module RAAF
         )
       end
 
+      ##
+      # Returns the JSON Schema for function parameters
+      #
+      # @return [Hash] Parameter schema for OpenAI function calling
+      #
+      def self.schema
+        {
+          type: "object",
+          properties: {
+            command: {
+              type: "string",
+              description: "The shell command to execute"
+            },
+            args: {
+              type: "array",
+              items: { type: "string" },
+              description: "Command arguments (optional, can be parsed from command)"
+            },
+            working_dir: {
+              type: "string",
+              description: "Working directory for command execution (optional)"
+            }
+          },
+          required: ["command"]
+        }
+      end
+
       private
 
       ##
@@ -253,33 +280,6 @@ module RAAF
         else
           text
         end
-      end
-
-      ##
-      # Returns the JSON Schema for function parameters
-      #
-      # @return [Hash] Parameter schema for OpenAI function calling
-      #
-      def self.schema
-        {
-          type: "object",
-          properties: {
-            command: {
-              type: "string",
-              description: "The shell command to execute"
-            },
-            args: {
-              type: "array",
-              items: { type: "string" },
-              description: "Command arguments (optional, can be parsed from command)"
-            },
-            working_dir: {
-              type: "string",
-              description: "Working directory for command execution (optional)"
-            }
-          },
-          required: ["command"]
-        }
       end
 
     end

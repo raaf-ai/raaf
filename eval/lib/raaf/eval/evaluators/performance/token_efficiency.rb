@@ -47,8 +47,8 @@ module RAAF
               )
               # Simple score mapping: good=1.0, average=0.5, bad=0.0
               score = case label
-                      when :good then 1.0
-                      when :average then 0.5
+                      when "good" then 1.0
+                      when "average" then 0.5
                       else 0.0
                       end
               details = {
@@ -106,13 +106,13 @@ module RAAF
           # @return [Symbol] :good, :average, or :bad
           def calculate_label_from_discrete_thresholds(tokens, good_threshold_tokens:, average_threshold_tokens:)
             # If good_threshold_tokens provided and tokens are under it, return "good"
-            return :good if good_threshold_tokens && tokens <= good_threshold_tokens
+            return "good" if good_threshold_tokens && tokens <= good_threshold_tokens
 
             # If average_threshold_tokens provided and tokens are under it, return "average"
-            return :average if average_threshold_tokens && tokens <= average_threshold_tokens
+            return "average" if average_threshold_tokens && tokens <= average_threshold_tokens
 
             # Otherwise, return "bad"
-            :bad
+            "bad"
           end
         end
       end

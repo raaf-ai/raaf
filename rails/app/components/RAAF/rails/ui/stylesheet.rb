@@ -62,7 +62,7 @@ module RAAF
           end
 
           def paths_for(layer)
-            paths = ::Dir.glob(::File.join(ROOT, layer, "*.css")).sort
+            paths = ::Dir.glob(::File.join(ROOT, layer, "*.css"))
             return paths unless layer == "generic"
 
             paths.sort_by { |path| GENERIC_ORDER.index(::File.basename(path, ".css")) || GENERIC_ORDER.size }

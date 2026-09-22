@@ -172,7 +172,6 @@ module RAAF
           }
         end
 
-
         def set_cost_manager
           @cost_manager = RAAF::Tracing::CostManager.new(
             tenant_field: "tenant_id",

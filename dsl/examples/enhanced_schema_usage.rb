@@ -82,7 +82,7 @@ puts <<~AGENT_EXAMPLE
     agent_name "MarketAnalysisAgent"
     model "gpt-5"
 
-    # <¯ NEW: Concise schema with model introspection + semantic types
+    # NEW: Concise schema with model introspection + semantic types
     schema model: Market do
       override :overall_score, type: :score      # 0-100 integer with validation
       override :confidence_level, type: :percentage  # 0-100 number
@@ -119,11 +119,11 @@ COMPOSITION_EXAMPLE
 
 # Example 5: Performance Benefits
 puts "\n=== Performance Benefits ==="
-puts " 80% code reduction (100+ lines ’ 3 lines)"
-puts " Automatic model sync (no manual field duplication)"
-puts " Type safety with semantic validation"
-puts " Intelligent caching (< 1ms for cached schemas)"
-puts " Zero maintenance overhead"
+puts "80% code reduction (100+ lines -> 3 lines)"
+puts "Automatic model sync (no manual field duplication)"
+puts "Type safety with semantic validation"
+puts "Intelligent caching (< 1ms for cached schemas)"
+puts "Zero maintenance overhead"
 
 # Example 6: Migration Path
 puts "\n=== Migration Instructions ==="

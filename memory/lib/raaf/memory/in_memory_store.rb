@@ -43,6 +43,7 @@ module RAAF
       # Creates an empty memory store with thread-safety via Mutex.
       #
       def initialize
+        super
         @memories = {}
         @mutex = Mutex.new
       end

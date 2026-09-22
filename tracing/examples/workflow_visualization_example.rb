@@ -338,6 +338,6 @@ puts "🖼️  Custom charts: visualizer.create_custom_chart(data, chart_type)"
 puts "📱 Mobile-optimized: visualizer.generate_mobile_report(workflow)"
 
 # Clean up generated files
-File.delete(report_filename) if File.exist?(report_filename)
+FileUtils.rm_f(report_filename)
 
 puts "\n✅ Visualization example completed and files cleaned up"

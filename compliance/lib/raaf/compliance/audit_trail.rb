@@ -625,7 +625,7 @@ module RAAF
       def get_last_record
         last_record = nil
 
-        Dir.glob(File.join(@base_path, "*.json")).sort.reverse.each do |file|
+        Dir.glob(File.join(@base_path, "*.json")).reverse.each do |file|
           File.readlines(file).reverse.each do |line|
             record = JSON.parse(line.strip, symbolize_names: true)
             return record if last_record.nil? || record[:sequence_number] > last_record[:sequence_number]

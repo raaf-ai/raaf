@@ -106,7 +106,7 @@ module RAAF
         # Print overall assessment
         def print_overall_assessment
           summary = @aggregator.performance_summary
-          all_passed = summary[:success_rate] == 1.0
+          all_passed = summary[:success_rate] >= 1.0
           status_emoji = all_passed ? EMOJI[:success] : EMOJI[:failure]
 
           puts "=" * 80

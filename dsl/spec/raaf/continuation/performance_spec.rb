@@ -72,8 +72,8 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
       end
 
       # With continuation: split and merge
-      chunk1 = { content: content[0...content.length / 2] + "\n", truncated: true, finish_reason: "length" }
-      chunk2 = { content: content[content.length / 2..-1], truncated: false, finish_reason: "stop" }
+      chunk1 = { content: content[0...(content.length / 2)] + "\n", truncated: true, finish_reason: "length" }
+      chunk2 = { content: content[(content.length / 2)..-1], truncated: false, finish_reason: "stop" }
 
       csv_merger = RAAF::Continuation::Mergers::CSVMerger.new(config)
       merge_time = Benchmark.realtime do
@@ -96,8 +96,8 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
       end
 
       # Split for merge
-      chunk1 = { content: content[0...content.length / 2], truncated: true, finish_reason: "length" }
-      chunk2 = { content: content[content.length / 2..-1], truncated: false, finish_reason: "stop" }
+      chunk1 = { content: content[0...(content.length / 2)], truncated: true, finish_reason: "length" }
+      chunk2 = { content: content[(content.length / 2)..-1], truncated: false, finish_reason: "stop" }
 
       markdown_merger = RAAF::Continuation::Mergers::MarkdownMerger.new(config)
       merge_time = Benchmark.realtime do
@@ -119,8 +119,8 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
       end
 
       # Split for merge
-      chunk1 = { content: content[0...content.length / 2] + "\n", truncated: true, finish_reason: "length" }
-      chunk2 = { content: content[content.length / 2..-1], truncated: false, finish_reason: "stop" }
+      chunk1 = { content: content[0...(content.length / 2)] + "\n", truncated: true, finish_reason: "length" }
+      chunk2 = { content: content[(content.length / 2)..-1], truncated: false, finish_reason: "stop" }
 
       json_merger = RAAF::Continuation::Mergers::JSONMerger.new(config)
       merge_time = Benchmark.realtime do
@@ -159,8 +159,8 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
       rows = (1..200).map { |i| "| #{i} | Item#{i} | #{rand(1000)} |" }.join("\n")
       content = header + rows
 
-      chunk1 = { content: content[0...content.length / 2], truncated: true, finish_reason: "length" }
-      chunk2 = { content: content[content.length / 2..-1], truncated: false, finish_reason: "stop" }
+      chunk1 = { content: content[0...(content.length / 2)], truncated: true, finish_reason: "length" }
+      chunk2 = { content: content[(content.length / 2)..-1], truncated: false, finish_reason: "stop" }
 
       markdown_merger = RAAF::Continuation::Mergers::MarkdownMerger.new(config)
 
@@ -175,8 +175,8 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
       items = (1..1000).map { |i| { id: i, name: "Item#{i}", value: rand(1000) } }
       content = JSON.generate(items)
 
-      chunk1 = { content: content[0...content.length / 2] + "\n", truncated: true, finish_reason: "length" }
-      chunk2 = { content: content[content.length / 2..-1], truncated: false, finish_reason: "stop" }
+      chunk1 = { content: content[0...(content.length / 2)] + "\n", truncated: true, finish_reason: "length" }
+      chunk2 = { content: content[(content.length / 2)..-1], truncated: false, finish_reason: "stop" }
 
       json_merger = RAAF::Continuation::Mergers::JSONMerger.new(config)
 
@@ -237,8 +237,8 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
       content = JSON.generate(companies)
 
       # Split into chunks
-      chunk1 = { content: content[0...content.length / 2] + "\n", truncated: true, finish_reason: "length" }
-      chunk2 = { content: content[content.length / 2..-1], truncated: false, finish_reason: "stop" }
+      chunk1 = { content: content[0...(content.length / 2)] + "\n", truncated: true, finish_reason: "length" }
+      chunk2 = { content: content[(content.length / 2)..-1], truncated: false, finish_reason: "stop" }
 
       json_merger = RAAF::Continuation::Mergers::JSONMerger.new(config)
 
@@ -262,8 +262,8 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
         markdown += "\n\n"
       end
 
-      chunk1 = { content: markdown[0...markdown.length / 2], truncated: true, finish_reason: "length" }
-      chunk2 = { content: markdown[markdown.length / 2..-1], truncated: false, finish_reason: "stop" }
+      chunk1 = { content: markdown[0...(markdown.length / 2)], truncated: true, finish_reason: "length" }
+      chunk2 = { content: markdown[(markdown.length / 2)..-1], truncated: false, finish_reason: "stop" }
 
       markdown_merger = RAAF::Continuation::Mergers::MarkdownMerger.new(config)
 
@@ -286,8 +286,8 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
       content = "id,name,status,date\n#{rows}\n"
 
       # Create chunks
-      chunk1 = { content: content[0...content.length / 2], truncated: true, finish_reason: "length" }
-      chunk2 = { content: content[content.length / 2..-1], truncated: false, finish_reason: "stop" }
+      chunk1 = { content: content[0...(content.length / 2)], truncated: true, finish_reason: "length" }
+      chunk2 = { content: content[(content.length / 2)..-1], truncated: false, finish_reason: "stop" }
 
       csv_merger = RAAF::Continuation::Mergers::CSVMerger.new(config)
 
@@ -307,8 +307,8 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
       items = (1..2000).map { |i| { id: i, name: "Item#{i}", data: "X" * 100 } }
       content = JSON.generate(items)
 
-      chunk1 = { content: content[0...content.length / 2] + "\n", truncated: true, finish_reason: "length" }
-      chunk2 = { content: content[content.length / 2..-1], truncated: false, finish_reason: "stop" }
+      chunk1 = { content: content[0...(content.length / 2)] + "\n", truncated: true, finish_reason: "length" }
+      chunk2 = { content: content[(content.length / 2)..-1], truncated: false, finish_reason: "stop" }
 
       json_merger = RAAF::Continuation::Mergers::JSONMerger.new(config)
 
@@ -358,8 +358,8 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
       # Multiple merges with increasing data
       [100, 250, 500].each do |row_count|
         rows = (1..row_count).map { |i| "#{i},Item#{i},Active" }.join("\n")
-        chunk1 = { content: "id,name,status\n#{rows[0...rows.length / 2]}\n", truncated: true, finish_reason: "length" }
-        chunk2 = { content: "#{rows[rows.length / 2..-1]}\n", truncated: false, finish_reason: "stop" }
+        chunk1 = { content: "id,name,status\n#{rows[0...(rows.length / 2)]}\n", truncated: true, finish_reason: "length" }
+        chunk2 = { content: "#{rows[(rows.length / 2)..-1]}\n", truncated: false, finish_reason: "stop" }
 
         time_taken = Benchmark.realtime do
           csv_merger.merge([chunk1, chunk2])
@@ -483,8 +483,8 @@ RSpec.describe "RAAF::Continuation Performance Tests" do
   describe "concurrent merge operations" do
     it "handles concurrent merges without performance degradation" do
       csv_content = "id,name\n" + (1..100).map { |i| "#{i},Item#{i}" }.join("\n")
-      chunk1 = { content: csv_content[0...csv_content.length / 2], truncated: true, finish_reason: "length" }
-      chunk2 = { content: csv_content[csv_content.length / 2..-1], truncated: false, finish_reason: "stop" }
+      chunk1 = { content: csv_content[0...(csv_content.length / 2)], truncated: true, finish_reason: "length" }
+      chunk2 = { content: csv_content[(csv_content.length / 2)..-1], truncated: false, finish_reason: "stop" }
 
       csv_merger = RAAF::Continuation::Mergers::CSVMerger.new(config)
 

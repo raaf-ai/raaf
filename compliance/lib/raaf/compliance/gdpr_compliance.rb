@@ -540,30 +540,19 @@ module RAAF
       def verify_user_identity(_user_id, verification_method)
         # In a real implementation, this would verify user identity
         # through various methods (email, phone, etc.)
-        case verification_method
-        when "email_verification"
-          # Verify email token
-          true
-        when "phone_verification"
-          # Verify phone token
-          true
-        else
-          false
-        end
+        %w[email_verification phone_verification].include?(verification_method)
       end
 
       def erasure_required?(user_id, reason)
         # Check if erasure is legally required
         case reason
-        when "user_request"
-          # Check if user has right to erasure
+        # A user's own request, and processing that was unlawful to begin with,
+        # both oblige erasure outright.
+        when "user_request", "unlawful_processing"
           true
         when "consent_withdrawn"
-          # Check if consent was the only legal basis
+          # Only if consent was the sole legal basis
           !has_other_legal_bases?(user_id)
-        when "unlawful_processing"
-          # Always required for unlawful processing
-          true
         else
           false
         end
@@ -601,8 +590,6 @@ module RAAF
 
       def format_user_data(user_data, format)
         case format
-        when :json
-          JSON.pretty_generate(user_data)
         when :csv
           # Convert to CSV format
           CSV.generate { |csv| flatten_to_csv(user_data, csv) }
@@ -610,6 +597,7 @@ module RAAF
           # Convert to XML format
           user_data.to_xml
         else
+          # JSON is both the :json format and the fallback for anything else.
           JSON.pretty_generate(user_data)
         end
       end
@@ -693,18 +681,7 @@ module RAAF
 
       def restriction_justified?(_user_id, reason)
         # Check if restriction is justified
-        case reason
-        when "accuracy_contested"
-          true
-        when "unlawful_processing"
-          true
-        when "data_no_longer_needed"
-          true
-        when "objection_pending"
-          true
-        else
-          false
-        end
+        %w[accuracy_contested unlawful_processing data_no_longer_needed objection_pending].include?(reason)
       end
 
       def apply_processing_restriction(_user_id, reason)
@@ -718,28 +695,12 @@ module RAAF
 
       def objection_valid?(_user_id, processing_purpose)
         # Check if objection is valid
-        case processing_purpose
-        when "marketing"
-          true
-        when "profiling"
-          true
-        when "legitimate_interests"
-          true
-        else
-          false
-        end
+        %w[marketing profiling legitimate_interests].include?(processing_purpose)
       end
 
       def compelling_legitimate_interests?(_user_id, processing_purpose)
         # Check for compelling legitimate interests
-        case processing_purpose
-        when "fraud_prevention"
-          true
-        when "security"
-          true
-        else
-          false
-        end
+        %w[fraud_prevention security].include?(processing_purpose)
       end
 
       def stop_processing_for_purpose(_user_id, processing_purpose)
@@ -753,62 +714,27 @@ module RAAF
 
       def contract_necessity?(_user_id, processing_purpose)
         # Check if processing is necessary for contract
-        case processing_purpose
-        when "service_delivery"
-          true
-        when "billing"
-          true
-        else
-          false
-        end
+        %w[service_delivery billing].include?(processing_purpose)
       end
 
       def legal_obligation?(processing_purpose)
         # Check if processing is required by law
-        case processing_purpose
-        when "tax_compliance"
-          true
-        when "audit_requirements"
-          true
-        else
-          false
-        end
+        %w[tax_compliance audit_requirements].include?(processing_purpose)
       end
 
       def vital_interests?(_user_id, processing_purpose)
         # Check if processing protects vital interests
-        case processing_purpose
-        when "emergency_response"
-          true
-        when "health_monitoring"
-          true
-        else
-          false
-        end
+        %w[emergency_response health_monitoring].include?(processing_purpose)
       end
 
       def public_task?(processing_purpose)
         # Check if processing is for public task
-        case processing_purpose
-        when "public_service"
-          true
-        when "regulatory_compliance"
-          true
-        else
-          false
-        end
+        %w[public_service regulatory_compliance].include?(processing_purpose)
       end
 
       def legitimate_interests?(_user_id, processing_purpose)
         # Check if processing is for legitimate interests
-        case processing_purpose
-        when "service_improvement"
-          true
-        when "fraud_prevention"
-          true
-        else
-          false
-        end
+        %w[service_improvement fraud_prevention].include?(processing_purpose)
       end
 
       def has_other_legal_bases?(_user_id)

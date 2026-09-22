@@ -134,10 +134,10 @@ module RAAF
           previous = @versions[index + 1]
 
           Molecules::RowActions.new(actions: [
-                                      (diff_action(previous, version) if previous),
-                                      (publish_action(version) if version.draft?),
-                                      (archive_action(version) unless version.archived?)
-                                    ].compact)
+            (diff_action(previous, version) if previous),
+            (publish_action(version) if version.draft?),
+            (archive_action(version) unless version.archived?)
+          ].compact)
         end
 
         def diff_action(previous, version)

@@ -554,7 +554,9 @@ module RAAF
     # Configuration class
     class Configuration
 
-      attr_writer :log_level, :log_format, :log_output, :log_file, :debug_categories
+      # `debug_categories=` is written out below: it normalises what it is
+      # given, which a generated writer cannot do.
+      attr_writer :log_level, :log_format, :log_output, :log_file
 
       def initialize
         # Defer environment variable reading until values are accessed

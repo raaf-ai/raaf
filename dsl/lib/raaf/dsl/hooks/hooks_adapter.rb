@@ -147,7 +147,7 @@ module RAAF
               last_result = hook.call(data)
 
             end
-          rescue StandardError => e
+          rescue StandardError
             # Continue with other hooks even if one fails
           end
 

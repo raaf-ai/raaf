@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require "active_support/core_ext/hash/indifferent_access"
-require "set"
 
 # Swarm-style context variables management with debugging support and deep indifferent access
 #
@@ -273,7 +272,6 @@ module RAAF
           @variables.dup
         end
       end
-      alias to_hash to_h
 
       # JSON serialization support
       #
@@ -529,7 +527,7 @@ module RAAF
       def validate_variables!
         return unless @validate_enabled
 
-        @variables.each do |key, value|
+        @variables.each do |key, _value|
           # With indifferent access, keys are automatically normalized to strings
           # so we just check for basic validity
           unless key.respond_to?(:to_s)

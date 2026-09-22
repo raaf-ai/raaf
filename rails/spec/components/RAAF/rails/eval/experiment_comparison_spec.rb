@@ -9,7 +9,7 @@ require "active_support/core_ext/string/filters"
 
 ui_root = File.expand_path("../../../../../app/components/RAAF/rails/ui", __dir__)
 require File.join(ui_root, "base")
-Dir[File.join(ui_root, "{atoms,molecules,organisms}/*.rb")].sort.each { |file| require file }
+Dir[File.join(ui_root, "{atoms,molecules,organisms}/*.rb")].each { |file| require file }
 require File.expand_path("../../../../../app/components/RAAF/rails/tracing/base_component", __dir__)
 require File.expand_path("../../../../../app/components/RAAF/rails/eval/experiment_comparison", __dir__)
 
@@ -97,7 +97,7 @@ module RAAF
         # A run is judged by what it broke. Opening on the cases that did not
         # move buries the answer.
         it "lists the worst fall first" do
-          rows = html.scan(/#(\d+)<\/span>/).flatten
+          rows = html.scan(%r{#(\d+)</span>}).flatten
           expect(rows.first).to eq("1")
         end
 

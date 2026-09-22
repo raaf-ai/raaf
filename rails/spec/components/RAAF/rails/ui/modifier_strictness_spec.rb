@@ -48,7 +48,7 @@ RSpec.describe RAAF::Rails::Ui::Base, type: :component do
 
     # A cosmetic fault must not become a 500 in front of a user.
     it "degrades to no modifier in production, as it always did" do
-      allow(::Rails.env).to receive(:production?).and_return(true)
+      allow(Rails.env).to receive(:production?).and_return(true)
 
       expect(modifier(:danger)).to be_nil
     end

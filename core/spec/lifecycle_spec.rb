@@ -91,9 +91,9 @@ RSpec.describe "RAAF::Lifecycle" do
 
       it "can be overridden to validate tool usage" do
         custom_hooks = Class.new(described_class) do
-          # rubocop:disable Lint/ConstantDefinitionInBlock, RSpec/LeakyConstantDeclaration
+          # rubocop:disable RSpec/LeakyConstantDeclaration
           ALLOWED_TOOLS = %w[allowed_tool].freeze
-          # rubocop:enable Lint/ConstantDefinitionInBlock, RSpec/LeakyConstantDeclaration
+          # rubocop:enable RSpec/LeakyConstantDeclaration
 
           def on_tool_start(context, _agent, tool, _arguments = {})
             raise "Unauthorized tool: #{tool.name}" unless ALLOWED_TOOLS.include?(tool.name)

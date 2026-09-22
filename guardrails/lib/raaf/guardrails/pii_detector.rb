@@ -367,6 +367,42 @@ module RAAF
         @detection_stats.clear
       end
 
+      # Luhn algorithm for credit card validation
+      def self.luhn_valid?(number)
+        return false unless number.match?(/^\d+$/)
+
+        digits = number.chars.map(&:to_i)
+        check_sum = digits.reverse.each_with_index.map do |digit, index|
+          if index.odd?
+            digit * 2 > 9 ? (digit * 2) - 9 : digit * 2
+          else
+            digit
+          end
+        end.sum
+
+        (check_sum % 10).zero?
+      end
+
+      # Date validation
+      def self.valid_date?(date_str)
+        Date.parse(date_str.gsub(%r{[-/]}, "-"))
+        true
+      rescue ArgumentError
+        false
+      end
+
+      # Name validation using common names
+      def self.common_name?(name)
+        parts = name.split(/\s+/)
+        return false if parts.length < 2
+
+        first_name = parts.first
+        last_name = parts.last
+
+        COMMON_FIRST_NAMES.any? { |n| n.casecmp(first_name) == 0 } ||
+          COMMON_LAST_NAMES.any? { |n| n.casecmp(last_name) == 0 }
+      end
+
       private
 
       def confidence_threshold_for_level(level)
@@ -526,42 +562,6 @@ module RAAF
         else
           true
         end
-      end
-
-      # Luhn algorithm for credit card validation
-      def self.luhn_valid?(number)
-        return false unless number.match?(/^\d+$/)
-
-        digits = number.chars.map(&:to_i)
-        check_sum = digits.reverse.each_with_index.map do |digit, index|
-          if index.odd?
-            digit * 2 > 9 ? (digit * 2) - 9 : digit * 2
-          else
-            digit
-          end
-        end.sum
-
-        (check_sum % 10).zero?
-      end
-
-      # Date validation
-      def self.valid_date?(date_str)
-        Date.parse(date_str.gsub(%r{[-/]}, "-"))
-        true
-      rescue ArgumentError
-        false
-      end
-
-      # Name validation using common names
-      def self.common_name?(name)
-        parts = name.split(/\s+/)
-        return false if parts.length < 2
-
-        first_name = parts.first
-        last_name = parts.last
-
-        COMMON_FIRST_NAMES.any? { |n| n.casecmp(first_name) == 0 } ||
-          COMMON_LAST_NAMES.any? { |n| n.casecmp(last_name) == 0 }
       end
 
     end

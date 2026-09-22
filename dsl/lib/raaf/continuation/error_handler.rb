@@ -123,37 +123,35 @@ module RAAF
       # @return [Hash] Result with fallback_level metadata
 
       def attempt_level_2_concatenation(chunks, _config, _original_error)
-        begin
-          combined_content = simple_concatenate(chunks)
+        combined_content = simple_concatenate(chunks)
 
-          {
-            content: combined_content,
-            metadata: {
-              merge_success: true,
-              fallback_level: 2,
-              fallback_used: true,
-              fallback_reason: "Format-specific merge failed, used concatenation",
-              chunk_count: chunks.is_a?(Array) ? chunks.size : 0,
-              timestamp: Time.now.iso8601
+        {
+          content: combined_content,
+          metadata: {
+            merge_success: true,
+            fallback_level: 2,
+            fallback_used: true,
+            fallback_reason: "Format-specific merge failed, used concatenation",
+            chunk_count: chunks.is_a?(Array) ? chunks.size : 0,
+            timestamp: Time.now.iso8601
+          }
+        }
+      rescue StandardError => e
+        {
+          content: nil,
+          metadata: {
+            merge_success: false,
+            fallback_level: 2,
+            fallback_used: false,
+            fallback_reason: "Concatenation failed: #{e.class.name}",
+            chunk_count: chunks.is_a?(Array) ? chunks.size : 0,
+            timestamp: Time.now.iso8601,
+            merge_error: {
+              error_class: e.class.name,
+              error_message: e.message
             }
           }
-        rescue StandardError => e
-          {
-            content: nil,
-            metadata: {
-              merge_success: false,
-              fallback_level: 2,
-              fallback_used: false,
-              fallback_reason: "Concatenation failed: #{e.class.name}",
-              chunk_count: chunks.is_a?(Array) ? chunks.size : 0,
-              timestamp: Time.now.iso8601,
-              merge_error: {
-                error_class: e.class.name,
-                error_message: e.message
-              }
-            }
-          }
-        end
+        }
       end
 
       # Attempt Level 3: First chunk only
@@ -167,52 +165,50 @@ module RAAF
       # @return [Hash] Result with fallback_level metadata
 
       def attempt_level_3_first_chunk(chunks, _config, _original_error)
-        begin
-          first_content = extract_first_valid_chunk(chunks)
+        first_content = extract_first_valid_chunk(chunks)
 
-          if first_content
+        if first_content
 
-            {
-              content: first_content,
-              metadata: {
-                merge_success: true,
-                fallback_level: 3,
-                fallback_used: true,
-                fallback_reason: "Both merge and concatenation failed, using first chunk only",
-                chunk_count: chunks.is_a?(Array) ? chunks.size : 0,
-                timestamp: Time.now.iso8601
-              }
+          {
+            content: first_content,
+            metadata: {
+              merge_success: true,
+              fallback_level: 3,
+              fallback_used: true,
+              fallback_reason: "Both merge and concatenation failed, using first chunk only",
+              chunk_count: chunks.is_a?(Array) ? chunks.size : 0,
+              timestamp: Time.now.iso8601
             }
-          else
-            {
-              content: nil,
-              metadata: {
-                merge_success: false,
-                fallback_level: 3,
-                fallback_used: false,
-                fallback_reason: "No valid content found in any chunk",
-                chunk_count: chunks.is_a?(Array) ? chunks.size : 0,
-                timestamp: Time.now.iso8601
-              }
-            }
-          end
-        rescue StandardError => e
+          }
+        else
           {
             content: nil,
             metadata: {
               merge_success: false,
               fallback_level: 3,
               fallback_used: false,
-              fallback_reason: "First chunk extraction failed: #{e.class.name}",
+              fallback_reason: "No valid content found in any chunk",
               chunk_count: chunks.is_a?(Array) ? chunks.size : 0,
-              timestamp: Time.now.iso8601,
-              merge_error: {
-                error_class: e.class.name,
-                error_message: e.message
-              }
+              timestamp: Time.now.iso8601
             }
           }
         end
+      rescue StandardError => e
+        {
+          content: nil,
+          metadata: {
+            merge_success: false,
+            fallback_level: 3,
+            fallback_used: false,
+            fallback_reason: "First chunk extraction failed: #{e.class.name}",
+            chunk_count: chunks.is_a?(Array) ? chunks.size : 0,
+            timestamp: Time.now.iso8601,
+            merge_error: {
+              error_class: e.class.name,
+              error_message: e.message
+            }
+          }
+        }
       end
 
       # Handle the final result based on configuration

@@ -88,7 +88,7 @@ module RAAF
           return unless %w[completed failed].include?(@experiment.status)
 
           render Atoms::Link.new("compare with another run", mono: true,
-                                 href: compare_eval_experiment_path(@experiment))
+                                                             href: compare_eval_experiment_path(@experiment))
         end
 
         def post_button(label, icon, action, variant: nil)

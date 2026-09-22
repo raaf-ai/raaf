@@ -75,7 +75,7 @@ module Raaf
             return
           end
 
-          Dir.glob("#{source_path}/*.rb").sort.each do |migration_file|
+          Dir.glob("#{source_path}/*.rb").each do |migration_file|
             # Extract migration name without numeric prefix
             original_filename = File.basename(migration_file)
             migration_name = original_filename.sub(/^\d+_/, "")

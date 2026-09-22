@@ -35,7 +35,7 @@ class AddAgentVersionIndexToRAAFEvaluationResults < ActiveRecord::Migration[7.0]
 
   def down
     remove_index :raaf_evaluation_results, name: INDEX_NAME,
-                 algorithm: :concurrently, if_exists: true
+                                           algorithm: :concurrently, if_exists: true
   end
 
   private

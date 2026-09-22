@@ -179,9 +179,7 @@ module RAAF
     #
     def call(**kwargs)
       with_throttle(:call) do
-        if @callable.is_a?(Method)
-          @callable.call(**kwargs)
-        elsif @callable.is_a?(Proc)
+        if @callable.is_a?(Proc)
           # Handle both keyword and positional parameters for procs
           params = @callable.parameters
           if params.empty? || params.any? { |type, _| %i[keyreq key keyrest].include?(type) }
@@ -193,8 +191,8 @@ module RAAF
             @callable.call(*args)
           end
         elsif @callable.respond_to?(:call)
-          # Support duck typing for any object that responds to :call
-          # This includes DSL tool instances and other callable objects
+          # A Method lands here, as does any duck-typed callable: DSL tool
+          # instances and anything else that answers :call.
           @callable.call(**kwargs)
         else
           raise ToolError, "Callable must be a Method, Proc, or object that responds to :call"

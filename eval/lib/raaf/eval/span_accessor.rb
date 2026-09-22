@@ -52,5 +52,3 @@ module RAAF
     end
   end
 end
-
-require "ostruct"

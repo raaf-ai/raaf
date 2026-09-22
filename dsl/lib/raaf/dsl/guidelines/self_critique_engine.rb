@@ -76,8 +76,7 @@ module RAAF
                 evaluation_duration_ms: duration_ms
               )
             end
-          rescue StandardError => e
-
+          rescue StandardError
             # On error, pass through (fail open for reliability)
             CritiqueResult.success(
               guidelines_evaluated: guidelines.size,
@@ -208,7 +207,7 @@ module RAAF
                 output_excerpt: eval[:excerpt]
               ).to_h
             end
-          rescue JSON::ParserError => e
+          rescue JSON::ParserError
             # Try simple text-based parsing as fallback
             violations = parse_text_response(response, guidelines)
           end

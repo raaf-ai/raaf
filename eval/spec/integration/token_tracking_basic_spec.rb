@@ -62,9 +62,6 @@ RSpec.describe "Token Tracking Pipeline", type: :integration do
         # Execute agent
         result = runner.run("Test message")
 
-        # Debug: Print usage data
-        puts "DEBUG: result.usage = #{result.usage.inspect}"
-
         # Step 1: Verify RunResult has normalized token fields
         expect(result).to be_a(RAAF::RunResult)
         expect(result.usage).to be_a(Hash)

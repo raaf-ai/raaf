@@ -642,7 +642,11 @@ RSpec.describe "RAAF::Tracing spans" do
             expect(span.attributes["pipeline.name"]).to eq("")
           end
 
-          tracer.pipeline_span("") {}
+          tracer.pipeline_span("") do
+            # The span body is deliberately empty: what is under test is the
+
+            # span the tracer opens, asserted in the expectation above.
+          end
         end
 
         it "handles complex pipeline attributes" do
@@ -682,7 +686,11 @@ RSpec.describe "RAAF::Tracing spans" do
             expect(span.attributes["tool.name"]).to eq("web_search")
           end
 
-          tracer.tool_span("web_search") {}
+          tracer.tool_span("web_search") do
+            # The span body is deliberately empty: what is under test is the
+
+            # span the tracer opens, asserted in the expectation above.
+          end
         end
       end
 
@@ -693,7 +701,11 @@ RSpec.describe "RAAF::Tracing spans" do
             expect(span.kind).to eq(:llm)
           end
 
-          tracer.http_span("POST /v1/responses") {}
+          tracer.http_span("POST /v1/responses") do
+            # The span body is deliberately empty: what is under test is the
+
+            # span the tracer opens, asserted in the expectation above.
+          end
         end
       end
 
@@ -706,7 +718,11 @@ RSpec.describe "RAAF::Tracing spans" do
             expect(span.attributes["handoff.to"]).to eq("Agent2")
           end
 
-          tracer.handoff_span("Agent1", "Agent2") {}
+          tracer.handoff_span("Agent1", "Agent2") do
+            # The span body is deliberately empty: what is under test is the
+
+            # span the tracer opens, asserted in the expectation above.
+          end
         end
       end
 
@@ -719,7 +735,11 @@ RSpec.describe "RAAF::Tracing spans" do
             expect(span.attributes["custom.data"]).to eq({ records: 100 })
           end
 
-          tracer.custom_span("validation", { records: 100 }) {}
+          tracer.custom_span("validation", { records: 100 }) do
+            # The span body is deliberately empty: what is under test is the
+
+            # span the tracer opens, asserted in the expectation above.
+          end
         end
       end
     end
@@ -901,7 +921,7 @@ RSpec.describe "RAAF::Tracing spans" do
       let(:processor) { described_class.new(temp_file) }
       let(:span) { RAAF::Tracing::Span.new(name: "test.span") }
 
-      after { File.delete(temp_file) if File.exist?(temp_file) }
+      after { FileUtils.rm_f(temp_file) }
 
       describe "#on_span_start" do
         it "writes span start event to file" do

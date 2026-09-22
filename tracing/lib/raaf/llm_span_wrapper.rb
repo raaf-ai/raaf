@@ -3,10 +3,14 @@
 require_relative "../logging"
 
 module RAAF
+
   module Tracing
+
     # Wrapper to ensure LLM span data is properly captured
     class LLMSpanWrapper
+
       include RAAF::Logger
+
       def self.wrap_provider(provider, tracer)
         return provider unless tracer
 
@@ -62,9 +66,8 @@ module RAAF
           response = @provider.chat_completion(**kwargs)
 
           log_debug_tracing("LLM response received",
-            response_keys: response.keys,
-            has_usage: !response["usage"].nil?
-          )
+                            response_keys: response.keys,
+                            has_usage: !response["usage"].nil?)
 
           # Extract and set response attributes
           if response.is_a?(Hash)
@@ -119,6 +122,9 @@ module RAAF
         # TODO: Implement streaming span capture
         @provider.stream_completion(**)
       end
+
     end
+
   end
+
 end

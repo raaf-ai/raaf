@@ -57,8 +57,8 @@ RSpec.describe "RAAF::Continuation Integration Tests" do
       rows = (1..1000).map { |i| "#{i},Item#{i},Active" }.join("\n")
 
       # A truncated response stops mid-row, without a closing newline.
-      chunk1 = { content: header + rows[0...rows.length / 2], truncated: true, finish_reason: "length" }
-      chunk2 = { content: rows[rows.length / 2..-1] + "\n", truncated: false, finish_reason: "stop" }
+      chunk1 = { content: header + rows[0...(rows.length / 2)], truncated: true, finish_reason: "length" }
+      chunk2 = { content: rows[(rows.length / 2)..-1] + "\n", truncated: false, finish_reason: "stop" }
 
       csv_merger = RAAF::Continuation::Mergers::CSVMerger.new(config)
 

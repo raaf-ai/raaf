@@ -50,6 +50,9 @@ module RAAF
 
             results = @agents.map do |agent|
               Thread.new do
+                # #value below joins every thread and re-raises whatever failed,
+                # so Ruby's own report would print the same backtrace twice.
+                Thread.current.report_on_exception = false
                 execute_single(agent, context.dup) # Each agent gets own context copy
               end
             end.map(&:value)

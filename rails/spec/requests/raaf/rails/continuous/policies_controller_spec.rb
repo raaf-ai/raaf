@@ -94,11 +94,12 @@ RSpec.describe RAAF::Rails::Continuous::PoliciesController, type: :request do
         end.not_to change(EvaluationPolicy, :count)
       end
 
-      it "renders the new template with unprocessable entity status" do
+      # Rack 3.2 deprecated :unprocessable_entity in favour of :unprocessable_content.
+      it "renders the new template with unprocessable content status" do
         allow(RAAF::Eval::Continuous::EvaluatorDiscovery).to receive(:evaluator_details).and_return([])
 
         post continuous_policies_path, params: { evaluation_policy: invalid_attributes }
-        expect(response).to have_http_status(:unprocessable_entity)
+        expect(response).to have_http_status(:unprocessable_content)
       end
     end
   end

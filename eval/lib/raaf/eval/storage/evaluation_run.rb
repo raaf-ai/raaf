@@ -41,10 +41,6 @@ module RAAF
           @runs.map(&)
         end
 
-        def each(&)
-          @runs.each(&)
-        end
-
         include Enumerable
 
         def each(&)

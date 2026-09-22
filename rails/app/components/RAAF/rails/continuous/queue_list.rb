@@ -254,8 +254,12 @@ module RAAF
         def row_traces
           @row_traces ||= begin
             ids = (@queue.waiting + @queue.failed).filter_map { |row| row[:span_id] }.uniq
-            ids.empty? ? {} : RAAF::Rails::Tracing::SpanRecord.where(span_id: ids)
-                                                             .pluck(:span_id, :trace_id).to_h
+            if ids.empty?
+              {}
+            else
+              RAAF::Rails::Tracing::SpanRecord.where(span_id: ids)
+                                              .pluck(:span_id, :trace_id).to_h
+            end
           end
         end
 

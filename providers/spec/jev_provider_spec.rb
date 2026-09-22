@@ -194,6 +194,10 @@ RSpec.describe RAAF::Models::JevProvider do
   end
 
   describe "error handling" do
+    # A 429 is retryable, so this group walks the full retry ladder. At the
+    # default one-second base delay that is ~15 seconds of real sleep.
+    before { provider.configure_retry(base_delay: 0.001, max_delay: 0.005) }
+
     it "raises AuthenticationError on 401" do
       stub_systemone({ "error" => { "message" => "bad key" } }, status: 401)
 

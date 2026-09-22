@@ -280,6 +280,24 @@ module RAAF
       # Alias for API strategy compatibility
       alias complete responses_completion
 
+      # Unsupported parameters that belong to Chat Completions API
+      UNSUPPORTED_PARAMS = %i[
+        frequency_penalty
+        presence_penalty
+        best_of
+        logit_bias
+      ].freeze
+
+      # Parameters not supported by reasoning models (GPT-5, o1)
+      REASONING_UNSUPPORTED_PARAMS = %i[
+        temperature
+        top_p
+        frequency_penalty
+        presence_penalty
+        logit_bias
+        best_of
+      ].freeze
+
       private
 
       def validate_model(model)
@@ -391,24 +409,6 @@ module RAAF
         # No text found
         ""
       end
-
-      # Unsupported parameters that belong to Chat Completions API
-      UNSUPPORTED_PARAMS = %i[
-        frequency_penalty
-        presence_penalty
-        best_of
-        logit_bias
-      ].freeze
-
-      # Parameters not supported by reasoning models (GPT-5, o1)
-      REASONING_UNSUPPORTED_PARAMS = %i[
-        temperature
-        top_p
-        frequency_penalty
-        presence_penalty
-        logit_bias
-        best_of
-      ].freeze
 
       # Matches Python's _fetch_response
       def fetch_response(system_instructions:, input:, model:, tools: nil, stream: false,

@@ -1,11 +1,14 @@
 # frozen_string_literal: true
+
 # Fixed @span_stack access issue - 2025-09-22 16:43:32
 
 require "securerandom"
 require "time"
 
 module RAAF
+
   module Tracing
+
     # Represents a single operation within a trace
     #
     # A Span tracks the execution of a specific operation, including its
@@ -50,6 +53,7 @@ module RAAF
     #     span.finish
     #   end
     class Span
+
       # @return [String] Unique identifier for this span
       attr_reader :span_id
 
@@ -282,17 +286,16 @@ module RAAF
       # @api private
       def self.finalizer(span_id, name)
         proc do
-          begin
-            # Log that a span was garbage collected without being finished
-            # This helps identify memory leaks and spans that weren't properly closed
-            if defined?(Rails) && Rails.logger
-              Rails.logger.debug "⚠️ Span garbage collected without being finished: #{name} (#{span_id})"
-            end
-          rescue StandardError
-            # Ignore errors in finalizer to prevent issues during garbage collection
+          # Log that a span was garbage collected without being finished
+          # This helps identify memory leaks and spans that weren't properly closed
+          if defined?(Rails) && Rails.logger
+            Rails.logger.debug "⚠️ Span garbage collected without being finished: #{name} (#{span_id})"
           end
+        rescue StandardError
+          # Ignore errors in finalizer to prevent issues during garbage collection
         end
       end
+
     end
 
     # Manages the hierarchical context of spans within a trace
@@ -303,6 +306,7 @@ module RAAF
     #
     # @api private
     class SpanContext
+
       # @return [Span, nil] The currently active span
       attr_reader :current_span
 
@@ -325,9 +329,7 @@ module RAAF
           trace_id = parent_span.trace_id
 
           # Ensure parent span is in our spans collection for proper hierarchy
-          unless @spans.include?(parent_span)
-            @spans << parent_span
-          end
+          @spans << parent_span unless @spans.include?(parent_span)
 
           # CRITICAL: Set current trace context to match parent
           @trace_id = trace_id
@@ -402,6 +404,7 @@ module RAAF
           status: @spans.any? { |s| s.status == :error } ? :error : :ok
         }
       end
+
     end
 
     # Main tracer implementation for creating and managing spans
@@ -440,7 +443,9 @@ module RAAF
     #     # HTTP API call
     #   end
     class SpanTracer
+
       include RAAF::Logger
+
       # @return [SpanContext] The span context manager
       attr_reader :context
 
@@ -697,57 +702,53 @@ module RAAF
 
         # First, look for pipeline spans - these should be parents for tools in pipeline context
         pipeline_span = span_stack.find do |span|
-          begin
-            # Inline validation check to avoid method visibility issues
-            next false unless span && span.respond_to?(:kind) && span.respond_to?(:name) && span.respond_to?(:trace_id)
-            next false if span.kind == :tool  # Skip tool spans to prevent chaining
-            # Pipeline spans typically have "pipeline" in their name or are specifically pipeline spans
-            span.name.include?("pipeline") || span.kind == :pipeline
-          rescue => e
-            # Skip invalid spans silently
-            false
-          end
+          # Inline validation check to avoid method visibility issues
+          next false unless span && span.respond_to?(:kind) && span.respond_to?(:name) && span.respond_to?(:trace_id)
+          next false if span.kind == :tool # Skip tool spans to prevent chaining
+
+          # Pipeline spans typically have "pipeline" in their name or are specifically pipeline spans
+          span.name.include?("pipeline") || span.kind == :pipeline
+        rescue StandardError
+          # Skip invalid spans silently
+          false
         end
         return pipeline_span if pipeline_span
 
         # If no pipeline span, find agent span - but ensure it's not a tool span
         agent_span = span_stack.find do |span|
-          begin
-            # Inline validation check to avoid method visibility issues
-            next false unless span && span.respond_to?(:kind) && span.respond_to?(:name) && span.respond_to?(:trace_id)
-            next false if span.kind == :tool  # Skip tool spans to prevent chaining
-            span.kind == :agent
-          rescue => e
-            # Skip invalid spans silently
-            false
-          end
+          # Inline validation check to avoid method visibility issues
+          next false unless span && span.respond_to?(:kind) && span.respond_to?(:name) && span.respond_to?(:trace_id)
+          next false if span.kind == :tool # Skip tool spans to prevent chaining
+
+          span.kind == :agent
+        rescue StandardError
+          # Skip invalid spans silently
+          false
         end
         return agent_span if agent_span
 
         # If no agent span, look for workflow/trace spans
         workflow_span = span_stack.find do |span|
-          begin
-            # Inline validation check to avoid method visibility issues
-            next false unless span && span.respond_to?(:kind) && span.respond_to?(:name) && span.respond_to?(:trace_id)
-            next false if span.kind == :tool  # Skip tool spans to prevent chaining
-            span.name.include?("workflow") || span.name.include?("trace") || span.kind == :internal
-          rescue => e
-            # Skip invalid spans silently
-            false
-          end
+          # Inline validation check to avoid method visibility issues
+          next false unless span && span.respond_to?(:kind) && span.respond_to?(:name) && span.respond_to?(:trace_id)
+          next false if span.kind == :tool # Skip tool spans to prevent chaining
+
+          span.name.include?("workflow") || span.name.include?("trace") || span.kind == :internal
+        rescue StandardError
+          # Skip invalid spans silently
+          false
         end
         return workflow_span if workflow_span
 
         # Fallback to first non-tool span on the stack
         non_tool_span = span_stack.find do |span|
-          begin
-            # Inline validation check to avoid method visibility issues
-            next false unless span && span.respond_to?(:kind) && span.respond_to?(:name) && span.respond_to?(:trace_id)
-            span.kind != :tool
-          rescue => e
-            # Skip invalid spans silently
-            false
-          end
+          # Inline validation check to avoid method visibility issues
+          next false unless span && span.respond_to?(:kind) && span.respond_to?(:name) && span.respond_to?(:trace_id)
+
+          span.kind != :tool
+        rescue StandardError
+          # Skip invalid spans silently
+          false
         end
         return non_tool_span if non_tool_span
 
@@ -755,9 +756,9 @@ module RAAF
         last_span = span_stack.last
         if last_span && last_span.respond_to?(:kind) && last_span.respond_to?(:name) && last_span.respond_to?(:trace_id)
           return last_span
-        else
-          return nil  # Return nil instead of invalid object
         end
+
+        nil # Return nil instead of invalid object
       end
 
       private
@@ -765,6 +766,7 @@ module RAAF
       # Helper method to check if an object is a valid span
       def is_valid_span?(obj)
         return false unless obj
+
         # Check if it responds to the basic span methods we need
         obj.respond_to?(:kind) && obj.respond_to?(:name) && obj.respond_to?(:trace_id)
       end
@@ -946,6 +948,7 @@ module RAAF
           log_error("Error in processor.#{method}: #{e.message}", processor_method: method, error_class: e.class.name)
         end
       end
+
     end
 
     # Console processor that prints span lifecycle events
@@ -958,7 +961,9 @@ module RAAF
     #   tracer = RAAF::tracer
     #   tracer.add_processor(ConsoleSpanProcessor.new)
     class ConsoleSpanProcessor
+
       include RAAF::Logger
+
       # Called when a span starts
       #
       # @param span [Span] The started span
@@ -981,6 +986,7 @@ module RAAF
         log_error("Span error: #{span.attributes["status.description"]}",
                   span_name: span.name, span_id: span.span_id, error_description: span.attributes["status.description"])
       end
+
     end
 
     # File-based processor that writes span events to a file
@@ -993,6 +999,7 @@ module RAAF
     #   processor = FileSpanProcessor.new("traces.jsonl")
     #   tracer.add_processor(processor)
     class FileSpanProcessor
+
       # Creates a new file processor
       #
       # @param filename [String] Path to the output file
@@ -1032,6 +1039,7 @@ module RAAF
           f.puts JSON.generate(data)
         end
       end
+
     end
 
     # Memory-based processor that stores spans in memory
@@ -1049,6 +1057,7 @@ module RAAF
     #   spans = processor.spans
     #   failed_spans = spans.select { |s| s[:status] == :error }
     class MemorySpanProcessor
+
       # @return [Array<Hash>] Collected span data
       attr_reader :spans
 
@@ -1077,6 +1086,7 @@ module RAAF
       def clear
         @spans.clear
       end
+
     end
 
     # Span lifecycle monitoring processor for development debugging
@@ -1089,6 +1099,7 @@ module RAAF
     #   processor = SpanLifecycleProcessor.new
     #   tracer.add_processor(processor)
     class SpanLifecycleProcessor
+
       include RAAF::Logger
 
       # @return [Hash] Active spans being tracked
@@ -1118,12 +1129,11 @@ module RAAF
         end
 
         log_debug_tracing("🚀 SPAN START: #{span.name}",
-          span_id: span.span_id,
-          parent_id: span.parent_id,
-          kind: span.kind,
-          trace_id: span.trace_id,
-          active_count: @active_spans.size
-        )
+                          span_id: span.span_id,
+                          parent_id: span.parent_id,
+                          kind: span.kind,
+                          trace_id: span.trace_id,
+                          active_count: @active_spans.size)
 
         # Log hierarchy structure
         if span.parent_id.nil?
@@ -1132,11 +1142,10 @@ module RAAF
           parent_info = @active_spans[span.parent_id]
           parent_name = parent_info ? parent_info[:span].name : "UNKNOWN"
           log_debug_tracing("🔗 CHILD SPAN: #{span.name} → #{parent_name}",
-            span_id: span.span_id,
-            parent_id: span.parent_id,
-            parent_name: parent_name,
-            kind: span.kind
-          )
+                            span_id: span.span_id,
+                            parent_id: span.parent_id,
+                            parent_name: parent_name,
+                            kind: span.kind)
         end
       end
 
@@ -1151,14 +1160,13 @@ module RAAF
 
         status_icon = span.status == :error ? "❌" : "✅"
         log_debug_tracing("#{status_icon} SPAN END: #{span.name}",
-          span_id: span.span_id,
-          parent_id: span.parent_id,
-          kind: span.kind,
-          duration_ms: duration ? (duration * 1000).round(2) : "unknown",
-          status: span.status,
-          finished: span.finished?,
-          active_count: @active_spans.size
-        )
+                          span_id: span.span_id,
+                          parent_id: span.parent_id,
+                          kind: span.kind,
+                          duration_ms: duration ? (duration * 1000).round(2) : "unknown",
+                          status: span.status,
+                          finished: span.finished?,
+                          active_count: @active_spans.size)
 
         # Check for orphaned children
         children = @span_hierarchy[span.span_id]
@@ -1166,28 +1174,25 @@ module RAAF
           active_children = children.select { |child_id| @active_spans.key?(child_id) }
           if active_children.any?
             log_warn("⚠️ SPAN ended with active children: #{span.name}",
-              span_id: span.span_id,
-              active_children: active_children,
-              children_count: active_children.size
-            )
+                     span_id: span.span_id,
+                     active_children: active_children,
+                     children_count: active_children.size)
           end
         end
 
         # Warn about unfinished spans
         unless span.finished?
           log_warn("⚠️ SPAN processor called but span not marked as finished: #{span.name}",
-            span_id: span.span_id,
-            status: span.status
-          )
+                   span_id: span.span_id,
+                   status: span.status)
         end
 
         # Log if this was a long-running span
-        if duration && duration > 30.0  # More than 30 seconds
-          log_warn("🐌 LONG-RUNNING SPAN: #{span.name}",
-            span_id: span.span_id,
-            duration_seconds: duration.round(2)
-          )
-        end
+        return unless duration && duration > 30.0 # More than 30 seconds
+
+        log_warn("🐌 LONG-RUNNING SPAN: #{span.name}",
+                 span_id: span.span_id,
+                 duration_seconds: duration.round(2))
       end
 
       # Check for stuck spans (for periodic monitoring)
@@ -1195,25 +1200,24 @@ module RAAF
       # @return [Array<Hash>] Information about potentially stuck spans
       def check_stuck_spans
         stuck_spans = []
-        cutoff_time = Time.now.utc - 300  # 5 minutes ago
+        cutoff_time = Time.now.utc - 300 # 5 minutes ago
 
         @active_spans.each do |span_id, info|
-          if info[:start_time] < cutoff_time
-            stuck_spans << {
-              span_id: span_id,
-              name: info[:span].name,
-              kind: info[:kind],
-              age_seconds: (Time.now.utc - info[:start_time]).round(2),
-              parent_id: info[:parent_id]
-            }
-          end
+          next unless info[:start_time] < cutoff_time
+
+          stuck_spans << {
+            span_id: span_id,
+            name: info[:span].name,
+            kind: info[:kind],
+            age_seconds: (Time.now.utc - info[:start_time]).round(2),
+            parent_id: info[:parent_id]
+          }
         end
 
         if stuck_spans.any?
           log_warn("🚨 POTENTIALLY STUCK SPANS detected",
-            stuck_count: stuck_spans.size,
-            stuck_spans: stuck_spans.map { |s| "#{s[:name]} (#{s[:span_id]}, #{s[:age_seconds]}s)" }
-          )
+                   stuck_count: stuck_spans.size,
+                   stuck_spans: stuck_spans.map { |s| "#{s[:name]} (#{s[:span_id]}, #{s[:age_seconds]}s)" })
         end
 
         stuck_spans
@@ -1230,9 +1234,8 @@ module RAAF
         end
 
         log_debug_tracing("📊 CURRENT SPAN HIERARCHY",
-          tree_structure: tree,
-          total_active: @active_spans.size
-        )
+                          tree_structure: tree,
+                          total_active: @active_spans.size)
 
         tree
       end
@@ -1258,7 +1261,10 @@ module RAAF
           children: active_children.map { |child_id| build_tree_node(child_id) }.compact
         }
       end
+
     end
+
   end
+
 end
 # Updated on ma 22 sep. 2025 19:45:27 CEST

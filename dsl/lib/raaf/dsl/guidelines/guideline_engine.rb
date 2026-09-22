@@ -163,7 +163,7 @@ module RAAF
             else
               false
             end
-          rescue StandardError => e
+          rescue StandardError
             false
           end
         end
@@ -189,7 +189,6 @@ module RAAF
           else ""
           end
         end
-
       end
     end
   end

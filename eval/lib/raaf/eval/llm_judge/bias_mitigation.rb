@@ -85,7 +85,11 @@ module RAAF
           # @return [Hash] Ranking with scores and position bias indicators
           #
           def rank(input:, outputs:, criteria:)
-            scores = Hash.new(0)
+            # Seeded for every output, not just the ones that win something: an
+            # output that loses every comparison has a score of zero and a place
+            # at the bottom of the ranking, and a Hash.new(0) left to fill itself
+            # would drop it from the result entirely.
+            scores = outputs.each_index.to_h { |i| [i, 0] }
             comparisons = []
 
             # Pairwise comparisons
@@ -399,11 +403,18 @@ module RAAF
         ##
         # Consistency checker for detecting judge instability
         #
+        # Each repetition is a separate call to the model: a check of +repetitions: 5+
+        # costs five judgements, not one. That is the price of the measurement, since
+        # an answer repeated from a cache tells you nothing about whether the judge
+        # would have given it twice.
+        #
         class ConsistencyChecker
           ##
           # Creates a consistency checker
           #
-          # @param judge [StatisticalJudge] The judge to check
+          # @param judge [StatisticalJudge] The judge to check. It must accept
+          #   +cache: false+ on #evaluate, which is how each repetition is kept from
+          #   being answered out of the previous one.
           # @param repetitions [Integer] Number of times to evaluate each sample
           def initialize(judge:, repetitions: 3)
             @judge = judge
@@ -419,9 +430,12 @@ module RAAF
           # @return [Hash] Consistency analysis
           #
           def check(input:, output:, criteria:)
-            # Temporarily disable caching
+            # Asked with the judge's cache in play, repetitions 2..n would be handed
+            # the first answer back and every judge would measure as perfectly
+            # consistent. The whole check is the drift between separate judgements,
+            # so each one is asked for uncached.
             results = @repetitions.times.map do
-              @judge.evaluate(input: input, output: output, criteria: criteria)
+              @judge.evaluate(input: input, output: output, criteria: criteria, cache: false)
             end
 
             passed_count = results.count { |r| r[:passed] }

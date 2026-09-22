@@ -132,7 +132,7 @@ module RAAF
           return nil unless file_path && File.exist?(file_path)
 
           build_prompt_from_file(file_path, context)
-        rescue StandardError => e
+        rescue StandardError
           nil
         end
 

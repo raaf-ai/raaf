@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require "set"
 require_relative "../pipeline_dsl"
 require_relative "../context_flow_tracker"
 require_relative "../pipelineable"
@@ -576,9 +575,8 @@ module RAAF
 
     def execute_agent(agent_class, context)
       unless agent_class.respond_to?(:requirements_met?) && agent_class.requirements_met?(context)
-        required_fields = agent_class.respond_to?(:required_fields) ? agent_class.required_fields || [] : []
-        available_keys = context.respond_to?(:keys) ? context.keys : []
-        missing_fields = required_fields - available_keys
+        agent_class.respond_to?(:required_fields) ? agent_class.required_fields || [] : []
+        context.respond_to?(:keys) ? context.keys : []
 
         return [{}, context] # Return empty result and unchanged context for skipped agents
       end
@@ -593,7 +591,9 @@ module RAAF
       instance = agent_class.new(**instance_params)
 
       # Inject pipeline schema if available
-      instance.inject_pipeline_schema(pipeline_schema) if pipeline_schema && instance.respond_to?(:inject_pipeline_schema)
+      if pipeline_schema && instance.respond_to?(:inject_pipeline_schema)
+        instance.inject_pipeline_schema(pipeline_schema)
+      end
 
       # Execute based on type - Services use 'call', Agents use 'run'
       # Prioritize 'call' method if available (for agents with custom processing)

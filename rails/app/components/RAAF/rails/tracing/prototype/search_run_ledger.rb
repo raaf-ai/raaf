@@ -65,16 +65,20 @@ module RAAF
 
           def headline
             render Organisms::StatGrid.new(stats: [
-              { label: "Runs", value: count(@runs.size), icon: "diagram-3", tone: :accent,
-                note: "#{count(@calls.size)} calls, #{Kernel.format("%.1f", calls_per_run)} per run" },
-              { label: "Cost / run", value: usd(cost_per_run, places: 3), icon: "cash-stack", tone: :warning,
-                note: "#{usd(@calls.sum(&:cost_usd))} total" },
-              { label: "Runs that bought nothing", value: count(barren.size), icon: "exclamation-triangle",
-                tone: barren.empty? ? :success : :danger,
-                note: "#{pct(barren.size, @runs.size)} of runs · #{usd(barren.sum { |r| r[:cost_usd] }, places: 3)} spent" },
-              { label: "Widest run", value: count(widest[:calls].size), icon: "layers", tone: :accent,
-                note: widest.then { |r| "#{short_agent(r[:agent])} · #{usd(r[:cost_usd], places: 3)}" } }
-            ])
+                                             { label: "Runs", value: count(@runs.size), icon: "diagram-3", tone: :accent,
+                                               note: "#{count(@calls.size)} calls, #{Kernel.format('%.1f', calls_per_run)} per run" },
+                                             { label: "Cost / run", value: usd(cost_per_run, places: 3), icon: "cash-stack", tone: :warning,
+                                               note: "#{usd(@calls.sum(&:cost_usd))} total" },
+                                             { label: "Runs that bought nothing", value: count(barren.size), icon: "exclamation-triangle",
+                                               tone: barren.empty? ? :success : :danger,
+                                               note: "#{pct(barren.size, @runs.size)} of runs · #{usd(barren.sum do |r|
+                                                 r[:cost_usd]
+                                               end, places: 3)} spent" },
+                                             { label: "Widest run", value: count(widest[:calls].size), icon: "layers", tone: :accent,
+                                               note: widest.then do |r|
+                                                 "#{short_agent(r[:agent])} · #{usd(r[:cost_usd], places: 3)}"
+                                               end }
+                                           ])
           end
 
           def calls_per_run = @runs.empty? ? 0 : @calls.size.to_f / @runs.size
@@ -131,9 +135,9 @@ module RAAF
           end
 
           def call_columns
-            [ { label: "When", span: 1 }, { label: "Provider", span: 0.9 },
-              { label: "Query", span: 3.2 }, { label: "Results", span: 0.6, align: :right },
-              { label: "Cost", span: 0.7, align: :right }, { label: "Share of run", span: 0.9, align: :right } ]
+            [{ label: "When", span: 1 }, { label: "Provider", span: 0.9 },
+             { label: "Query", span: 3.2 }, { label: "Results", span: 0.6, align: :right },
+             { label: "Cost", span: 0.7, align: :right }, { label: "Share of run", span: 0.9, align: :right }]
           end
 
           def call_row(grid, call, run)

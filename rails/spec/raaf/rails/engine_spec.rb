@@ -101,7 +101,7 @@ RSpec.describe RAAF::Rails::Engine do
         resource_paths = []
         cors = Object.new
         cors.define_singleton_method(:allow) { |&block| instance_eval(&block) }
-        cors.define_singleton_method(:origins) { |*| }
+        cors.define_singleton_method(:origins) { |*| nil } # the stub records nothing; only :resource is asserted
         cors.define_singleton_method(:resource) { |path, **| resource_paths << path }
         cors.instance_eval(&inserted.first[:block])
 

@@ -395,7 +395,7 @@ module RAAF
         puts "=" * 40
 
         # Find all markdown files in the gem directory
-        markdown_files = Dir.glob(File.join(gem_dir, "**/*.md")).sort
+        markdown_files = Dir.glob(File.join(gem_dir, "**/*.md"))
 
         # Exclude vendor and other directories we shouldn't validate
         markdown_files.reject! { |f| f.include?("/vendor/") || f.include?("/node_modules/") || f.include?("/tmp/") }

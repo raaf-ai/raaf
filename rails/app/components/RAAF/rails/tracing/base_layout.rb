@@ -76,7 +76,7 @@ module RAAF
           @live = live
           @breadcrumb = breadcrumb
           requested = Array(bundles).map(&:to_sym) & BUNDLES
-          @bundles = requested.flat_map { |name| [ name, *BUNDLE_DEPENDENCIES[name] ] }.uniq
+          @bundles = requested.flat_map { |name| [name, *BUNDLE_DEPENDENCIES[name]] }.uniq
         end
 
         def view_template(&block)

@@ -321,13 +321,13 @@ RSpec.describe RAAF::DSL::PipelineDSL::IteratingAgent do
       allow(RAAF.logger).to receive(:debug)
 
       # Mock the agent creation to inspect the context
-      expect(mock_agent_class).to receive(:new) do |**kwargs|
-        expect(kwargs).to include(:current_company)
-        expect(kwargs[:current_company]).to eq("company1")
+      expect(mock_agent_class).to receive(:new).and_wrap_original do |original, **kwargs|
+        expect(kwargs).to include(:company)
+        expect(kwargs[:company]).to eq("company1")
         expect(kwargs).to include(:current_item)
         expect(kwargs).to include(:item_index)
-        mock_agent_class.allocate
-      end.and_call_original
+        original.call(**kwargs)
+      end
 
       agent.execute(context)
     end
@@ -342,15 +342,15 @@ RSpec.describe RAAF::DSL::PipelineDSL::IteratingAgent do
 
       # Mock agent creation to inspect context
       call_count = 0
-      expect(mock_agent_class).to receive(:new).exactly(3).times do |**kwargs|
+      expect(mock_agent_class).to receive(:new).exactly(3).times.and_wrap_original do |original, **kwargs|
         expect(kwargs).to include(:current_item)
         expect(kwargs).to include(:item_index)
         expect(kwargs[:item_index]).to eq(call_count)
         expect(kwargs[:current_item]).to eq("item#{call_count + 1}")
         expect(kwargs[:other_data]).to eq("preserved")
         call_count += 1
-        mock_agent_class.allocate
-      end.and_call_original
+        original.call(**kwargs)
+      end
 
       agent.execute(context)
     end
@@ -482,14 +482,14 @@ RSpec.describe RAAF::DSL::PipelineDSL::IteratingAgent do
 
       # Mock agent creation to inspect the context it receives
       call_count = 0
-      expect(mock_agent_class).to receive(:new).twice do |**kwargs|
+      expect(mock_agent_class).to receive(:new).twice.and_wrap_original do |original, **kwargs|
         expect(kwargs).to include(:query) # Custom field name
         expect(kwargs).to include(:current_item) # Always provided
         expect(kwargs).to include(:item_index)
         expect(kwargs[:query]).to eq(context[:search_terms][call_count])
         call_count += 1
-        mock_agent_class.allocate
-      end.and_call_original
+        original.call(**kwargs)
+      end
 
       agent.execute(context)
     end
@@ -502,13 +502,13 @@ RSpec.describe RAAF::DSL::PipelineDSL::IteratingAgent do
       context = { companies: ["company1"] }
 
       # Mock agent creation to inspect the default field name
-      expect(mock_agent_class).to receive(:new) do |**kwargs|
+      expect(mock_agent_class).to receive(:new).and_wrap_original do |original, **kwargs|
         expect(kwargs).to include(:company) # Singularized field name
-        expect(kwargs).not_to include(:companies) # Original field not included
+        expect(kwargs).to include(:companies) # Base context is kept alongside it
         expect(kwargs).to include(:current_item)
         expect(kwargs[:company]).to eq("company1")
-        mock_agent_class.allocate
-      end.and_call_original
+        original.call(**kwargs)
+      end
 
       agent.execute(context)
     end

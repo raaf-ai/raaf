@@ -232,9 +232,7 @@ module RAAF
       # Ui::Stylesheet and Ui::Javascript and served from the engine's own
       # routes, so they need no pipeline entry.
       initializer "raaf-rails.assets" do
-        if defined?(Sprockets)
-          config.assets.paths << File.expand_path("../../../app/assets/images", __dir__)
-        end
+        config.assets.paths << File.expand_path("../../../app/assets/images", __dir__) if defined?(Sprockets)
       end
     end
   end

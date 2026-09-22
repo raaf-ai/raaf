@@ -6,6 +6,9 @@ require "raaf/eval/dsl_engine/progress_event"
 
 RSpec.describe RAAF::Eval::DslEngine::CallbackManager do
   let(:manager) { described_class.new }
+  # Registering is what these examples measure, so most of them hand the
+  # manager a callback that does nothing rather than an inline empty block.
+  let(:no_op) { proc { |_event| } }
   let(:event) do
     RAAF::Eval::DslEngine::ProgressEvent.new(
       type: :start,
@@ -35,7 +38,7 @@ RSpec.describe RAAF::Eval::DslEngine::CallbackManager do
     it "is thread-safe" do
       threads = 10.times.map do
         Thread.new do
-          100.times { manager.register { |event| } }
+          100.times { manager.register(&no_op) }
         end
       end
 
@@ -124,9 +127,9 @@ RSpec.describe RAAF::Eval::DslEngine::CallbackManager do
 
   describe "#clear_all" do
     it "removes all callbacks" do
-      manager.register { |event| }
-      manager.register { |event| }
-      manager.register { |event| }
+      manager.register(&no_op)
+      manager.register(&no_op)
+      manager.register(&no_op)
 
       expect(manager.callback_count).to eq(3)
 
@@ -140,7 +143,7 @@ RSpec.describe RAAF::Eval::DslEngine::CallbackManager do
 
       # Thread adding callbacks
       threads << Thread.new do
-        100.times { manager.register { |event| } }
+        100.times { manager.register(&no_op) }
       end
 
       # Thread clearing callbacks
@@ -159,10 +162,10 @@ RSpec.describe RAAF::Eval::DslEngine::CallbackManager do
     it "returns correct count" do
       expect(manager.callback_count).to eq(0)
 
-      manager.register { |event| }
+      manager.register(&no_op)
       expect(manager.callback_count).to eq(1)
 
-      manager.register { |event| }
+      manager.register(&no_op)
       expect(manager.callback_count).to eq(2)
 
       manager.clear_all

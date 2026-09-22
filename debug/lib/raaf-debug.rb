@@ -246,8 +246,10 @@ module RAAF
 
     class << self
 
-      # @return [Hash] Current configuration
-      attr_accessor :config
+      # Writer only: the reader below is defined explicitly so that reading
+      # the configuration before anything has configured it returns the
+      # defaults rather than nil.
+      attr_writer :config
 
       # @return [Boolean] Debug enabled status
       attr_accessor :enabled

@@ -325,12 +325,11 @@ module RAAF
       def normalize_user_location(location)
         return nil if location.nil?
 
+        # Both forms pass through unchanged: a plain string like
+        # "San Francisco, CA", and the Python-style hash
+        # {"type": "approximate", "city": "New York"}.
         case location
-        when String
-          # Support simple string format like "San Francisco, CA"
-          location
-        when Hash
-          # Support Python-style hash format like {"type": "approximate", "city": "New York"}
+        when String, Hash
           location
         else
           raise ArgumentError, "user_location must be a String or Hash"

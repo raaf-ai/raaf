@@ -144,8 +144,7 @@ module RAAF
           private
 
           # Handle validation errors (can be overridden)
-          def handle_validation_error(error)
-          end
+          def handle_validation_error(error); end
         end
 
         # Custom error class for context validation failures

@@ -121,9 +121,12 @@ RSpec.describe RAAF::DSL::PipelineDSL::ChainedAgent do
     it "passes context from first agent to second" do
       chain = described_class.new(producer_agent, consumer_agent)
 
-      expect_any_instance_of(consumer_agent).to receive(:initialize) do |_instance, **ctx|
+      # Stub the constructor on the class rather than `initialize` on every
+      # instance: same arguments, and it leaves Ruby's own initialize alone.
+      expect(consumer_agent).to receive(:new).and_wrap_original do |original, **ctx|
         expect(ctx[:output_data]).to eq("processed")
-      end.and_call_original
+        original.call(**ctx)
+      end
 
       chain.execute(context)
     end

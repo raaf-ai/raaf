@@ -22,6 +22,7 @@ RSpec.describe RAAF::Rails::Continuous::EvaluationJob, type: :job do
       }
     )
   end
+  let(:policy) { policy_with(evaluator_config("token_limit")) }
 
   # An evaluator only runs for the checks its config names, so a policy without
   # them grades nothing at all.
@@ -60,8 +61,6 @@ RSpec.describe RAAF::Rails::Continuous::EvaluationJob, type: :job do
 
     RAAF::Eval::Models::ContinuousEvaluationResult.last.status
   end
-
-  let(:policy) { policy_with(evaluator_config("token_limit")) }
 
   def stub_evaluator(result: evaluation_result)
     evaluator = instance_double(RAAF::Eval::DSL::Evaluator)
@@ -173,7 +172,12 @@ RSpec.describe RAAF::Rails::Continuous::EvaluationJob, type: :job do
     # result. That answers for the evaluator of the same name today rather than
     # the one that did the scoring, so the row writes it down instead.
     context "with an evaluator that declares what its checks measure" do
-      before { stub_evaluator }
+      before do
+        stub_evaluator
+        allow(RAAF::Eval::Continuous::EvaluatorDiscovery)
+          .to receive(:find_custom_evaluator_by_name)
+          .and_return(class_double("Evaluator", evaluated_checks: declared))
+      end
 
       let(:declared) do
         [{ field_name: :quality, evaluator_type: :value_range, check_type: :rule_based,
@@ -182,12 +186,6 @@ RSpec.describe RAAF::Rails::Continuous::EvaluationJob, type: :job do
          { field_name: :latency, evaluator_type: :threshold, check_type: :rule_based,
            display_name: "Fast Enough", description: "Answered inside 2 seconds",
            options: { max_ms: 2000 } }]
-      end
-
-      before do
-        allow(RAAF::Eval::Continuous::EvaluatorDiscovery)
-          .to receive(:find_custom_evaluator_by_name)
-          .and_return(class_double("Evaluator", evaluated_checks: declared))
       end
 
       it "records the checks declared for the field it graded" do
@@ -392,32 +390,32 @@ RSpec.describe RAAF::Rails::Continuous::EvaluationJob, type: :job do
     let(:job) { described_class.new }
     let(:replays) do
       [
-        { "scored_events" => [ { "event_id" => 1, "relevance_score" => 7 }, { "event_id" => 2, "relevance_score" => 2 } ] },
-        { "scored_events" => [ { "event_id" => 2, "relevance_score" => 2 }, { "event_id" => 1, "relevance_score" => 7 } ] }
+        { "scored_events" => [{ "event_id" => 1, "relevance_score" => 7 }, { "event_id" => 2, "relevance_score" => 2 }] },
+        { "scored_events" => [{ "event_id" => 2, "relevance_score" => 2 }, { "event_id" => 1, "relevance_score" => 7 }] }
       ]
     end
 
     def collect(selection)
-      replays.map { |replay| job.send(:extract_field_value_from_result, replay, :scores, [ selection ]) }
+      replays.map { |replay| job.send(:extract_field_value_from_result, replay, :scores, [selection]) }
     end
 
     it "keys each value by its item when the selection names a key" do
       selection = { path: "scored_events.*.relevance_score", as: :scores, key: :event_id }
 
-      expect(collect(selection)).to eq([ { "1" => 7, "2" => 2 }, { "2" => 2, "1" => 7 } ])
+      expect(collect(selection)).to eq([{ "1" => 7, "2" => 2 }, { "2" => 2, "1" => 7 }])
     end
 
     it "falls back to the next key field when the first is blank" do
-      replay = { "prospect_evaluations" => [ { "coc_number" => "", "website" => "acme.nl", "score" => 40 } ] }
+      replay = { "prospect_evaluations" => [{ "coc_number" => "", "website" => "acme.nl", "score" => 40 }] }
       selection = { path: "prospect_evaluations.*.score", as: :scores, key: %w[coc_number website] }
 
-      expect(job.send(:extract_field_value_from_result, replay, :scores, [ selection ])).to eq("acme.nl" => 40)
+      expect(job.send(:extract_field_value_from_result, replay, :scores, [selection])).to eq("acme.nl" => 40)
     end
 
     it "still reads the first item when the selection names no key" do
       selection = { path: "scored_events.*.relevance_score", as: :scores }
 
-      expect(collect(selection)).to eq([ 7, 2 ])
+      expect(collect(selection)).to eq([7, 2])
     end
   end
 

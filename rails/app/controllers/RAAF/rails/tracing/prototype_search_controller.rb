@@ -81,8 +81,12 @@ module RAAF
 
         # Calls grouped into inferred buying runs, newest first.
         def runs
-          @calls.group_by { |call| [ call.account_id, call.agent ] }
-                .flat_map { |(account_id, agent), calls| split_by_gap(calls).map { |group| run_for(account_id, agent, group) } }
+          @calls.group_by { |call| [call.account_id, call.agent] }
+                .flat_map do |(account_id, agent), calls|
+            split_by_gap(calls).map do |group|
+              run_for(account_id, agent, group)
+            end
+          end
                 .sort_by { |run| run[:started_at] }.reverse
         end
 

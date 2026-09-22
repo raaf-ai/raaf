@@ -41,6 +41,15 @@ module RAAF
           overview_split
         end
 
+        # The exception class carries most of what a reader needs, so it leads.
+        # "Error" and "No message recorded" are what the grouping substitutes
+        # for a span that recorded neither, and neither is worth printing
+        # beside something real.
+        PLACEHOLDERS = ["Error", "No message recorded"].freeze
+
+        TRACE_TONES = { "completed" => :ok, "ok" => :ok, "running" => :info,
+                        "failed" => :bad, "error" => :bad }.freeze
+
         private
 
         # The KPI row from RAAF Console.dc.html — label + icon, a 30px tabular
@@ -161,12 +170,6 @@ module RAAF
           end
         end
 
-        # The exception class carries most of what a reader needs, so it leads.
-        # "Error" and "No message recorded" are what the grouping substitutes
-        # for a span that recorded neither, and neither is worth printing
-        # beside something real.
-        PLACEHOLDERS = ["Error", "No message recorded"].freeze
-
         def error_message(row)
           parts = [row[:exception], row[:message]]
                   .map(&:presence)
@@ -228,9 +231,6 @@ module RAAF
 
           "$#{'%.2f' % cost.to_f}"
         end
-
-        TRACE_TONES = { "completed" => :ok, "ok" => :ok, "running" => :info,
-                        "failed" => :bad, "error" => :bad }.freeze
 
         def live_runs
           @recent_traces.to_a.map do |trace|

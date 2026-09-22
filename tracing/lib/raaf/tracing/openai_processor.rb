@@ -3,7 +3,6 @@
 require "net/http"
 require "json"
 require "uri"
-require "set"
 require_relative "version"
 require_relative "base_processor"
 

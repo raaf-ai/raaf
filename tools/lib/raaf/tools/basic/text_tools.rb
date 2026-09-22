@@ -236,7 +236,7 @@ module RAAF
                                            .map(&:first)
 
             summary = top_sentences.join(". ") + "."
-            summary.length > max_length ? summary[0..max_length - 4] + "..." : summary
+            summary.length > max_length ? summary[0..(max_length - 4)] + "..." : summary
           end
 
           def format_text(text:, format:)

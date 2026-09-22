@@ -9,6 +9,14 @@ require:
 inherit_from:
   - .rubocop_app_cops.yml
 
+# A child config's `Exclude` replaces an inherited one rather than adding to it,
+# and this file names several of the cops .rubocop_todo.yml records against.
+# Merging keeps both lists.
+inherit_mode:
+  merge:
+    - Exclude
+
+
 # Cop plugins are loaded process-wide as soon as any config in the tree declares
 # them, so the root config has to declare them too. Without this, a repo-wide run
 # registers the RSpec/Rails cops via core/.rubocop.yml and friends, then crashes

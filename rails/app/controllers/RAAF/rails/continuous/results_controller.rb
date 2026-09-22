@@ -93,6 +93,13 @@ module RAAF
           end
         end
 
+        # Where an evaluator stores its own failure as a verdict. The DSL's
+        # error_result writes label "bad" with score 0.0 and the message under
+        # this path, so a check that could not read the field it was pointed at
+        # is indistinguishable, by score alone, from an agent that fails every
+        # time. Both arrive as a 0.00.
+        INSTRUMENT_FAILURE_PATH = "{result,details,error}"
+
         private
 
         # Everything the reader narrowed to except the status chip.
@@ -169,13 +176,6 @@ module RAAF
               delta: before && (stats[:average] - before[:average]) }
           end
         end
-
-        # Where an evaluator stores its own failure as a verdict. The DSL's
-        # error_result writes label "bad" with score 0.0 and the message under
-        # this path, so a check that could not read the field it was pointed at
-        # is indistinguishable, by score alone, from an agent that fails every
-        # time. Both arrive as a 0.00.
-        INSTRUMENT_FAILURE_PATH = "{result,details,error}"
 
         def means_by_evaluator(population, from, to)
           window = scored_in(population, from, to)

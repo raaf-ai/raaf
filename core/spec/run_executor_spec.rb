@@ -69,11 +69,9 @@ RSpec.describe "RAAF Run Executors" do
           allow(responses_executor.services).to receive(:[]).with(:api_strategy).and_return(api_strategy)
 
           error_handler = double("ErrorHandler")
-          # rubocop:disable Lint/UnusedBlockArgument
           allow(error_handler).to receive(:with_error_handling) do |context:, &block|
             block.call
           end
-          # rubocop:enable Lint/UnusedBlockArgument
           allow(responses_executor.services).to receive(:[]).with(:error_handler).and_return(error_handler)
         end
 
@@ -157,11 +155,9 @@ RSpec.describe "RAAF Run Executors" do
           allow(openai_executor.services).to receive(:[]).with(:turn_executor).and_return(turn_executor)
 
           error_handler = double("ErrorHandler")
-          # rubocop:disable Lint/UnusedBlockArgument
           allow(error_handler).to receive(:with_error_handling) do |context:, &block|
             block.call
           end
-          # rubocop:enable Lint/UnusedBlockArgument
           allow(openai_executor.services).to receive(:[]).with(:error_handler).and_return(error_handler)
         end
 

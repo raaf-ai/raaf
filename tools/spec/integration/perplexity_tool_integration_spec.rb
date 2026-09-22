@@ -359,89 +359,89 @@ RSpec.describe "PerplexityTool End-to-End Integration", :integration do
     context "with the sonar-pro model" do
       let(:perplexity_model) { "sonar-pro" }
 
-    it "works with sonar-pro model" do
-      agent = RAAF::Agent.new(
-        name: "SonarProAgent",
-        instructions: "Use sonar-pro for deep research",
-        model: "gpt-4o"
-      )
+      it "works with sonar-pro model" do
+        agent = RAAF::Agent.new(
+          name: "SonarProAgent",
+          instructions: "Use sonar-pro for deep research",
+          model: "gpt-4o"
+        )
 
-      function_tool = RAAF::FunctionTool.new(
-        perplexity_tool.method(:call),
-        name: "perplexity_search",
-        description: "Deep web search"
-      )
+        function_tool = RAAF::FunctionTool.new(
+          perplexity_tool.method(:call),
+          name: "perplexity_search",
+          description: "Deep web search"
+        )
 
-      agent.add_tool(function_tool)
+        agent.add_tool(function_tool)
 
-      mock_provider = mock_llm_provider_class.new
-      mock_provider.add_response(
-        "Performing deep search...",
-        tool_calls: [{
-          function: {
-            name: "perplexity_search",
-            arguments: '{"query": "Ruby performance analysis"}'
-          }
-        }]
-      )
-      mock_provider.add_response("Deep analysis complete")
+        mock_provider = mock_llm_provider_class.new
+        mock_provider.add_response(
+          "Performing deep search...",
+          tool_calls: [{
+            function: {
+              name: "perplexity_search",
+              arguments: '{"query": "Ruby performance analysis"}'
+            }
+          }]
+        )
+        mock_provider.add_response("Deep analysis complete")
 
-      pro_response = standard_perplexity_response.dup
-      pro_response["model"] = "sonar-pro"
-      mock_perplexity_provider_instance.add_response(pro_response)
+        pro_response = standard_perplexity_response.dup
+        pro_response["model"] = "sonar-pro"
+        mock_perplexity_provider_instance.add_response(pro_response)
 
-      runner = RAAF::Runner.new(agent: agent, provider: mock_provider)
-      result = runner.run("Deep analysis of Ruby performance")
+        runner = RAAF::Runner.new(agent: agent, provider: mock_provider)
+        result = runner.run("Deep analysis of Ruby performance")
 
-      expect(result.success?).to be true
-      expect(mock_perplexity_provider_instance.chat_completion_calls).to include(
-        hash_including(model: "sonar-pro")
-      )
-    end
+        expect(result.success?).to be true
+        expect(mock_perplexity_provider_instance.chat_completion_calls).to include(
+          hash_including(model: "sonar-pro")
+        )
+      end
     end
 
     context "with the sonar-reasoning model" do
       let(:perplexity_model) { "sonar-reasoning" }
 
-    it "works with sonar-reasoning model" do
-      agent = RAAF::Agent.new(
-        name: "SonarReasoningAgent",
-        instructions: "Use sonar-reasoning for complex analysis",
-        model: "gpt-4o"
-      )
+      it "works with sonar-reasoning model" do
+        agent = RAAF::Agent.new(
+          name: "SonarReasoningAgent",
+          instructions: "Use sonar-reasoning for complex analysis",
+          model: "gpt-4o"
+        )
 
-      function_tool = RAAF::FunctionTool.new(
-        perplexity_tool.method(:call),
-        name: "perplexity_search",
-        description: "Reasoning-based search"
-      )
+        function_tool = RAAF::FunctionTool.new(
+          perplexity_tool.method(:call),
+          name: "perplexity_search",
+          description: "Reasoning-based search"
+        )
 
-      agent.add_tool(function_tool)
+        agent.add_tool(function_tool)
 
-      mock_provider = mock_llm_provider_class.new
-      mock_provider.add_response(
-        "Analyzing...",
-        tool_calls: [{
-          function: {
-            name: "perplexity_search",
-            arguments: '{"query": "Ruby vs Python comparison"}'
-          }
-        }]
-      )
-      mock_provider.add_response("Analysis complete")
+        mock_provider = mock_llm_provider_class.new
+        mock_provider.add_response(
+          "Analyzing...",
+          tool_calls: [{
+            function: {
+              name: "perplexity_search",
+              arguments: '{"query": "Ruby vs Python comparison"}'
+            }
+          }]
+        )
+        mock_provider.add_response("Analysis complete")
 
-      reasoning_response = standard_perplexity_response.dup
-      reasoning_response["model"] = "sonar-reasoning"
-      mock_perplexity_provider_instance.add_response(reasoning_response)
+        reasoning_response = standard_perplexity_response.dup
+        reasoning_response["model"] = "sonar-reasoning"
+        mock_perplexity_provider_instance.add_response(reasoning_response)
 
-      runner = RAAF::Runner.new(agent: agent, provider: mock_provider)
-      result = runner.run("Compare Ruby and Python")
+        runner = RAAF::Runner.new(agent: agent, provider: mock_provider)
+        result = runner.run("Compare Ruby and Python")
 
-      expect(result.success?).to be true
-      expect(mock_perplexity_provider_instance.chat_completion_calls).to include(
-        hash_including(model: "sonar-reasoning")
-      )
-    end
+        expect(result.success?).to be true
+        expect(mock_perplexity_provider_instance.chat_completion_calls).to include(
+          hash_including(model: "sonar-reasoning")
+        )
+      end
     end
   end
 

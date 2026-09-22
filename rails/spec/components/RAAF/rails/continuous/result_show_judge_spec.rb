@@ -9,7 +9,7 @@ require "active_support/core_ext/string/filters"
 
 ui_root = File.expand_path("../../../../../app/components/RAAF/rails/ui", __dir__)
 require File.join(ui_root, "base")
-Dir[File.join(ui_root, "{atoms,molecules,organisms}/*.rb")].sort.each { |file| require file }
+Dir[File.join(ui_root, "{atoms,molecules,organisms}/*.rb")].each { |file| require file }
 require File.expand_path("../../../../../app/components/RAAF/rails/tracing/base_component", __dir__)
 require File.expand_path("../../../../../app/components/RAAF/rails/continuous/result_show", __dir__)
 
@@ -123,19 +123,19 @@ module RAAF
 
         it "lists the criteria as a list, so their number is announced" do
           expect(html).to include("<ol class=\"raaf-criteria\">")
-          expect(html.scan(/<li class="raaf-criterion">/).size).to eq(2)
+          expect(html.scan('<li class="raaf-criterion">').size).to eq(2)
         end
 
         # `{"good":0.75,"used":"bad (<0.5)","average":0.5}` has to be parsed by
         # eye before it says anything.
         it "prints the thresholds as the sentence they are" do
           expect(html).to include("good ≥ 0.75 · average ≥ 0.5 · scored bad (&lt;0.5)")
-          expect(html).not_to include('{&quot;good&quot;')
+          expect(html).not_to include("{&quot;good&quot;")
         end
 
         it "prints the judge's usage as labelled figures rather than JSON" do
           expect(html).to include("input tokens 693")
-          expect(html).not_to include('{&quot;input_tokens&quot;')
+          expect(html).not_to include("{&quot;input_tokens&quot;")
         end
 
         # The list is the count, and printing it as well pairs a label with a

@@ -354,16 +354,9 @@ module RAAF
       end
 
       def click_mouse_mac(x, y, button)
-        # Use AppleScript for mouse clicks on Mac
-        # rubocop:disable Lint/DuplicateBranch
-        case button
-        when "left" then 1
-        when "right" then 2
-        when "middle" then 3
-        else 1
-        end
-        # rubocop:enable Lint/DuplicateBranch
-
+        # AppleScript's `click at` has no button argument, so every click here
+        # is a left click whatever the caller asked for. The message still names
+        # the button so the caller can see what it requested.
         script = %(
           tell application "System Events"
             click at {#{x}, #{y}}
@@ -379,14 +372,12 @@ module RAAF
 
       def click_mouse_linux(x, y, button)
         if command_exists?("xdotool")
-          # rubocop:disable Lint/DuplicateBranch
           button_num = case button
                        when "left" then 1
                        when "right" then 3
                        when "middle" then 2
                        else 1
                        end
-          # rubocop:enable Lint/DuplicateBranch
 
           if system("xdotool mousemove #{x} #{y} click #{button_num}")
             "Clicked #{button} mouse button at (#{x}, #{y})"

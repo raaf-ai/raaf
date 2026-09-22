@@ -9,7 +9,6 @@ module RAAF
     # Supports declarative agent definition with tools, configurations, and behaviors.
     #
     class AgentBuilder
-
       @@count = 0
 
       ##

@@ -289,7 +289,6 @@ RSpec.describe "Tool Execution Integration Tests" do
           agent.execute_tool("failing_tool", param: "value")
         end.to raise_error(StandardError, /Simulated tool failure/)
       end
-
     end
   end
 

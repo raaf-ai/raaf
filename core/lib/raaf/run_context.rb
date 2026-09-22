@@ -223,13 +223,6 @@ module RAAF
     delegate :values, to: :@storage
 
     ##
-    # Export storage as hash (unified interface)
-    #
-    # @return [Hash] The storage hash with indifferent access
-    #
-    delegate :to_h, to: :@storage
-
-    ##
     # Delete a key from storage (unified interface)
     #
     # @param key [Symbol, String] The storage key

@@ -83,7 +83,7 @@ RSpec.describe "Red-Team Integration Features" do
       let(:temp_csv) { "/tmp/red_team_test_#{Time.now.to_i}.csv" }
 
       after do
-        File.delete(temp_csv) if File.exist?(temp_csv)
+        FileUtils.rm_f(temp_csv)
       end
 
       it "exports assessment to CSV file" do

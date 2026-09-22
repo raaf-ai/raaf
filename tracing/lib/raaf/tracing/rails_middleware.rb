@@ -191,7 +191,7 @@ module RAAF
 
         # Add request start event
         span.add_event("request.start", {
-                         "request.size" => env["CONTENT_LENGTH"]&.to_i || 0
+                         "request.size" => env["CONTENT_LENGTH"].to_i
                        })
 
         span

@@ -269,7 +269,6 @@ module RAAF
         # Before hook
         @before_stage_hook&.call(stage_info, stage_context)
 
-
         # Create and run agent
         agent = stage[:agent_class].new(context: stage_context)
         result = agent.call
@@ -277,7 +276,6 @@ module RAAF
         # Track duration
         duration_ms = ((Time.current - start_time) * 1000).round(2)
         @metadata[:stage_durations][stage[:result_key]] = duration_ms
-
 
         # After hook
         @after_stage_hook&.call(stage_info, result, stage_context)
@@ -320,7 +318,7 @@ module RAAF
       # Evaluate a condition
       def evaluate_condition(condition, context)
         condition.call(context)
-      rescue StandardError => e
+      rescue StandardError
         false
       end
 
@@ -336,7 +334,6 @@ module RAAF
 
       # Handle execution error
       def handle_execution_error(error, stage_info)
-
         @error_handler&.call(error, stage_info)
 
         {

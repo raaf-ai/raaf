@@ -205,9 +205,9 @@ RSpec.describe "Agent Span Management", type: :unit do
     it "adopts the ambient agent's span when no explicit parent is given" do
       surrounding_agent = MockPipeline.new
       allow(surrounding_agent).to receive(:current_span).and_return({
-                                                                     span_id: "context_span_789",
-                                                                     trace_id: "context_trace_xyz"
-                                                                   })
+                                                                      span_id: "context_span_789",
+                                                                      trace_id: "context_trace_xyz"
+                                                                    })
 
       captured_span = nil
       allow(test_agent).to receive(:send_span) do |span|

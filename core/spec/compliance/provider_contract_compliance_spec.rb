@@ -4,12 +4,12 @@ require "spec_helper"
 
 RSpec.describe "Provider Contract Compliance", :compliance do
   # Available providers for testing
-  # rubocop:disable Lint/ConstantDefinitionInBlock, RSpec/LeakyConstantDeclaration
+  # rubocop:disable RSpec/LeakyConstantDeclaration
   CORE_PROVIDERS = [
     RAAF::Models::ResponsesProvider,
     RAAF::Models::OpenAIProvider
   ].freeze
-  # rubocop:enable Lint/ConstantDefinitionInBlock, RSpec/LeakyConstantDeclaration
+  # rubocop:enable RSpec/LeakyConstantDeclaration
 
   let(:test_messages) do
     [

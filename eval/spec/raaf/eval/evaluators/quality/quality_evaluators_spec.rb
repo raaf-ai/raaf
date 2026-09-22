@@ -52,7 +52,6 @@ RSpec.describe "Quality Evaluators" do
   # load time; skip until the evaluator is implemented.
   describe "RAAF::Eval::Evaluators::Quality::Coherence",
            skip: "not implemented: eval/lib/raaf/eval/evaluators/quality/coherence.rb is empty" do
-
     let(:described_class) { RAAF::Eval::Evaluators::Quality::Coherence }
     let(:evaluator) { described_class.new }
 
@@ -98,7 +97,6 @@ RSpec.describe "Quality Evaluators" do
   # load time; skip until the evaluator is implemented.
   describe "RAAF::Eval::Evaluators::Quality::HallucinationDetection",
            skip: "not implemented: eval/lib/raaf/eval/evaluators/quality/hallucination_detection.rb is empty" do
-
     let(:described_class) { RAAF::Eval::Evaluators::Quality::HallucinationDetection }
     let(:evaluator) { described_class.new }
 
@@ -139,7 +137,6 @@ RSpec.describe "Quality Evaluators" do
   # load time; skip until the evaluator is implemented.
   describe "RAAF::Eval::Evaluators::Quality::Relevance",
            skip: "not implemented: eval/lib/raaf/eval/evaluators/quality/relevance.rb is empty" do
-
     let(:described_class) { RAAF::Eval::Evaluators::Quality::Relevance }
     let(:evaluator) { described_class.new }
 

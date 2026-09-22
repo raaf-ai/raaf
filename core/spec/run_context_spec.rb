@@ -529,7 +529,7 @@ RSpec.describe RAAF::TypedRunContextWrapper do
   let(:base_context) { RAAF::RunContext.new }
 
   # Test type class
-  # rubocop:disable Lint/ConstantDefinitionInBlock, RSpec/LeakyConstantDeclaration
+  # rubocop:disable RSpec/LeakyConstantDeclaration
   class TestUserContext
 
     attr_accessor :user_id, :name, :preferences
@@ -555,7 +555,7 @@ RSpec.describe RAAF::TypedRunContextWrapper do
     end
 
   end
-  # rubocop:enable Lint/ConstantDefinitionInBlock, RSpec/LeakyConstantDeclaration
+  # rubocop:enable RSpec/LeakyConstantDeclaration
 
   describe "#initialize" do
     it "initializes with context and type class" do

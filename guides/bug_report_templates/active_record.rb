@@ -31,7 +31,8 @@ end
 Rails.application.initialize!
 
 ActiveRecord::Schema.define do
-  create_table :posts, force: true do |t|
+  create_table :posts, force: true do |_t|
+    # A bug report starts from a bare table; add the columns your case needs.
   end
 
   create_table :comments, force: true do |t|
