@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description = "Provides comprehensive compliance framework including GDPR, HIPAA, SOC2, audit trails, data retention policies, and regulatory reporting for AI agents."
   spec.homepage = "https://github.com/raaf-ai/ruby-ai-agents-factory"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.0.0"
+  spec.required_ruby_version = ">= 3.2.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
   spec.metadata["homepage_uri"] = spec.homepage

@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description = "Provides comprehensive distributed tracing, monitoring, observability, and visualization for AI agent workflows. Includes span-based tracking, performance metrics, trace visualization, and integration with popular monitoring platforms."
   spec.homepage = "https://github.com/raaf-ai/ruby-ai-agents-factory"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.0.0"
+  spec.required_ruby_version = ">= 3.2.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
   spec.metadata["homepage_uri"] = spec.homepage

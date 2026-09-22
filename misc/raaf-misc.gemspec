@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description = "Provides miscellaneous utilities and components for the Ruby AI Agents Factory ecosystem including voice workflows, prompt management, extensions, data pipelines, and multimodal processing."
   spec.homepage = "https://github.com/raaf-ai/ruby-ai-agents-factory"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.0.0"
+  spec.required_ruby_version = ">= 3.2.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
   spec.metadata["homepage_uri"] = spec.homepage

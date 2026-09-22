@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description = "Provides Rails integration, web interface, and dashboard for managing AI agents. Includes authentication, monitoring, and deployment tools for production Rails applications."
   spec.homepage = "https://github.com/raaf-ai/ruby-ai-agents-factory"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.0.0"
+  spec.required_ruby_version = ">= 3.2.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
   spec.metadata["homepage_uri"] = spec.homepage

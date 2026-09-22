@@ -12,7 +12,7 @@ Gem::Specification.new do |spec|
   spec.description = "Provides a powerful DSL for defining AI agents, workflows, tools, and configurations with intuitive syntax and advanced features like agent composition, conditional logic, and declarative programming."
   spec.homepage = "https://github.com/raaf-ai/ruby-ai-agents-factory"
   spec.license = "MIT"
-  spec.required_ruby_version = ">= 3.0.0"
+  spec.required_ruby_version = ">= 3.2.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
   spec.metadata["homepage_uri"] = spec.homepage
