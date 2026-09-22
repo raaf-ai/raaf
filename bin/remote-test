@@ -1,0 +1,305 @@
+#!/usr/bin/env bash
+#
+# bin/remote-test — run this monorepo's suites on the remote workstation, all
+# at once instead of one gem after another.
+#
+# Human-activated. No hook, no watcher, no cron: it is a thing you type when
+# you want the answer.
+#
+# It syncs first (bin/remote-sync), because a remote run that tests something
+# adjacent to your working tree is worse than no remote run at all.
+#
+# Usage:
+#   bin/remote-test                    # every gem with a suite
+#   bin/remote-test core dsl           # only these
+#   bin/remote-test core:spec/raaf/agent_spec.rb   # one gem, scoped
+#
+# Environment:
+#   REMOTE_TEST_HOST     default ws1.enterprisemodules.com
+#   REMOTE_TEST_PATH     default ci/raaf
+#   REMOTE_TEST_NO_SYNC  set to 1 to reuse what is already there
+#   SHARDS_<gem>         override a gem's shard count, e.g. SHARDS_core=8
+#   REMOTE_TEST_FAILURE_LINES  lines of failure detail per failing shard (120)
+#   REMOTE_TEST_SEED     rspec --seed for every shard, to re-run an ordering failure
+#
+# Two gems read a database -- eval owns its own tables, rails loads both its
+# own and eval's -- and both take the name from the environment, so a shard
+# gets a database of its own by construction rather than by locking. The
+# server is a tmpfs container: its data dies with it, which is the right
+# lifetime for a test database and costs a fraction of this machine's memory.
+#
+# Everything else runs against the host's ruby. The gems need no OS packages
+# beyond libpq, which is already there, so there is no image to build and
+# nothing to keep in step with a Dockerfile.
+
+set -euo pipefail
+
+HOST="${REMOTE_TEST_HOST:-ws1.enterprisemodules.com}"
+DEST="${REMOTE_TEST_PATH:-ci/raaf}"
+PG_CONTAINER="raaf-pg"
+PG_PORT=55432
+
+cd "$(git rev-parse --show-toplevel)"
+
+say()  { printf '\033[1m%s\033[0m\n' "$*"; }
+note() { printf '  %s\n' "$*"; }
+
+remote() { ssh -q -o BatchMode=yes "$HOST" "$@"; }
+
+# The command crosses ssh, then bash. Rather than escape it twice and hope,
+# encode it once and let the far end decode.
+remote_script() {
+  local b64
+  b64="$(printf '%s' "$1" | base64 | tr -d '\n')"
+  remote "echo ${b64} | base64 -d | bash"
+}
+
+# Gems in dependency order: core first, so a break there is reported before
+# every downstream gem fails for the same reason. Mirrors SPEC_GEMS in the
+# root Rakefile.
+ALL_GEMS=(core providers tracing dsl memory guardrails tools eval rails)
+
+# --- what to run -------------------------------------------------------------
+declare -a GEMS=() SCOPES=()
+if [ $# -gt 0 ]; then
+  for arg in "$@"; do
+    GEMS+=("${arg%%:*}")
+    [ "$arg" = "${arg%%:*}" ] && SCOPES+=("") || SCOPES+=("${arg#*:}")
+  done
+else
+  GEMS=("${ALL_GEMS[@]}")
+  for _ in "${GEMS[@]}"; do SCOPES+=(""); done
+fi
+
+for g in "${GEMS[@]}"; do
+  [ -d "$g/spec" ] || { echo "remote-test: no spec directory for '$g'" >&2; exit 1; }
+done
+
+# --- sync --------------------------------------------------------------------
+if [ "${REMOTE_TEST_NO_SYNC:-}" != "1" ]; then
+  REMOTE_SYNC_QUIET=1 "$(dirname "$0")/remote-sync"
+  echo
+fi
+
+CORES="$(remote nproc)"
+BUDGET=$(( CORES > 3 ? CORES - 2 : 1 ))
+
+# --- how many shards each gem gets -------------------------------------------
+# One, unless you ask for more with SHARDS_<gem>.
+#
+# Splitting a gem's files across processes is where the wall clock is, and it
+# does not work yet: these suites carry order dependencies that only a whole-
+# suite run satisfies. Splitting core five ways and dsl four produced thirteen
+# failures that the same code passes sequentially -- dsl/spec/.../schema_cache_spec
+# calls Rails.env, which some other dsl spec file defines and its own shard did
+# not; core's rate limiter measured 2e-05 seconds of a sleep another file in its
+# shard had stubbed away. Both are defects in the suites, invisible while
+# everything loads together, and a runner that hides them by never splitting is
+# the honest default until they are fixed.
+#
+# SHARDS_core=5 still works, and is how you go and find the next one.
+shards_for() {
+  local gem="$1" override
+  override="SHARDS_${gem}"
+  printf '%s' "${!override:-1}"
+}
+
+declare -a SHARDS=()
+total=0
+for i in "${!GEMS[@]}"; do
+  n="$(shards_for "${GEMS[$i]}")"
+  SHARDS+=("$n")
+  total=$(( total + n ))
+done
+
+# Scale back if the plan asks for more processes than the machine has room for,
+# keeping every gem at one shard minimum.
+while [ "$total" -gt "$BUDGET" ]; do
+  biggest=0
+  for i in "${!SHARDS[@]}"; do
+    [ "${SHARDS[$i]}" -gt "${SHARDS[$biggest]}" ] && biggest=$i
+  done
+  [ "${SHARDS[$biggest]}" -le 1 ] && break
+  SHARDS[$biggest]=$(( SHARDS[biggest] - 1 ))
+  total=$(( total - 1 ))
+done
+
+say "${HOST}: ${total} processes across ${#GEMS[@]} gems (${CORES} cores)"
+plan=""
+for i in "${!GEMS[@]}"; do plan="${plan}${GEMS[$i]}×${SHARDS[$i]} "; done
+note "$plan"
+
+# --- the database ------------------------------------------------------------
+# Sized to the shards that will hold connections, with room for the odd extra
+# pool. The default 100 runs out quietly and the failure reads like a bug in
+# whatever spec happened to be running.
+want_conns=$(( total * 10 + 50 ))
+ensure_pg() {
+  local have
+  if remote "docker ps --filter name=^${PG_CONTAINER}\$ --filter status=running -q | grep -q ."; then
+    have=$(remote "docker exec ${PG_CONTAINER} psql -U postgres -tAc 'show max_connections'" | tr -d ' ')
+    if [ "${have:-0}" -ge "$want_conns" ]; then return; fi
+    note "${PG_CONTAINER}: max_connections ${have} < ${want_conns}, rebuilding (schemas will be built again)"
+  else
+    note "starting ${PG_CONTAINER}"
+  fi
+  remote "docker rm -f ${PG_CONTAINER} >/dev/null 2>&1 || true
+    docker run -d --name ${PG_CONTAINER} -p 127.0.0.1:${PG_PORT}:5432 \
+      --tmpfs /var/lib/postgresql/data:rw,size=4g \
+      -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres \
+      pgvector/pgvector:pg16 \
+      -c max_connections=${want_conns} -c shared_buffers=1GB -c fsync=off \
+      -c synchronous_commit=off -c full_page_writes=off >/dev/null"
+  remote "for i in \$(seq 1 60); do docker exec ${PG_CONTAINER} pg_isready -U postgres >/dev/null 2>&1 && exit 0; sleep 1; done; exit 1"
+}
+
+needs_db=""
+for i in "${!GEMS[@]}"; do
+  case "${GEMS[$i]}" in eval|rails) needs_db="yes" ;; esac
+done
+
+if [ -n "$needs_db" ]; then
+  ensure_pg
+  # One database per shard of each database-backed gem. Creating them here
+  # rather than in the worker keeps the concurrent CREATE DATABASE calls off
+  # the shared catalogs, where they deadlock against each other.
+  dbs=""
+  for i in "${!GEMS[@]}"; do
+    case "${GEMS[$i]}" in
+      eval)  for k in $(seq 1 "${SHARDS[$i]}"); do dbs="${dbs} raaf_eval_test${k}"; done ;;
+      rails) for k in $(seq 1 "${SHARDS[$i]}"); do dbs="${dbs} raaf_rails_test${k}"; done ;;
+    esac
+  done
+  remote_script "
+    for db in ${dbs}; do
+      docker exec ${PG_CONTAINER} psql -U postgres -tAc \"select 1 from pg_database where datname='\$db'\" | grep -q 1 || \
+        docker exec ${PG_CONTAINER} createdb -U postgres \"\$db\"
+      # PGOPTIONS, not --set: client_min_messages is a server parameter, and psql's
+      # own variable of that name leaves the NOTICE on stderr where it reads as
+      # something having gone wrong.
+      docker exec -e PGOPTIONS='-c client_min_messages=warning' ${PG_CONTAINER} \
+        psql -U postgres -d \"\$db\" -q -c 'create extension if not exists vector' >/dev/null
+    done"
+  note "databases: $(printf '%s' "$dbs" | wc -w | tr -d ' ') ready"
+fi
+
+# --- run ---------------------------------------------------------------------
+STAMP="$(date +%Y%m%d-%H%M%S)"
+LOGDIR="ci/raaf-logs/${STAMP}"
+
+# A shard picks its own random seed unless you name one. Naming one is how you
+# re-run an ordering failure: the log's last line reports the seed that produced
+# it, and REMOTE_TEST_SEED feeds it back in.
+SEEDARG=""
+[ -n "${REMOTE_TEST_SEED:-}" ] && SEEDARG="--seed ${REMOTE_TEST_SEED} "
+
+# Built as one script so the whole fleet starts from a single ssh call: at
+# 36 ms RTT a round trip per shard costs more than the shard's own startup.
+RUN="set -uo pipefail
+cd \$HOME/${DEST}
+export BUNDLE_PATH=\$HOME/ci/raaf-bundle
+export RAAF_LOG_LEVEL=fatal
+export PGHOST=127.0.0.1 PGPORT=${PG_PORT} PGUSER=postgres PGPASSWORD=postgres
+export RAAF_RAILS_TEST_DATABASE_HOST=127.0.0.1
+mkdir -p \$HOME/${LOGDIR}
+: > \$HOME/${LOGDIR}/status
+"
+
+for i in "${!GEMS[@]}"; do
+  gem="${GEMS[$i]}"; n="${SHARDS[$i]}"; scope="${SCOPES[$i]:-spec}"
+  for k in $(seq 1 "$n"); do
+    label="$gem"; [ "$n" -gt 1 ] && label="${gem}-${k}"
+    # Round-robin over a sorted file list. Sorted so a rerun draws the same
+    # split, which is what makes a failure reproducible on the shard that
+    # produced it.
+    if [ "$n" -gt 1 ]; then
+      files="\$(find ${scope} -name '*_spec.rb' | sort | awk 'NR % ${n} == ${k} % ${n}')"
+    else
+      files="${scope}"
+    fi
+    dbenv=""
+    case "$gem" in
+      eval)  dbenv="RAAF_EVAL_TEST_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:${PG_PORT}/raaf_eval_test${k}" ;;
+      rails) dbenv="RAAF_RAILS_TEST_DATABASE=raaf_rails_test${k}" ;;
+    esac
+    RUN="${RUN}
+(
+  cd ${gem}
+  start=\$(date +%s)
+  ${dbenv} bundle exec rspec --format progress --no-profile ${SEEDARG}${files} > \$HOME/${LOGDIR}/${label}.log 2>&1
+  code=\$?
+  echo \"\$code ${label} \$((\$(date +%s) - start))\" >> \$HOME/${LOGDIR}/status
+) &"
+  done
+done
+
+RUN="${RUN}
+wait
+echo FLEET_DONE"
+
+say "running (logs in ${HOST}:${LOGDIR})"
+START=$(date +%s)
+remote_script "$RUN" | grep -v FLEET_DONE || true
+ELAPSED=$(( $(date +%s) - START ))
+
+# --- report ------------------------------------------------------------------
+echo
+say "results (${ELAPSED}s wall)"
+# Counts and statuses in one call. An ssh inside the loop below would read the
+# loop's own input and the report would stop after its first line.
+REPORT="$(remote_script "
+  cd \$HOME/${LOGDIR}
+  while read -r code label secs; do
+    counts=\$(grep -E '^[0-9]+ examples?' \"\$label.log\" | tail -1)
+    echo \"\$code|\$label|\$secs|\$counts\"
+  done < status | sort -t'|' -k2")"
+
+failed=0
+while IFS='|' read -r code label secs counts; do
+  [ -z "${code:-}" ] && continue
+  if [ "$code" = "0" ]; then
+    printf '  \033[32m✓\033[0m %-12s %4ss  %s\n' "$label" "$secs" "$counts"
+  else
+    failed=$(( failed + 1 ))
+    printf '  \033[31m✗\033[0m %-12s %4ss  %s\n' "$label" "$secs" "$counts"
+  fi
+done <<< "$REPORT"
+
+if [ "$failed" -gt 0 ]; then
+  # Print the failures here rather than hand back an ssh command. The reason to
+  # run the suite is to read what broke, and a second round trip to do that is a
+  # round trip that often does not happen.
+  #
+  # RSpec's own failure block is what gets printed: everything between
+  # "Failures:" and the count line. A shard that died before RSpec could report
+  # -- a load error, a missing database -- has no such block, so its tail is
+  # shown instead. Each is capped, because a shard with four hundred failures
+  # tells you the same thing in its first few as in all of them.
+  MAX_LINES="${REMOTE_TEST_FAILURE_LINES:-120}"
+  DETAIL="$(remote_script "
+    cd \$HOME/${LOGDIR}
+    while read -r code label secs; do
+      [ \"\$code\" = 0 ] && continue
+      echo \"===== \$label\"
+      block=\$(sed -n '/^Failures:/,/^Finished in/p' \"\$label.log\")
+      if [ -n \"\$block\" ]; then
+        printf '%s\n' \"\$block\" | head -n ${MAX_LINES}
+        total=\$(printf '%s\n' \"\$block\" | wc -l)
+        [ \"\$total\" -gt ${MAX_LINES} ] && echo \"  ... \$((total - ${MAX_LINES})) more lines in \$label.log\"
+      else
+        echo '  (no rspec failure block -- the shard died before reporting)'
+        tail -n 40 \"\$label.log\" | sed 's/^/  /'
+      fi
+    done < <(sort -k2 status)")"
+
+  while IFS= read -r line; do
+    case "$line" in
+      "===== "*) echo; printf '\033[31m%s\033[0m\n' "── ${line#===== } ─────────────────────────────" ;;
+      *) printf '%s\n' "$line" ;;
+    esac
+  done <<< "$DETAIL"
+
+  echo
+  note "full logs: ssh ${HOST} 'cat ${LOGDIR}/<shard>.log'"
+  exit 1
+fi

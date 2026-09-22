@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+#
+# bin/remote-sync — put this working tree on the remote test host, exactly as
+# it stands, so a run there answers about the code you are looking at.
+#
+# Three moves, only the first of which is obvious:
+#
+#   1. The base commit. This repo's main can sit ahead of origin, so asking the
+#      remote clone to fetch would pin it to whatever origin last saw. HEAD is
+#      pushed straight into the clone over SSH instead, onto a ref the remote
+#      never checks out — git refuses a push to the branch a non-bare repo has
+#      open.
+#
+#   2. The working-tree delta on top: staged, unstaged and untracked alike,
+#      plus the deletions. Measured against HEAD rather than the index, so a
+#      staged-but-uncommitted change is not left behind.
+#
+#   3. Every Gemfile.lock. Each gem ignores its own lock (core/.gitignore and
+#      friends), so step 2 cannot see them, and without them the remote
+#      resolves ten of its own — a run that goes green or red about gem
+#      versions you never chose.
+#
+# Usage:
+#   bin/remote-sync            # sync, then print how to run
+#
+# Environment:
+#   REMOTE_TEST_HOST   default ws1.enterprisemodules.com
+#   REMOTE_TEST_PATH   default ci/raaf (relative to the remote home)
+#   REMOTE_SYNC_REF    default mac — the ref HEAD is pushed to on the remote
+
+set -euo pipefail
+
+HOST="${REMOTE_TEST_HOST:-ws1.enterprisemodules.com}"
+DEST="${REMOTE_TEST_PATH:-ci/raaf}"
+REF="${REMOTE_SYNC_REF:-mac}"
+ORIGIN="https://github.com/raaf-ai/raaf.git"
+
+cd "$(git rev-parse --show-toplevel)"
+
+say()  { printf '\033[1m%s\033[0m\n' "$*"; }
+note() { printf '  %s\n' "$*"; }
+
+# -q because ws1 prints a login banner on every connection, which would
+# otherwise land inside command substitutions. Failures still surface: every
+# caller checks the exit status.
+remote() { ssh -q -o BatchMode=yes "$HOST" "$@"; }
+RSYNC=(rsync -a -e "ssh -q -o BatchMode=yes")
+
+# --- 0. the remote clone has to be there -------------------------------------
+if ! remote "test -d ${DEST}/.git"; then
+  note "no clone at ${HOST}:${DEST}, creating one"
+  remote "mkdir -p ${DEST} && git clone --quiet ${ORIGIN} ${DEST}"
+fi
+
+HEAD_SHA="$(git rev-parse HEAD)"
+HEAD_SHORT="$(git rev-parse --short HEAD)"
+say "→ ${HOST}:${DEST}"
+note "base $HEAD_SHORT $(git log -1 --format=%s | cut -c1-60)"
+
+# --- 1. the base commit ------------------------------------------------------
+# --force because the remote ref is ours to move; nobody else pushes to it.
+GIT_SSH_COMMAND="ssh -q" git push --force --quiet "${HOST}:${DEST}" "HEAD:refs/heads/${REF}"
+
+# Detach so the ref is never the checked-out branch, or the next push is
+# refused by receive.denyCurrentBranch. clean -fd sweeps the untracked
+# leftovers of an earlier overlay; -x is deliberately absent so the Gemfile.lock
+# files and anything else ignored survive.
+remote "cd ${DEST} && \
+  git checkout --force --detach ${REF} --quiet && \
+  git reset --hard --quiet ${HEAD_SHA} && \
+  git clean -fdq"
+
+# --- 2. the working-tree delta ----------------------------------------------
+CHANGED="$(mktemp)"; DELETED="$(mktemp)"
+trap 'rm -f "$CHANGED" "$DELETED"' EXIT
+
+{ git diff --name-only --diff-filter=d -z HEAD
+  git ls-files --others --exclude-standard -z; } > "$CHANGED"
+git diff --name-only --diff-filter=D -z HEAD > "$DELETED"
+
+n_changed=$(tr -cd '\0' < "$CHANGED" | wc -c | tr -d ' ')
+n_deleted=$(tr -cd '\0' < "$DELETED" | wc -c | tr -d ' ')
+
+if [ "$n_changed" -gt 0 ]; then
+  "${RSYNC[@]}" --from0 --files-from="$CHANGED" ./ "${HOST}:${DEST}/"
+fi
+if [ "$n_deleted" -gt 0 ]; then
+  # shellcheck disable=SC2029  # DEST is ours, and the paths arrive on stdin
+  remote "cd ${DEST} && xargs -0 rm -f" < "$DELETED"
+fi
+note "working tree: ${n_changed} changed or untracked, ${n_deleted} deleted"
+
+# --- 3. the locks git cannot see --------------------------------------------
+LOCKS=()
+while IFS= read -r lock; do LOCKS+=("$lock"); done < <(ls -1 ./*/Gemfile.lock 2>/dev/null || true)
+if [ "${#LOCKS[@]}" -gt 0 ]; then
+  "${RSYNC[@]}" -R "${LOCKS[@]}" "${HOST}:${DEST}/"
+  note "Gemfile.lock: ${#LOCKS[@]} shipped"
+fi
+
+# --- 4. the sibling gems outside this repository -----------------------------
+# rails/Gemfile asks for phlex-preline at ../../phlex-preline, which on a
+# checkout inside prospects_radar/vendor/local_gems resolves to a gem sitting
+# beside raaf. The remote clone has no such neighbour, and `bundle install`
+# stops dead with "The path ... does not exist".
+#
+# .git goes along on purpose: phlex-preline.gemspec builds its file list with
+# `git ls-files`, and without the repository it resolves to no files at all.
+SIBLINGS=()
+while IFS= read -r name; do
+  [ -d "../${name}" ] && SIBLINGS+=("$name")
+done < <(grep -ho 'path: "\.\./\.\./[a-z0-9_-]*"' ./*/Gemfile 2>/dev/null |
+         sed 's|.*/||; s|"||' | sort -u)
+
+if [ "${#SIBLINGS[@]}" -gt 0 ]; then
+  for name in "${SIBLINGS[@]}"; do
+    "${RSYNC[@]}" --delete "../${name}/" "${HOST}:$(dirname "${DEST}")/${name}/"
+  done
+  note "sibling gems: ${SIBLINGS[*]}"
+fi
+
+# --- 5. say what is now true -------------------------------------------------
+say "synced"
+# Full SHAs on both sides: core.abbrev scales with a repository's object count,
+# so the two ends do not agree on how short "short" is.
+REMOTE_HEAD="$(remote "cd ${DEST} && git rev-parse HEAD")"
+if [ "$REMOTE_HEAD" != "$HEAD_SHA" ]; then
+  echo "remote-sync: remote HEAD is ${REMOTE_HEAD}, expected ${HEAD_SHA}" >&2
+  exit 1
+fi
+note "${HOST}:${DEST} is at ${HEAD_SHORT} plus your working tree"
+# bin/remote-test runs this first and then says what it is about to do, so the
+# hint below would only be in its way.
+if [ "${REMOTE_SYNC_QUIET:-}" != "1" ]; then
+  cat <<RUN
+
+Run there with:
+  bin/remote-test
+RUN
+fi

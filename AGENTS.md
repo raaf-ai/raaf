@@ -439,6 +439,32 @@ cd core && bundle exec rspec
 cd tracing && bundle exec rspec
 ```
 
+### Running the whole suite on the remote workstation
+
+`rake spec` walks the nine suites one after another, which costs about six
+minutes and leaves thirty-one of the workstation's thirty-two cores idle.
+`bin/remote-test` runs them side by side on ws1 instead, in about two and a
+half:
+
+```bash
+bin/remote-test              # every gem with a suite
+bin/remote-test core dsl     # only these
+bin/remote-test core:spec/raaf/agent_spec.rb
+```
+
+It syncs your working tree first (`bin/remote-sync`), so the answer is about
+the code in front of you rather than the last thing pushed. Two gems need a
+database -- `eval` and `rails` -- and the script starts a tmpfs Postgres
+container for them; nothing else needs anything the host's ruby does not
+already have.
+
+The floor is `core` at ~170 s, because the runner gives each gem one process.
+Splitting a gem across processes (`SHARDS_core=5`) works and is roughly twice
+as fast again, but it currently fails: several suites only pass when the whole
+gem loads together -- `dsl`'s schema cache spec calls `Rails.env`, which a
+different spec file in that gem defines. Those are suite defects worth fixing;
+until they are, one process per gem is what is trustworthy.
+
 ## Best Practices and Current Standards
 
 **Default Provider**: RAAF automatically uses `ResponsesProvider` for OpenAI API compatibility with the Python SDK.

@@ -63,6 +63,17 @@ def run_gem_specs(gem_name, rspec_args = [])
   ok ? :passed : :failed
 end
 
+# Every gem's .rspec asks for the documentation formatter, which is the right
+# default when you are running one gem and want to read the example names. Across
+# ten suites it is nine thousand of them to scroll past to reach the counts, so the
+# whole-repo task reports dots instead. `rake spec:gem[core]` and running rspec in
+# the gem directory both keep the documentation format.
+def progress_args(rspec_args)
+  return rspec_args if rspec_args.any? { |arg| arg == "-f" || arg.start_with?("--format", "-f=") }
+
+  ["--format", "progress", "--no-profile", *rspec_args]
+end
+
 # ONLY=core,dsl narrows any of the spec tasks to those gems, matching the
 # convention the guides tasks already use.
 def selected_spec_gems
@@ -70,9 +81,7 @@ def selected_spec_gems
   return SPEC_GEMS if requested.empty?
 
   unknown = requested - SPEC_GEMS
-  unless unknown.empty?
-    abort("❌ Unknown gem(s): #{unknown.join(", ")}\nAvailable: #{SPEC_GEMS.join(", ")}")
-  end
+  abort("❌ Unknown gem(s): #{unknown.join(", ")}\nAvailable: #{SPEC_GEMS.join(", ")}") unless unknown.empty?
 
   SPEC_GEMS & requested
 end
@@ -86,7 +95,7 @@ task :spec do
     puts "Running #{gem_name} specs..."
     puts "=" * 60
 
-    results[gem_name] = run_gem_specs(gem_name)
+    results[gem_name] = run_gem_specs(gem_name, progress_args([]))
     puts "⚠️  No spec directory for #{gem_name}" if results[gem_name] == :skipped
   end
 
@@ -112,13 +121,9 @@ namespace :spec do
   desc "Run a single gem's specs, e.g. rake spec:gem[core] or spec:gem[core,spec/raaf/agent_spec.rb]"
   task :gem, [:gem_name, :rspec_args] do |_t, args|
     gem_name = args[:gem_name]
-    unless gem_name
-      abort("❌ Please specify a gem name\nUsage: rake spec:gem[core]\nAvailable: #{SPEC_GEMS.join(", ")}")
-    end
+    abort("❌ Please specify a gem name\nUsage: rake spec:gem[core]\nAvailable: #{SPEC_GEMS.join(", ")}") unless gem_name
 
-    unless SPEC_GEMS.include?(gem_name)
-      abort("❌ Unknown gem: #{gem_name}\nAvailable: #{SPEC_GEMS.join(", ")}")
-    end
+    abort("❌ Unknown gem: #{gem_name}\nAvailable: #{SPEC_GEMS.join(", ")}") unless SPEC_GEMS.include?(gem_name)
 
     rspec_args = Shellwords.split(args[:rspec_args].to_s)
     case run_gem_specs(gem_name, rspec_args)
