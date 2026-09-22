@@ -255,6 +255,56 @@ RSpec.describe RAAF::Eval::LLMJudge::StatisticalJudge do
     end
   end
 
+  describe "the response cache" do
+    subject(:judge) { described_class.new(model: "gpt-4o", cache: true) }
+
+    # The stub at the top of this file replaces #judge_output, which is where the
+    # cache lives. These examples need the real one, and answer a step lower down.
+    before do
+      allow(judge).to receive(:judge_output).and_call_original
+      allow(judge).to receive(:call_judge_model).and_return(
+        { passed: true, confidence: 0.9, reasoning: "first" }.to_json,
+        { passed: false, confidence: 0.4, reasoning: "second" }.to_json
+      )
+    end
+
+    def ask(cache: nil)
+      judge.evaluate(input: "What is 2 + 2?", output: "4", criteria: "Is it correct?", cache: cache)
+    end
+
+    it "answers a repeated question without asking the model again" do
+      expect(ask).to include(reasoning: "first")
+      expect(ask).to include(reasoning: "first")
+      expect(judge).to have_received(:call_judge_model).once
+    end
+
+    # What a caller measuring the judge's own repeatability needs: a cached answer
+    # repeats by definition, and would report every judge as perfectly steady.
+    it "asks again when the caller opts out" do
+      expect(ask(cache: false)).to include(reasoning: "first")
+      expect(ask(cache: false)).to include(reasoning: "second")
+      expect(judge).to have_received(:call_judge_model).twice
+    end
+
+    it "keeps an uncached answer out of the cache" do
+      ask(cache: false)
+
+      expect(ask).to include(reasoning: "second") # the cached one, not the opted-out first
+      expect(judge).to have_received(:call_judge_model).twice
+    end
+
+    context "when the judge was built without a cache" do
+      subject(:judge) { described_class.new(model: "gpt-4o", cache: false) }
+
+      it "asks the model every time" do
+        ask
+        ask
+
+        expect(judge).to have_received(:call_judge_model).twice
+      end
+    end
+  end
+
   describe "#evaluate_batch", :vcr do
     let(:criteria) { "Is the mathematical answer correct?" }
     let(:test_samples) do

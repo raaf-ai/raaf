@@ -10,6 +10,33 @@ RSpec.describe RAAF::Eval::LLMJudge::MultiJudgeEvaluator do
 
   let(:models) { %w[gpt-4o gpt-4o-mini] }
 
+  # A judge reaches the network in exactly one place, and every consensus method
+  # here is built on what comes back from it. Stubbing that one call keeps prompt
+  # construction, JSON parsing and the aggregation arithmetic under test while
+  # deciding the votes from the spec. Without it there is no API key, every
+  # judgement raises into `judge_output`'s rescue, and each method is measured on
+  # two "did not pass" votes it never chose.
+  #
+  # +verdicts+ maps a model name to what that judge says: a fixed boolean, or a
+  # callable handed the output under evaluation.
+  def judges_answer(verdicts, confidence: 0.9)
+    evaluator.judges.each do |judge|
+      answer = verdicts.fetch(judge.model)
+
+      allow(judge).to receive(:call_judge_model) do |prompt|
+        passed = answer.respond_to?(:call) ? answer.call(judged_output(prompt)) : answer
+
+        { passed: passed, confidence: confidence, reasoning: "#{judge.model} says #{passed}" }.to_json
+      end
+    end
+  end
+
+  # The output the judging prompt is asking about. Reading it back out of the
+  # prompt is also what proves the prompt carried it.
+  def judged_output(prompt)
+    prompt[/## Output to Evaluate\n(.+?)\n\n## Instructions/m, 1].to_s.strip
+  end
+
   describe "#initialize" do
     it "creates judges from model names" do
       expect(evaluator.judges.size).to eq(2)
@@ -41,187 +68,278 @@ RSpec.describe RAAF::Eval::LLMJudge::MultiJudgeEvaluator do
     end
   end
 
-  describe "#evaluate", :vcr do
+  describe "#evaluate" do
     let(:input) { "What is 2 + 2?" }
-    let(:output) { "4" }
     let(:criteria) { "Is the answer mathematically correct?" }
 
-    it "returns consensus result" do
-      result = evaluator.evaluate(input: input, output: output, criteria: criteria)
+    it "reaches consensus when the judges agree" do
+      judges_answer({ "gpt-4o" => true, "gpt-4o-mini" => true })
 
-      expect(result).to have_key(:consensus)
-      expect(result).to have_key(:agreement_rate)
-      expect(result).to have_key(:positive_votes)
-      expect(result).to have_key(:negative_votes)
-      expect(result).to have_key(:total_judges)
-      expect(result).to have_key(:individual_votes)
+      result = evaluator.evaluate(input: input, output: "4", criteria: criteria)
+
+      expect(result).to include(
+        consensus: true,
+        positive_votes: 2,
+        negative_votes: 0,
+        total_judges: 2,
+        agreement_rate: 1.0,
+        strategy: :majority
+      )
     end
 
-    it "includes individual votes with details" do
-      result = evaluator.evaluate(input: input, output: output, criteria: criteria)
+    # Two judges cannot produce a majority out of a split, so the tie reads as
+    # "no consensus" rather than as the positive vote winning.
+    it "withholds consensus on a split, and still reports full disagreement" do
+      judges_answer({ "gpt-4o" => true, "gpt-4o-mini" => false })
 
-      expect(result[:individual_votes].size).to eq(2)
-      result[:individual_votes].each do |vote|
-        expect(vote).to have_key(:judge)
-        expect(vote).to have_key(:passed)
-        expect(vote).to have_key(:confidence)
-        expect(vote).to have_key(:reasoning)
-      end
+      result = evaluator.evaluate(input: input, output: "4", criteria: criteria)
+
+      expect(result).to include(consensus: false, positive_votes: 1, negative_votes: 1, agreement_rate: 0.5)
     end
 
-    it "computes agreement rate correctly" do
-      result = evaluator.evaluate(input: input, output: output, criteria: criteria)
+    it "attributes every vote to the judge that cast it" do
+      judges_answer({ "gpt-4o" => true, "gpt-4o-mini" => false })
 
-      expected_rate = [result[:positive_votes], result[:negative_votes]].max.to_f / result[:total_judges]
-      expect(result[:agreement_rate]).to eq(expected_rate)
+      votes = evaluator.evaluate(input: input, output: "4", criteria: criteria)[:individual_votes]
+
+      expect(votes).to eq(
+        [
+          { judge: "gpt-4o", passed: true, confidence: 0.9, reasoning: "gpt-4o says true" },
+          { judge: "gpt-4o-mini", passed: false, confidence: 0.9, reasoning: "gpt-4o-mini says false" }
+        ]
+      )
+    end
+
+    # The judgement has to be about the output it was handed, which is only true
+    # if the prompt carried it; the stub reads its verdict back out of the prompt.
+    it "asks about the output it was given" do
+      judges_answer(
+        {
+          "gpt-4o" => ->(output) { output == "4" },
+          "gpt-4o-mini" => ->(output) { output == "4" }
+        }
+      )
+
+      expect(evaluator.evaluate(input: input, output: "4", criteria: criteria)).to include(consensus: true)
+      expect(evaluator.evaluate(input: input, output: "5", criteria: criteria)).to include(consensus: false)
     end
   end
 
-  describe "#evaluate_weighted", :vcr do
+  describe "#evaluate_weighted" do
     let(:input) { "What is 2 + 2?" }
-    let(:output) { "4" }
     let(:criteria) { "Is the answer mathematically correct?" }
 
-    it "returns weighted voting result" do
-      result = evaluator.evaluate_weighted(input: input, output: output, criteria: criteria)
+    it "splits the weight evenly between uncalibrated judges" do
+      judges_answer({ "gpt-4o" => true, "gpt-4o-mini" => false })
 
-      expect(result).to have_key(:consensus)
-      expect(result).to have_key(:weighted_positive_score)
-      expect(result).to have_key(:weighted_negative_score)
-      expect(result).to have_key(:weights)
-      expect(result[:strategy]).to eq(:weighted)
+      result = evaluator.evaluate_weighted(input: input, output: "4", criteria: criteria)
+
+      expect(result[:weights]).to eq(
+        [{ model: "gpt-4o", weight: 0.5 }, { model: "gpt-4o-mini", weight: 0.5 }]
+      )
+      expect(result).to include(
+        weighted_positive_score: 0.5,
+        weighted_negative_score: 0.5,
+        consensus: false, # a tie is not a positive consensus
+        strategy: :weighted
+      )
     end
 
-    it "includes weights for each judge" do
-      result = evaluator.evaluate_weighted(input: input, output: output, criteria: criteria)
+    # The point of weighting: a judge measured against ground truth outvotes one
+    # that is barely better than a coin toss, even though it is one vote each.
+    it "lets the better-calibrated judge carry the vote" do
+      sharp, blunt = evaluator.judges
+      allow(sharp).to receive_messages(calibrated?: true, sensitivity: 0.95, specificity: 0.95)
+      allow(blunt).to receive_messages(calibrated?: true, sensitivity: 0.6, specificity: 0.6)
+      judges_answer({ "gpt-4o" => true, "gpt-4o-mini" => false })
 
-      expect(result[:weights].size).to eq(2)
-      result[:weights].each do |w|
-        expect(w).to have_key(:model)
-        expect(w).to have_key(:weight)
-        expect(w[:weight]).to be_between(0.0, 1.0)
-      end
-    end
+      result = evaluator.evaluate_weighted(input: input, output: "4", criteria: criteria)
 
-    it "normalizes weights to sum to 1" do
-      result = evaluator.evaluate_weighted(input: input, output: output, criteria: criteria)
-
-      total_weight = result[:weights].sum { |w| w[:weight] }
-      expect(total_weight).to be_within(0.001).of(1.0)
+      expect(result[:weights].map { |w| w[:weight] }).to all(be_between(0.0, 1.0))
+      expect(result[:weights].sum { |w| w[:weight] }).to be_within(0.001).of(1.0)
+      expect(result[:weights].first[:weight]).to be_within(0.001).of(0.9 / 1.1)
+      expect(result[:consensus]).to be true
+      expect(result[:positive_votes]).to eq(1) # still one vote each; only the weight differs
     end
   end
 
-  describe "#evaluate_unanimous", :vcr do
+  describe "#evaluate_unanimous" do
     let(:criteria) { "Is the answer correct?" }
 
-    it "requires all judges to agree for positive consensus" do
-      result = evaluator.evaluate_unanimous(
-        input: "What is 2 + 2?",
-        output: "4",
-        criteria: criteria
-      )
+    it "reaches consensus only when every judge passes the output" do
+      judges_answer({ "gpt-4o" => true, "gpt-4o-mini" => true })
 
-      if result[:positive_votes] == result[:total_judges]
-        expect(result[:consensus]).to be true
-      else
-        expect(result[:consensus]).to be false
-      end
+      result = evaluator.evaluate_unanimous(input: "What is 2 + 2?", output: "4", criteria: criteria)
+
+      expect(result).to include(consensus: true, positive_votes: 2, strategy: :unanimous)
+    end
+
+    # Unanimity is about the positive verdict: judges agreeing that the output
+    # fails is full agreement, and still not a consensus that it passed.
+    it "denies consensus when the judges unanimously fail the output" do
+      judges_answer({ "gpt-4o" => false, "gpt-4o-mini" => false })
+
+      result = evaluator.evaluate_unanimous(input: "What is 2 + 2?", output: "5", criteria: criteria)
+
+      expect(result).to include(consensus: false, positive_votes: 0, agreement_rate: 1.0)
+    end
+
+    it "denies consensus on a single dissent" do
+      judges_answer({ "gpt-4o" => true, "gpt-4o-mini" => false })
+
+      result = evaluator.evaluate_unanimous(input: "What is 2 + 2?", output: "4", criteria: criteria)
+
+      expect(result).to include(consensus: false)
     end
   end
 
-  describe "#evaluate_threshold", :vcr do
+  describe "#evaluate_threshold" do
     let(:criteria) { "Is the answer correct?" }
 
-    it "uses custom threshold for consensus" do
-      result = evaluator.evaluate_threshold(
-        input: "What is 2 + 2?",
-        output: "4",
-        criteria: criteria,
-        threshold: 0.5
+    def consensus_at(threshold, verdicts)
+      judges_answer(verdicts)
+      evaluator.evaluate_threshold(
+        input: "What is 2 + 2?", output: "4", criteria: criteria, threshold: threshold
       )
+    end
 
-      expected_consensus = result[:positive_votes].to_f / result[:total_judges] >= 0.5
-      expect(result[:consensus]).to eq(expected_consensus)
+    it "passes a split at a threshold the split meets" do
+      expect(consensus_at(0.5, { "gpt-4o" => true, "gpt-4o-mini" => false }))
+        .to include(consensus: true, positive_votes: 1, strategy: :threshold)
+    end
+
+    it "fails the same split at a threshold above it" do
+      expect(consensus_at(0.75, { "gpt-4o" => true, "gpt-4o-mini" => false }))
+        .to include(consensus: false)
+    end
+
+    it "passes a unanimous vote at any threshold" do
+      expect(consensus_at(1.0, { "gpt-4o" => true, "gpt-4o-mini" => true })).to include(consensus: true)
     end
   end
 
-  describe "#evaluate_batch", :vcr do
+  describe "#evaluate_batch" do
     let(:samples) do
       [
         { input: "What is 1 + 1?", output: "2" },
         { input: "What is 2 + 2?", output: "4" },
-        { input: "What is 3 + 3?", output: "7" } # Incorrect
+        { input: "What is 3 + 3?", output: "7" } # wrong, and the judges split over it
       ]
     end
     let(:criteria) { "Is the answer correct?" }
 
-    it "evaluates all samples" do
-      results = evaluator.evaluate_batch(samples, criteria: criteria)
-
-      expect(results[:results].size).to eq(3)
-      expect(results).to have_key(:consensus_rate)
-      expect(results).to have_key(:average_agreement)
-      expect(results).to have_key(:high_disagreement_count)
-      expect(results).to have_key(:unanimous_count)
+    before do
+      judges_answer(
+        {
+          "gpt-4o" => ->(output) { %w[2 4].include?(output) },
+          "gpt-4o-mini" => ->(output) { %w[2 7].include?(output) }
+        }
+      )
     end
 
-    it "computes aggregate statistics" do
+    it "returns one result per sample, in order" do
+      results = evaluator.evaluate_batch(samples, criteria: criteria)[:results]
+
+      expect(results.map { |r| r[:positive_votes] }).to eq([2, 1, 1])
+      expect(results.map { |r| r[:consensus] }).to eq([true, false, false])
+    end
+
+    it "computes the aggregates from those results" do
       results = evaluator.evaluate_batch(samples, criteria: criteria)
 
-      expect(results[:consensus_rate]).to be_between(0.0, 1.0)
-      expect(results[:average_agreement]).to be_between(0.0, 1.0)
-      expect(results[:high_disagreement_count]).to be >= 0
-      expect(results[:unanimous_count]).to be >= 0
+      expect(results[:consensus_rate]).to be_within(0.001).of(1.0 / 3)
+      expect(results[:average_agreement]).to be_within(0.001).of((1.0 + 0.5 + 0.5) / 3)
+      expect(results[:unanimous_count]).to eq(1)
+    end
+
+    # `agreement_rate` is the larger side over the total, so it never drops below
+    # 0.5 and this counter, which asks for less than 0.5, never fires. Asserted so
+    # the day the metric is fixed, this says so.
+    it "reports no high-disagreement samples, which it cannot" do
+      results = evaluator.evaluate_batch(samples, criteria: criteria)
+
+      expect(results[:high_disagreement_count]).to eq(0)
+    end
+
+    it "honours a strategy passed in place of the default" do
+      results = evaluator.evaluate_batch(samples, criteria: criteria, strategy: :unanimous)
+
+      expect(results[:results].map { |r| r[:strategy] }).to all(eq(:unanimous))
+      expect(results[:results].map { |r| r[:consensus] }).to eq([true, false, false])
     end
   end
 
-  describe "#flag_for_human_review", :vcr do
+  describe "#flag_for_human_review" do
     let(:samples) do
       [
-        { input: "What is 1 + 1?", output: "2" },
-        { input: "Explain quantum physics in detail", output: "Complex topic..." }
+        { input: "What is 1 + 1?", output: "2" }, # both judges agree
+        { input: "Explain quantum physics", output: "Complex topic..." } # they split
       ]
     end
     let(:criteria) { "Is the answer complete and accurate?" }
 
-    it "flags samples with low agreement" do
-      flagged = evaluator.flag_for_human_review(
-        samples,
-        criteria: criteria,
-        disagreement_threshold: 0.9 # High threshold to catch most samples
+    before do
+      judges_answer(
+        {
+          "gpt-4o" => true,
+          "gpt-4o-mini" => ->(output) { output == "2" }
+        }
       )
+    end
 
-      expect(flagged).to be_an(Array)
-      flagged.each do |item|
-        expect(item).to have_key(:sample)
-        expect(item).to have_key(:result)
-        expect(item).to have_key(:reason)
-      end
+    it "flags only the sample the judges disagreed over" do
+      flagged = evaluator.flag_for_human_review(samples, criteria: criteria, disagreement_threshold: 0.6)
+
+      expect(flagged.map { |f| f[:sample] }).to eq([samples.last])
+      expect(flagged.first[:reason]).to eq("Low agreement: 50.0%")
+      expect(flagged.first[:result]).to include(positive_votes: 1, negative_votes: 1)
+    end
+
+    it "flags nothing when the threshold sits at or below the agreement" do
+      expect(evaluator.flag_for_human_review(samples, criteria: criteria, disagreement_threshold: 0.5))
+        .to be_empty
+    end
+
+    # The default threshold is 0.5 and `agreement_rate` never goes below it, so
+    # calling this without one can only ever return nothing.
+    it "flags nothing at the default threshold" do
+      expect(evaluator.flag_for_human_review(samples, criteria: criteria)).to be_empty
     end
   end
 
-  describe "#inter_rater_reliability", :vcr do
-    let(:samples) do
-      5.times.map { |i| { input: "Q#{i}", output: "A#{i}" } }
-    end
+  describe "#inter_rater_reliability" do
     let(:criteria) { "Is this correct?" }
+    let(:samples) { 4.times.map { |i| { input: "Q#{i}", output: "A#{i}" } } }
 
-    it "computes reliability statistics" do
+    it "measures how often the judges landed on the same verdict" do
+      judges_answer(
+        {
+          "gpt-4o" => true,
+          "gpt-4o-mini" => ->(output) { %w[A0 A1].include?(output) }
+        }
+      )
+
       reliability = evaluator.inter_rater_reliability(samples, criteria: criteria)
 
-      expect(reliability).to have_key(:mean_pairwise_agreement)
-      expect(reliability).to have_key(:min_pairwise_agreement)
-      expect(reliability).to have_key(:max_pairwise_agreement)
-      expect(reliability).to have_key(:fleiss_kappa)
-      expect(reliability).to have_key(:num_judges)
-      expect(reliability).to have_key(:num_samples)
+      expect(reliability).to include(
+        mean_pairwise_agreement: 0.5,
+        min_pairwise_agreement: 0.5,
+        max_pairwise_agreement: 0.5,
+        num_judges: 2,
+        num_samples: 4
+      )
+      # Agreement half the time, while both judges lean positive, is worse than
+      # the chance agreement that lean already buys: p_bar 0.5 against p_e 0.625.
+      expect(reliability[:fleiss_kappa]).to be_within(0.001).of(-1.0 / 3)
     end
 
-    it "returns valid agreement values" do
+    it "reports perfect reliability when the judges never differ" do
+      judges_answer({ "gpt-4o" => true, "gpt-4o-mini" => true })
+
       reliability = evaluator.inter_rater_reliability(samples, criteria: criteria)
 
-      expect(reliability[:mean_pairwise_agreement]).to be_between(0.0, 1.0)
-      expect(reliability[:fleiss_kappa]).to be_between(-1.0, 1.0)
+      expect(reliability[:mean_pairwise_agreement]).to eq(1.0)
+      expect(reliability[:fleiss_kappa]).to eq(1.0)
     end
   end
 
