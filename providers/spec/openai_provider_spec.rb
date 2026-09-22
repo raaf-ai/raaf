@@ -16,6 +16,11 @@ RSpec.describe RAAF::Models::OpenAIProvider do
     end
 
     it "shows deprecation warning" do
+      # The suite suppresses the notice so it does not repeat once per example.
+      # This is the example that asks for it back.
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with("RAAF_SUPPRESS_WARNINGS").and_return(nil)
+
       expect { described_class.new(api_key: api_key) }.to output(/DEPRECATION WARNING/).to_stderr
     end
   end
