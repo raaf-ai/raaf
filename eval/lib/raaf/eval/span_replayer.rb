@@ -143,6 +143,23 @@ module RAAF
 
       private
 
+      # What a recorded model setting looks like when it holds a number. An
+      # unset one is the string "N/A", which must not become 0.0.
+      NUMERIC_ATTRIBUTE = /\A-?\d+(?:\.\d+)?\z/
+
+      ##
+      # A span attribute as a Float, or nil when it carries no number.
+      # @param key [String] the span attribute name
+      # @return [Float, nil]
+      def numeric_attribute(key)
+        value = @attrs[key]
+        return value.to_f if value.is_a?(Numeric)
+        return nil if value.nil?
+
+        string = value.to_s.strip
+        string.match?(NUMERIC_ATTRIBUTE) ? string.to_f : nil
+      end
+
       ##
       # Extract messages from span attributes
       # @return [Array<Hash>] Array of message hashes
@@ -200,6 +217,16 @@ module RAAF
 
       ##
       # Extract model settings from span attributes
+      #
+      # Only attributes that carry an actual number are used. An unset model
+      # setting is recorded as the string "N/A", and +to_f+ turns that into
+      # 0.0, which is why this method used to drop every zero on its way out.
+      # That blanket rule also dropped a deliberate +temperature: 0+: the
+      # replay then ran at the provider default, and every rerun consistency
+      # check reported the agent disagreeing with itself on identical input.
+      # Reading the string before coercing it means only real numbers survive,
+      # and a zero that is there on purpose survives with them.
+      #
       # @return [Hash] Settings hash with symbolized keys
       def extract_model_settings
         settings = {}
@@ -214,18 +241,19 @@ module RAAF
           end
         end
 
-        # Override with individual attributes if present
-        settings[:temperature] = @attrs["agent.temperature"].to_f if @attrs["agent.temperature"].present?
-        settings[:max_tokens] = @attrs["agent.max_tokens"].to_i if @attrs["agent.max_tokens"].present?
-        settings[:top_p] = @attrs["agent.top_p"].to_f if @attrs["agent.top_p"].present?
-        if @attrs["agent.frequency_penalty"].present?
-          settings[:frequency_penalty] =
-            @attrs["agent.frequency_penalty"].to_f
-        end
-        settings[:presence_penalty] = @attrs["agent.presence_penalty"].to_f if @attrs["agent.presence_penalty"].present?
+        # Override with individual attributes, where one carries a number.
+        {
+          temperature: numeric_attribute("agent.temperature"),
+          max_tokens: numeric_attribute("agent.max_tokens")&.to_i,
+          top_p: numeric_attribute("agent.top_p"),
+          frequency_penalty: numeric_attribute("agent.frequency_penalty"),
+          presence_penalty: numeric_attribute("agent.presence_penalty")
+        }.each { |key, value| settings[key] = value unless value.nil? }
 
-        # Remove zero/nil values that shouldn't override defaults
-        settings.reject { |_, v| v.nil? || v == 0 }
+        # A token budget of zero is not a budget. Every other zero is a setting.
+        settings.delete(:max_tokens) if settings[:max_tokens]&.zero?
+
+        settings.compact
       end
 
       ##
