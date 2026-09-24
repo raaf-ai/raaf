@@ -39,25 +39,17 @@ Gem::Specification.new do |spec|
 
   # Basic tools dependencies
   spec.add_dependency "base64", "~> 0.1"
-  spec.add_dependency "chronic", "~> 0.10"
   spec.add_dependency "csv", "~> 3.0"
   spec.add_dependency "digest", "~> 3.1"
   spec.add_dependency "fileutils", "~> 1.7"
-  spec.add_dependency "httparty", "~> 0.21"
-  spec.add_dependency "mail", "~> 2.8"
   spec.add_dependency "securerandom", "~> 0.2"
   spec.add_dependency "uri", "~> 0.12"
   spec.add_dependency "yaml", "~> 0.2"
 
   # Advanced tools dependencies
-  spec.add_dependency "aws-sdk-s3", "~> 1.0"
   spec.add_dependency "docx", "~> 0.8"
-  spec.add_dependency "google-cloud-storage", "~> 1.0"
-  spec.add_dependency "jwt", "~> 2.0"
-  spec.add_dependency "pdf-reader", "~> 2.0"
   spec.add_dependency "pg", "~> 1.5"
   spec.add_dependency "ruby-openai", "~> 7.0"
-  spec.add_dependency "selenium-webdriver", "~> 4.0"
 
   # Development dependencies
   spec.add_development_dependency "rake", "~> 13.0"
