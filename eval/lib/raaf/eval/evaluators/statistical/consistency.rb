@@ -290,32 +290,62 @@ module RAAF
 
           private
 
+          # An item the runs do not agree on the *existence* of is a different
+          # finding from an item they answered differently, and scoring the two
+          # as one made this check unreadable on any agent whose result set is
+          # not fixed. Keying by full_name, DmuStakeholderDiscoveryGroundedAgent
+          # searches the live web, so the committee it returns genuinely differs
+          # between runs; a person found twice out of three times scored 0.0
+          # although both runs that found them said 0.7. Production rows read
+          # "1 of 4 items consistent ... worst Ton Vreugdenhil [0.7, 0.7, nil]",
+          # which is a complaint about discovery membership wearing the label of
+          # confidence calibration.
+          #
+          # So an item is scored on the runs that answered for it, and only when
+          # at least two did. One appearance cannot be compared with anything and
+          # is counted under +items_not_comparable+ rather than averaged in as a
+          # zero. The churn stays in the message and in
+          # +items_missing_from_a_run+, so it is reported rather than hidden — it
+          # is simply not spent on this check's score.
+          #
+          # Where a key set is fixed — criterion codes, event ids — no item is
+          # ever missing and none of this applies.
           def evaluate_keyed(runs, tolerance:, max_std_dev:, good_threshold:, average_threshold:)
             item_keys = runs.flat_map(&:keys).map(&:to_s).uniq
             items = item_keys.map do |item_key|
               values = runs.map { |run| run[item_key] || run[item_key.to_sym] }
-              { key: item_key, values: values, score: keyed_item_score(values, tolerance, max_std_dev) }
+              answered = values.compact
+              { key: item_key, values: values, answered: answered.size,
+                score: (keyed_item_score(answered, tolerance, max_std_dev) if answered.size >= 2) }
             end
             return keyed_result_without_items(good_threshold, average_threshold) if items.empty?
 
-            score = (items.sum { |item| item[:score] } / items.size).round(4)
-            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
-            consistent = items.count { |item| item[:score] >= 1.0 }
+            comparable = items.select { |item| item[:score] }
             missing = items.count { |item| item[:values].any?(&:nil?) }
-            worst = items.select { |item| item[:score] < 1.0 }.min_by(WORST_ITEMS_REPORTED) { |item| item[:score] }
+            return keyed_result_without_comparable_items(runs, items, missing, good_threshold,
+                                                        average_threshold) if comparable.empty?
 
-            message = "[#{label.upcase}] #{consistent} of #{items.size} items consistent across #{runs.size} runs"
+            score = (comparable.sum { |item| item[:score] } / comparable.size).round(4)
+            label = calculate_label(score, good_threshold: good_threshold, average_threshold: average_threshold)
+            consistent = comparable.count { |item| item[:score] >= 1.0 }
+            worst = comparable.select { |item| item[:score] < 1.0 }
+                              .min_by(WORST_ITEMS_REPORTED) { |item| item[:score] }
+
+            message = "[#{label.upcase}] #{consistent} of #{comparable.size} comparable items consistent " \
+                      "across #{runs.size} runs"
             message << " (tolerance: #{tolerance})" if tolerance
             message << "; worst #{worst.first[:key]} #{worst.first[:values].inspect}" if worst.any?
+            message << "; #{missing} item(s) absent from a run" if missing.positive?
 
             {
               label: label,
               score: score,
               details: {
                 runs: runs.size,
-                items_compared: items.size,
+                items_compared: comparable.size,
                 items_consistent: consistent,
                 items_missing_from_a_run: missing,
+                items_not_comparable: items.size - comparable.size,
                 worst_items: worst,
                 tolerance: tolerance,
                 max_std_dev: tolerance ? nil : max_std_dev,
@@ -326,9 +356,32 @@ module RAAF
             }
           end
 
-          def keyed_item_score(values, tolerance, max_std_dev)
-            return 0.0 if values.any?(&:nil?)
+          # Every item appeared in at most one run, so the runs share no answer to
+          # compare. That is a statement about how much the result set moved, not
+          # a verdict on the numbers in it, so it carries the same +error+ flag as
+          # being handed a single run: a 0.0 here would be stored as the agent
+          # having scored inconsistently when nothing was ever compared.
+          def keyed_result_without_comparable_items(runs, items, missing, good_threshold, average_threshold)
+            {
+              label: "bad",
+              score: 0.0,
+              error: true,
+              details: {
+                error: "No item appeared in two runs, so no answer could be compared",
+                runs: runs.size,
+                items_missing_from_a_run: missing,
+                items_not_comparable: items.size,
+                threshold_good: good_threshold,
+                threshold_average: average_threshold
+              },
+              message: "[ERROR] The #{runs.size} runs share no item to compare " \
+                       "(#{items.size} item(s) appeared in one run only)"
+            }
+          end
 
+          # +values+ arrives already compacted: the runs that answered for this
+          # item, and at least two of them.
+          def keyed_item_score(values, tolerance, max_std_dev)
             numeric = values.map { |v| v.is_a?(Numeric) ? v : v.to_s.length }
             if tolerance
               calculate_spread_score((numeric.max - numeric.min).round(3), tolerance)

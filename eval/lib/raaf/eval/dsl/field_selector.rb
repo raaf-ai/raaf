@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "json"
 require "active_support/core_ext/hash/indifferent_access"
 require_relative "field_context"
 
@@ -134,6 +135,24 @@ module RAAF
           ActiveSupport::HashWithIndifferentAccess.new(hash)
         end
 
+        # A JSON object encoded as a string, so a path can keep walking into it.
+        # Anything else — plain prose, an array, malformed JSON — is not a hash
+        # and the caller raises as before.
+        #
+        # @param value [Object]
+        # @return [ActiveSupport::HashWithIndifferentAccess, nil]
+        def parse_nested_json(value)
+          return nil unless value.is_a?(String)
+
+          text = value.strip
+          return nil unless text.start_with?("{")
+
+          parsed = JSON.parse(text)
+          parsed.is_a?(Hash) ? ensure_indifferent_access(parsed) : nil
+        rescue JSON::ParserError
+          nil
+        end
+
         # Recursive helper to extract values with wildcard support
         # @param parts [Array<String>] Remaining path parts to traverse
         # @param current [Object] Current value being traversed
@@ -167,6 +186,18 @@ module RAAF
 
               extract_value_recursive(remaining, current[part], full_path)
 
+            elsif (parsed = parse_nested_json(current))
+              # A span does not always record the response as a Hash. RAAF
+              # stores agent.final_agent_response as the agent handed it over,
+              # and an agent whose result_transform has not run yet — or whose
+              # provider returned the JSON as text — records the object as a
+              # string. Measured on FeedbackDistillation, 14 of 43 production
+              # spans carried result as a String, and every evaluation of them
+              # aborted here, which is why the policy produced no rows at all
+              # rather than a mix. Ai::Evaluators::RecordedResponse already
+              # encodes this rule for evaluators that select the whole
+              # response; this puts it on the field paths too.
+              extract_value_recursive(parts, parsed, full_path)
             else
               raise FieldNotFoundError,
                     "Expected hash at '#{part}' in '#{full_path}', got #{current.class}"
