@@ -784,4 +784,53 @@ RSpec.describe RAAF::Logger do
     end
   end
 end
+
+# A Rails app can touch RAAF.logger while it boots, before Rails.logger is set.
+# Whatever adapter that first call gets must not stick: in production it was
+# the console fallback, so every RAAF error went to stdout and none reached the
+# Rails logger's broadcasts (AppSignal) for the life of the process.
+RSpec.describe RAAF::Logging, "choosing the Rails logger" do
+  let(:rails) { Struct.new(:logger).new(nil) }
+  let(:rails_logger) { instance_double(Logger, error: nil) }
+
+  around do |example|
+    configuration = described_class.instance_variable_get(:@configuration)
+    logger = described_class.instance_variable_get(:@logger)
+    described_class.instance_variable_set(:@configuration, nil)
+    described_class.instance_variable_set(:@logger, nil)
+
+    begin
+      example.run
+    ensure
+      described_class.instance_variable_set(:@configuration, configuration)
+      described_class.instance_variable_set(:@logger, logger)
+    end
+  end
+
+  before do
+    stub_const("Rails", rails)
+    # raaf-rails defines RAAF::Rails, which a bare `Rails` inside RAAF resolves to.
+    stub_const("RAAF::Rails", Module.new)
+    described_class.configure do |c|
+      c.log_output = :rails
+      c.log_level = :info
+    end
+  end
+
+  it "uses the Rails logger once it exists, even if asked before it did" do
+    expect { described_class.error("too early") }.to output(/too early/).to_stdout
+
+    rails.logger = rails_logger
+    described_class.error("Prospeo failed")
+
+    expect(rails_logger).to have_received(:error).with(a_string_including("Prospeo failed"))
+  end
+
+  it "keeps the Rails logger once it has chosen it" do
+    rails.logger = rails_logger
+    described_class.error("first")
+
+    expect(described_class.send(:logger)).to equal(described_class.send(:logger))
+  end
+end
 # rubocop:enable RSpec/MultipleDescribes

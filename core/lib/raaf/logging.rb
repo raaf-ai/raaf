@@ -482,8 +482,24 @@ module RAAF
         { debug: 0, info: 1, warn: 2, error: 3, fatal: 4 }[level.to_sym] || 1
       end
 
+      # `::Rails`, never a bare `Rails`: inside RAAF that resolves to RAAF::Rails
+      # once raaf-rails is loaded, which has no logger, so every message fell back
+      # to stdout and none reached the Rails logger's broadcasts (AppSignal),
+      # errors included. And the console fallback a Rails app gets while
+      # Rails.logger is still unset is not memoized, so it cannot pin the process
+      # to stdout either.
       def logger
-        @logger ||= create_logger
+        return @logger if @logger
+
+        adapter = create_logger
+        @logger = adapter unless rails_logger_pending?
+        adapter
+      end
+
+      def rails_logger_pending?
+        return false if %i[file console].include?(configuration.log_output)
+
+        defined?(::Rails) && !(::Rails.respond_to?(:logger) && ::Rails.logger)
       end
 
       def create_logger
@@ -500,7 +516,7 @@ module RAAF
       end
 
       def auto_logger
-        if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
+        if defined?(::Rails) && ::Rails.respond_to?(:logger) && ::Rails.logger
           rails_logger
         else
           console_logger
@@ -508,8 +524,8 @@ module RAAF
       end
 
       def rails_logger
-        if defined?(Rails) && Rails.respond_to?(:logger) && Rails.logger
-          RailsLoggerAdapter.new(Rails.logger, configuration)
+        if defined?(::Rails) && ::Rails.respond_to?(:logger) && ::Rails.logger
+          RailsLoggerAdapter.new(::Rails.logger, configuration)
         else
           console_logger
         end
