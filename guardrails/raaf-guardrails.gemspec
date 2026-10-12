@@ -35,7 +35,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "faraday", "~> 2.0"
   spec.add_dependency "json", "~> 2.0"
   spec.add_dependency "raaf-core", "0.1.0"
-  spec.add_dependency "ruby-openai", "~> 7.0"
+  spec.add_dependency "ruby-openai", ">= 7.0", "< 9.0"
   spec.add_dependency "unicode-display_width", "~> 2.0"
 
   # Optional dependencies for specific providers

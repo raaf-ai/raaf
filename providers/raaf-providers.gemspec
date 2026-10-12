@@ -44,7 +44,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "json", "~> 2.0"
   # In mono-repo, raaf-core is referenced by path in Gemfile
   # spec.add_dependency "raaf-core", "~> 0.1"
-  spec.add_dependency "ruby-openai", "~> 7.0"
+  spec.add_dependency "ruby-openai", ">= 7.0", "< 9.0"
 
   # Development dependencies
   spec.add_development_dependency "rake", "~> 13.0"
